@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -383,11 +384,162 @@ func TestSetupWithConfig(t *testing.T) {
 }
 
 // TestMockHTTPInstance exercises MockHTTPInstance
+// It runs serially, as several cases change the working directory
 func TestMockHTTPInstance(t *testing.T) {
-	b := new(binance.Exchange)
-	require.NoError(t, Setup(b), "Test exchange Setup must not error")
-	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
-	require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
+	// The test config is loaded once per binary, so it is loaded here before any case leaves the package directory
+	_, err := testConfig()
+	require.NoError(t, err, "testConfig must not error")
+	s, err := getMockHTTPServer(httpMockFile)
+	require.NoError(t, err, "getMockHTTPServer must not error")
+
+	t.Run("with and without an optional path", func(t *testing.T) {
+		b := new(binance.Exchange)
+		require.NoError(t, Setup(b), "Test exchange Setup must not error")
+		require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+		require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
+	})
+
+	t.Run("exchanges share the recording's server with clients of their own", func(t *testing.T) {
+		// The requester refuses a client that another requester uses, so the second exchange's mock also shows its client
+		// is its own
+		for range 2 {
+			e := new(binance.Exchange)
+			require.NoError(t, Setup(e), "Test exchange Setup must not error")
+			require.NoError(t, MockHTTPInstance(e), "MockHTTPInstance must not error")
+			u, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+			require.NoError(t, err, "GetURL must not error")
+			assert.True(t, strings.HasPrefix(u, s.url), "MockHTTPInstance should point each exchange at the recording's one server")
+		}
+	})
+
+	t.Run("exchange without a requester", func(t *testing.T) {
+		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance should return the error setting the client")
+	})
+
+	t.Run("invalid recording", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "testdata"), 0o700), "Mkdir must not error")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, httpMockFile), []byte("{"), 0o600), "WriteFile must not error")
+		t.Chdir(dir)
+		assert.ErrorContains(t, MockHTTPInstance(new(binance.Exchange)), "not valid JSON", "MockHTTPInstance should return the recording's error")
+	})
+
+	t.Run("missing recording", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		e := new(binance.Exchange)
+		require.NoError(t, Setup(e), "Test exchange Setup must not error")
+		require.NoError(t, MockHTTPInstance(e), "MockHTTPInstance must not error for a missing recording")
+		assert.FileExists(t, httpMockFile, "MockHTTPInstance should create an empty recording")
+	})
+
+	// useServer makes server the one for the recording in a working directory of the case's own
+	useServer := func(t *testing.T, server *mockHTTPServer) {
+		t.Helper()
+		t.Chdir(t.TempDir())
+		abs, err := filepath.Abs(httpMockFile)
+		require.NoError(t, err, "Abs must not error")
+		mockHTTPServersMu.Lock()
+		defer mockHTTPServersMu.Unlock()
+		mockHTTPServers[abs] = func() (*mockHTTPServer, error) { return server, nil }
+	}
+
+	t.Run("server client without a transport to copy", func(t *testing.T) {
+		useServer(t, &mockHTTPServer{client: &http.Client{Transport: http.NewFileTransport(http.Dir(t.TempDir()))}})
+		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), errMockHTTPTransport, "MockHTTPInstance should return the client's error")
+	})
+
+	badURL := &mockHTTPServer{url: "http://%zz", client: s.client}
+	for _, tc := range []struct {
+		name    string
+		postfix []string
+	}{
+		{name: "server URL that cannot take a path", postfix: []string{"api"}},
+		{name: "server URL an endpoint refuses"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			useServer(t, badURL)
+			e := new(binance.Exchange)
+			require.NoError(t, Setup(e), "Test exchange Setup must not error")
+			var urlErr *url.Error
+			assert.ErrorAs(t, MockHTTPInstance(e, tc.postfix...), &urlErr, "MockHTTPInstance should return the server URL's error")
+		})
+	}
+}
+
+func TestGetMockHTTPServer(t *testing.T) {
+	t.Parallel()
+	s, err := getMockHTTPServer(httpMockFile)
+	require.NoError(t, err, "getMockHTTPServer must not error")
+	require.NotNil(t, s, "getMockHTTPServer must return a server")
+
+	t.Run("same recording by its absolute path", func(t *testing.T) {
+		t.Parallel()
+		abs, err := filepath.Abs(httpMockFile)
+		require.NoError(t, err, "Abs must not error")
+		again, err := getMockHTTPServer(abs)
+		require.NoError(t, err, "getMockHTTPServer must not error for the recording's absolute path")
+		assert.Same(t, s, again, "getMockHTTPServer should return the server it started for the same recording")
+	})
+
+	t.Run("another recording, read once", func(t *testing.T) {
+		t.Parallel()
+		recording := filepath.Join(t.TempDir(), "http.json")
+		require.NoError(t, os.WriteFile(recording, []byte(`{"routes":{}}`), 0o600), "WriteFile must not error")
+		other, err := getMockHTTPServer(recording)
+		require.NoError(t, err, "getMockHTTPServer must not error for another recording")
+		assert.NotEqual(t, s.url, other.url, "getMockHTTPServer should start a server for each recording")
+
+		require.NoError(t, os.WriteFile(recording, []byte("{"), 0o600), "WriteFile must not error")
+		again, err := getMockHTTPServer(recording)
+		require.NoError(t, err, "getMockHTTPServer must not read a recording again once its server has started")
+		assert.Same(t, other, again, "getMockHTTPServer should return the server it started for the recording")
+	})
+
+	t.Run("invalid recording", func(t *testing.T) {
+		t.Parallel()
+		invalid := filepath.Join(t.TempDir(), "invalid.json")
+		require.NoError(t, os.WriteFile(invalid, []byte("{"), 0o600), "WriteFile must not error")
+		_, err := getMockHTTPServer(invalid)
+		assert.ErrorContains(t, err, "not valid JSON", "getMockHTTPServer should return the recording's error")
+	})
+}
+
+func TestMockHTTPServerNewClient(t *testing.T) {
+	t.Parallel()
+	s, err := getMockHTTPServer(httpMockFile)
+	require.NoError(t, err, "getMockHTTPServer must not error")
+
+	t.Run("client and transport of its own", func(t *testing.T) {
+		t.Parallel()
+		c, err := s.newClient()
+		require.NoError(t, err, "newClient must not error")
+		other, err := s.newClient()
+		require.NoError(t, err, "newClient must not error")
+		assert.NotSame(t, c, other, "newClient should return a new client each time")
+		assert.NotSame(t, c.Transport, other.Transport, "newClient should give each client a transport of its own")
+		assert.NotSame(t, s.client.Transport, c.Transport, "newClient should not hand out the server client's own transport")
+	})
+
+	t.Run("reaches the server", func(t *testing.T) {
+		t.Parallel()
+		c, err := s.newClient()
+		require.NoError(t, err, "newClient must not error")
+		t.Cleanup(c.CloseIdleConnections)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, s.url, http.NoBody)
+		require.NoError(t, err, "NewRequestWithContext must not error")
+		resp, err := c.Do(req)
+		require.NoError(t, err, "Do must reach the server through the copied transport")
+		assert.NoError(t, resp.Body.Close(), "Close should not error")
+		// The recording here has no routes, so the server answers every path with not found
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode, "the server should answer from the recording")
+	})
+
+	t.Run("server client without a *http.Transport", func(t *testing.T) {
+		t.Parallel()
+		noTransport := &mockHTTPServer{client: &http.Client{Transport: http.NewFileTransport(http.Dir(t.TempDir()))}}
+		_, err := noTransport.newClient()
+		assert.ErrorIs(t, err, errMockHTTPTransport, "newClient should error when the server's client has no *http.Transport")
+	})
 }
 
 // TestMockWebsocketInstance exercises MockWebsocketInstance

@@ -8,39 +8,36 @@ import (
 	v20 "github.com/thrasher-corp/gocryptotrader/config/versions/v20"
 )
 
+const (
+	previousDefaults = `{"RestSpotURL":"https://api.lbkex.com"}`
+	currentDefaults  = `{"RestSpotURL":"https://api.lbank.info","RestUSDTMarginedFuturesURL":"https://lbkperp.lbank.com","WebsocketSpotURL":"wss://api.lbank.info/ws/V2/"}`
+)
+
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"*"}, new(v20.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
+	assert.Equal(t, []string{"*"}, new(v20.Version).Exchanges(), "Exchanges should return every exchange, so LBank matches in any case")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-
-	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
-	t.Run("migrates GateIO named in any case", func(t *testing.T) {
-		t.Parallel()
-		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-				out, err := new(v20.Version).UpgradeExchange(t.Context(), in)
-				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
-			})
-		}
-	})
-	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
-		t.Parallel()
-		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-				out, err := new(v20.Version).UpgradeExchange(t.Context(), in)
-				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
-			})
-		}
-	})
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v20.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v20.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+		})
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -48,71 +45,71 @@ func TestUpgradeExchange(t *testing.T) {
 		exp  string
 	}{
 		{
-			name: "old defaults are removed and the unchanged testnet default is kept",
-			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			name: "the previous default is removed",
+			in:   `{"RestSpotURL":"https://api.lbkex.com"}`,
+			exp:  `{}`,
 		},
 		{
-			name: "custom endpoints lose the version prefix",
-			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws"}`,
+			name: "a custom endpoint is kept",
+			in:   `{"RestSpotURL":"https://proxy.example/lbank"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/lbank"}`,
 		},
 		{
-			name: "custom endpoints without the prefix are kept",
-			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			name: "a variant of the previous default is the user's choice and is kept",
+			in:   `{"RestSpotURL":"https://api.lbkex.com/"}`,
+			exp:  `{"RestSpotURL":"https://api.lbkex.com/"}`,
 		},
 		{
-			name: "unrelated endpoints are kept",
-			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			name: "the current default and other endpoints are kept",
+			in:   `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
+			exp:  `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
+		},
+		{
+			name: "a placeholder is kept",
+			in:   `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v20.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
+			out, err := new(v20.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
+			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoint")
 		})
 	}
 
-	in := []byte(`{"name":"GateIO","api":{}}`)
-	out, err := new(v20.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
-	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
-
-	_, err = new(v20.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	t.Run("no urlEndpoints", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank","api":{}}`)
+		out, err := new(v20.Version).UpgradeExchange(ctx, in)
+		require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+		assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v20.Version).UpgradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	})
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-
-	t.Run("migrates GateIO named in any case", func(t *testing.T) {
-		t.Parallel()
-		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
-				out, err := new(v20.Version).DowngradeExchange(t.Context(), in)
-				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
-			})
-		}
-	})
-	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
-		t.Parallel()
-		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
-		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
-				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
-				out, err := new(v20.Version).DowngradeExchange(t.Context(), in)
-				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
-			})
-		}
-	})
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v20.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "DowngradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v20.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+		})
+	}
 
 	for _, tc := range []struct {
 		name string
@@ -120,40 +117,60 @@ func TestDowngradeExchange(t *testing.T) {
 		exp  string
 	}{
 		{
-			name: "new defaults are removed and the unchanged testnet default is kept",
-			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			name: "the current defaults are removed",
+			in:   currentDefaults,
+			exp:  `{}`,
 		},
 		{
-			name: "custom endpoints regain the version prefix",
-			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
+			name: "custom endpoints are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
 		},
 		{
-			name: "endpoints already carrying the prefix and placeholders are kept",
-			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			name: "the previous default and other endpoints are kept",
+			in:   `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
+			exp:  `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v20.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
+			out, err := new(v20.Version).DowngradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
+			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
 
-	_, err := new(v20.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	t.Run("no api", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank"}`)
+		out, err := new(v20.Version).DowngradeExchange(ctx, in)
+		require.NoError(t, err, "DowngradeExchange must not error when api is missing")
+		assert.Equal(t, string(in), string(out), "DowngradeExchange should not change a config without endpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v20.Version).DowngradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"WebsocketSpotURL":true}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	})
 }
 
-// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged, and the previous default comes back
+// as the previous version's default
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`)
-	up, err := new(v20.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error")
-	down, err := new(v20.Version).DowngradeExchange(t.Context(), up)
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		in   string
+	}{
+		{"custom endpoint", `{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/lbank"}}}`},
+		{"default endpoint", `{"name":"Lbank","api":{"urlEndpoints":{}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			up, err := new(v20.Version).UpgradeExchange(ctx, []byte(tc.in))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v20.Version).DowngradeExchange(ctx, up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, tc.in, string(down), "a config should round trip unchanged")
+		})
+	}
 }

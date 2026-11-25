@@ -1,112 +1,73 @@
-// Package v20 moves GateIO's REST API version prefix out of its configured endpoints and into its request paths.
+// Package v20 moves LBank's REST endpoint from its previous default host to the host LBank documents now.
 package v20
 
 import (
 	"context"
-	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"errors"
 	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version is an ExchangeVersion for GateIO REST endpoints, which no longer carry the API version prefix
+// Version is an ExchangeVersion for LBank's endpoints
 type Version struct{}
 
 const (
-	apiVersionPrefix = "/api/v4"
-	// nonDefaultPlaceholder marks an endpoint the user has not configured, which the exchange skips
-	nonDefaultPlaceholder = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	restSpotKey     = "RestSpotURL"
+	previousRESTURL = "https://api.lbkex.com"
+	currentRESTURL  = "https://api.lbank.info"
 )
 
-// endpoint is a GateIO REST endpoint key with its default before and after this version
-type endpoint struct {
-	key        string
-	oldDefault string
-	newDefault string
+// currentDefaults are the endpoints this version defaults to; the previous version has no contract or websocket endpoint
+var currentDefaults = map[string]string{
+	restSpotKey:                  currentRESTURL,
+	"RestUSDTMarginedFuturesURL": "https://lbkperp.lbank.com",
+	"WebsocketSpotURL":           "wss://api.lbank.info/ws/V2/",
 }
 
-// endpoints lists the REST endpoints GateIO prefixes with the API version. The testnet default never carried the
-// prefix and is unchanged, so only a custom testnet endpoint changes.
-var endpoints = []endpoint{
-	{key: "RestSpotURL", oldDefault: "https://api.gateio.ws/api/v4/", newDefault: "https://api.gateio.ws"},
-	{key: "RestFuturesURL", oldDefault: "https://fx-api.gateio.ws/api/v4/", newDefault: "https://fx-api.gateio.ws"},
-	{key: "RestSpotSupplementaryURL", oldDefault: "https://fx-api-testnet.gateio.ws", newDefault: "https://fx-api-testnet.gateio.ws"},
-}
-
-// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts GateIO's in
-// any case; UpgradeExchange and DowngradeExchange pick out GateIO themselves
+// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts LBank's in
+// any case; UpgradeExchange and DowngradeExchange pick out LBank themselves
 func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange removes the old default endpoints, so the new defaults apply, and strips the version prefix from
-// custom endpoints, since GateIO now adds it to every request path
+// UpgradeExchange removes LBank's REST endpoint when it is the previous default, so the current default applies. The
+// previous host still serves the same API, so an endpoint the user set to anything else is kept
 func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isGateIO(e) {
+	if !isLBank(e) {
 		return e, nil
 	}
-	for _, ep := range endpoints {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
-		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			continue
-		}
-		if err != nil {
-			return e, err
-		}
-		if url == ep.oldDefault {
-			if ep.oldDefault != ep.newDefault {
-				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
-			}
-			continue
-		}
-		if base := strings.TrimSuffix(url, "/"); strings.HasSuffix(base, apiVersionPrefix) {
-			if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(base, apiVersionPrefix)); err != nil {
-				return e, err
-			}
-		}
-	}
-	return e, nil
-}
-
-// DowngradeExchange removes the new default endpoints, so the old defaults apply, and restores the version prefix to
-// custom endpoints, since earlier versions expect each endpoint to carry it
-func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isGateIO(e) {
+	url, err := jsonparser.GetString(e, "api", "urlEndpoints", restSpotKey)
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
 		return e, nil
-	}
-	for _, ep := range endpoints {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
-		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			continue
-		}
-		if err != nil {
-			return e, err
-		}
-		if url == ep.newDefault {
-			if ep.oldDefault != ep.newDefault {
-				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
-			}
-			continue
-		}
-		if url == "" || url == nonDefaultPlaceholder || strings.HasSuffix(strings.TrimSuffix(url, "/"), apiVersionPrefix) {
-			continue
-		}
-		if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(url, "/")+apiVersionPrefix+"/"); err != nil {
-			return e, err
-		}
-	}
-	return e, nil
-}
-
-// isGateIO reports whether an exchange config is GateIO's, matching its name in any case
-func isGateIO(e []byte) bool {
-	name, err := jsonparser.GetString(e, "name")
-	return err == nil && strings.EqualFold(name, "GateIO")
-}
-
-func setEndpoint(e []byte, key, url string) ([]byte, error) {
-	v, err := json.Marshal(url)
-	if err != nil {
+	case err != nil:
 		return e, err
+	case url == previousRESTURL:
+		e = jsonparser.Delete(e, "api", "urlEndpoints", restSpotKey)
 	}
-	return jsonparser.Set(e, v, "api", "urlEndpoints", key)
+	return e, nil
+}
+
+// DowngradeExchange removes LBank's endpoints that are at this version's defaults, so the previous version's defaults
+// apply: its REST host, and no contract or websocket endpoint, which it would warn it has no default for
+func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isLBank(e) {
+		return e, nil
+	}
+	for key, def := range currentDefaults {
+		url, err := jsonparser.GetString(e, "api", "urlEndpoints", key)
+		switch {
+		case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		case err != nil:
+			return e, err
+		case url == def:
+			e = jsonparser.Delete(e, "api", "urlEndpoints", key)
+		}
+	}
+	return e, nil
+}
+
+// isLBank reports whether an exchange config is LBank's, matching its name in any case as the engine does
+func isLBank(e []byte) bool {
+	name, err := jsonparser.GetString(e, "name")
+	return err == nil && strings.EqualFold(name, "Lbank")
 }
