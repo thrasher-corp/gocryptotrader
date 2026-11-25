@@ -1,51 +1,73 @@
-// Package v20 removes the obsolete configurable gRPC timestamp precision.
+// Package v20 moves LBank's REST endpoint from its previous default host to the host LBank documents now.
 package v20
 
 import (
 	"context"
 	"errors"
-	"fmt"
+	"strings"
 
 	"github.com/buger/jsonparser"
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// Version implements ConfigVersion for the gRPC timestamp migration.
+// Version is an ExchangeVersion for LBank's endpoints
 type Version struct{}
 
-// UpgradeConfig removes the timestamp precision setting because protobuf
-// timestamps now preserve nanoseconds without configuration.
-func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	return jsonparser.Delete(config, "remoteControl", "gRPC", "timeInNanoSeconds"), nil
+const (
+	restSpotKey     = "RestSpotURL"
+	previousRESTURL = "https://api.lbkex.com"
+	currentRESTURL  = "https://api.lbank.info"
+)
+
+// currentDefaults are the endpoints this version defaults to; the previous version has no contract or websocket endpoint
+var currentDefaults = map[string]string{
+	restSpotKey:                  currentRESTURL,
+	"RestUSDTMarginedFuturesURL": "https://lbkperp.lbank.com",
+	"WebsocketSpotURL":           "wss://api.lbank.info/ws/V2/",
 }
 
-// DowngradeConfig restores the legacy default expected by older releases, as the
-// upgrade discarded any configured precision. An explicitly supplied boolean is
-// preserved, and other non-null values return an error.
-func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	_, valueType, _, err := jsonparser.Get(config, "remoteControl", "gRPC")
+// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts LBank's in
+// any case; UpgradeExchange and DowngradeExchange pick out LBank themselves
+func (*Version) Exchanges() []string { return []string{"*"} }
+
+// UpgradeExchange removes LBank's REST endpoint when it is the previous default, so the current default applies. The
+// previous host still serves the same API, so an endpoint the user set to anything else is kept
+func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isLBank(e) {
+		return e, nil
+	}
+	url, err := jsonparser.GetString(e, "api", "urlEndpoints", restSpotKey)
 	switch {
 	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, nil
+		return e, nil
 	case err != nil:
-		return config, fmt.Errorf("%w gRPC configuration: %w", common.ErrGettingField, err)
-	case valueType != jsonparser.Object:
-		return config, nil
+		return e, err
+	case url == previousRESTURL:
+		e = jsonparser.Delete(e, "api", "urlEndpoints", restSpotKey)
 	}
+	return e, nil
+}
 
-	_, precisionType, _, err := jsonparser.Get(config, "remoteControl", "gRPC", "timeInNanoSeconds")
-	switch {
-	case err == nil && precisionType == jsonparser.Boolean:
-		return config, nil
-	case err == nil && precisionType != jsonparser.Null:
-		return config, fmt.Errorf("%w: gRPC timestamp precision must be a boolean, got %v", common.ErrTypeAssertFailure, precisionType)
-	case err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrGettingField, err)
+// DowngradeExchange removes LBank's endpoints that are at this version's defaults, so the previous version's defaults
+// apply: its REST host, and no contract or websocket endpoint, which it would warn it has no default for
+func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isLBank(e) {
+		return e, nil
 	}
+	for key, def := range currentDefaults {
+		url, err := jsonparser.GetString(e, "api", "urlEndpoints", key)
+		switch {
+		case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		case err != nil:
+			return e, err
+		case url == def:
+			e = jsonparser.Delete(e, "api", "urlEndpoints", key)
+		}
+	}
+	return e, nil
+}
 
-	updated, err := jsonparser.Set(config, []byte("false"), "remoteControl", "gRPC", "timeInNanoSeconds")
-	if err != nil {
-		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrSettingField, err)
-	}
-	return updated, nil
+// isLBank reports whether an exchange config is LBank's, matching its name in any case as the engine does
+func isLBank(e []byte) bool {
+	name, err := jsonparser.GetString(e, "name")
+	return err == nil && strings.EqualFold(name, "Lbank")
 }

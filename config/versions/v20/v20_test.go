@@ -3,143 +3,174 @@ package v20_test
 import (
 	"testing"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v20 "github.com/thrasher-corp/gocryptotrader/config/versions/v20"
 )
 
-func TestUpgradeConfig(t *testing.T) {
+const (
+	previousDefaults = `{"RestSpotURL":"https://api.lbkex.com"}`
+	currentDefaults  = `{"RestSpotURL":"https://api.lbank.info","RestUSDTMarginedFuturesURL":"https://lbkperp.lbank.com","WebsocketSpotURL":"wss://api.lbank.info/ws/V2/"}`
+)
+
+func TestExchanges(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, []string{"*"}, new(v20.Version).Exchanges(), "Exchanges should return every exchange, so LBank matches in any case")
+}
+
+func TestUpgradeExchange(t *testing.T) {
+	t.Parallel()
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v20.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
+			out, err := new(v20.Version).UpgradeExchange(ctx, in)
+			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+		})
+	}
 
 	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
+		name string
+		in   string
+		exp  string
 	}{
 		{
-			name:     "previous default",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name: "the previous default is removed",
+			in:   `{"RestSpotURL":"https://api.lbkex.com"}`,
+			exp:  `{}`,
 		},
 		{
-			name:     "previous nanosecond selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"custom":"preserved"}}}`,
+			name: "a custom endpoint is kept",
+			in:   `{"RestSpotURL":"https://proxy.example/lbank"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/lbank"}`,
 		},
 		{
-			name:     "missing setting",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name: "a variant of the previous default is the user's choice and is kept",
+			in:   `{"RestSpotURL":"https://api.lbkex.com/"}`,
+			exp:  `{"RestSpotURL":"https://api.lbkex.com/"}`,
 		},
 		{
-			name:     "missing gRPC configuration",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
+			name: "the current default and other endpoints are kept",
+			in:   `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
+			exp:  `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
+		},
+		{
+			name: "a placeholder is kept",
+			in:   `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v20.Version).UpgradeConfig(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "UpgradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove, and only remove, the obsolete timestamp setting")
+			out, err := new(v20.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoint")
 		})
 	}
+
+	t.Run("no urlEndpoints", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank","api":{}}`)
+		out, err := new(v20.Version).UpgradeExchange(ctx, in)
+		require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+		assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v20.Version).UpgradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	})
 }
 
-func TestDowngradeConfig(t *testing.T) {
+func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
+	// Cases outside the table run serially and in order, so a migration keeping state between calls fails them
+	ctx := t.Context()
+	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
+		t.Run("LBank named "+name+" is migrated", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v20.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "DowngradeExchange should migrate %s", name)
+		})
+	}
+	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
+		t.Run("exchange named "+name+" is left unchanged", func(t *testing.T) {
+			in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
+			out, err := new(v20.Version).DowngradeExchange(ctx, in)
+			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+			assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+		})
+	}
 
 	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
-		errs     []error
-		errField string
+		name string
+		in   string
+		exp  string
 	}{
 		{
-			name:     "gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":false}}}`,
+			name: "the current defaults are removed",
+			in:   currentDefaults,
+			exp:  `{}`,
 		},
 		{
-			name:     "explicit seconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
+			name: "custom endpoints are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
 		},
 		{
-			name:     "explicit nanoseconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-		},
-		{
-			name:     "null selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":null}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-		},
-		{
-			name:     "numeric selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":1}}}`,
-			errs:     []error{common.ErrTypeAssertFailure},
-			errField: "gRPC timestamp precision",
-		},
-		{
-			name:     "string selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":"true"}}}`,
-			errs:     []error{common.ErrTypeAssertFailure},
-			errField: "gRPC timestamp precision",
-		},
-		{
-			name:     "missing gRPC configuration remains absent",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
-		},
-		{
-			name:     "non-object gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":null}}`,
-			expected: `{"remoteControl":{"gRPC":null}}`,
-		},
-		{
-			name:     "malformed gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":`,
-			errs:     []error{common.ErrGettingField, jsonparser.MalformedJsonError},
-			errField: "gRPC configuration",
-		},
-		{
-			name:     "malformed timestamp precision",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`,
-			errs:     []error{common.ErrGettingField, jsonparser.UnknownValueTypeError},
-			errField: "gRPC timestamp precision",
+			name: "the previous default and other endpoints are kept",
+			in:   `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
+			exp:  `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v20.Version).DowngradeConfig(t.Context(), []byte(tc.input))
-			if len(tc.errs) != 0 {
-				for _, want := range tc.errs {
-					require.ErrorIs(t, err, want, "DowngradeConfig must return the expected error")
-				}
-				require.ErrorContains(t, err, tc.errField, "DowngradeConfig must name the field it failed to read")
-				assert.Equal(t, tc.input, string(output), "DowngradeConfig should return the original configuration on error")
-				return
-			}
-			require.NoError(t, err, "DowngradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default without overriding explicit settings")
+			out, err := new(v20.Version).DowngradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
+
+	t.Run("no api", func(t *testing.T) {
+		in := []byte(`{"name":"Lbank"}`)
+		out, err := new(v20.Version).DowngradeExchange(ctx, in)
+		require.NoError(t, err, "DowngradeExchange must not error when api is missing")
+		assert.Equal(t, string(in), string(out), "DowngradeExchange should not change a config without endpoints")
+	})
+	t.Run("non-string endpoint", func(t *testing.T) {
+		_, err := new(v20.Version).DowngradeExchange(ctx, []byte(`{"name":"Lbank","api":{"urlEndpoints":{"WebsocketSpotURL":true}}}`))
+		assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	})
 }
 
-func TestRegisteredMigration(t *testing.T) {
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged, and the previous default comes back
+// as the previous version's default
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-
-	input := []byte(`{"version":19,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":true}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`)
-	upgraded, err := versions.Manager.Deploy(t.Context(), input, 20)
-	require.NoError(t, err, "Deploy must apply the registered v20 upgrade")
-	assert.JSONEq(t, `{"version":20,"remoteControl":{"gRPC":{"enabled":true}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`, string(upgraded), "Deploy should remove the obsolete setting, preserve HTX and OKX settings and set version 20")
-
-	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 19)
-	require.NoError(t, err, "Deploy must apply the registered v20 downgrade")
-	assert.JSONEq(t, `{"version":19,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`, string(downgraded), "Deploy should restore the legacy default, preserve HTX and OKX settings and set version 19")
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name string
+		in   string
+	}{
+		{"custom endpoint", `{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/lbank"}}}`},
+		{"default endpoint", `{"name":"Lbank","api":{"urlEndpoints":{}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			up, err := new(v20.Version).UpgradeExchange(ctx, []byte(tc.in))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v20.Version).DowngradeExchange(ctx, up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, tc.in, string(down), "a config should round trip unchanged")
+		})
+	}
 }
