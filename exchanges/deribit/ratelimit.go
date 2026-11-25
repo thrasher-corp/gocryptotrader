@@ -11,6 +11,9 @@ const (
 	minMatchingBurst   = 100
 	nonMatchingRate    = 20
 	portfoliMarginRate = 1
+	// Deribit documents 5 a second for its shared ticker and order book limit, but accepts unauthenticated requests at
+	// about one a second
+	tickerOrderBookRate = 1
 	// Weightings
 	matchingWeight = 5
 	standardWeight = 1
@@ -23,6 +26,7 @@ const (
 	blockTradeWriteEPL
 	blockRFQReadEPL
 	blockRFQWriteEPL
+	tickerOrderBookEPL
 )
 
 // GetRateLimits returns the rate limit for the exchange
@@ -36,5 +40,6 @@ func GetRateLimits() request.RateLimitDefinitions {
 		blockTradeWriteEPL:        request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
 		blockRFQReadEPL:           request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
 		blockRFQWriteEPL:          request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
+		tickerOrderBookEPL:        request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, tickerOrderBookRate), standardWeight),
 	}
 }

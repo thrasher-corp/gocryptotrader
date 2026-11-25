@@ -589,12 +589,21 @@ func TestWSRetrieveInstrumentsData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// skipIfSwitchedOff skips a live test whose method Deribit refuses with method_switched_off_by_admin (13025)
+func skipIfSwitchedOff(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && strings.Contains(err.Error(), "method_switched_off_by_admin") {
+		t.Skip("Deribit has temporarily switched off this method")
+	}
+}
+
 func TestGetLastSettlementsByCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLastSettlementsByCurrency(t.Context(), currency.EMPTYCODE, "delivery", "5", 0, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := e.GetLastSettlementsByCurrency(t.Context(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -605,6 +614,7 @@ func TestWSRetrieveLastSettlementsByCurrency(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := e.WSRetrieveLastSettlementsByCurrency(t.Context(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -615,6 +625,7 @@ func TestWSRetrieveLastSettlementsByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	result, err := e.WSRetrieveLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -625,6 +636,7 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	result, err := e.GetLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
