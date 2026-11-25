@@ -251,24 +251,23 @@ type WebsocketWalletUpdate struct {
 	Data         []WebsocketWallet `json:"data"`
 }
 
-// WebsocketWallet is the balance of a unified trading account; its account wide values are in USD and do not apply to
-// isolated margin
+// WebsocketWallet is the balance of a unified trading account; its account wide values do not apply to isolated margin
 type WebsocketWallet struct {
-	AccountType                  string       `json:"accountType"`
-	AccountInitialMarginRate     types.Number `json:"accountIMRate"`
-	AccountMaintenanceMarginRate types.Number `json:"accountMMRate"`
-	TotalEquity                  types.Number `json:"totalEquity"`
-	TotalWalletBalance           types.Number `json:"totalWalletBalance"`
-	TotalMarginBalance           types.Number `json:"totalMarginBalance"`
-	TotalAvailableBalance        types.Number `json:"totalAvailableBalance"`
-	TotalPerpetualUnrealisedPNL  types.Number `json:"totalPerpUPL"`
-	TotalInitialMargin           types.Number `json:"totalInitialMargin"`
-	TotalMaintenanceMargin       types.Number `json:"totalMaintenanceMargin"`
+	AccountType                      string       `json:"accountType"`
+	AccountInitialMarginRate         types.Number `json:"accountIMRate"`
+	AccountMaintenanceMarginRate     types.Number `json:"accountMMRate"`
+	TotalEquityInUSD                 types.Number `json:"totalEquity"`
+	TotalWalletBalanceInUSD          types.Number `json:"totalWalletBalance"`
+	TotalMarginBalanceInUSD          types.Number `json:"totalMarginBalance"`
+	TotalAvailableBalanceInUSD       types.Number `json:"totalAvailableBalance"`
+	TotalPerpetualUnrealisedPNLInUSD types.Number `json:"totalPerpUPL"`
+	TotalInitialMarginInUSD          types.Number `json:"totalInitialMargin"`
+	TotalMaintenanceMarginInUSD      types.Number `json:"totalMaintenanceMargin"`
 	// The by mark price fields repeat the fields above, which Bybit now calculates the same way
 	AccountInitialMarginRateByMarkPrice     types.Number `json:"accountIMRateByMp"`
 	AccountMaintenanceMarginRateByMarkPrice types.Number `json:"accountMMRateByMp"`
-	TotalInitialMarginByMarkPrice           types.Number `json:"totalInitialMarginByMp"`
-	TotalMaintenanceMarginByMarkPrice       types.Number `json:"totalMaintenanceMarginByMp"`
+	TotalInitialMarginByMarkPriceInUSD      types.Number `json:"totalInitialMarginByMp"`
+	TotalMaintenanceMarginByMarkPriceInUSD  types.Number `json:"totalMaintenanceMarginByMp"`
 	// AccountLoanToValue is deprecated
 	AccountLoanToValue types.Number        `json:"accountLTV"`
 	Coins              []WalletBalanceCoin `json:"coin"`

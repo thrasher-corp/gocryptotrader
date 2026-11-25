@@ -42,8 +42,8 @@ type WalletBalance struct {
 	// The ByMarkPrice fields repeat the fields above, which Bybit now also calculates by mark price
 	AccountInitialMarginRateByMarkPrice     types.Number `json:"accountIMRateByMp"`
 	AccountMaintenanceMarginRateByMarkPrice types.Number `json:"accountMMRateByMp"`
-	TotalInitialMarginByMarkPrice           types.Number `json:"totalInitialMarginByMp"`
-	TotalMaintenanceMarginByMarkPrice       types.Number `json:"totalMaintenanceMarginByMp"`
+	TotalInitialMarginByMarkPriceInUSD      types.Number `json:"totalInitialMarginByMp"`
+	TotalMaintenanceMarginByMarkPriceInUSD  types.Number `json:"totalMaintenanceMarginByMp"`
 	// Deprecated: Bybit deprecated AccountLoanToValue
 	AccountLoanToValue types.Number        `json:"accountLTV"`
 	Coin               []WalletBalanceCoin `json:"coin"`

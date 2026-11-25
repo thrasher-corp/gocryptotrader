@@ -193,17 +193,17 @@ type Web3TokenPriceListResponse struct {
 	TokenPriceInfoList []Web3TokenPriceInfo `json:"tokenPriceInfoList"`
 }
 
-// Web3TokenPriceInfo is an on-chain token's market data in USD
+// Web3TokenPriceInfo is an on-chain token's market data; Price is in USD
 type Web3TokenPriceInfo struct {
 	ChainCode    string       `json:"chainCode"`
 	TokenAddress string       `json:"tokenAddress"`
 	Price        types.Number `json:"price"`
 	// Change24Hour is a decimal fraction: 0.15 is +15%
-	Change24Hour types.Number `json:"change24h"`
-	Volume24Hour types.Number `json:"vol24h"`
-	MarketCap    types.Number `json:"marketCap"`
-	Liquidity    types.Number `json:"liquidity"`
-	Holders      types.Number `json:"holders"`
+	Change24Hour      types.Number `json:"change24h"`
+	Volume24HourInUSD types.Number `json:"vol24h"`
+	MarketCapInUSD    types.Number `json:"marketCap"`
+	LiquidityInUSD    types.Number `json:"liquidity"`
+	Holders           types.Number `json:"holders"`
 }
 
 // Web3TokenDetailsResponse holds an on-chain token's project details
@@ -257,12 +257,12 @@ type Web3Asset struct {
 	TokenAmountUSD    types.Number  `json:"tokenAmountUsd"`
 	// TradeFlag is set when the token can be sold with Execute Redeem
 	TradeFlag types.Boolean `json:"tradeFlag"`
-	// PNL, PNLRatio, CostPrice and CostTotalValue are null when there is no cost basis
-	PNL            types.Number `json:"pnl"`
-	PNLRatio       types.Number `json:"pnlRatio"`
-	CostPrice      types.Number `json:"costPrice"`
-	LastPrice      types.Number `json:"lastPrice"`
-	CostTotalValue types.Number `json:"costTotalValue"`
+	// PNLInUSD, PNLRatio, CostPrice and CostTotalValueInUSD are zero when there is no cost basis (Bybit sends null)
+	PNLInUSD            types.Number `json:"pnl"`
+	PNLRatio            types.Number `json:"pnlRatio"`
+	CostPrice           types.Number `json:"costPrice"`
+	LastPrice           types.Number `json:"lastPrice"`
+	CostTotalValueInUSD types.Number `json:"costTotalValue"`
 	// AssetStatus is 0 running, 1 delisting soon or 2 delisted
 	AssetStatus          uint64     `json:"assetStatus"`
 	AnnouncementURL      string     `json:"announcementUrl"`
@@ -395,7 +395,7 @@ type Web3LPPoolInfoResponse struct {
 	PoolAddress string       `json:"poolAddress"`
 	PoolName    string       `json:"poolName"`
 	APY         types.Number `json:"apy"`
-	TVL         types.Number `json:"tvl"`
+	TVLInUSD    types.Number `json:"tvl"`
 	// FeeRate is a decimal fraction: 0.003 is 0.3%
 	FeeRate         types.Number  `json:"feeRate"`
 	Token0Symbol    currency.Code `json:"token0Symbol"`
@@ -487,16 +487,16 @@ type PredictionEventDetailRequest struct {
 
 // PredictionEventDetailResponse holds a prediction market event and its outcome markets
 type PredictionEventDetailResponse struct {
-	EventID     string                  `json:"eventId"`
-	Slug        string                  `json:"slug"`
-	Title       string                  `json:"title"`
-	Description string                  `json:"description"`
-	Category    string                  `json:"category"`
-	EndDate     types.Time              `json:"endDate"`
-	Resolved    bool                    `json:"resolved"`
-	Volume      types.Number            `json:"volume"`
-	Liquidity   types.Number            `json:"liquidity"`
-	Markets     []PredictionEventMarket `json:"markets"`
+	EventID        string                  `json:"eventId"`
+	Slug           string                  `json:"slug"`
+	Title          string                  `json:"title"`
+	Description    string                  `json:"description"`
+	Category       string                  `json:"category"`
+	EndDate        types.Time              `json:"endDate"`
+	Resolved       bool                    `json:"resolved"`
+	VolumeInUSD    types.Number            `json:"volume"`
+	LiquidityInUSD types.Number            `json:"liquidity"`
+	Markets        []PredictionEventMarket `json:"markets"`
 }
 
 // PredictionEventMarket is an outcome market within a prediction event
@@ -506,9 +506,9 @@ type PredictionEventMarket struct {
 	// Price is the outcome's implied probability, from 0 to 1
 	Price types.Number `json:"price"`
 	// Side is 1 for YES or 2 for NO
-	Side      uint64       `json:"side"`
-	Volume    types.Number `json:"volume"`
-	Liquidity types.Number `json:"liquidity"`
+	Side           uint64       `json:"side"`
+	VolumeInUSD    types.Number `json:"volume"`
+	LiquidityInUSD types.Number `json:"liquidity"`
 }
 
 // PredictionOrderEstimateRequest holds the parameters for Get Order Estimate
@@ -533,16 +533,16 @@ type PredictionOrderEstimateResponse struct {
 	// EstimatedReceive is the shares received when buying, or the USDC received when selling
 	EstimatedReceive types.Number `json:"estimatedReceive"`
 	// The payout if the outcome is correct, for buy orders only
-	ToWin     types.Number        `json:"toWin"`
-	FeeAmount types.Number        `json:"feeAmount"`
-	FeeDetail PredictionFeeDetail `json:"feeDetail"`
-	Slippage  types.Number        `json:"slippage"`
+	ToWinInUSDC     types.Number        `json:"toWin"`
+	FeeAmountInUSDC types.Number        `json:"feeAmount"`
+	FeeDetail       PredictionFeeDetail `json:"feeDetail"`
+	Slippage        types.Number        `json:"slippage"`
 }
 
-// PredictionFeeDetail breaks a prediction order's fee down by recipient, in USDC
+// PredictionFeeDetail breaks a prediction order's fee down by recipient
 type PredictionFeeDetail struct {
-	ServerFee     types.Number `json:"serverFee"`
-	PolymarketFee types.Number `json:"polymarketFee"`
+	ServerFeeInUSDC     types.Number `json:"serverFee"`
+	PolymarketFeeInUSDC types.Number `json:"polymarketFee"`
 }
 
 // PredictionBuyRequest holds the parameters for Execute Buy (prediction market)
@@ -601,10 +601,10 @@ type PredictionOrder struct {
 	Side      uint64 `json:"side"`
 	OrderType uint64 `json:"orderType"`
 	// OrderAmount is the USDC invested by a buy, or the shares sold by a sell
-	OrderAmount types.Number `json:"orderAmount"`
-	FilledSize  types.Number `json:"filledSize"`
-	FilledPrice types.Number `json:"filledPrice"`
-	TotalFee    types.Number `json:"totalFee"`
+	OrderAmount    types.Number `json:"orderAmount"`
+	FilledSize     types.Number `json:"filledSize"`
+	FilledPrice    types.Number `json:"filledPrice"`
+	TotalFeeInUSDC types.Number `json:"totalFee"`
 	// Status is 1 pending, 2 filled, 3 partially filled, 4 cancelled or 5 rejected
 	Status    uint64     `json:"status"`
 	CreatedAt types.Time `json:"createdAt"`
@@ -641,14 +641,14 @@ type PredictionPriceHistoryResponse struct {
 	List     []PredictionCandle `json:"list"`
 }
 
-// PredictionCandle is an outcome token's OHLC candle; Volume is in USDC
+// PredictionCandle is an outcome token's OHLC candle
 type PredictionCandle struct {
-	OpenTime types.Time   `json:"openTime"`
-	Open     types.Number `json:"open"`
-	High     types.Number `json:"high"`
-	Low      types.Number `json:"low"`
-	Close    types.Number `json:"close"`
-	Volume   types.Number `json:"volume"`
+	OpenTime     types.Time   `json:"openTime"`
+	Open         types.Number `json:"open"`
+	High         types.Number `json:"high"`
+	Low          types.Number `json:"low"`
+	Close        types.Number `json:"close"`
+	VolumeInUSDC types.Number `json:"volume"`
 }
 
 // PredictionPositionListRequest holds the parameters for Get Position List (prediction market)
@@ -666,19 +666,19 @@ type PredictionPositionListResponse struct {
 	TotalAssetUSD types.Number         `json:"totalAssetUsd"`
 }
 
-// PredictionPosition is an open prediction market position; amounts are in USDC
+// PredictionPosition is an open prediction market position
 type PredictionPosition struct {
-	PositionID   string       `json:"positionId"`
-	TokenID      string       `json:"tokenId"`
-	EventID      string       `json:"eventId"`
-	OutcomeName  string       `json:"outcomeName"`
-	Shares       types.Number `json:"shares"`
-	Cost         types.Number `json:"cost"`
-	AveragePrice types.Number `json:"avgPrice"`
-	CurrentPrice types.Number `json:"currentPrice"`
-	Value        types.Number `json:"value"`
+	PositionID          string       `json:"positionId"`
+	TokenID             string       `json:"tokenId"`
+	EventID             string       `json:"eventId"`
+	OutcomeName         string       `json:"outcomeName"`
+	Shares              types.Number `json:"shares"`
+	CostInUSDC          types.Number `json:"cost"`
+	AveragePrice        types.Number `json:"avgPrice"`
+	CurrentPrice        types.Number `json:"currentPrice"`
+	ValueInUSDC         types.Number `json:"value"`
+	UnrealisedPNLInUSDC types.Number `json:"unrealizedPnl"`
 	// UnrealisedPNLRate is a decimal fraction: 0.107 is 10.7%
-	UnrealisedPNL     types.Number `json:"unrealizedPnl"`
 	UnrealisedPNLRate types.Number `json:"unrealizedPnlRate"`
 	CreatedAt         types.Time   `json:"createdAt"`
 	// Finished is set once the position's event has ended
@@ -703,18 +703,18 @@ type PredictionPositionHistoryResponse struct {
 	Total     uint64                     `json:"total"`
 }
 
-// PredictionClosedPosition is a closed prediction market position; amounts are in USDC
+// PredictionClosedPosition is a closed prediction market position
 type PredictionClosedPosition struct {
-	PositionID      string       `json:"positionId"`
-	TokenID         string       `json:"tokenId"`
-	EventID         string       `json:"eventId"`
-	OutcomeName     string       `json:"outcomeName"`
-	Shares          types.Number `json:"shares"`
-	Cost            types.Number `json:"cost"`
-	AveragePrice    types.Number `json:"avgPrice"`
-	ExitPrice       types.Number `json:"exitPrice"`
-	RealisedPNL     types.Number `json:"realizedPnl"`
-	RealisedPNLRate types.Number `json:"realizedPnlRate"`
+	PositionID        string       `json:"positionId"`
+	TokenID           string       `json:"tokenId"`
+	EventID           string       `json:"eventId"`
+	OutcomeName       string       `json:"outcomeName"`
+	Shares            types.Number `json:"shares"`
+	CostInUSDC        types.Number `json:"cost"`
+	AveragePrice      types.Number `json:"avgPrice"`
+	ExitPrice         types.Number `json:"exitPrice"`
+	RealisedPNLInUSDC types.Number `json:"realizedPnl"`
+	RealisedPNLRate   types.Number `json:"realizedPnlRate"`
 	// Result is 1 for won, 2 for lost or 3 for closed before resolution
 	Result   uint64     `json:"result"`
 	ClosedAt types.Time `json:"closedAt"`
@@ -725,7 +725,7 @@ type PredictionPortfolioSummaryResponse struct {
 	// PositionValueInUSDC is the open positions' market value
 	PositionValueInUSDC types.Number `json:"positionValue"`
 	PositionValueUSD    types.Number `json:"positionValueUsd"`
-	BiggestWin          types.Number `json:"biggestWin"`
+	BiggestWinInUSDC    types.Number `json:"biggestWin"`
 	// WinRate is a decimal fraction: 0.67 is 67%
 	WinRate   types.Number `json:"winRate"`
 	WinCount  uint64       `json:"winCount"`

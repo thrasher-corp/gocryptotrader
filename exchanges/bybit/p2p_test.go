@@ -129,13 +129,13 @@ func TestGetP2POnlineAds(t *testing.T) {
 							Sequence:   1,
 						},
 						BuyAd: P2PSymbolAdConfig{
-							PaymentPeriods: []uint64{
+							PaymentPeriodsInMinutes: []uint64{
 								15,
 								30,
 							},
 						},
 						SellAd: P2PSymbolAdConfig{
-							PaymentPeriods: []uint64{
+							PaymentPeriodsInMinutes: []uint64{
 								15,
 								30,
 								45,
@@ -525,13 +525,13 @@ func TestGetP2PMyAds(t *testing.T) {
 							Sequence:   1,
 						},
 						BuyAd: P2PSymbolAdConfig{
-							PaymentPeriods: []uint64{
+							PaymentPeriodsInMinutes: []uint64{
 								15,
 								30,
 							},
 						},
 						SellAd: P2PSymbolAdConfig{
-							PaymentPeriods: []uint64{
+							PaymentPeriodsInMinutes: []uint64{
 								15,
 								30,
 								45,
@@ -695,13 +695,13 @@ func TestGetP2PMyAdDetails(t *testing.T) {
 					Sequence:   1,
 				},
 				BuyAd: P2PSymbolAdConfig{
-					PaymentPeriods: []uint64{
+					PaymentPeriodsInMinutes: []uint64{
 						15,
 						30,
 					},
 				},
 				SellAd: P2PSymbolAdConfig{
-					PaymentPeriods: []uint64{
+					PaymentPeriodsInMinutes: []uint64{
 						15,
 						30,
 						45,

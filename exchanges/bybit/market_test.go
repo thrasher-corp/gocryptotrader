@@ -1794,14 +1794,14 @@ func TestGetHistoricalVolatility(t *testing.T) {
 	if mockTests {
 		exp := []HistoricalVolatilityResponse{
 			{
-				Period: 7,
-				Value:  0.3200234,
-				Time:   types.Time(time.UnixMilli(1790812800000)),
+				PeriodInDays: 7,
+				Value:        0.3200234,
+				Time:         types.Time(time.UnixMilli(1790812800000)),
 			},
 			{
-				Period: 7,
-				Value:  0.31963075,
-				Time:   types.Time(time.UnixMilli(1790816400000)),
+				PeriodInDays: 7,
+				Value:        0.31963075,
+				Time:         types.Time(time.UnixMilli(1790816400000)),
 			},
 		}
 		assert.Equal(t, exp, result, "GetHistoricalVolatility should decode every field")

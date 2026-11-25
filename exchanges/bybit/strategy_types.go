@@ -161,11 +161,11 @@ type Strategy struct {
 	ArbitrageOrders     []json.RawMessage `json:"arbitrageOrders"`
 	PositionValue       types.Number      `json:"positionValue"`
 	FilledPositionValue types.Number      `json:"filledPositionValue"`
-	// Mode, ParticipationRate, ReferenceWindow and DepthReference are set for POV orders
-	Mode              string       `json:"mode"`
-	ParticipationRate types.Number `json:"participationRate"`
-	ReferenceWindow   types.Number `json:"referenceWindow"`
-	DepthReference    types.Number `json:"depthReference"`
+	// Mode, ParticipationRate, ReferenceWindowInSeconds and DepthReference are set for POV orders
+	Mode                     string       `json:"mode"`
+	ParticipationRate        types.Number `json:"participationRate"`
+	ReferenceWindowInSeconds types.Number `json:"referenceWindow"`
+	DepthReference           types.Number `json:"depthReference"`
 }
 
 // GetStrategyOrderListRequest holds the filters for listing a strategy's orders

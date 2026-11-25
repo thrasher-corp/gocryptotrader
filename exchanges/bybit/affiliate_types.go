@@ -27,8 +27,8 @@ type AffiliateUserListResponse struct {
 	NextPageCursor string          `json:"nextPageCursor"`
 }
 
-// AffiliateUser holds an affiliate's user. Volumes are in USDT and include derivatives, options and spot; trading
-// volumes update at T+1
+// AffiliateUser holds an affiliate's user. Its taker, maker and trade volumes include derivatives, options and spot and
+// update at T+1
 type AffiliateUser struct {
 	UserID string `json:"userId"`
 	// RegisterTime is the registration date, as YYYY-MM-DD
@@ -38,26 +38,26 @@ type AffiliateUser struct {
 	Remarks string `json:"remarks"`
 	IsKYC   bool   `json:"isKyc"`
 	// The 30Day and 365Day fields are only returned when requested; the DepositAmount fields need NeedDeposit
-	TakerVolume30Day    types.Number `json:"takerVol30Day"`
-	MakerVolume30Day    types.Number `json:"makerVol30Day"`
-	TradeVolume30Day    types.Number `json:"tradeVol30Day"`
-	DepositAmount30Day  types.Number `json:"depositAmount30Day"`
-	TakerVolume365Day   types.Number `json:"takerVol365Day"`
-	MakerVolume365Day   types.Number `json:"makerVol365Day"`
-	TradeVolume365Day   types.Number `json:"tradeVol365Day"`
-	DepositAmount365Day types.Number `json:"depositAmount365Day"`
-	// TakerVolume, MakerVolume and TradeVolume cover StartDate to EndDate
-	TakerVolume types.Number `json:"takerVol"`
-	MakerVolume types.Number `json:"makerVol"`
-	TradeVolume types.Number `json:"tradeVol"`
+	TakerVolume30DayInUSDT    types.Number `json:"takerVol30Day"`
+	MakerVolume30DayInUSDT    types.Number `json:"makerVol30Day"`
+	TradeVolume30DayInUSDT    types.Number `json:"tradeVol30Day"`
+	DepositAmount30DayInUSDT  types.Number `json:"depositAmount30Day"`
+	TakerVolume365DayInUSDT   types.Number `json:"takerVol365Day"`
+	MakerVolume365DayInUSDT   types.Number `json:"makerVol365Day"`
+	TradeVolume365DayInUSDT   types.Number `json:"tradeVol365Day"`
+	DepositAmount365DayInUSDT types.Number `json:"depositAmount365Day"`
+	// TakerVolumeInUSDT, MakerVolumeInUSDT and TradeVolumeInUSDT cover StartDate to EndDate
+	TakerVolumeInUSDT types.Number `json:"takerVol"`
+	MakerVolumeInUSDT types.Number `json:"makerVol"`
+	TradeVolumeInUSDT types.Number `json:"tradeVol"`
 	// StartDate and EndDate are the requested period, as YYYY-MM-DD
 	StartDate string `json:"startDate"`
 	EndDate   string `json:"endDate"`
-	// TradFiTradeVolume and CommissionsVolume are only returned for a requested period, for which the 30 and 365 day
-	// TradFi volumes are 0
-	TradFiTradeVolume       types.Number `json:"tradfiTradeVol"`
-	TradFiTradeVolume30Day  types.Number `json:"tradfiTradeVol30Day"`
-	TradFiTradeVolume365Day types.Number `json:"tradfiTradeVol365Day"`
+	// TradFiTradeVolumeInUSDT and CommissionsVolume are only returned for a requested period, for which the 30 and 365
+	// day TradFi volumes are 0
+	TradFiTradeVolumeInUSDT       types.Number `json:"tradfiTradeVol"`
+	TradFiTradeVolume30DayInUSDT  types.Number `json:"tradfiTradeVol30Day"`
+	TradFiTradeVolume365DayInUSDT types.Number `json:"tradfiTradeVol365Day"`
 	// CommissionsVolume, Commissions30Day and Commissions365Day hold the commission earned in each coin
 	CommissionsVolume map[currency.Code]types.Number `json:"commissionsVol"`
 	Commissions30Day  map[currency.Code]types.Number `json:"commissions30Day"`
@@ -73,23 +73,23 @@ type AffiliateUserInfoRequest struct {
 	Business string
 }
 
-// AffiliateUserInfoResponse holds the trading volume, deposits and commissions of an affiliate's user. Volumes are in
-// USDT and include derivatives, options and spot; they cover the user's whole activity on Bybit, not only the
-// activity that earns commission
+// AffiliateUserInfoResponse holds the trading volume, deposits and commissions of an affiliate's user. Volumes include
+// derivatives, options and spot; they cover the user's whole activity on Bybit, not only the activity that earns
+// commission
 type AffiliateUserInfoResponse struct {
 	UID string `json:"uid"`
 	// VIPLevel is the VIP tier, such as 0 (no VIP), 1 to 4 or 99 (VVIP)
-	VIPLevel         string       `json:"vipLevel"`
-	TakerVolume30Day types.Number `json:"takerVol30Day"`
-	MakerVolume30Day types.Number `json:"makerVol30Day"`
-	TradeVolume30Day types.Number `json:"tradeVol30Day"`
-	// DepositAmount30Day updates every 5 minutes
-	DepositAmount30Day types.Number `json:"depositAmount30Day"`
+	VIPLevel               string       `json:"vipLevel"`
+	TakerVolume30DayInUSDT types.Number `json:"takerVol30Day"`
+	MakerVolume30DayInUSDT types.Number `json:"makerVol30Day"`
+	TradeVolume30DayInUSDT types.Number `json:"tradeVol30Day"`
+	// DepositAmount30DayInUSDT updates every 5 minutes
+	DepositAmount30DayInUSDT types.Number `json:"depositAmount30Day"`
 	// The 365Day fields cover the user's lifetime since becoming the affiliate's client
-	TakerVolume365Day   types.Number `json:"takerVol365Day"`
-	MakerVolume365Day   types.Number `json:"makerVol365Day"`
-	TradeVolume365Day   types.Number `json:"tradeVol365Day"`
-	DepositAmount365Day types.Number `json:"depositAmount365Day"`
+	TakerVolume365DayInUSDT   types.Number `json:"takerVol365Day"`
+	MakerVolume365DayInUSDT   types.Number `json:"makerVol365Day"`
+	TradeVolume365DayInUSDT   types.Number `json:"tradeVol365Day"`
+	DepositAmount365DayInUSDT types.Number `json:"depositAmount365Day"`
 	// TotalWalletBalance is the wallet balance range: 1 under 100 USDT, 2 from 100 to under 250 USDT, 3 from 250 to
 	// under 500 USDT, or 4 at least 500 USDT
 	TotalWalletBalance string `json:"totalWalletBalance"`
@@ -98,9 +98,9 @@ type AffiliateUserInfoResponse struct {
 	DepositUpdateTime string `json:"depositUpdateTime"`
 	VolumeUpdateTime  string `json:"volUpdateTime"`
 	// KYCLevel is 0 no KYC, 1 KYC level 1 or 2 KYC level 2; Bybit capitalises its key
-	KYCLevel                uint64       `json:"KycLevel"`
-	TradFiTradeVolume30Day  types.Number `json:"tradfiTradeVol30Day"`
-	TradFiTradeVolume365Day types.Number `json:"tradfiTradeVol365Day"`
+	KYCLevel                      uint64       `json:"KycLevel"`
+	TradFiTradeVolume30DayInUSDT  types.Number `json:"tradfiTradeVol30Day"`
+	TradFiTradeVolume365DayInUSDT types.Number `json:"tradfiTradeVol365Day"`
 	// Commissions30Day and Commissions365Day hold the commission earned in each coin
 	Commissions30Day   map[currency.Code]types.Number `json:"commissions30Day"`
 	Commissions365Day  map[currency.Code]types.Number `json:"commissions365Day"`

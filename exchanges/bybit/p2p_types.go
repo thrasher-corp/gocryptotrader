@@ -134,9 +134,9 @@ type P2PSymbolToken struct {
 	Sequence   uint64        `json:"sequence"`
 }
 
-// P2PSymbolAdConfig holds the payment periods, in minutes, an advertisement on one side may choose from
+// P2PSymbolAdConfig holds the payment periods an advertisement on one side may choose from
 type P2PSymbolAdConfig struct {
-	PaymentPeriods []uint64 `json:"paymentPeriods"`
+	PaymentPeriodsInMinutes []uint64 `json:"paymentPeriods"`
 }
 
 // P2PTradingPreferenceSet holds the requirements an advertisement sets for counterparties

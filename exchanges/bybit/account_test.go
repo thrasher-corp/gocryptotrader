@@ -50,8 +50,8 @@ func TestGetWalletBalance(t *testing.T) {
 					TotalMaintenanceMarginInUSD:             5.3929,
 					AccountInitialMarginRateByMarkPrice:     0.0221,
 					AccountMaintenanceMarginRateByMarkPrice: 0.0049,
-					TotalInitialMarginByMarkPrice:           24.3245,
-					TotalMaintenanceMarginByMarkPrice:       5.3929,
+					TotalInitialMarginByMarkPriceInUSD:      24.3245,
+					TotalMaintenanceMarginByMarkPriceInUSD:  5.3929,
 					AccountLoanToValue:                      0.0012,
 					Coin: []WalletBalanceCoin{
 						{

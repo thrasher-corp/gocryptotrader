@@ -327,18 +327,18 @@ type EarnCouponAwardCard struct {
 	Category  string `json:"category"`
 }
 
-// BYUSDTProductInfoResponse is the BYUSDT product. UserHolding, LeftQuota, CanMint and SavingsBalance are only set for
-// signed requests
+// BYUSDTProductInfoResponse is the BYUSDT product. UserHoldingInBYUSDT, LeftQuota, CanMint and SavingsBalanceInUSDT are
+// only set for signed requests
 type BYUSDTProductInfoResponse struct {
 	ProductID                string        `json:"productId"`
 	Coin                     currency.Code `json:"coin"`
 	MintFeeRateScaledBy1E8   types.Number  `json:"mintFeeRateE8"`
 	RedeemFeeRateScaledBy1E8 types.Number  `json:"redeemFeeRateE8"`
 	MinInvestmentInUSDT      types.Number  `json:"minInvestment"`
-	UserHolding              types.Number  `json:"userHolding"`
+	UserHoldingInBYUSDT      types.Number  `json:"userHolding"`
 	LeftQuota                types.Number  `json:"leftQuota"`
 	CanMint                  bool          `json:"canMint"`
-	SavingsBalance           types.Number  `json:"savingsBalance"`
+	SavingsBalanceInUSDT     types.Number  `json:"savingsBalance"`
 	APRScaledBy1E8           types.Number  `json:"aprE8"`
 	BonusAPRScaledBy1E8      types.Number  `json:"bonusAprE8"`
 	// BonusMaxAmount is the most principal that earns the bonus APR
@@ -404,9 +404,9 @@ type BYUSDTOrder struct {
 
 // BYUSDTPositionInfoResponse is the BYUSDT holding and its yield
 type BYUSDTPositionInfoResponse struct {
-	TotalAmount    types.Number `json:"totalAmount"`
-	TotalYield     types.Number `json:"totalYield"`
-	YesterdayYield types.Number `json:"yesterdayYield"`
+	TotalAmountInBYUSDT types.Number `json:"totalAmount"`
+	TotalYield          types.Number `json:"totalYield"`
+	YesterdayYield      types.Number `json:"yesterdayYield"`
 	// APRScaledBy1E8 and BonusAPRScaledBy1E8 are documented as integers but sent quoted
 	APRScaledBy1E8      types.Number `json:"aprE8"`
 	BonusAPRScaledBy1E8 types.Number `json:"bonusAprE8"`

@@ -304,7 +304,7 @@ func TestGetStrategyList(t *testing.T) {
 					ArbitrageOrders:           []json.RawMessage{},
 					Mode:                      "TradedVolume",
 					ParticipationRate:         25.1,
-					ReferenceWindow:           300,
+					ReferenceWindowInSeconds:  300,
 					DepthReference:            5,
 				},
 			},

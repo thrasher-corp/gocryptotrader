@@ -647,10 +647,10 @@ func TestGetBYUSDTProductInfo(t *testing.T) {
 					MintFeeRateScaledBy1E8:   5000000,
 					RedeemFeeRateScaledBy1E8: 100000,
 					MinInvestmentInUSDT:      100,
-					UserHolding:              588,
+					UserHoldingInBYUSDT:      588,
 					LeftQuota:                999412,
 					CanMint:                  true,
-					SavingsBalance:           1412,
+					SavingsBalanceInUSDT:     1412,
 					APRScaledBy1E8:           1890000,
 					BonusAPRScaledBy1E8:      1000000,
 					BonusMaxAmount:           100000,
@@ -807,7 +807,7 @@ func TestGetBYUSDTPositionInfo(t *testing.T) {
 	require.NoError(t, err, "GetBYUSDTPositionInfo must not error")
 	if mockTests {
 		exp := &BYUSDTPositionInfoResponse{
-			TotalAmount:         696,
+			TotalAmountInBYUSDT: 696,
 			TotalYield:          1.2345,
 			YesterdayYield:      0.1142,
 			APRScaledBy1E8:      60000000,

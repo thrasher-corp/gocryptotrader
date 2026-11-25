@@ -518,9 +518,9 @@ type HistoricalVolatilityRequest struct {
 
 // HistoricalVolatilityResponse holds an option base coin's hourly historical volatility
 type HistoricalVolatilityResponse struct {
-	Period uint64       `json:"period"`
-	Value  types.Number `json:"value"`
-	Time   types.Time   `json:"time"`
+	PeriodInDays uint64       `json:"period"`
+	Value        types.Number `json:"value"`
+	Time         types.Time   `json:"time"`
 }
 
 // InsuranceResponse holds insurance pool balances
