@@ -838,60 +838,72 @@ func TestConnect(t *testing.T) {
 
 	t.Run("batches each connection setup by its own subscription limit", func(t *testing.T) {
 		t.Parallel()
-		m := NewManager()
-		m.exchangeName = "test"
-		m.useMultiConnectionManagement = true
-		m.MaxSubscriptionsPerConnection = 2
-		m.trafficTimeout = time.Minute
-		m.setEnabled(true)
-
-		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
-		}))
-		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
-
-		tests := []struct {
-			filter           string
-			maxSubscriptions int
-			subscriptions    int
-			want             []int
+		for _, managerCase := range []struct {
+			name           string
+			managerLimit   int
+			managerDefault []int
 		}{
-			{"larger limit", 5, 5, []int{5}},
-			{"smaller limit", 1, 2, []int{1, 1}},
-			{"manager default", 0, 3, []int{2, 1}},
-		}
-		for _, tc := range tests {
-			require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
-				URL:              "ws" + srv.URL[len("http"):] + "/ws",
-				MessageFilter:    tc.filter,
-				MaxSubscriptions: tc.maxSubscriptions,
-				Connector: func(ctx context.Context, conn Connection) error {
-					return conn.Dial(ctx, dialer, nil, nil)
-				},
-				GenerateSubscriptions: func() (subscription.List, error) {
-					subs := make(subscription.List, tc.subscriptions)
-					for i := range subs {
-						subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
-					}
-					return subs, nil
-				},
-				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
-					return m.AddSuccessfulSubscriptions(c, s...)
-				},
-				Handler: func(context.Context, Connection, []byte) error { return nil },
-			}))
-		}
+			{"manager limit", 2, []int{2, 1}},
+			{"no manager limit", 0, []int{3}},
+		} {
+			t.Run(managerCase.name, func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				m.exchangeName = "test"
+				m.useMultiConnectionManagement = true
+				m.MaxSubscriptionsPerConnection = managerCase.managerLimit
+				m.trafficTimeout = time.Minute
+				m.setEnabled(true)
 
-		require.NoError(t, m.Connect(t.Context()))
+				srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+				}))
+				t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
-		// Serial rows check the connections straight after Connect; parallel ones run later, when the traffic monitor may have closed them
-		for i, tc := range tests {
-			t.Run(tc.filter, func(t *testing.T) {
-				var got []int
-				for _, conn := range m.snapshotManagedConnections(m.connectionManager[i]) {
-					got = append(got, conn.Subscriptions().Len())
+				tests := []struct {
+					filter           string
+					maxSubscriptions int
+					subscriptions    int
+					want             []int
+				}{
+					{"larger limit", 5, 5, []int{5}},
+					{"smaller limit", 1, 2, []int{1, 1}},
+					{"manager default", 0, 3, managerCase.managerDefault},
 				}
-				assert.Equal(t, tc.want, got, "connections should be batched by the setup's subscription limit")
+				for _, tc := range tests {
+					require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+						URL:              "ws" + srv.URL[len("http"):] + "/ws",
+						MessageFilter:    tc.filter,
+						MaxSubscriptions: tc.maxSubscriptions,
+						Connector: func(ctx context.Context, conn Connection) error {
+							return conn.Dial(ctx, dialer, nil, nil)
+						},
+						GenerateSubscriptions: func() (subscription.List, error) {
+							subs := make(subscription.List, tc.subscriptions)
+							for i := range subs {
+								subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
+							}
+							return subs, nil
+						},
+						Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+							return m.AddSuccessfulSubscriptions(c, s...)
+						},
+						Handler: func(context.Context, Connection, []byte) error { return nil },
+					}))
+				}
+
+				require.NoError(t, m.Connect(t.Context()))
+
+				// Serial rows check the connections straight after Connect; parallel ones run later, when the traffic monitor may have closed them
+				for i, tc := range tests {
+					t.Run(tc.filter, func(t *testing.T) {
+						var got []int
+						for _, conn := range m.snapshotManagedConnections(m.connectionManager[i]) {
+							got = append(got, conn.Subscriptions().Len())
+						}
+						assert.Equal(t, tc.want, got, "connections should be batched by the setup's subscription limit")
+					})
+				}
 			})
 		}
 	})
