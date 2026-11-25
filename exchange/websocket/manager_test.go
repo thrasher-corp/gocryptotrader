@@ -52,6 +52,22 @@ func closeChanNoPanic(ch chan struct{}) {
 	close(ch)
 }
 
+// requireConnectionReport returns the next report, waiting a bounded time on the test's clock: inside a synctest bubble
+// the monitors keep reconnecting, so an unbounded receive never deadlocks and hangs until go test's timeout
+func requireConnectionReport[T ConnectionLost | ConnectionRestored](t *testing.T, ws *Manager) T {
+	t.Helper()
+	var report T
+	select {
+	case payload := <-ws.DataHandler.C:
+		var ok bool
+		report, ok = payload.Data.(T)
+		require.Truef(t, ok, "websocket report must be a %T, not %#v", report, payload.Data)
+	case <-time.After(time.Minute):
+		require.FailNowf(t, "websocket report must arrive", "no %T within %s", report, time.Minute)
+	}
+	return report
+}
+
 func requireNoConnectionReport(t *testing.T, ws *Manager) {
 	t.Helper()
 	select {
@@ -2482,9 +2498,7 @@ func TestMonitorConnection(t *testing.T) {
 	ws.ReadMessageErrors <- errConnectionFault
 	timer = time.NewTimer(time.Second)
 	require.False(t, ws.observeConnection(t.Context(), timer))
-	payload := <-ws.DataHandler.C
-	down, ok := payload.Data.(ConnectionLost)
-	require.True(t, ok, "a fault must relay a ConnectionLost")
+	down := requireConnectionReport[ConnectionLost](t, &ws)
 	require.ErrorIs(t, down.Err, errConnectionFault, "the down must carry the fault")
 	assert.Equal(t, "testDefaultURL", down.URL, "the down should name the default URL")
 
@@ -2545,9 +2559,7 @@ func TestFaultReportsConnectionsLostAndRestored(t *testing.T) {
 
 		downs := make(map[string]ConnectionLost, len(filters))
 		for range filters {
-			payload := <-ws.DataHandler.C
-			down, ok := payload.Data.(ConnectionLost)
-			require.True(t, ok, "a fault must relay ConnectionLost reports")
+			down := requireConnectionReport[ConnectionLost](t, ws)
 			filter, ok := down.MessageFilter.(string)
 			require.True(t, ok, "the down must carry the setup's message filter")
 			downs[filter] = down
@@ -2564,9 +2576,7 @@ func TestFaultReportsConnectionsLostAndRestored(t *testing.T) {
 
 		ups := make(map[string]ConnectionRestored, len(filters))
 		for range filters {
-			payload := <-ws.DataHandler.C
-			up, ok := payload.Data.(ConnectionRestored)
-			require.True(t, ok, "a reconnect must relay ConnectionRestored reports")
+			up := requireConnectionReport[ConnectionRestored](t, ws)
 			filter, ok := up.MessageFilter.(string)
 			require.True(t, ok, "the up must carry the setup's message filter")
 			ups[filter] = up
@@ -2625,16 +2635,12 @@ func TestTrafficTimeoutReportsConnectionsLostAndRestored(t *testing.T) {
 		// No traffic arrives, so the traffic monitor must report every setup down, and the connection monitor must
 		// reconnect and report them up once subscribed again.
 		for range filters {
-			payload := <-ws.DataHandler.C
-			down, ok := payload.Data.(ConnectionLost)
-			require.True(t, ok, "a traffic timeout must relay ConnectionLost reports")
+			down := requireConnectionReport[ConnectionLost](t, ws)
 			assert.ErrorIs(t, down.Err, errTrafficTimeout, "the down should carry the traffic timeout")
 			assert.Equal(t, wsURL, down.URL, "the down should name the setup URL")
 		}
 		for range filters {
-			payload := <-ws.DataHandler.C
-			up, ok := payload.Data.(ConnectionRestored)
-			require.True(t, ok, "a reconnect must relay ConnectionRestored reports")
+			up := requireConnectionReport[ConnectionRestored](t, ws)
 			assert.Equal(t, wsURL, up.URL, "the up should name the same URL as the down")
 		}
 	})
@@ -2689,16 +2695,12 @@ func TestRestoredCarriesCurrentSubscriptions(t *testing.T) {
 		ws.ReadMessageErrors <- fmt.Errorf("%w: test fault", errConnectionFault)
 
 		for range 2 {
-			payload := <-ws.DataHandler.C
-			_, ok := payload.Data.(ConnectionLost)
-			require.True(t, ok, "both setups must be reported lost")
+			requireConnectionReport[ConnectionLost](t, ws)
 		}
 
 		restored := make(map[string]ConnectionRestored, 2)
 		for range 2 {
-			payload := <-ws.DataHandler.C
-			report, ok := payload.Data.(ConnectionRestored)
-			require.True(t, ok, "both reconnected setups must be reported restored")
+			report := requireConnectionReport[ConnectionRestored](t, ws)
 			filter, ok := report.MessageFilter.(string)
 			require.True(t, ok, "the restored report must carry the setup's message filter")
 			restored[filter] = report
@@ -2798,15 +2800,11 @@ func TestSingleConnectionReportsLostAndRestored(t *testing.T) {
 		requireNoConnectionReport(t, ws)
 		ws.ReadMessageErrors <- fmt.Errorf("%w: test fault", errConnectionFault)
 
-		payload := <-ws.DataHandler.C
-		down, ok := payload.Data.(ConnectionLost)
-		require.True(t, ok, "a fault must relay a ConnectionLost")
+		down := requireConnectionReport[ConnectionLost](t, ws)
 		assert.Equal(t, defaultURL, down.URL, "the down should name the default URL, not the running URL")
 		assert.Nil(t, down.MessageFilter, "single-connection mode has no message filter")
 
-		payload = <-ws.DataHandler.C
-		up, ok := payload.Data.(ConnectionRestored)
-		require.True(t, ok, "a reconnect must relay a ConnectionRestored")
+		up := requireConnectionReport[ConnectionRestored](t, ws)
 		assert.Equal(t, down.URL, up.URL, "the up should name the same connection as the down")
 		assert.NotEqual(t, ws.GetWebsocketURL(), up.URL, "the running URL changed between the reports")
 		require.Len(t, up.Subscriptions, 4, "the restored report must carry the subscriptions it holds")
@@ -2836,8 +2834,10 @@ func TestSingleConnectionStalledSubscribeReportsRestored(t *testing.T) {
 		stall := &atomic.Bool{}
 		entered := make(chan struct{})
 		release := make(chan struct{})
+		releaseStall := sync.OnceFunc(func() { close(release) })
+		t.Cleanup(releaseStall) // Runs before the manager cleanup registered above, as that waits for the stalled connect
 		setup.Subscriber = func(subs subscription.List) error {
-			if stall.Load() {
+			if stall.CompareAndSwap(true, false) {
 				close(entered)
 				<-release
 			}
@@ -2865,9 +2865,7 @@ func TestSingleConnectionStalledSubscribeReportsRestored(t *testing.T) {
 		stall.Store(true)
 		ws.ReadMessageErrors <- fmt.Errorf("%w: test fault", errConnectionFault)
 
-		payload := <-ws.DataHandler.C
-		_, ok := payload.Data.(ConnectionLost)
-		require.True(t, ok, "a fault must relay a ConnectionLost")
+		requireConnectionReport[ConnectionLost](t, ws)
 
 		select {
 		case <-entered:
@@ -2877,10 +2875,8 @@ func TestSingleConnectionStalledSubscribeReportsRestored(t *testing.T) {
 		time.Sleep(2 * ws.trafficTimeout)
 		requireNoConnectionReport(t, ws)
 
-		close(release)
-		payload = <-ws.DataHandler.C
-		restored, ok := payload.Data.(ConnectionRestored)
-		require.True(t, ok, "the stalled reconnect must relay a ConnectionRestored once released")
+		releaseStall()
+		restored := requireConnectionReport[ConnectionRestored](t, ws)
 		assert.Equal(t, setup.DefaultURL, restored.URL, "the restored report should name the default URL")
 		synctest.Wait()
 		assert.True(t, ws.IsConnected(), "the restored websocket should not be shut down by a timeout from its stall")
