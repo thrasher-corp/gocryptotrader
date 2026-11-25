@@ -1818,8 +1818,8 @@ func TestSetup(t *testing.T) {
 		require.NoError(t, err, "RootPathFromCWD must not error")
 		saved, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
 		require.NoError(t, err, "ReadFile must read the test configuration")
-		// Version 19 is the last before Binance had derivatives streams
-		saved, err = jsonparser.Set(saved, []byte("19"), "version")
+		// Version 20 is the last before Binance had derivatives streams
+		saved, err = jsonparser.Set(saved, []byte("20"), "version")
 		require.NoError(t, err, "Set must replace the configuration's version")
 		binanceIndex, i := -1, 0
 		_, err = jsonparser.ArrayEach(saved, func(exch []byte, _ jsonparser.ValueType, _ int, _ error) {

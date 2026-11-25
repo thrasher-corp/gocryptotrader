@@ -171,6 +171,58 @@ func newDefaultSetup() *ManagerSetup {
 	}
 }
 
+func TestNewManager(t *testing.T) {
+	t.Parallel()
+
+	t.Run("defaults", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		require.NotNil(t, m.DataHandler, "NewManager must give the manager a DataHandler")
+		assert.Equal(t, jobBuffer, cap(m.DataHandler.C), "NewManager should give the DataHandler the default capacity")
+		assert.NotNil(t, m.ShutdownC, "NewManager should make the shutdown channel")
+		assert.Equal(t, 1, cap(m.TrafficAlert), "NewManager should buffer one traffic alert")
+		assert.Equal(t, 1, cap(m.ReadMessageErrors), "NewManager should buffer one read message error")
+		assert.NotNil(t, m.Match, "NewManager should make the response matcher")
+		assert.NotNil(t, m.subscriptions, "NewManager should make the subscription store")
+		assert.NotNil(t, m.features, "NewManager should make the features")
+		assert.NotNil(t, m.connections, "NewManager should make the connection map")
+	})
+
+	t.Run("data handler capacity option", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager(WithDataHandlerCapacity(7))
+		require.NotNil(t, m.DataHandler, "NewManager must give the manager a DataHandler")
+		assert.Equal(t, 7, cap(m.DataHandler.C), "NewManager should give the DataHandler the capacity an option sets")
+	})
+
+	t.Run("zero data handler capacity keeps the default", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager(WithDataHandlerCapacity(0))
+		require.NotNil(t, m.DataHandler, "NewManager must give the manager a DataHandler")
+		assert.Equal(t, jobBuffer, cap(m.DataHandler.C), "NewManager should keep the default capacity for a zero capacity")
+	})
+}
+
+func TestWithDataHandlerCapacity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sets the capacity", func(t *testing.T) {
+		t.Parallel()
+		m := new(Manager)
+		WithDataHandlerCapacity(3)(m)
+		require.NotNil(t, m.DataHandler, "WithDataHandlerCapacity must set a DataHandler")
+		assert.Equal(t, 3, cap(m.DataHandler.C), "WithDataHandlerCapacity should set the capacity given")
+	})
+
+	t.Run("zero leaves the data handler alone", func(t *testing.T) {
+		t.Parallel()
+		set := stream.NewRelay(2)
+		m := &Manager{DataHandler: set}
+		WithDataHandlerCapacity(0)(m)
+		assert.Same(t, set, m.DataHandler, "WithDataHandlerCapacity should leave the DataHandler alone for a zero capacity")
+	})
+}
+
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Manager

@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 41608,
-    "bytes": 10465949,
+    "allocs": 42599,
+    "bytes": 10783904,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with Binance's options pairs in testdata/configtest.json, gave medians from 41605 to 41631. 0.4% is about 166 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Binance's options pairs in testdata/configtest.json, gave medians from 42599 to 42613. 0.4% is about 170 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -561,12 +561,16 @@
     "allocs": 1,
     "bytes": 128
   },
+  "exchanges/sharedtestvalues.BenchmarkNewTestWebsocket": {
+    "allocs": 15,
+    "bytes": 13552
+  },
   "internal/testing/exchange.BenchmarkSetup": {
-    "allocs": 18301,
-    "bytes": 4122260,
+    "allocs": 18538,
+    "bytes": 4028237,
     "allocs_tolerance": 0.12,
     "bytes_tolerance": 0.08,
-    "reason": "Base.SetConfigPairs walks the config's assets in map order, and each store of an asset's available pairs rebuilds the matcher for every available pair stored so far, so a call's allocations depend on that order. Binance's setup on this branch configures more websocket connections and assets than master's, so the budget is this branch's own: BENCH_FLAGS runs in November 2026 gave 10 medians from 18301 to 19334 allocs/op and from 4122260 to 4290623 B/op. The budget is the lowest median; 12% and 8% put the limits 1163 allocs/op and 161418 B/op above the highest medians measured"
+    "reason": "Base.SetConfigPairs walks the config's assets in map order, and each store of an asset's available pairs rebuilds the matcher for every available pair stored so far, so a call's allocations depend on that order. Binance's setup on this branch configures more websocket connections and assets than master's, so the budget is this branch's own: BENCH_FLAGS runs in November 2026 gave 10 medians from 18538 to 19660 allocs/op and from 4028237 to 4178225 B/op. The budget is the lowest median; 12% and 8% put the limits 1102 allocs/op and 172270 B/op above the highest medians measured"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,
