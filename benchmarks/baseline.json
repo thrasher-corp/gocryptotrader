@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 39976,
-    "bytes": 9963232,
+    "allocs": 40886,
+    "bytes": 10269798,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts in testdata/configtest.json, gave medians from 40883 to 40895. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -573,11 +573,15 @@
     "allocs": 1,
     "bytes": 128
   },
+  "exchanges/sharedtestvalues.BenchmarkNewTestWebsocket": {
+    "allocs": 15,
+    "bytes": 13552
+  },
   "internal/testing/exchange.BenchmarkSetup": {
-    "allocs": 6074,
-    "bytes": 1158932,
+    "allocs": 6071,
+    "bytes": 1035671,
     "allocs_tolerance": 0.0005,
-    "reason": "the median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians from 6074 to 6075 allocs/op, with single samples from 6073 to 6077. 0.05% is three allocations above the budget, which covers that range"
+    "reason": "the median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians of 6071 allocs/op, with single samples from 6070 to 6073. 0.05% is three allocations above the budget, which covers that range"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,
