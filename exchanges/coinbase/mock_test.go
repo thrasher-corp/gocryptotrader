@@ -129,6 +129,15 @@ type derivativesVenue struct {
 	requests []derivativesVenueRequest
 	// overrides holds the response body the mock answers a method with in place of its usual one
 	overrides map[string]json.RawMessage
+	// respond, when set, answers the requests it reports handling, ahead of the overrides
+	respond func(method string, params []byte) (body []byte, handled bool)
+}
+
+// respondWith has the mock answer the requests respond handles with the body it returns for each
+func (v *derivativesVenue) respondWith(respond func(method string, params []byte) ([]byte, bool)) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.respond = respond
 }
 
 // override has the mock answer a method with a response body holding its result or error
@@ -185,8 +194,14 @@ func (v *derivativesVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) erro
 // result returns the response body answering a request, holding its result or error
 func (v *derivativesVenue) result(req *derivativesVenueRequest) (json.RawMessage, error) {
 	v.mu.Lock()
+	respond := v.respond
 	body, ok := v.overrides[req.Method]
 	v.mu.Unlock()
+	if respond != nil {
+		if body, handled := respond(req.Method, req.Params); handled {
+			return json.RawMessage(body), nil
+		}
+	}
 	if ok {
 		return body, nil
 	}

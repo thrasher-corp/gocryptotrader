@@ -2792,7 +2792,15 @@ func (e *Exchange) filterOrders(req *order.MultiOrderRequest, details []order.De
 		return (req.MarginType != margin.Unset && d.MarginType != req.MarginType) ||
 			(tif != order.UnknownTIF && !d.TimeInForce.Is(tif))
 	})
-	return req.Filter(e.Name, details)
+	// Orders are listed as buys and sells, so a long or short side filters by those
+	filter := *req
+	switch {
+	case req.Side.IsLong():
+		filter.Side = order.Buy
+	case req.Side.IsShort():
+		filter.Side = order.Sell
+	}
+	return filter.Filter(e.Name, details)
 }
 
 // GetOrderHistory returns the account's closed orders of an asset, of the request's pairs, or every pair when it names

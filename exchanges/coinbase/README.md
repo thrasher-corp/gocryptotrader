@@ -110,7 +110,8 @@ is replaced before it expires; its private websocket connection authenticates wi
 + `GetOrderInfo` returns an order with its fills, less those a reversal undoes, `GetActiveOrders` an asset's live
   orders, Advanced Trade's pending and queued ones among them, and `GetOrderHistory` its filled, cancelled, expired and
   failed orders, by margin type and time in force too, a good till day filter matching the good till time orders
-  Advanced Trade made of them. Advanced Trade's live orders come from one list of every live status, as an order moving
+  Advanced Trade made of them, and a `BID` or `LONG` side matching buys and an `ASK` or `SHORT` side sells. Advanced
+  Trade's live orders come from one list of every live status, as an order moving
   between statuses would be missing from separate lists; were Coinbase to refuse the list, as its earlier documentation
   said, the open orders are listed after the others, which finds an order accepted or edited between the two lists but
   can miss one whose edit or cancellation is queued between them. An order's last update is its latest fill or accepted

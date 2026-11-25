@@ -3508,6 +3508,269 @@ func orderIDs(orders []order.Detail) []string {
 	return ids
 }
 
+// sideRequests are the sides a request can ask for one side's orders by, each with the side of the orders Coinbase lists
+// that it matches: Buy, Sell, AnySide for both or UnknownSide for neither
+var sideRequests = []struct {
+	side, matches order.Side
+}{
+	{order.AnySide, order.AnySide},
+	{order.Buy, order.Buy},
+	{order.Bid, order.Buy},
+	{order.Long, order.Buy},
+	{order.Sell, order.Sell},
+	{order.Ask, order.Sell},
+	{order.Short, order.Sell},
+	{order.ClosePosition, order.UnknownSide},
+}
+
+// sideListingOrder is an order of a side listing
+type sideListingOrder struct {
+	side order.Side
+	// created and updated are the order's times in seconds after 2026-10-18T00:00:00Z
+	created, updated                                     int
+	partlyFilled, isolated, postOnly, reduceOnly, scaled bool
+}
+
+// sideListing is a side listing's orders, newest first: a sell and a partly filled buy created in the same millisecond;
+// two buys of an isolated margin subaccount created in the same millisecond, the first post only, reduce only and
+// updated after every other order; a partly filled reduce only sell of the subaccount's; and, on Advanced Trade alone,
+// a scaled buy. Advanced Trade has no isolated margin, post only or reduce only flag here
+var sideListing = []sideListingOrder{
+	{side: order.Sell, created: 4, updated: 4},
+	{side: order.Buy, created: 4, updated: 4, partlyFilled: true},
+	{side: order.Buy, created: 3, updated: 6, isolated: true, postOnly: true, reduceOnly: true},
+	{side: order.Buy, created: 3, updated: 3, isolated: true},
+	{side: order.Sell, created: 2, updated: 2, isolated: true, partlyFilled: true, reduceOnly: true},
+	{side: order.Buy, created: 1, updated: 1, scaled: true},
+}
+
+// sideListingIDs are the IDs of each asset's side listing, which sort its buys in neither their listed order nor its
+// reverse, and the orders created together in their listed order
+var sideListingIDs = map[asset.Item][]string{
+	asset.Spot:                {"sell-12", "buy-16", "buy-14", "buy-15", "sell-11", "buy-13"},
+	asset.Futures:             {"sell-22", "buy-26", "buy-24", "buy-25", "sell-21", "buy-23"},
+	asset.CoinMarginedFutures: {"32", "36", "34", "35", "31"},
+	asset.USDCMarginedFutures: {"USDC-42", "USDC-46", "USDC-44", "USDC-45", "USDC-41"},
+}
+
+// sideListingExecuted is the amount a partly filled order of an asset's side listing has executed
+var sideListingExecuted = map[asset.Item]float64{
+	asset.Spot:                0.4,
+	asset.Futures:             1,
+	asset.CoinMarginedFutures: 10,
+	asset.USDCMarginedFutures: 0.001,
+}
+
+// sideListingAt returns the Unix millisecond timestamp seconds after a side listing's epoch
+func sideListingAt(seconds int) string {
+	return strconv.FormatInt(time.Date(2026, 10, 18, 0, 0, seconds, 0, time.UTC).UnixMilli(), 10)
+}
+
+// sideListingAdvancedTradeOrders returns the orders of an Advanced Trade asset's side listing, in a status, as Coinbase
+// lists them, the partly filled ones unfilled when unfilled is set
+func sideListingAdvancedTradeOrders(a asset.Item, status string, unfilled bool) []string {
+	productID, productType, size, filled := "BTC-USD", ProductTypeSpot, "1", "0.4"
+	if a == asset.Futures {
+		productID, productType, size, filled = "BIP-20DEC30-CDE", ProductTypeFuture, "2", "1"
+	}
+	ids := sideListingIDs[a]
+	orders := make([]string, len(ids))
+	for i, id := range ids {
+		o := sideListing[i]
+		side, executed, orderType := OrderSideBuy, "0", OrderTypeLimit
+		if o.side == order.Sell {
+			side = OrderSideSell
+		}
+		if o.partlyFilled && !unfilled {
+			executed = filled
+		}
+		if o.scaled {
+			orderType = OrderTypeScaled
+		}
+		orders[i] = `{"order_id":"` + id + `","product_id":"` + productID + `","product_type":"` + productType + `","side":"` + side + `","status":"` + status + `","order_type":"` + orderType + `","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"` + executed + `","order_configuration":{"limit_limit_gtc":{"base_size":"` + size + `","limit_price":"80000"}}}`
+	}
+	return orders
+}
+
+// sideListingGatewayOrders returns the orders of a perpetual asset's side listing, in a state, as the gateway lists them
+func sideListingGatewayOrders(a asset.Item, state string) []string {
+	instrument, amount, filled := "BTC_USDC-PERPETUAL", "0.002", "0.001"
+	if a == asset.CoinMarginedFutures {
+		instrument, amount, filled = "BTC-PERPETUAL", "20", "10"
+	}
+	ids := sideListingIDs[a]
+	orders := make([]string, len(ids))
+	for i, id := range ids {
+		o := sideListing[i]
+		direction, executed, flags := "buy", "0", ""
+		if o.side == order.Sell {
+			direction = "sell"
+		}
+		if o.partlyFilled {
+			executed = filled
+		}
+		if o.postOnly {
+			flags += `"post_only":true,`
+		}
+		if o.reduceOnly {
+			flags += `"reduce_only":true,`
+		}
+		if o.isolated {
+			flags += `"isolated":true,"user_id":123456,"main_uid":1000,`
+		}
+		orders[i] = `{"order_id":"` + id + `","order_state":"` + state + `","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"` + instrument + `","direction":"` + direction + `","price":80000,"amount":` + amount + `,"filled_amount":` + executed + `,` + flags + `"creation_timestamp":` + sideListingAt(o.created) + `,"last_update_timestamp":` + sideListingAt(o.updated) + `}`
+	}
+	return orders
+}
+
+// sideListingMatches returns the summary of each order of an asset's side listing whose side is matches, or of every
+// order for AnySide, newest first
+func sideListingMatches(a asset.Item, matches order.Side) []string {
+	var exp []string
+	for i, id := range sideListingIDs[a] {
+		o := sideListing[i]
+		if matches != order.AnySide && o.side != matches {
+			continue
+		}
+		orderType, executed := order.Limit, 0.0
+		if o.scaled {
+			orderType = order.UnknownType
+		}
+		if o.partlyFilled {
+			executed = sideListingExecuted[a]
+		}
+		exp = append(exp, id+" "+o.side.String()+" "+orderType.String()+" "+strconv.FormatFloat(executed, 'f', -1, 64))
+	}
+	return exp
+}
+
+// orderSummaries returns the "ID SIDE TYPE EXECUTED" of each order, nil for none
+func orderSummaries(orders []order.Detail) []string {
+	if len(orders) == 0 {
+		return nil
+	}
+	summaries := make([]string, len(orders))
+	for i := range orders {
+		summaries[i] = orders[i].OrderID + " " + orders[i].Side.String() + " " + orders[i].Type.String() + " " + strconv.FormatFloat(orders[i].ExecutedAmount, 'f', -1, 64)
+	}
+	return summaries
+}
+
+// sideListingPage returns the page of an Advanced Trade listing of orders a request's cursor asks for: the first order
+// alone, then the rest
+func sideListingPage(t *testing.T, r *http.Request, orders []string) string {
+	t.Helper()
+	switch cursor := r.URL.Query().Get("cursor"); {
+	case cursor == "" && len(orders) > 1:
+		return `{"orders":[` + orders[0] + `],"has_next":true,"cursor":"page-2"}`
+	case cursor == "page-2":
+		return `{"orders":[` + strings.Join(orders[1:], ",") + `],"has_next":false,"cursor":""}`
+	case cursor != "":
+		assert.Failf(t, "the listing should only ask for its pages", "cursor %q", cursor)
+	}
+	return `{"orders":[` + strings.Join(orders, ",") + `],"has_next":false,"cursor":""}`
+}
+
+// sideListingGateway returns a gateway answering the requests of a perpetual asset's side listing, calling during
+// first: its open orders, the isolated margin subaccount's included; its history, the main account's recent store
+// holding its first two orders in two pages, the subaccount's recent store its sell and, with another set, an order of
+// another instrument it held before, and the subaccount's historical store its two buys; and each cancel with the order
+// cancelled. It reports handling only those methods
+func sideListingGateway(t *testing.T, a asset.Item, another bool, during func()) func(method string, params []byte) (string, bool) {
+	t.Helper()
+	ids := sideListingIDs[a]
+	open := sideListingGatewayOrders(a, "open")
+	cancelled := sideListingGatewayOrders(a, "cancelled")
+	settlement := "USDC"
+	if a == asset.CoinMarginedFutures {
+		settlement = "BTC"
+	}
+	page := func(orders []string, continuation string) string {
+		return `{"jsonrpc":"2.0","result":{"orders":[` + strings.Join(orders, ",") + `],"continuation":"` + continuation + `"}}`
+	}
+	return func(method string, params []byte) (string, bool) {
+		switch method {
+		case "private/get_open_orders":
+			during()
+			assert.JSONEq(t, `{"kind":"future","include_isolated":true}`, string(params), "the open order list should include the isolated margin subaccounts' orders")
+			return `{"jsonrpc":"2.0","result":[` + strings.Join(open, ",") + `]}`, true
+		case "private/get_subaccounts":
+			during()
+			return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null},{"id":123456,"type":"subaccount","isolated":true}]}`, true
+		case "private/get_order_history_by_instrument", "private/get_order_history_by_currency":
+			during()
+			var history struct {
+				Currency        string `json:"currency"`
+				SubaccountID    uint64 `json:"subaccount_id"`
+				Historical      bool   `json:"historical"`
+				Continuation    string `json:"continuation"`
+				IncludeOld      bool   `json:"include_old"`
+				IncludeUnfilled bool   `json:"include_unfilled"`
+			}
+			assert.NoError(t, json.Unmarshal(params, &history), "the history params should decode")
+			assert.True(t, history.IncludeOld && history.IncludeUnfilled, "the history should include old and unfilled orders")
+			switch {
+			case method == "private/get_order_history_by_currency" && history.Currency != settlement:
+			case history.SubaccountID == 0 && history.Historical:
+			case history.SubaccountID == 0 && history.Continuation == "":
+				return page(cancelled[:1], "page-2"), true
+			case history.SubaccountID == 0 && history.Continuation == "page-2":
+				return page(cancelled[1:2], "none"), true
+			case history.SubaccountID == 0:
+				assert.Failf(t, "the history should only ask for its pages", "continuation %q", history.Continuation)
+			case !history.Historical && another:
+				return page([]string{cancelled[4], `{"order_id":"USDC-49","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"SOL_USDC-PERPETUAL","direction":"buy","price":100,"amount":1,"filled_amount":0,"isolated":true,"user_id":123456,"main_uid":1000,"creation_timestamp":` + sideListingAt(0) + `,"last_update_timestamp":` + sideListingAt(0) + `}`}, "none"), true
+			case !history.Historical:
+				return page(cancelled[4:5], "none"), true
+			default:
+				return page(cancelled[2:4], "none"), true
+			}
+			return page(nil, "none"), true
+		case "private/cancel":
+			during()
+			var cancel struct {
+				OrderID string `json:"order_id"`
+			}
+			assert.NoError(t, json.Unmarshal(params, &cancel), "the cancel params should decode")
+			if i := slices.Index(ids, cancel.OrderID); i != -1 {
+				return `{"jsonrpc":"2.0","result":` + cancelled[i] + `}`, true
+			}
+			assert.Failf(t, "the cancel should name an order of the listing", "order %q", cancel.OrderID)
+			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`, true
+		case "private/cancel_all_by_instrument", "private/cancel_all_by_currency", "private/cancel_all":
+			assert.Failf(t, "the orders of a side should be cancelled one at a time", "sent %s", method)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`, true
+		}
+		return "", false
+	}
+}
+
+// newSideListingGatewayExchange returns an exchange whose gateway requests a side listing's gateway answers, over HTTP,
+// or with websocket set over the gateway's authenticated websocket, which needs the mock gateway websocket
+func newSideListingGatewayExchange(t *testing.T, answer func(method string, params []byte) (string, bool), websocket bool) (*Exchange, *derivativesVenue) {
+	t.Helper()
+	if websocket {
+		if !mockTests {
+			t.Skip("the mock gateway websocket answers the side listing")
+		}
+		ex, venue := newDerivativesWebsocketTestExchange(t)
+		require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the side listing's requests")
+		venue.respondWith(func(method string, params []byte) ([]byte, bool) {
+			body, handled := answer(method, params)
+			return []byte(body), handled
+		})
+		return ex, venue
+	}
+	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		if body, handled := answer(req.Method, req.Params); handled {
+			return body
+		}
+		assert.Failf(t, "the side listing should only be asked for its orders", "sent %s", req.Method)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	})
+	return ex, nil
+}
+
 func TestDerivativesOrderHistory(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
@@ -4326,6 +4589,15 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case run
 			assert.Failf(t, "CancelAllOrders should list and cancel orders", "sent %s", req.Method)
 			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
 		})
+		cancelsSent := func() []string {
+			var cancels []string
+			for _, req := range sent() {
+				if req.Method == "private/cancel" {
+					cancels = append(cancels, req.Method+" "+string(req.Params))
+				}
+			}
+			return cancels
+		}
 		// The cases share ex and the requests it records in order, as each reads those sent since the last
 		for _, tc := range []struct {
 			name   string
@@ -4333,6 +4605,13 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case run
 			exp    []string
 		}{
 			{"sell", order.Cancel{Side: order.Sell}, []string{`private/cancel {"order_id":"USDC-2"}`}},
+			{"ask", order.Cancel{Side: order.Ask}, []string{`private/cancel {"order_id":"USDC-2"}`}},
+			{"short", order.Cancel{Side: order.Short}, []string{`private/cancel {"order_id":"USDC-2"}`}},
+			{"buy", order.Cancel{Side: order.Buy}, []string{`private/cancel {"order_id":"USDC-1"}`, `private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`, `private/cancel {"order_id":"USDC-5"}`}},
+			{"bid", order.Cancel{Side: order.Bid}, []string{`private/cancel {"order_id":"USDC-1"}`, `private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`, `private/cancel {"order_id":"USDC-5"}`}},
+			{"long", order.Cancel{Side: order.Long}, []string{`private/cancel {"order_id":"USDC-1"}`, `private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`, `private/cancel {"order_id":"USDC-5"}`}},
+			{"close position", order.Cancel{Side: order.ClosePosition}, nil},
+			{"do nothing", order.Cancel{Side: order.DoNothing}, nil},
 			{"isolated", order.Cancel{MarginType: margin.Isolated}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
 			{"stop limit", order.Cancel{Type: order.StopLimit}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
 			{"stop buy", order.Cancel{Type: order.Stop, Side: order.Buy}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`}},
@@ -4342,16 +4621,30 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case run
 			t.Run(tc.name, func(t *testing.T) {
 				c := tc.cancel
 				c.AssetType, c.Pair = asset.USDCMarginedFutures, testUSDCPerpetual
+				given := c
 				resp, err := ex.CancelAllOrders(t.Context(), &c)
 				require.NoErrorf(t, err, "CancelAllOrders must not error for the %s orders", tc.name)
-				var cancels []string
-				for _, req := range sent() {
-					if req.Method == "private/cancel" {
-						cancels = append(cancels, req.Method+" "+string(req.Params))
-					}
-				}
-				assert.Equalf(t, tc.exp, cancels, "CancelAllOrders should cancel the %s orders alone, one at a time in their scopes", tc.name)
+				assert.Equalf(t, tc.exp, cancelsSent(), "CancelAllOrders should cancel the %s orders alone, one at a time in their scopes", tc.name)
 				assert.Lenf(t, resp.Status, len(tc.exp), "CancelAllOrders should report each %s order cancelled", tc.name)
+				assert.Equalf(t, given, c, "CancelAllOrders should leave the %s request as given", tc.name)
+			})
+		}
+		// The cases share ex and the requests it records in order, as each reads those sent since the last
+		for _, tc := range []struct {
+			name string
+			side order.Side
+			exp  []string
+		}{
+			{"bid", order.Bid, []string{`private/cancel {"order_id":"USDC-1"}`, `private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`, `private/cancel {"order_id":"USDC-5"}`, `private/cancel {"order_id":"USDC-6","isolated":true}`}},
+			{"ask", order.Ask, []string{`private/cancel {"order_id":"USDC-2"}`}},
+		} {
+			t.Run(tc.name+" of every pair", func(t *testing.T) {
+				c := order.Cancel{AssetType: asset.USDCMarginedFutures, Side: tc.side}
+				resp, err := ex.CancelAllOrders(t.Context(), &c)
+				require.NoErrorf(t, err, "CancelAllOrders must not error for the %s orders of every pair", tc.name)
+				assert.Equalf(t, tc.exp, cancelsSent(), "CancelAllOrders should cancel the %s orders of every pair alone, one at a time in their scopes", tc.name)
+				assert.Lenf(t, resp.Status, len(tc.exp), "CancelAllOrders should report each %s order of every pair cancelled", tc.name)
+				assert.Equalf(t, order.Cancel{AssetType: asset.USDCMarginedFutures, Side: tc.side}, c, "CancelAllOrders should leave the request for the %s orders of every pair as given", tc.name)
 			})
 		}
 		// The cases share ex and the requests it records in order, as each reads those sent since the last
@@ -4496,6 +4789,354 @@ func TestCancelAllOrders(t *testing.T) { //nolint:tparallel // the live case run
 		mu.Lock()
 		defer mu.Unlock()
 		assert.ElementsMatch(t, []string{"limit-1", "limit-f"}, cancelled, "CancelAllOrders should cancel only the limit orders")
+	})
+	t.Run("cancels the Advanced Trade orders of a side however it is spelt", func(t *testing.T) {
+		t.Parallel()
+		listed := func(id, side string) string {
+			return `{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"` + side + `","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
+		}
+		for _, tc := range []struct {
+			side order.Side
+			exp  []string
+		}{
+			{order.UnknownSide, []string{"buy-1", "sell-1"}},
+			{order.AnySide, []string{"buy-1", "sell-1"}},
+			{order.Buy, []string{"buy-1"}},
+			{order.Bid, []string{"buy-1"}},
+			{order.Long, []string{"buy-1"}},
+			{order.Sell, []string{"sell-1"}},
+			{order.Ask, []string{"sell-1"}},
+			{order.Short, []string{"sell-1"}},
+			{order.ClosePosition, nil},
+			{order.DoNothing, nil},
+		} {
+			t.Run(tc.side.String(), func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var cancelled []string
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.URL.Path {
+					case "/api/v3/brokerage/orders/historical/batch":
+						body = `{"orders":[` + listed("buy-1", OrderSideBuy) + `,` + listed("sell-1", OrderSideSell) + `],"has_next":false,"cursor":""}`
+					case "/api/v3/brokerage/orders/batch_cancel":
+						var req CancelOrdersWireRequest
+						if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
+							return
+						}
+						mu.Lock()
+						cancelled = append(cancelled, req.OrderIDs...)
+						mu.Unlock()
+						results := make([]string, len(req.OrderIDs))
+						for i, id := range req.OrderIDs {
+							results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+						}
+						body = `{"results":[` + strings.Join(results, ",") + `]}`
+					default:
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				c := &order.Cancel{AssetType: asset.Spot, Side: tc.side}
+				resp, err := ex.CancelAllOrders(t.Context(), c)
+				require.NoErrorf(t, err, "CancelAllOrders must not error for the %s side", tc.side)
+				assert.Equalf(t, order.Cancel{AssetType: asset.Spot, Side: tc.side}, *c, "CancelAllOrders should leave the %s side's request as given", tc.side)
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equalf(t, tc.exp, cancelled, "CancelAllOrders should cancel the %s side's orders alone", tc.side)
+				assert.Lenf(t, resp.Status, len(tc.exp), "CancelAllOrders should report each %s side order", tc.side)
+			})
+		}
+	})
+	t.Run("cancels each asset's orders of a side however it is spelt", func(t *testing.T) {
+		t.Parallel()
+		type sideCase struct {
+			name string
+			side order.Side
+			// matches is the side of the orders the side cancels: Buy, Sell or UnknownSide for none
+			matches order.Side
+		}
+		// Every side GCT names but any side, the backtester's signals among them, and combinations of them
+		var sides []sideCase
+		for side := order.Buy; side <= order.MissingData; side <<= 1 {
+			matches := order.UnknownSide
+			switch side {
+			case order.AnySide:
+				continue
+			case order.Buy, order.Bid, order.Long:
+				matches = order.Buy
+			case order.Sell, order.Ask, order.Short:
+				matches = order.Sell
+			}
+			sides = append(sides, sideCase{side.String(), side, matches})
+		}
+		sides = append(sides,
+			sideCase{"BID and LONG", order.Bid | order.Long, order.Buy},
+			sideCase{"BUY and LONG", order.Buy | order.Long, order.Buy},
+			sideCase{"BUY and BID", order.Buy | order.Bid, order.Buy},
+			sideCase{"ASK and SHORT", order.Ask | order.Short, order.Sell},
+			sideCase{"SELL and ASK", order.Sell | order.Ask, order.Sell},
+			sideCase{"SELL and SHORT", order.Sell | order.Short, order.Sell},
+			sideCase{"BUY and SELL", order.Buy | order.Sell, order.UnknownSide},
+			sideCase{"BID and ASK", order.Bid | order.Ask, order.UnknownSide},
+			sideCase{"BUY and ASK", order.Buy | order.Ask, order.UnknownSide},
+			sideCase{"ANY and BID", order.AnySide | order.Bid, order.UnknownSide},
+			sideCase{"BID and CLOSE_POSITION", order.Bid | order.ClosePosition, order.UnknownSide},
+		)
+		for _, tc := range []struct {
+			name        string
+			a           asset.Item
+			pair        currency.Pair
+			orderType   order.Type
+			marginType  margin.Type
+			timeInForce order.TimeInForce
+			websocket   bool
+		}{
+			{name: "spot", a: asset.Spot},
+			{name: "spot of a pair", a: asset.Spot, pair: currency.NewBTCUSD()},
+			{name: "spot limit orders", a: asset.Spot, orderType: order.Limit},
+			{name: "futures", a: asset.Futures},
+			{name: "coinmarginedfutures", a: asset.CoinMarginedFutures},
+			{name: "coinmarginedfutures of a pair", a: asset.CoinMarginedFutures, pair: testCoinPerpetual},
+			{name: "coinmarginedfutures over the websocket", a: asset.CoinMarginedFutures, pair: testCoinPerpetual, websocket: true},
+			{name: "usdcmarginedfutures", a: asset.USDCMarginedFutures},
+			{name: "usdcmarginedfutures of a pair", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual},
+			{name: "usdcmarginedfutures of any type", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, orderType: order.AnyType},
+			{name: "usdcmarginedfutures limit orders", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, orderType: order.Limit},
+			{name: "usdcmarginedfutures isolated post only orders", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, marginType: margin.Isolated, timeInForce: order.PostOnly},
+			{name: "usdcmarginedfutures over the websocket", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, websocket: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, sc := range sides {
+					t.Run(sc.name, func(t *testing.T) {
+						t.Parallel()
+						given := order.Cancel{AssetType: tc.a, Pair: tc.pair, Type: tc.orderType, MarginType: tc.marginType, TimeInForce: tc.timeInForce, Side: sc.side}
+						c := given
+						during := func() {
+							assert.Equalf(t, given, c, "CancelAllOrders should leave the %s side's %s request as given while it cancels", sc.name, tc.name)
+						}
+						ids := sideListingIDs[tc.a]
+						var expIDs, cancels []string
+						expStatus := make(map[string]string)
+						for i := range ids {
+							o := sideListing[i]
+							if o.side != sc.matches || (tc.orderType == order.Limit && o.scaled) ||
+								(tc.marginType == margin.Isolated && !o.isolated) || (tc.timeInForce == order.PostOnly && !o.postOnly) {
+								continue
+							}
+							expIDs = append(expIDs, ids[i])
+							switch {
+							case isAdvancedTradeAsset(tc.a):
+								expStatus[ids[i]] = order.PendingCancel.String()
+							case o.partlyFilled:
+								expStatus[ids[i]] = order.PartiallyFilledCancelled.String()
+							default:
+								expStatus[ids[i]] = order.Cancelled.String()
+							}
+							if isDerivativesAsset(tc.a) {
+								var isolated string
+								if o.isolated {
+									isolated = `,"isolated":true`
+								}
+								cancels = append(cancels, `private/cancel {"order_id":"`+ids[i]+`"`+isolated+`}`)
+							}
+						}
+						var mu sync.Mutex
+						var batches [][]string
+						var ex *Exchange
+						var sent func() []receivedJSONRPC
+						var venue *derivativesVenue
+						if isAdvancedTradeAsset(tc.a) {
+							open := sideListingAdvancedTradeOrders(tc.a, OrderStatusOpen, false)
+							ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								during()
+								var body string
+								switch r.URL.Path {
+								case "/api/v3/brokerage/orders/historical/batch":
+									body = sideListingPage(t, r, open)
+								case "/api/v3/brokerage/orders/batch_cancel":
+									var req CancelOrdersWireRequest
+									if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
+										return
+									}
+									mu.Lock()
+									batches = append(batches, req.OrderIDs)
+									mu.Unlock()
+									results := make([]string, len(req.OrderIDs))
+									for i, id := range req.OrderIDs {
+										results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+									}
+									body = `{"results":[` + strings.Join(results, ",") + `]}`
+								default:
+									assert.Failf(t, "CancelAllOrders should list and cancel the asset's orders", "requested %s", r.URL.Path)
+									http.NotFound(w, r)
+									return
+								}
+								_, err := w.Write([]byte(body))
+								assert.NoError(t, err, "writing the response should not error")
+							}))
+						} else {
+							answer := sideListingGateway(t, tc.a, false, during)
+							if tc.websocket {
+								ex, venue = newSideListingGatewayExchange(t, answer, true)
+							} else {
+								ex, sent = newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+									body, handled := answer(req.Method, req.Params)
+									assert.Truef(t, handled, "CancelAllOrders should only list and cancel orders, not send %s", req.Method)
+									return body
+								})
+							}
+						}
+						resp, err := ex.CancelAllOrders(t.Context(), &c)
+						require.NoErrorf(t, err, "CancelAllOrders must not error for the %s side's %s orders", sc.name, tc.name)
+						assert.Equalf(t, expStatus, resp.Status, "CancelAllOrders should report each of the %s side's %s orders cancelled alone", sc.name, tc.name)
+						assert.Equalf(t, given, c, "CancelAllOrders should leave the %s side's %s request as given", sc.name, tc.name)
+						switch {
+						case isAdvancedTradeAsset(tc.a):
+							var exp [][]string
+							if len(expIDs) != 0 {
+								exp = [][]string{expIDs}
+							}
+							mu.Lock()
+							defer mu.Unlock()
+							assert.Equalf(t, exp, batches, "CancelAllOrders should cancel the %s side's %s orders alone in one batch", sc.name, tc.name)
+						case tc.websocket:
+							var got []string
+							for _, req := range venue.requestsFor("private/cancel") {
+								got = append(got, req.Method+" "+string(req.Params))
+							}
+							assert.Equalf(t, cancels, got, "CancelAllOrders should cancel the %s side's %s orders alone over the websocket, one at a time in their scopes", sc.name, tc.name)
+						default:
+							var got []string
+							for _, req := range sent() {
+								if req.Method == "private/cancel" {
+									got = append(got, req.Method+" "+string(req.Params))
+								}
+							}
+							assert.Equalf(t, cancels, got, "CancelAllOrders should cancel the %s side's %s orders alone, one at a time in their scopes", sc.name, tc.name)
+						}
+					})
+				}
+			})
+		}
+	})
+	t.Run("cancels the orders of a side from a book of one side", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			a    asset.Item
+			pair currency.Pair
+			// listed are the indices in the asset's side listing of the orders the book holds
+			listed []int
+		}{
+			{"spot sells", asset.Spot, currency.EMPTYPAIR, []int{0, 4}},
+			{"spot buys", asset.Spot, currency.EMPTYPAIR, []int{1, 2}},
+			{"usdcmarginedfutures sells", asset.USDCMarginedFutures, testUSDCPerpetual, []int{0, 4}},
+			{"usdcmarginedfutures buys", asset.USDCMarginedFutures, testUSDCPerpetual, []int{1, 2}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ids := sideListingIDs[tc.a]
+				for _, side := range []order.Side{order.Buy, order.Bid, order.Long} {
+					t.Run(side.String(), func(t *testing.T) {
+						t.Parallel()
+						var exp []string
+						for _, i := range tc.listed {
+							if sideListing[i].side == order.Buy {
+								exp = append(exp, ids[i])
+							}
+						}
+						var mu sync.Mutex
+						var cancelled []string
+						var ex *Exchange
+						if isAdvancedTradeAsset(tc.a) {
+							all := sideListingAdvancedTradeOrders(tc.a, OrderStatusOpen, false)
+							var open []string
+							for _, i := range tc.listed {
+								open = append(open, all[i])
+							}
+							ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								body := sideListingPage(t, r, open)
+								if r.URL.Path == "/api/v3/brokerage/orders/batch_cancel" {
+									var req CancelOrdersWireRequest
+									if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
+										return
+									}
+									mu.Lock()
+									cancelled = append(cancelled, req.OrderIDs...)
+									mu.Unlock()
+									results := make([]string, len(req.OrderIDs))
+									for i, id := range req.OrderIDs {
+										results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+									}
+									body = `{"results":[` + strings.Join(results, ",") + `]}`
+								}
+								_, err := w.Write([]byte(body))
+								assert.NoError(t, err, "writing the response should not error")
+							}))
+						} else {
+							all := sideListingGatewayOrders(tc.a, "open")
+							var open []string
+							for _, i := range tc.listed {
+								open = append(open, all[i])
+							}
+							answer := sideListingGateway(t, tc.a, false, func() {})
+							ex, _ = newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+								if req.Method == "private/get_open_orders" {
+									return `{"jsonrpc":"2.0","result":[` + strings.Join(open, ",") + `]}`
+								}
+								if req.Method == "private/cancel" {
+									var params struct {
+										OrderID string `json:"order_id"`
+									}
+									assert.NoError(t, json.Unmarshal(req.Params, &params), "the cancel params should decode")
+									mu.Lock()
+									cancelled = append(cancelled, params.OrderID)
+									mu.Unlock()
+								}
+								body, handled := answer(req.Method, req.Params)
+								assert.Truef(t, handled, "CancelAllOrders should only list and cancel orders, not send %s", req.Method)
+								return body
+							})
+						}
+						resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: tc.a, Pair: tc.pair, Side: side})
+						require.NoErrorf(t, err, "CancelAllOrders must not error for the %s orders of a book of %s", side, tc.name)
+						assert.Lenf(t, resp.Status, len(exp), "CancelAllOrders should report each %s order of a book of %s", side, tc.name)
+						mu.Lock()
+						defer mu.Unlock()
+						assert.Equalf(t, exp, cancelled, "CancelAllOrders should cancel the %s orders of a book of %s alone", side, tc.name)
+					})
+				}
+			})
+		}
+	})
+	t.Run("reports a gateway order of a side whose cancel is refused", func(t *testing.T) {
+		t.Parallel()
+		ids := sideListingIDs[asset.USDCMarginedFutures]
+		answer := sideListingGateway(t, asset.USDCMarginedFutures, false, func() {})
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			if req.Method == "private/cancel" && strings.Contains(string(req.Params), `"`+ids[1]+`"`) {
+				return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
+			}
+			body, handled := answer(req.Method, req.Params)
+			assert.Truef(t, handled, "CancelAllOrders should only list and cancel orders, not send %s", req.Method)
+			return body
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Side: order.Bid})
+		require.NoError(t, err, "CancelAllOrders must not error when one order's cancel is refused")
+		require.Len(t, resp.Status, 3, "CancelAllOrders must report each buy")
+		assert.Contains(t, resp.Status[ids[1]], "not_open_order", "CancelAllOrders should report the gateway's refusal of the first buy")
+		assert.Equal(t, order.Cancelled.String(), resp.Status[ids[2]], "CancelAllOrders should report the second buy cancelled")
+		assert.Equal(t, order.Cancelled.String(), resp.Status[ids[3]], "CancelAllOrders should report the third buy cancelled")
+		assert.Equal(t, []string{
+			`private/get_open_orders {"kind":"future","include_isolated":true}`,
+			`private/cancel {"order_id":"` + ids[1] + `"}`,
+			`private/cancel {"order_id":"` + ids[2] + `","isolated":true}`,
+			`private/cancel {"order_id":"` + ids[3] + `","isolated":true}`,
+		}, describedRequests(sent()), "CancelAllOrders should cancel the buys one at a time and nothing more")
 	})
 	t.Run("cancels the Advanced Trade orders it lists in batches of up to 100", func(t *testing.T) {
 		t.Parallel()
@@ -5529,6 +6170,12 @@ func TestGetActiveOrders(t *testing.T) {
 			{"pair", order.MultiOrderRequest{Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide}, []string{"USDC-1", "USDC-2", "USDC-3", "USDC-4", "USDC-5"}},
 			{"isolated", order.MultiOrderRequest{MarginType: margin.Isolated, Side: order.AnySide}, []string{"USDC-3", "USDC-6"}},
 			{"cross margin sell", order.MultiOrderRequest{MarginType: margin.Multi, Side: order.Sell}, []string{"USDC-2"}},
+			{"sell", order.MultiOrderRequest{Side: order.Sell}, []string{"USDC-2"}},
+			{"ask", order.MultiOrderRequest{Side: order.Ask}, []string{"USDC-2"}},
+			{"short", order.MultiOrderRequest{Side: order.Short}, []string{"USDC-2"}},
+			{"buy", order.MultiOrderRequest{Side: order.Buy}, []string{"USDC-1", "USDC-3", "USDC-4", "USDC-5", "USDC-6"}},
+			{"bid", order.MultiOrderRequest{Side: order.Bid}, []string{"USDC-1", "USDC-3", "USDC-4", "USDC-5", "USDC-6"}},
+			{"long", order.MultiOrderRequest{Side: order.Long}, []string{"USDC-1", "USDC-3", "USDC-4", "USDC-5", "USDC-6"}},
 			{"post only", order.MultiOrderRequest{TimeInForce: order.PostOnly, Side: order.AnySide}, []string{"USDC-5"}},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -5781,6 +6428,141 @@ func TestGetActiveOrders(t *testing.T) {
 		requested := slices.Clone(productIDs)
 		mu.Unlock()
 		assert.Equal(t, [][]string{{"BTC-USD", "ETH-USD"}}, requested, "GetActiveOrders should list the orders of each pair's product")
+	})
+	t.Run("returns the orders of a side however it is spelt", func(t *testing.T) {
+		t.Parallel()
+		liveStatuses := []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}
+		// advancedTrade lists an asset's open orders in one list of two pages or, with split set, the open orders after the
+		// others, once Coinbase refuses the combined list, the partly filled buy in both, pending and unfilled in the first
+		advancedTrade := func(a asset.Item, split bool) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				open := sideListingAdvancedTradeOrders(a, OrderStatusOpen, false)
+				pending := sideListingAdvancedTradeOrders(a, OrderStatusPending, true)
+				return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					during()
+					assert.False(t, r.URL.Query().Has("order_side"), "GetActiveOrders should list the orders of both sides")
+					var body string
+					switch statuses := r.URL.Query()["order_status"]; {
+					case r.URL.Path == "/api/v3/brokerage/orders/historical/batch" && slices.Equal(statuses, liveStatuses):
+						if split {
+							http.Error(w, `{"error":"INVALID_ARGUMENT","error_details":"order_status OPEN cannot be combined with other statuses","message":"order_status OPEN cannot be combined with other statuses"}`, http.StatusBadRequest)
+							return
+						}
+						body = sideListingPage(t, r, open)
+					case split && r.URL.Path == "/api/v3/brokerage/orders/historical/batch" && slices.Equal(statuses, liveStatuses[1:]):
+						body = sideListingPage(t, r, pending[:2])
+					case split && r.URL.Path == "/api/v3/brokerage/orders/historical/batch" && slices.Equal(statuses, []string{OrderStatusOpen}):
+						body = sideListingPage(t, r, open[1:])
+					default:
+						assert.Failf(t, "GetActiveOrders should only list the asset's live orders", "requested %s with statuses %v", r.URL.Path, statuses)
+						http.Error(w, `{"error":"INVALID_ARGUMENT","message":"unexpected request"}`, http.StatusBadRequest)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+			}
+		}
+		// gateway lists the open orders over HTTP or, with websocket set, over the gateway's authenticated websocket
+		gateway := func(a asset.Item, websocket bool) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				ex, _ := newSideListingGatewayExchange(t, sideListingGateway(t, a, false, during), websocket)
+				return ex
+			}
+		}
+		// refused answers every listing with a refusal
+		refused := func(a asset.Item) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				if isDerivativesAsset(a) {
+					ex, _ := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
+						during()
+						return `{"jsonrpc":"2.0","error":{"code":13009,"message":"unauthorized"}}`
+					})
+					return ex
+				}
+				return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					during()
+					http.Error(w, `{"error":"PERMISSION_DENIED","message":"Missing required scopes"}`, http.StatusForbidden)
+				}))
+			}
+		}
+		for _, tc := range []struct {
+			name        string
+			a           asset.Item
+			newExchange func(*testing.T, func()) *Exchange
+			refused     bool
+		}{
+			{"spot", asset.Spot, advancedTrade(asset.Spot, false), false},
+			{"spot in separate lists", asset.Spot, advancedTrade(asset.Spot, true), false},
+			{"spot refused", asset.Spot, refused(asset.Spot), true},
+			{"futures", asset.Futures, advancedTrade(asset.Futures, false), false},
+			{"futures in separate lists", asset.Futures, advancedTrade(asset.Futures, true), false},
+			{"coinmarginedfutures", asset.CoinMarginedFutures, gateway(asset.CoinMarginedFutures, false), false},
+			{"coinmarginedfutures over the websocket", asset.CoinMarginedFutures, gateway(asset.CoinMarginedFutures, true), false},
+			{"usdcmarginedfutures", asset.USDCMarginedFutures, gateway(asset.USDCMarginedFutures, false), false},
+			{"usdcmarginedfutures over the websocket", asset.USDCMarginedFutures, gateway(asset.USDCMarginedFutures, true), false},
+			{"usdcmarginedfutures refused", asset.USDCMarginedFutures, refused(asset.USDCMarginedFutures), true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, sc := range sideRequests {
+					t.Run(sc.side.String(), func(t *testing.T) {
+						t.Parallel()
+						given := order.MultiOrderRequest{AssetType: tc.a, Side: sc.side, Type: order.AnyType}
+						req := given
+						ex := tc.newExchange(t, func() {
+							assert.Equalf(t, given, req, "GetActiveOrders should leave the %s side's %s request as given while it lists", sc.side, tc.name)
+						})
+						orders, err := ex.GetActiveOrders(t.Context(), &req)
+						if tc.refused {
+							assert.Errorf(t, err, "GetActiveOrders should return the refusal of the %s side's %s orders", sc.side, tc.name)
+							assert.Emptyf(t, orders, "GetActiveOrders should return no %s side's %s orders with the refusal", sc.side, tc.name)
+						} else {
+							require.NoErrorf(t, err, "GetActiveOrders must not error for the %s side's %s orders", sc.side, tc.name)
+							assert.Equalf(t, sideListingMatches(tc.a, sc.matches), orderSummaries(orders), "GetActiveOrders should return the %s side's %s orders as listed, as Coinbase reports them", sc.side, tc.name)
+						}
+						assert.Equalf(t, given, req, "GetActiveOrders should leave the %s side's %s request as given", sc.side, tc.name)
+					})
+				}
+				if tc.refused {
+					return
+				}
+				t.Run("two calls sharing a BID request", func(t *testing.T) {
+					t.Parallel()
+					given := order.MultiOrderRequest{AssetType: tc.a, Side: order.Bid, Type: order.AnyType}
+					req := given
+					ex := tc.newExchange(t, func() {})
+					results := make([][]string, 2)
+					errs := make([]error, 2)
+					var wg sync.WaitGroup
+					for i := range results {
+						wg.Go(func() {
+							var orders order.FilteredOrders
+							orders, errs[i] = ex.GetActiveOrders(t.Context(), &req)
+							results[i] = orderSummaries(orders)
+						})
+					}
+					done := make(chan struct{})
+					go func() {
+						wg.Wait()
+						close(done)
+					}()
+					select {
+					case <-done:
+					case <-time.After(30 * time.Second):
+						require.FailNowf(t, "GetActiveOrders calls sharing a request must return", "the %s calls did not return", tc.name)
+					}
+					for i := range results {
+						require.NoErrorf(t, errs[i], "GetActiveOrders must not error for %s calls sharing a request", tc.name)
+						assert.Equalf(t, sideListingMatches(tc.a, order.Buy), results[i], "GetActiveOrders should return the %s buys to each call sharing a request", tc.name)
+					}
+					assert.Equalf(t, given, req, "GetActiveOrders should leave the %s request its calls share as given", tc.name)
+				})
+			})
+		}
 	})
 }
 
@@ -6149,6 +6931,128 @@ func TestGetOrderHistory(t *testing.T) {
 		defer mu.Unlock()
 		assert.Equal(t, []string{"", "page-2"}, continuations, "GetOrderHistory should page on past a page whose last order was updated at the window's start")
 	})
+	t.Run("returns the orders of a side however it is spelt", func(t *testing.T) {
+		t.Parallel()
+		// advancedTrade lists an asset's closed orders in two pages
+		advancedTrade := func(a asset.Item) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				closed := sideListingAdvancedTradeOrders(a, OrderStatusCancelled, false)
+				return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					during()
+					if r.URL.Path != "/api/v3/brokerage/orders/historical/batch" || r.URL.Query().Has("order_side") {
+						assert.Failf(t, "GetOrderHistory should only list the asset's orders of both sides", "requested %s", r.URL)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(sideListingPage(t, r, closed)))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+			}
+		}
+		// gateway reads the history over HTTP or, with websocket set, over the gateway's authenticated websocket; with
+		// another set, the isolated margin subaccount's recent store also holds an order of another instrument
+		gateway := func(a asset.Item, another, websocket bool) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				ex, _ := newSideListingGatewayExchange(t, sideListingGateway(t, a, another, during), websocket)
+				return ex
+			}
+		}
+		// refused answers every history request with a refusal
+		refused := func(a asset.Item) func(*testing.T, func()) *Exchange {
+			return func(t *testing.T, during func()) *Exchange {
+				t.Helper()
+				if isDerivativesAsset(a) {
+					ex, _ := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
+						during()
+						return `{"jsonrpc":"2.0","error":{"code":13009,"message":"unauthorized"}}`
+					})
+					return ex
+				}
+				return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					during()
+					http.Error(w, `{"error":"PERMISSION_DENIED","message":"Missing required scopes"}`, http.StatusForbidden)
+				}))
+			}
+		}
+		for _, tc := range []struct {
+			name        string
+			a           asset.Item
+			pairs       currency.Pairs
+			newExchange func(*testing.T, func()) *Exchange
+			refused     bool
+		}{
+			{"spot", asset.Spot, nil, advancedTrade(asset.Spot), false},
+			{"spot refused", asset.Spot, nil, refused(asset.Spot), true},
+			{"futures", asset.Futures, nil, advancedTrade(asset.Futures), false},
+			{"coinmarginedfutures", asset.CoinMarginedFutures, nil, gateway(asset.CoinMarginedFutures, false, false), false},
+			{"coinmarginedfutures of a pair", asset.CoinMarginedFutures, currency.Pairs{testCoinPerpetual}, gateway(asset.CoinMarginedFutures, false, false), false},
+			{"coinmarginedfutures over the websocket", asset.CoinMarginedFutures, nil, gateway(asset.CoinMarginedFutures, false, true), false},
+			{"usdcmarginedfutures", asset.USDCMarginedFutures, nil, gateway(asset.USDCMarginedFutures, false, false), false},
+			{"usdcmarginedfutures of a pair", asset.USDCMarginedFutures, currency.Pairs{testUSDCPerpetual}, gateway(asset.USDCMarginedFutures, true, false), false},
+			{"usdcmarginedfutures over the websocket", asset.USDCMarginedFutures, nil, gateway(asset.USDCMarginedFutures, false, true), false},
+			{"usdcmarginedfutures refused", asset.USDCMarginedFutures, nil, refused(asset.USDCMarginedFutures), true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				newRequest := func(side order.Side) order.MultiOrderRequest {
+					return order.MultiOrderRequest{AssetType: tc.a, Pairs: slices.Clone(tc.pairs), Side: side, Type: order.AnyType}
+				}
+				for _, sc := range sideRequests {
+					t.Run(sc.side.String(), func(t *testing.T) {
+						t.Parallel()
+						req := newRequest(sc.side)
+						ex := tc.newExchange(t, func() {
+							assert.Equalf(t, newRequest(sc.side), req, "GetOrderHistory should leave the %s side's %s request as given while it reads the history", sc.side, tc.name)
+						})
+						orders, err := ex.GetOrderHistory(t.Context(), &req)
+						if tc.refused {
+							assert.Errorf(t, err, "GetOrderHistory should return the refusal of the %s side's %s orders", sc.side, tc.name)
+							assert.Emptyf(t, orders, "GetOrderHistory should return no %s side's %s orders with the refusal", sc.side, tc.name)
+						} else {
+							require.NoErrorf(t, err, "GetOrderHistory must not error for the %s side's %s orders", sc.side, tc.name)
+							assert.Equalf(t, sideListingMatches(tc.a, sc.matches), orderSummaries(orders), "GetOrderHistory should return the %s side's %s orders newest first, as Coinbase reports them", sc.side, tc.name)
+						}
+						assert.Equalf(t, newRequest(sc.side), req, "GetOrderHistory should leave the %s side's %s request as given", sc.side, tc.name)
+					})
+				}
+				if tc.refused {
+					return
+				}
+				t.Run("two calls sharing a BID request", func(t *testing.T) {
+					t.Parallel()
+					req := newRequest(order.Bid)
+					ex := tc.newExchange(t, func() {})
+					results := make([][]string, 2)
+					errs := make([]error, 2)
+					var wg sync.WaitGroup
+					for i := range results {
+						wg.Go(func() {
+							var orders order.FilteredOrders
+							orders, errs[i] = ex.GetOrderHistory(t.Context(), &req)
+							results[i] = orderSummaries(orders)
+						})
+					}
+					done := make(chan struct{})
+					go func() {
+						wg.Wait()
+						close(done)
+					}()
+					select {
+					case <-done:
+					case <-time.After(30 * time.Second):
+						require.FailNowf(t, "GetOrderHistory calls sharing a request must return", "the %s calls did not return", tc.name)
+					}
+					for i := range results {
+						require.NoErrorf(t, errs[i], "GetOrderHistory must not error for %s calls sharing a request", tc.name)
+						assert.Equalf(t, sideListingMatches(tc.a, order.Buy), results[i], "GetOrderHistory should return the %s buys to each call sharing a request", tc.name)
+					}
+					assert.Equalf(t, newRequest(order.Bid), req, "GetOrderHistory should leave the %s request its calls share as given", tc.name)
+				})
+			})
+		}
+	})
 }
 
 func TestFilterOrders(t *testing.T) {
@@ -6163,6 +7067,220 @@ func TestFilterOrders(t *testing.T) {
 		got := ex.filterOrders(&order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, TimeInForce: order.GoodTillDay}, placed)
 		require.Len(t, got, 1, "filterOrders must match the order a good till day submission placed")
 		assert.Equal(t, "gtd", got[0].OrderID, "filterOrders should match a good till day request to the good till time order Coinbase reports")
+	})
+	t.Run("matches a long or short side to the buys and sells listed", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperTestExchange(t)
+		placed := time.Date(2026, 10, 18, 1, 0, 0, 0, time.UTC)
+		type sideCase struct {
+			name string
+			side order.Side
+			// matches is the side of the orders the side matches: Buy, Sell, AnySide for both or UnknownSide for neither
+			matches order.Side
+		}
+		// Every side GCT names, the backtester's signals among them, and combinations of them
+		var sides []sideCase
+		for side := order.Buy; side <= order.MissingData; side <<= 1 {
+			matches := order.UnknownSide
+			switch side {
+			case order.Buy, order.Bid, order.Long:
+				matches = order.Buy
+			case order.Sell, order.Ask, order.Short:
+				matches = order.Sell
+			case order.AnySide:
+				matches = order.AnySide
+			}
+			sides = append(sides, sideCase{side.String(), side, matches})
+		}
+		sides = append(sides,
+			sideCase{"BID and LONG", order.Bid | order.Long, order.Buy},
+			sideCase{"BUY and LONG", order.Buy | order.Long, order.Buy},
+			sideCase{"BUY and BID", order.Buy | order.Bid, order.Buy},
+			sideCase{"ASK and SHORT", order.Ask | order.Short, order.Sell},
+			sideCase{"SELL and ASK", order.Sell | order.Ask, order.Sell},
+			sideCase{"SELL and SHORT", order.Sell | order.Short, order.Sell},
+			sideCase{"BUY and SELL", order.Buy | order.Sell, order.UnknownSide},
+			sideCase{"BID and ASK", order.Bid | order.Ask, order.UnknownSide},
+			sideCase{"BUY and ASK", order.Buy | order.Ask, order.UnknownSide},
+			sideCase{"ANY and BID", order.AnySide | order.Bid, order.UnknownSide},
+			sideCase{"BID and CLOSE_POSITION", order.Bid | order.ClosePosition, order.UnknownSide},
+		)
+		for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.CoinMarginedFutures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				for _, sc := range sides {
+					t.Run(sc.name, func(t *testing.T) {
+						t.Parallel()
+						detail := func(id string, side order.Side) order.Detail {
+							return order.Detail{Exchange: ex.Name, OrderID: id, Pair: currency.NewBTCUSD(), AssetType: a, Side: side, Type: order.Limit, Status: order.Open, TimeInForce: order.GoodTillCancel, MarginType: margin.Multi, Date: placed, Price: 80000, Amount: 1, RemainingAmount: 1}
+						}
+						// A sell listed before three buys, which sort by ID in neither their listed order nor its reverse: one partly
+						// filled, one reduce only and the third sized in the quote currency, the first two sharing a client order ID;
+						// then a partly filled reduce only sell. A filter that moves, drops, merges or edits an order changes what it
+						// returns
+						orders := func() []order.Detail {
+							partlyFilled := detail("buy-4", order.Buy)
+							partlyFilled.Status, partlyFilled.ExecutedAmount, partlyFilled.RemainingAmount, partlyFilled.ClientOrderID = order.PartiallyFilled, 0.4, 0.6, "hedge"
+							reduceOnly := detail("buy-3", order.Buy)
+							reduceOnly.ReduceOnly, reduceOnly.ClientOrderID = true, "hedge"
+							quoteSized := detail("buy-5", order.Buy)
+							quoteSized.Status, quoteSized.Amount, quoteSized.QuoteAmount, quoteSized.RemainingAmount = order.Pending, 0, 250, 0
+							sell := detail("sell-1", order.Sell)
+							sell.Status, sell.ExecutedAmount, sell.RemainingAmount, sell.ReduceOnly = order.PartiallyFilled, 0.3, 0.7, true
+							return []order.Detail{detail("sell-2", order.Sell), partlyFilled, reduceOnly, quoteSized, sell}
+						}
+						matching := func(listed []order.Detail) []order.Detail {
+							var matched []order.Detail
+							for i := range listed {
+								if sc.matches == order.AnySide || listed[i].Side == sc.matches {
+									matched = append(matched, listed[i])
+								}
+							}
+							return matched
+						}
+						assertFiltered := func(t *testing.T, exp []order.Detail, got order.FilteredOrders, listing string) {
+							t.Helper()
+							if len(exp) == 0 {
+								assert.Emptyf(t, got, "filterOrders should return no %s side's %s orders from %s", sc.name, a, listing)
+								return
+							}
+							assert.Equalf(t, exp, []order.Detail(got), "filterOrders should return the %s side's %s orders from %s as listed", sc.name, a, listing)
+						}
+						plain := func() order.MultiOrderRequest {
+							return order.MultiOrderRequest{AssetType: a, Side: sc.side, Type: order.AnyType}
+						}
+						for _, tc := range []struct {
+							name   string
+							listed []order.Detail
+						}{
+							{"a listing of sells and buys", orders()},
+							{"a buy alone", orders()[1:2]},
+							{"a sell alone", orders()[:1]},
+							{"no listing", nil},
+							{"an empty listing", []order.Detail{}},
+						} {
+							t.Run(tc.name, func(t *testing.T) {
+								t.Parallel()
+								req := plain()
+								exp := matching(tc.listed)
+								assertFiltered(t, exp, ex.filterOrders(&req, tc.listed), tc.name)
+								assert.Equalf(t, plain(), req, "filterOrders should leave the %s side's %s request as given for %s", sc.name, a, tc.name)
+							})
+						}
+						// A request filtering by every field, over its orders, one placed at the window's end and one of no type GCT
+						// names, and, of each side, an order outside each field's filter
+						for _, tc := range []struct {
+							name                        string
+							marginType, otherMarginType margin.Type
+							timeInForce, otherTimeForce order.TimeInForce
+						}{
+							{"a cross margin request filtering by every field", margin.Multi, margin.Isolated, order.GoodTillCancel, order.ImmediateOrCancel},
+							{"an isolated margin request filtering by every field", margin.Isolated, margin.Multi, order.GoodTillCancel | order.PostOnly, order.GoodTillCancel},
+						} {
+							t.Run(tc.name, func(t *testing.T) {
+								t.Parallel()
+								newRequest := func() order.MultiOrderRequest {
+									return order.MultiOrderRequest{AssetType: a, Pairs: currency.Pairs{currency.NewBTCUSD()}, Side: sc.side, Type: order.Limit, MarginType: tc.marginType, TimeInForce: tc.timeInForce, StartTime: placed.Add(-time.Hour), EndTime: placed.Add(time.Hour)}
+								}
+								inScope := orders()
+								atEnd, untyped := detail("buy-at-end", order.Buy), detail("buy-untyped", order.Buy)
+								atEnd.Date, untyped.Type = placed.Add(time.Hour), order.UnknownType
+								inScope = append(inScope, atEnd, untyped)
+								for i := range inScope {
+									inScope[i].MarginType, inScope[i].TimeInForce = tc.marginType, tc.timeInForce
+								}
+								listed := slices.Clone(inScope)
+								for _, side := range []order.Side{order.Buy, order.Sell} {
+									for _, outside := range []func(*order.Detail){
+										func(d *order.Detail) { d.Pair = testETHUSD },
+										func(d *order.Detail) { d.Type = order.Stop },
+										func(d *order.Detail) { d.MarginType = tc.otherMarginType },
+										func(d *order.Detail) { d.TimeInForce = tc.otherTimeForce },
+										func(d *order.Detail) { d.Date = placed.Add(-2 * time.Hour) },
+										func(d *order.Detail) { d.Date = placed.Add(2 * time.Hour) },
+									} {
+										d := detail("outside-"+strconv.Itoa(len(listed)), side)
+										d.MarginType, d.TimeInForce = tc.marginType, tc.timeInForce
+										outside(&d)
+										listed = append(listed, d)
+									}
+								}
+								req := newRequest()
+								assertFiltered(t, matching(inScope), ex.filterOrders(&req, listed), "a listing with orders outside each field's filter")
+								assert.Equalf(t, newRequest(), req, "filterOrders should leave the %s side's %s request filtering by every field as given", sc.name, a)
+							})
+						}
+						t.Run("a request for two pairs", func(t *testing.T) {
+							t.Parallel()
+							newRequest := func() order.MultiOrderRequest {
+								return order.MultiOrderRequest{AssetType: a, Pairs: currency.Pairs{testETHUSD, currency.NewBTCUSD()}, Side: sc.side, Type: order.AnyType}
+							}
+							listed := orders()
+							other := slices.Clone(listed[:2])
+							for i := range other {
+								other[i].OrderID, other[i].Pair = "eth-"+other[i].OrderID, testETHUSD
+							}
+							listed = append(listed, other...)
+							decoy := detail("ltc-buy", order.Buy)
+							decoy.Pair = currency.NewPair(currency.LTC, currency.USD)
+							req := newRequest()
+							assertFiltered(t, matching(listed), ex.filterOrders(&req, append(slices.Clone(listed), decoy)), "a listing of three pairs")
+							assert.Equalf(t, newRequest(), req, "filterOrders should leave the %s side's %s request for two pairs as given", sc.name, a)
+						})
+						t.Run("a request for the reciprocal pair", func(t *testing.T) {
+							t.Parallel()
+							newRequest := func() order.MultiOrderRequest {
+								return order.MultiOrderRequest{AssetType: a, Pairs: currency.Pairs{currency.NewPair(currency.USD, currency.BTC)}, Side: sc.side, Type: order.AnyType}
+							}
+							req := newRequest()
+							assertFiltered(t, matching(orders()), ex.filterOrders(&req, orders()), "a listing of the reciprocal pair")
+							assert.Equalf(t, newRequest(), req, "filterOrders should leave the %s side's %s request for the reciprocal pair as given", sc.name, a)
+						})
+						t.Run("a good till day post only request", func(t *testing.T) {
+							t.Parallel()
+							newRequest := func() order.MultiOrderRequest {
+								return order.MultiOrderRequest{AssetType: a, Side: sc.side, Type: order.AnyType, TimeInForce: order.GoodTillDay | order.PostOnly}
+							}
+							listed := orders()
+							for i := range listed {
+								listed[i].TimeInForce = order.GoodTillTime | order.PostOnly
+							}
+							// Advanced Trade places a good till day order as good till time; the gateway lists no good till day order
+							var exp []order.Detail
+							if isAdvancedTradeAsset(a) {
+								exp = matching(listed)
+							}
+							req := newRequest()
+							assertFiltered(t, exp, ex.filterOrders(&req, slices.Clone(listed)), "a listing of good till time post only orders")
+							assert.Equalf(t, newRequest(), req, "filterOrders should leave the %s side's %s good till day post only request as given", sc.name, a)
+						})
+						t.Run("calls sharing a request", func(t *testing.T) {
+							t.Parallel()
+							req := plain()
+							results := make([]order.FilteredOrders, 2)
+							var wg sync.WaitGroup
+							for i := range results {
+								wg.Go(func() { results[i] = ex.filterOrders(&req, orders()) })
+							}
+							done := make(chan struct{})
+							go func() {
+								wg.Wait()
+								close(done)
+							}()
+							select {
+							case <-done:
+							case <-time.After(30 * time.Second):
+								require.FailNowf(t, "filterOrders calls sharing a request must return", "the %s side's %s calls did not return", sc.name, a)
+							}
+							for i := range results {
+								assertFiltered(t, matching(orders()), results[i], "a listing filtered by calls sharing a request")
+							}
+							assert.Equalf(t, plain(), req, "filterOrders should leave the %s side's %s request its calls share as given", sc.name, a)
+						})
+					})
+				}
+			})
+		}
 	})
 }
 

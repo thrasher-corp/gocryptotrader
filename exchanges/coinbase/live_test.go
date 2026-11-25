@@ -81,6 +81,9 @@ func (*derivativesVenue) requestsFor(string) []derivativesVenueRequest { return 
 // override does nothing, as nothing answers the requests sent live but the gateway
 func (*derivativesVenue) override(string, []byte) {}
 
+// respondWith does nothing, as nothing answers the requests sent live but the gateway
+func (*derivativesVenue) respondWith(func(string, []byte) ([]byte, bool)) {}
+
 // newDerivativesWebsocketTestExchange returns the exchange connected to the gateway's websocket, which every caller
 // shares, so each must subscribe only to its own channels and unsubscribe them; nothing records the requests sent
 // live, so the venue is nil
