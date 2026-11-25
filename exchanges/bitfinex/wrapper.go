@@ -592,7 +592,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 // getMovementsHistory returns the account's deposits and withdrawals of a currency, or of every currency when it is
 // empty, page by page
 func (e *Exchange) getMovementsHistory(ctx context.Context, c currency.Code) ([]MovementResponse, error) {
-	return pageBack(time.Time{}, time.Time{}, movementsPageLimit, func(end time.Time) ([]MovementResponse, error) {
+	return pageBack(time.Time{}, time.Time{}, movementsPageLimit, func(_, end time.Time) ([]MovementResponse, error) {
 		return e.GetMovements(ctx, &MovementsRequest{Currency: c, End: end, Limit: movementsPageLimit})
 	}, func(m *MovementResponse) uint64 { return m.ID }, func(m *MovementResponse) time.Time { return m.UpdatedAt.Time() })
 }
@@ -659,8 +659,8 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 	if err := common.StartEndTimeCheck(start, end); err != nil {
 		return nil, err
 	}
-	resp, err := pageBack(start, historyEnd(end), tradesPageLimit, func(pageEnd time.Time) ([]trade.Data, error) {
-		return e.getTrades(ctx, p, a, &PublicTradesRequest{Start: start, End: pageEnd, Limit: tradesPageLimit, Sort: -1})
+	resp, err := pageBack(start, historyEnd(end), tradesPageLimit, func(pageStart, pageEnd time.Time) ([]trade.Data, error) {
+		return e.getTrades(ctx, p, a, &PublicTradesRequest{Start: pageStart, End: pageEnd, Limit: tradesPageLimit, Sort: -1})
 	}, func(t *trade.Data) string { return t.TID }, func(t *trade.Data) time.Time { return t.Timestamp })
 	if err != nil {
 		return nil, err
@@ -675,22 +675,25 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 // pageBack returns a history Bitfinex sends newest first, a page of at most limit records at a time, paging back from
 // end to start. Each page ends at its predecessor's oldest record, which both hold and which is kept once. A full page
 // of records all from the millisecond it ends at errors, as no page can reach any more from that millisecond, and so
-// does a server ignoring the end
-func pageBack[T any, K comparable](start, end time.Time, limit int, fetch func(end time.Time) ([]T, error), id func(*T) K, at func(*T) time.Time) ([]T, error) {
+// does a server ignoring the end. Bitfinex refuses a window ending where it starts, so a page ending at the start begins
+// a millisecond earlier, and what it holds from before the start is left out
+func pageBack[T any, K comparable](start, end time.Time, limit int, fetch func(start, end time.Time) ([]T, error), id func(*T) K, at func(*T) time.Time) ([]T, error) {
 	var resp []T
 	seen := make(common.Seen[K])
+	pageStart := start
 	for {
-		page, err := fetch(end)
+		page, err := fetch(pageStart, end)
 		if err != nil {
 			return nil, err
 		}
 		resp = slices.Grow(resp, len(page))
 		oldest := end
 		for i := range page {
-			if t := at(&page[i]); oldest.IsZero() || t.Before(oldest) {
+			t := at(&page[i])
+			if oldest.IsZero() || t.Before(oldest) {
 				oldest = t
 			}
-			if seen.CheckAndRecord(id(&page[i])) {
+			if (pageStart.Before(start) && t.Before(start)) || seen.CheckAndRecord(id(&page[i])) {
 				continue
 			}
 			resp = append(resp, page[i])
@@ -705,6 +708,9 @@ func pageBack[T any, K comparable](start, end time.Time, limit int, fetch func(e
 			return resp, nil
 		}
 		end = oldest
+		if !start.IsZero() && end.Equal(start) {
+			pageStart = start.Add(-time.Millisecond)
+		}
 	}
 }
 
@@ -1420,8 +1426,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	var orders []OrderResponse
 	if len(req.Pairs) == 0 {
 		var err error
-		orders, err = pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]OrderResponse, error) {
-			return e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Start: req.StartTime, End: end, Limit: ordersHistoryPageLimit})
+		orders, err = pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(start, end time.Time) ([]OrderResponse, error) {
+			return e.GetOrdersHistory(ctx, &OrdersHistoryRequest{Start: start, End: end, Limit: ordersHistoryPageLimit})
 		}, orderID, createdAt)
 		if err != nil {
 			return nil, err
@@ -1432,8 +1438,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		pairOrders, err := pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(end time.Time) ([]OrderResponse, error) {
-			return e.GetOrdersHistoryBySymbol(ctx, &OrdersHistoryBySymbolRequest{Symbol: symbol, Start: req.StartTime, End: end, Limit: ordersHistoryPageLimit})
+		pairOrders, err := pageBack(req.StartTime, req.EndTime, ordersHistoryPageLimit, func(start, end time.Time) ([]OrderResponse, error) {
+			return e.GetOrdersHistoryBySymbol(ctx, &OrdersHistoryBySymbolRequest{Symbol: symbol, Start: start, End: end, Limit: ordersHistoryPageLimit})
 		}, orderID, createdAt)
 		if err != nil {
 			return nil, err
@@ -1956,8 +1962,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, err
 	}
 	// The snapshots up to an interval after the window report the rates of the window's last events
-	snapshots, err := pageBack(r.StartDate, historyEnd(r.EndDate.Add(derivativeFundingInterval)), statusHistoryPageLimit, func(pageEnd time.Time) ([]DerivativeStatusResponse, error) {
-		return e.GetDerivativesStatusHistory(ctx, &DerivativesStatusHistoryRequest{Key: symbol, Start: r.StartDate, End: pageEnd, Limit: statusHistoryPageLimit, Sort: -1})
+	snapshots, err := pageBack(r.StartDate, historyEnd(r.EndDate.Add(derivativeFundingInterval)), statusHistoryPageLimit, func(pageStart, pageEnd time.Time) ([]DerivativeStatusResponse, error) {
+		return e.GetDerivativesStatusHistory(ctx, &DerivativesStatusHistoryRequest{Key: symbol, Start: pageStart, End: pageEnd, Limit: statusHistoryPageLimit, Sort: -1})
 	}, func(s *DerivativeStatusResponse) int64 { return s.Time.Time().UnixMilli() }, func(s *DerivativeStatusResponse) time.Time { return s.Time.Time() })
 	if err != nil {
 		return nil, err
@@ -2128,6 +2134,15 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 			return nil, fmt.Errorf("%w: Bitfinex's order history reaches back to %s", futures.ErrOrderHistoryTooLarge, earliest.UTC().Format(time.RFC3339))
 		}
 		start = earliest
+	}
+	// GetOrderHistory refuses these too, but only once the open orders have been read
+	for _, p := range r.Pairs {
+		if _, err := orderSymbol(r.Asset, p); err != nil {
+			return nil, err
+		}
+	}
+	if err := common.StartEndTimeCheck(start, r.EndDate); err != nil {
+		return nil, err
 	}
 	resp := make([]futures.PositionResponse, len(r.Pairs))
 	for i, p := range r.Pairs {

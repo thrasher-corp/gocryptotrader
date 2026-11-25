@@ -644,18 +644,24 @@ func TestPageBack(t *testing.T) {
 	// errPagerStalled refuses a page past one per record, which only a pager no longer advancing asks for, so it fails
 	// the test rather than hangs it
 	errPagerStalled := errors.New("pager stalled")
-	// serve returns a fetch serving history as Bitfinex does, newest first, records up to the end and from the start
-	serve := func(history []record, start time.Time, limit int, ends *[]time.Time) func(time.Time) ([]record, error) {
+	// errWindowRefused is Bitfinex's refusal of a window ending where it starts, time_interval: invalid
+	errWindowRefused := errors.New("window ending where it starts")
+	// serve returns a fetch serving history as Bitfinex does, newest first, records up to the end and from the start,
+	// both included, refusing a window ending where it starts; a server ignoring the start also serves records before it
+	serve := func(history []record, ignoreStart bool, limit int, starts, ends *[]time.Time) func(time.Time, time.Time) ([]record, error) {
 		var pages int
-		return func(end time.Time) ([]record, error) {
+		return func(start, end time.Time) ([]record, error) {
 			pages++
 			if pages > len(history)+1 {
 				return nil, errPagerStalled
 			}
-			*ends = append(*ends, end)
+			*starts, *ends = append(*starts, start), append(*ends, end)
+			if !start.IsZero() && !end.IsZero() && !end.After(start) {
+				return nil, errWindowRefused
+			}
 			var page []record
 			for _, r := range history {
-				if (end.IsZero() || !r.at.After(end)) && !r.at.Before(start) && len(page) < limit {
+				if (end.IsZero() || !r.at.After(end)) && (ignoreStart || !r.at.Before(start)) && len(page) < limit {
 					page = append(page, r)
 				}
 			}
@@ -663,30 +669,171 @@ func TestPageBack(t *testing.T) {
 		}
 	}
 	history := []record{{9, ms(50)}, {8, ms(40)}, {7, ms(40)}, {6, ms(30)}, {5, ms(30)}, {4, ms(20)}, {3, ms(10)}}
-	var ends []time.Time
-	got, err := pageBack(time.Time{}, time.Time{}, 3, serve(history, time.Time{}, 3, &ends), id, at)
+	var starts, ends []time.Time
+	got, err := pageBack(time.Time{}, time.Time{}, 3, serve(history, false, 3, &starts, &ends), id, at)
 	require.NoError(t, err, "pageBack must not error")
 	assert.Equal(t, history, got, "pageBack should return each record once, newest first")
 	assert.Equal(t, []time.Time{{}, ms(40), ms(30), ms(20)}, ends, "each page should end at its predecessor's oldest record")
 
-	ends = nil
-	got, err = pageBack(ms(30), time.Time{}, 3, serve(history, ms(30), 3, &ends), id, at)
+	starts, ends = nil, nil
+	got, err = pageBack(ms(30), time.Time{}, 3, serve(history, false, 3, &starts, &ends), id, at)
 	require.NoError(t, err, "pageBack must not error")
 	assert.Equal(t, history[:5], got, "pageBack should return the records from the start")
 	assert.Equal(t, []time.Time{{}, ms(40), ms(30)}, ends, "pageBack should page no further than the start")
+	assert.Equal(t, []time.Time{ms(30), ms(30), ms(29)}, starts, "the page ending at the start should begin a millisecond earlier, as Bitfinex refuses a window ending where it starts")
 
-	ends = nil
-	got, err = pageBack(ms(35), time.Time{}, 3, serve(history, time.Time{}, 3, &ends), id, at)
+	starts, ends = nil, nil
+	got, err = pageBack(ms(35), time.Time{}, 3, serve(history, true, 3, &starts, &ends), id, at)
 	require.NoError(t, err, "pageBack must not error")
 	assert.Equal(t, history[:4], got, "pageBack should stop at a page reaching before the start")
 	assert.Equal(t, []time.Time{{}, ms(40)}, ends, "pageBack should not fetch past a page reaching before the start")
 
 	crowded := []record{{4, ms(20)}, {3, ms(20)}, {2, ms(20)}, {1, ms(20)}, {0, ms(10)}}
-	_, err = pageBack(time.Time{}, time.Time{}, 3, serve(crowded, time.Time{}, 3, &ends), id, at)
+	_, err = pageBack(time.Time{}, time.Time{}, 3, serve(crowded, false, 3, &starts, &ends), id, at)
 	assert.ErrorIs(t, err, errHistoryPageFull, "pageBack should error for a millisecond holding a page of records")
 
+	t.Run("a first page with no end whose oldest record is at the start", func(t *testing.T) {
+		t.Parallel()
+		var starts, ends []time.Time
+		got, err := pageBack(ms(30), time.Time{}, 3, serve([]record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}}, false, 3, &starts, &ends), id, at)
+		require.NoError(t, err, "pageBack must not error for a first page with no end whose oldest record is at the start")
+		assert.Equal(t, []record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}}, got, "pageBack should return each record from the start once, newest first")
+		assert.Equal(t, []time.Time{ms(30), ms(29)}, starts, "the page ending at the start should begin a millisecond earlier")
+		assert.Equal(t, []time.Time{{}, ms(30)}, ends, "each page should end at its predecessor's oldest record")
+	})
+
+	t.Run("a start in another location", func(t *testing.T) {
+		t.Parallel()
+		// The records' times are local, so a pager comparing times as values rather than instants misses the start
+		var starts, ends []time.Time
+		got, err := pageBack(ms(30).UTC(), ms(60), 3, serve([]record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}}, false, 3, &starts, &ends), id, at)
+		require.NoError(t, err, "pageBack must not error for a start in another location")
+		assert.Equal(t, []record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}}, got, "pageBack should return each record from the start once, newest first")
+		assert.Len(t, starts, 2, "pageBack should read the page ending at the start")
+	})
+
+	t.Run("a window ending where it starts", func(t *testing.T) {
+		t.Parallel()
+		var starts, ends []time.Time
+		_, err := pageBack(ms(30), ms(30), 3, serve(history, false, 3, &starts, &ends), id, at)
+		assert.ErrorIs(t, err, errWindowRefused, "pageBack should ask for a window ending where it starts as given")
+		assert.Equal(t, []time.Time{ms(30)}, starts, "pageBack should ask for the window given first")
+	})
+
+	t.Run("a record at the start first read on the page after", func(t *testing.T) {
+		t.Parallel()
+		// An order created at the start that closes between the two reads is in the order history for the second alone
+		pages := [][]record{{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}}, {{5, ms(30)}, {7, ms(30)}}}
+		var starts, ends []time.Time
+		fetch := func(start, end time.Time) ([]record, error) {
+			starts, ends = append(starts, start), append(ends, end)
+			if len(starts) > len(pages) {
+				return nil, errPagerStalled
+			}
+			return pages[len(starts)-1], nil
+		}
+		got, err := pageBack(ms(30), ms(60), 3, fetch, id, at)
+		require.NoError(t, err, "pageBack must not error for a record at the start first read on the page after")
+		assert.Equal(t, []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {5, ms(30)}}, got, "pageBack should keep each record once, a record first read on the page after included")
+		assert.Equal(t, []time.Time{ms(30), ms(29)}, starts, "the page ending at the start should begin a millisecond earlier")
+		assert.Equal(t, []time.Time{ms(60), ms(30)}, ends, "each page should end at its predecessor's oldest record")
+	})
+
+	t.Run("a page ending at the start", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			history []record
+			// exp is what pageBack returns from a start of 30 ms, and starts and ends the windows it asks for
+			exp          []record
+			starts, ends []time.Time
+			err          error
+		}{
+			{
+				name:    "a full page whose oldest record is at the start",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {6, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "records at the start on both sides of a page boundary",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(30)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "a second full page whose oldest record is at the start",
+				history: []record{{9, ms(55)}, {8, ms(50)}, {7, ms(45)}, {6, ms(40)}, {5, ms(30)}},
+				exp:     []record{{9, ms(55)}, {8, ms(50)}, {7, ms(45)}, {6, ms(40)}, {5, ms(30)}},
+				starts:  []time.Time{ms(30), ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(45), ms(30)},
+			},
+			{
+				name:    "a full page whose oldest record is a millisecond after the start",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {7, ms(31)}, {6, ms(30)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {7, ms(31)}, {6, ms(30)}},
+				starts:  []time.Time{ms(30), ms(30)},
+				ends:    []time.Time{ms(60), ms(31)},
+			},
+			{
+				name:    "a record a millisecond before the start",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(29)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "two records at the start on a full page, then one before it",
+				history: []record{{9, ms(50)}, {7, ms(30)}, {6, ms(30)}, {5, ms(29)}},
+				exp:     []record{{9, ms(50)}, {7, ms(30)}, {6, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "a full page of records a millisecond before the start",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(29)}, {5, ms(29)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "a full page reaching a millisecond before the start",
+				history: []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(30)}, {5, ms(29)}, {4, ms(29)}},
+				exp:     []record{{9, ms(50)}, {8, ms(40)}, {7, ms(30)}, {6, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+			},
+			{
+				name:    "a page of records from the start's millisecond",
+				history: []record{{9, ms(40)}, {8, ms(30)}, {7, ms(30)}, {6, ms(30)}, {5, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+				err:     errHistoryPageFull,
+			},
+			{
+				name:    "a first page all from the start's millisecond",
+				history: []record{{8, ms(30)}, {7, ms(30)}, {6, ms(30)}, {5, ms(30)}},
+				starts:  []time.Time{ms(30), ms(29)},
+				ends:    []time.Time{ms(60), ms(30)},
+				err:     errHistoryPageFull,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var starts, ends []time.Time
+				got, err := pageBack(ms(30), ms(60), 3, serve(tc.history, false, 3, &starts, &ends), id, at)
+				require.ErrorIs(t, err, tc.err, "pageBack must return the expected error")
+				assert.Equal(t, tc.exp, got, "pageBack should return each record from the start once, newest first")
+				assert.Equal(t, tc.starts, starts, "the page ending at the start should begin a millisecond earlier, as Bitfinex refuses a window ending where it starts")
+				assert.Equal(t, tc.ends, ends, "each page should end at its predecessor's oldest record")
+			})
+		}
+	})
+
 	var calls int
-	ignoringEnd := func(time.Time) ([]record, error) {
+	ignoringEnd := func(time.Time, time.Time) ([]record, error) {
 		calls++
 		if calls > len(history) {
 			return nil, errPagerStalled
@@ -700,7 +847,7 @@ func TestPageBack(t *testing.T) {
 	errPageRefused := errors.New("page refused")
 	var refusals int
 	// Pages after the refusal are empty, so a pager retrying it returns without the error rather than hangs
-	refusedOnce := func(time.Time) ([]record, error) {
+	refusedOnce := func(time.Time, time.Time) ([]record, error) {
 		refusals++
 		if refusals > 1 {
 			return nil, nil
@@ -731,6 +878,81 @@ func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // The cases share e
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
+	t.Run("a full page whose oldest trades are at the start", func(t *testing.T) {
+		t.Parallel()
+		// Pair trades come two to a millisecond from a start partway through a second, and funding trades in batches on
+		// whole seconds, as Bitfinex's do
+		second := time.Now().Add(-4 * time.Hour).Truncate(time.Second)
+		for _, tc := range []struct {
+			name, path string
+			pair       currency.Pair
+			asset      asset.Item
+			// batch is how many trades share a time, step how far apart those times are, and offset where in its second the
+			// window starts
+			batch        int
+			step, offset time.Duration
+		}{
+			{name: "pair", path: "/v2/trades/tBTCUSD/hist", pair: currency.NewBTCUSD(), asset: asset.Spot, batch: 2, step: time.Millisecond, offset: 437 * time.Millisecond},
+			{name: "funding currency", path: "/v2/trades/fUSD/hist", pair: testFundingUSD, asset: asset.MarginFunding, batch: 100, step: time.Second},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				start := second.Add(tc.offset)
+				end := start.Add(3 * time.Hour)
+				times := make([]int64, tradesPageLimit+1)
+				for i := range tradesPageLimit {
+					times[i] = start.Add(time.Duration((tradesPageLimit-1-i)/tc.batch) * tc.step).UnixMilli()
+				}
+				times[tradesPageLimit] = start.UnixMilli() - 1
+				amount := func(i int) float64 {
+					if i%3 == 0 {
+						return -0.01
+					}
+					return 0.01
+				}
+				price := func(i int) float64 { return 70000 + float64(i)/100 }
+				row := func(i int) string {
+					r := `[` + strconv.Itoa(len(times)-i) + `,` + strconv.FormatInt(times[i], 10) + `,` + strconv.FormatFloat(amount(i), 'f', -1, 64) + `,` + strconv.FormatFloat(price(i), 'f', -1, 64)
+					if tc.asset == asset.MarginFunding {
+						r += `,2`
+					}
+					return r + `]`
+				}
+				var windows [][2]int64
+				ex := newHistoryWindowExchange(t, tc.path, times, row, &windows)
+				// trade.FilterTradesByTime leaves out the trades at the start, and a funding trade with a negative amount took
+				// funding, so bought
+				record := func(exchange, id string, p currency.Pair, a asset.Item, side order.Side, price, amount float64, at time.Time) string {
+					return strings.Join([]string{exchange, id, p.String(), a.String(), side.String(), strconv.FormatFloat(price, 'f', -1, 64), strconv.FormatFloat(amount, 'f', -1, 64), at.UTC().Format(time.RFC3339Nano)}, " ")
+				}
+				want := make([]string, 0, tradesPageLimit)
+				for i := range tradesPageLimit {
+					if times[i] == start.UnixMilli() {
+						continue
+					}
+					side := order.Buy
+					if (amount(i) < 0) != (tc.asset == asset.MarginFunding) {
+						side = order.Sell
+					}
+					want = append(want, record(ex.Name, strconv.Itoa(len(times)-i), tc.pair, tc.asset, side, price(i), 0.01, time.UnixMilli(times[i])))
+				}
+				trades, err := ex.GetHistoricTrades(t.Context(), tc.pair, tc.asset, start, end)
+				require.NoErrorf(t, err, "GetHistoricTrades must not error for a full page whose oldest %s trades are at the start", tc.name)
+				require.Lenf(t, trades, len(want), "GetHistoricTrades must return every %s trade after the start once", tc.name)
+				got := make([]string, len(trades))
+				for i := range trades {
+					require.Falsef(t, i > 0 && trades[i].Timestamp.Before(trades[i-1].Timestamp), "GetHistoricTrades must return %s trades oldest first", tc.name)
+					got[i] = record(trades[i].Exchange, trades[i].TID, trades[i].CurrencyPair, trades[i].AssetType, trades[i].Side, trades[i].Price, trades[i].Amount, trades[i].Timestamp)
+				}
+				slices.Sort(got)
+				slices.Sort(want)
+				for i := range want {
+					require.Equalf(t, want[i], got[i], "GetHistoricTrades must return each %s trade as Bitfinex sent it", tc.name)
+				}
+				assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}, {start.UnixMilli() - 1, start.UnixMilli()}}, windows, "GetHistoricTrades should read the page ending at the start from a millisecond earlier for %s trades", tc.name)
+			})
+		}
+	})
 	ex := newWrapperTestExchange(t)
 	start, end := historyWindow(time.Hour)
 	_, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSD(), asset.Spot, end, start)
@@ -906,10 +1128,14 @@ func TestPlaceOrderRequest(t *testing.T) {
 						require.NoErrorf(t, err, "placeOrderRequest must take client order ID 1 for a %s %s order with %s", a, with.Type, o.name)
 						assert.Equalf(t, exp, got, "placeOrderRequest should send client order ID 1, and the rest of a %s %s order with %s as without it", a, with.Type, o.name)
 						for _, cid := range []string{"0", "01"} {
-							with.ClientOrderID = cid
-							refused, err := placeOrderRequest(&with)
-							assert.ErrorIsf(t, err, errInvalidClientOrderID, "placeOrderRequest should refuse client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
-							assert.Nilf(t, refused, "placeOrderRequest should return no request for client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
+							t.Run("refuses client order ID "+cid, func(t *testing.T) {
+								t.Parallel()
+								refusing := with
+								refusing.ClientOrderID = cid
+								refused, err := placeOrderRequest(&refusing)
+								assert.ErrorIsf(t, err, errInvalidClientOrderID, "placeOrderRequest should refuse client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
+								assert.Nilf(t, refused, "placeOrderRequest should return no request for client order ID %q for a %s %s order with %s", cid, a, with.Type, o.name)
+							})
 						}
 					})
 				}
@@ -1422,26 +1648,32 @@ func TestSubmitOrder(t *testing.T) {
 	t.Run("client order IDs", func(t *testing.T) {
 		t.Parallel()
 		ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,7,"tBTCUSD",1678987199446,1678987199448,1,1,"EXCHANGE LIMIT",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting exchange limit buy order for 1 BTC."]`)
+		// The cases share ex in order, as each placed order's body is read from it in turn
 		for _, clientID := range []string{"", "desk"} {
-			s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientID: clientID}
-			for _, cid := range []string{"0", "007"} {
-				s.ClientOrderID = cid
-				resp, err := ex.SubmitOrder(t.Context(), &s)
-				assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q", cid, clientID)
-				assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q", cid)
-			}
-			assert.Empty(t, bodies, "SubmitOrder should send no order whose client order ID it refuses")
-			for _, cid := range []string{"7", "4294967297"} {
-				s.ClientOrderID = cid
-				resp, err := ex.SubmitOrder(t.Context(), &s)
-				require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q", cid, clientID)
-				assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q", cid, clientID)
-				var sent map[string]any
-				require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
-				exp, err := strconv.ParseFloat(cid, 64)
-				require.NoError(t, err, "ParseFloat must not error")
-				assert.Equalf(t, exp, sent["cid"], "SubmitOrder should send client order ID %s as its number beside client ID %q", cid, clientID)
-			}
+			t.Run("client ID "+cmp.Or(clientID, "unset"), func(t *testing.T) {
+				for _, cid := range []string{"0", "007"} {
+					t.Run("refuses client order ID "+cid, func(t *testing.T) {
+						s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientID: clientID, ClientOrderID: cid}
+						resp, err := ex.SubmitOrder(t.Context(), &s)
+						assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q", cid, clientID)
+						assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q", cid)
+					})
+				}
+				assert.Empty(t, bodies, "SubmitOrder should send no order whose client order ID it refuses")
+				for _, cid := range []string{"7", "4294967297"} {
+					t.Run("places client order ID "+cid, func(t *testing.T) {
+						s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, ClientID: clientID, ClientOrderID: cid}
+						resp, err := ex.SubmitOrder(t.Context(), &s)
+						require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q", cid, clientID)
+						assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q", cid, clientID)
+						var sent map[string]any
+						require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
+						exp, err := strconv.ParseFloat(cid, 64)
+						require.NoError(t, err, "ParseFloat must not error")
+						assert.Equalf(t, exp, sent["cid"], "SubmitOrder should send client order ID %s as its number beside client ID %q", cid, clientID)
+					})
+				}
+			})
 		}
 	})
 	t.Run("client order IDs through the websocket", func(t *testing.T) {
@@ -1454,46 +1686,60 @@ func TestSubmitOrder(t *testing.T) {
 		require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
 		req := wsTestOrderRequest(t)
 		clientIDs := []string{"", "desk"}
+		// The cases share the websocket in order: each placement finds the order it sent by how many came before it, and the
+		// check after them reads every order the placements that ran reported
 		for _, clientID := range clientIDs {
 			for _, cid := range []string{"0", "007"} {
-				s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
-				resp, err := ex.SubmitOrder(t.Context(), &s)
-				assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q through the websocket", cid, clientID)
-				assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q through the websocket", cid)
+				t.Run("refuses client order ID "+cid+" beside client ID "+cmp.Or(clientID, "unset"), func(t *testing.T) {
+					s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
+					resp, err := ex.SubmitOrder(t.Context(), &s)
+					assert.ErrorIsf(t, err, errInvalidClientOrderID, "SubmitOrder should refuse client order ID %q beside client ID %q through the websocket", cid, clientID)
+					assert.Nilf(t, resp, "SubmitOrder should return no response for client order ID %q through the websocket", cid)
+				})
 			}
 		}
 		assertNoWebsocketInputs(t, venue, "SubmitOrder")
-		cids := []string{"7", "4294967297"}
-		exp := make([]float64, 0, len(clientIDs)*len(cids))
+		var placedIDs []float64
 		for _, clientID := range clientIDs {
-			for _, cid := range cids {
-				s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
-				resp, err := ex.SubmitOrder(t.Context(), &s)
-				require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q through the websocket", cid, clientID)
-				assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q through the websocket", cid, clientID)
-				n, err := strconv.ParseFloat(cid, 64)
-				require.NoError(t, err, "ParseFloat must not error")
-				exp = append(exp, n)
+			for _, cid := range []string{"7", "4294967297"} {
+				t.Run("places client order ID "+cid+" beside client ID "+cmp.Or(clientID, "unset"), func(t *testing.T) {
+					placed := len(venue.inputs(wsOrderNew))
+					s := order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: req.Amount, Price: req.Price, ClientID: clientID, ClientOrderID: cid}
+					resp, err := ex.SubmitOrder(t.Context(), &s)
+					require.NoErrorf(t, err, "SubmitOrder must place an order with client order ID %s beside client ID %q through the websocket", cid, clientID)
+					exp, err := strconv.ParseFloat(cid, 64)
+					require.NoError(t, err, "ParseFloat must not error")
+					placedIDs = append(placedIDs, exp)
+					assert.Equalf(t, cid, resp.ClientOrderID, "SubmitOrder should report client order ID %s, which it sends, beside client ID %q through the websocket", cid, clientID)
+					inputs := venue.inputs(wsOrderNew)
+					require.Lenf(t, inputs, placed+1, "SubmitOrder must place the order with client order ID %s beside client ID %q through the websocket", cid, clientID)
+					var sent map[string]any
+					require.NoError(t, json.Unmarshal(inputs[placed], &sent), "Decoding the order sent must not error")
+					assert.Equalf(t, exp, sent["cid"], "SubmitOrder should send client order ID %s as its number beside client ID %q through the websocket", cid, clientID)
+				})
 			}
 		}
 		inputs := venue.inputs(wsOrderNew)
-		require.Len(t, inputs, len(exp), "SubmitOrder must place each order through the websocket")
+		require.Len(t, inputs, len(placedIDs), "SubmitOrder must place each order it reports placed once through the websocket")
 		for i := range inputs {
 			var sent map[string]any
 			require.NoError(t, json.Unmarshal(inputs[i], &sent), "Decoding the order sent must not error")
-			assert.Equalf(t, exp[i], sent["cid"], "SubmitOrder should send client order ID %v as its number through the websocket", exp[i])
+			assert.Equalf(t, placedIDs[i], sent["cid"], "SubmitOrder should send client order ID %v as its number through the websocket", placedIDs[i])
 		}
 	})
 	t.Run("a spot or margin order's leverage of 1, which is none", func(t *testing.T) {
 		t.Parallel()
 		for a, orderType := range map[asset.Item]string{asset.Spot: "EXCHANGE LIMIT", asset.Margin: "LIMIT"} {
-			ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,1678987199446,"tBTCUSD",1678987199446,1678987199448,1,1,"`+orderType+`",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting limit buy order for 1 BTC."]`)
-			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 1})
-			require.NoErrorf(t, err, "SubmitOrder must place a %s order with a leverage of 1", a)
-			assert.Equalf(t, 1.0, resp.Leverage, "SubmitOrder should report the %s order's leverage of 1", a)
-			var sent map[string]any
-			require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
-			assert.Equalf(t, map[string]any{"type": orderType, "symbol": "tBTCUSD", "amount": "1", "price": "100"}, sent, "SubmitOrder should send the %s order without a leverage", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/order/submit", `[1678987199,"on-req",null,null,[[1747566431,null,1678987199446,"tBTCUSD",1678987199446,1678987199448,1,1,"`+orderType+`",null,null,null,0,"ACTIVE",null,null,100,0,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,null]],null,"SUCCESS","Submitting limit buy order for 1 BTC."]`)
+				resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: currency.NewBTCUSD(), Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100, Leverage: 1})
+				require.NoErrorf(t, err, "SubmitOrder must place a %s order with a leverage of 1", a)
+				assert.Equalf(t, 1.0, resp.Leverage, "SubmitOrder should report the %s order's leverage of 1", a)
+				var sent map[string]any
+				require.NoError(t, json.Unmarshal([]byte(requestBody(t, bodies)), &sent), "Decoding the order sent must not error")
+				assert.Equalf(t, map[string]any{"type": orderType, "symbol": "tBTCUSD", "amount": "1", "price": "100"}, sent, "SubmitOrder should send the %s order without a leverage", a)
+			})
 		}
 	})
 	skipLiveUnlessCanManipulate(t)
@@ -1641,6 +1887,7 @@ func TestModifyOrder(t *testing.T) {
 				testOrderRecord{id: 4, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100},
 				testOrderRecord{id: 5, symbol: "tBTCF0:USTF0", orderType: "STOP LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 70000, auxiliaryLimit: 70500, meta: `{"$F33":10}`},
 				testOrderRecord{id: 6, symbol: "tBTCUSD", orderType: "EXCHANGE TRAILING STOP", status: "ACTIVE", amount: -1, original: -1, price: 95},
+				testOrderRecord{id: 7, symbol: "tBTCF0:USTF0", orderType: "LIMIT", status: "ACTIVE", amount: 0.1, original: 0.1, price: 70000, meta: `{"$F33":1}`},
 			)
 			// The cases share ex in order, each checking the last update it recorded, and the refusal after them counts them
 			for _, tc := range []struct {
@@ -1670,16 +1917,24 @@ func TestModifyOrder(t *testing.T) {
 					exp:   map[string]any{"id": 5.0, "price": "72000", "price_aux_limit": "71000", "lev": 10.0},
 					price: 71000,
 				},
+				{
+					name:  "a derivative limit at a leverage of 1",
+					m:     order.Modify{OrderID: "7", Side: order.Buy, Price: 70500},
+					exp:   map[string]any{"id": 7.0, "price": "70500", "lev": 1.0},
+					price: 70500,
+				},
+				{name: "a derivative limit's amount alone at a leverage of 1", m: order.Modify{OrderID: "7", Side: order.Buy, Amount: 0.2}, exp: map[string]any{"id": 7.0, "amount": "0.2", "lev": 1.0}},
 				{name: "a trailing stop's amount", m: order.Modify{OrderID: "6", Side: order.Sell, Amount: 1}, exp: map[string]any{"id": 6.0}},
 				{name: "a trailing stop's new amount", m: order.Modify{OrderID: "6", Side: order.Sell, Amount: 2}, exp: map[string]any{"id": 6.0, "amount": "-2"}},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
+					before := len(updates())
 					tc.m.AssetType, tc.m.Pair = asset.Spot, currency.NewBTCUSD()
 					resp, err := ex.ModifyOrder(t.Context(), &tc.m)
 					require.NoErrorf(t, err, "ModifyOrder must not error for %s", tc.name)
 					sent := updates()
-					require.NotEmptyf(t, sent, "ModifyOrder must send %s", tc.name)
-					assert.Equalf(t, tc.exp, sent[len(sent)-1], "ModifyOrder should send %s as Bitfinex takes it for the order's type", tc.name)
+					require.Lenf(t, sent, before+1, "ModifyOrder must send %s once", tc.name)
+					assert.Equalf(t, tc.exp, sent[before], "ModifyOrder should send %s as Bitfinex takes it for the order's type", tc.name)
 					assert.Equalf(t, tc.price, resp.Price, "ModifyOrder should report the price it sent for %s, and none for a stop", tc.name)
 					assert.Equalf(t, tc.m.TriggerPrice, resp.TriggerPrice, "ModifyOrder should report the trigger price it sent for %s", tc.name)
 				})
@@ -1879,27 +2134,31 @@ func TestModifyOrder(t *testing.T) {
 				})
 			}
 			assert.Empty(t, updates(), "ModifyOrder should send no modification with a price past Bitfinex's precision")
-			for _, m := range []order.Modify{
-				spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 60412}),
-				spot(order.Modify{OrderID: "21", Side: order.Sell, TriggerPrice: 59001}),
-				spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58901, TriggerPrice: 59001}),
-				spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58902}),
-				derivative(order.Modify{OrderID: "23", Side: order.Buy, Price: 60412}),
-				marginOrder(order.Modify{OrderID: "24", Side: order.Buy, Price: 60412}),
-				coinMargined(order.Modify{OrderID: "25", Side: order.Buy, Price: 0.031234}),
+			var want []map[string]any
+			for _, tc := range []struct {
+				name string
+				m    order.Modify
+				exp  map[string]any
+			}{
+				{name: "a limit price", m: spot(order.Modify{OrderID: "20", Side: order.Buy, Price: 60412}), exp: map[string]any{"id": 20.0, "price": "60412"}},
+				{name: "a stop price", m: spot(order.Modify{OrderID: "21", Side: order.Sell, TriggerPrice: 59001}), exp: map[string]any{"id": 21.0, "price": "59001"}},
+				{name: "a stop limit's prices", m: spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58901, TriggerPrice: 59001}), exp: map[string]any{"id": 22.0, "price": "59001", "price_aux_limit": "58901"}},
+				{name: "a stop limit's limit price alone", m: spot(order.Modify{OrderID: "22", Side: order.Sell, Price: 58902}), exp: map[string]any{"id": 22.0, "price_aux_limit": "58902"}},
+				{name: "a derivative's limit price", m: derivative(order.Modify{OrderID: "23", Side: order.Buy, Price: 60412}), exp: map[string]any{"id": 23.0, "price": "60412", "lev": 10.0}},
+				{name: "a margin order's limit price", m: marginOrder(order.Modify{OrderID: "24", Side: order.Buy, Price: 60412}), exp: map[string]any{"id": 24.0, "price": "60412"}},
+				{name: "a coin margined derivative's limit price", m: coinMargined(order.Modify{OrderID: "25", Side: order.Buy, Price: 0.031234}), exp: map[string]any{"id": 25.0, "price": "0.031234", "lev": 10.0}},
 			} {
-				_, err := ex.ModifyOrder(t.Context(), &m)
-				require.NoErrorf(t, err, "ModifyOrder must take order %s's prices within Bitfinex's precision", m.OrderID)
+				t.Run(tc.name+" within it", func(t *testing.T) {
+					sent := len(updates())
+					_, err := ex.ModifyOrder(t.Context(), &tc.m)
+					require.NoErrorf(t, err, "ModifyOrder must take %s within Bitfinex's precision", tc.name)
+					want = append(want, tc.exp)
+					got := updates()
+					require.Lenf(t, got, sent+1, "ModifyOrder must send one modification for %s within Bitfinex's precision", tc.name)
+					assert.Equalf(t, tc.exp, got[sent], "ModifyOrder should send %s within Bitfinex's precision", tc.name)
+				})
 			}
-			assert.Equal(t, []map[string]any{
-				{"id": 20.0, "price": "60412"},
-				{"id": 21.0, "price": "59001"},
-				{"id": 22.0, "price": "59001", "price_aux_limit": "58901"},
-				{"id": 22.0, "price_aux_limit": "58902"},
-				{"id": 23.0, "price": "60412", "lev": 10.0},
-				{"id": 24.0, "price": "60412"},
-				{"id": 25.0, "price": "0.031234", "lev": 10.0},
-			}, updates(), "ModifyOrder should send prices within Bitfinex's precision")
+			assert.Equal(t, want, updates(), "ModifyOrder should send each modification within Bitfinex's precision once, in turn")
 		})
 
 		t.Run("the order's type and time in force", func(t *testing.T) {
@@ -2281,25 +2540,28 @@ func TestCancelBatchOrders(t *testing.T) {
 		t.Run("refuses "+cmp.Or(a.String(), "an undefined asset"), func(t *testing.T) {
 			t.Parallel()
 			ex := newRefusingTestExchange(t)
-			for _, c := range []order.Cancel{
-				{OrderID: "1747566429", AssetType: a},
-				{OrderID: "1747566429", AssetType: a, Side: order.AnySide, Type: order.AnyType},
-				{OrderID: "1747566429", AssetType: a, Pair: testDerivativePair},
-				{OrderID: "1747566429", AssetType: a, Pair: testCoinMarginedPair},
-				{OrderID: "1747566429", AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)},
-				{
+			for _, tc := range []cancelCase{
+				{name: "the asset alone", c: order.Cancel{OrderID: "1747566429", AssetType: a}},
+				{name: "any side and type", c: order.Cancel{OrderID: "1747566429", AssetType: a, Side: order.AnySide, Type: order.AnyType}},
+				{name: "a USDT margined contract", c: order.Cancel{OrderID: "1747566429", AssetType: a, Pair: testDerivativePair}},
+				{name: "a coin margined contract", c: order.Cancel{OrderID: "1747566429", AssetType: a, Pair: testCoinMarginedPair}},
+				{name: "a pair without a quote", c: order.Cancel{OrderID: "1747566429", AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)}},
+				{name: "every field set", c: order.Cancel{
 					Exchange: ex.Name, OrderID: "1747566429", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell,
 					AssetType: a, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
-				},
+				}},
 			} {
-				valid := order.Cancel{OrderID: "1747566428", AssetType: asset.Spot}
-				sameID := c
-				sameID.OrderID = valid.OrderID
-				for _, cancels := range [][]order.Cancel{{c}, {valid, c}, {c, valid}, {valid, c, valid}, {valid, sameID}} {
-					resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-					assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of asset %q on pair %s", a, c.Pair)
-					assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of asset %q", a)
-				}
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					for _, batch := range refusedCancelBatches(&tc.c, &order.Cancel{OrderID: "1747566428", AssetType: asset.Spot}) {
+						t.Run(batch.name, func(t *testing.T) {
+							t.Parallel()
+							resp, err := ex.CancelBatchOrders(t.Context(), batch.cancels)
+							assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of asset %q on pair %s", a, tc.c.Pair)
+							assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of asset %q", a)
+						})
+					}
+				})
 			}
 		})
 	}
@@ -2309,28 +2571,30 @@ func TestCancelBatchOrders(t *testing.T) {
 			ex := newRefusingTestExchange(t)
 			assets := slices.Concat([]asset.Item{asset.Empty}, testOrderAssets)
 			sides := []order.Side{order.UnknownSide, order.AnySide, order.Buy, order.Sell, order.Bid, order.Ask, order.Long, order.Short}
-			cancels := make([]order.Cancel, 0, 2*len(assets)*len(sides)+1)
-			cancels = append(cancels, order.Cancel{
+			cancels := make([]cancelCase, 0, 2*len(assets)*len(sides)+1)
+			cancels = append(cancels, cancelCase{name: "every field set", c: order.Cancel{
 				Exchange: ex.Name, OrderID: "1747566429", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: orderType, Side: order.Sell,
 				AssetType: asset.Spot, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
-			})
+			}})
 			for _, a := range assets {
 				for _, side := range sides {
-					cancels = append(cancels, order.Cancel{OrderID: "1747566429", AssetType: a, Side: side, Type: orderType})
+					cancels = append(cancels, newCancelCase(&order.Cancel{OrderID: "1747566429", AssetType: a, Side: side, Type: orderType}))
 					if p, ok := testOrderAssetPairs[a]; ok {
-						cancels = append(cancels, order.Cancel{OrderID: "1747566429", AssetType: a, Pair: p, Side: side, Type: orderType})
+						cancels = append(cancels, newCancelCase(&order.Cancel{OrderID: "1747566429", AssetType: a, Pair: p, Side: side, Type: orderType}))
 					}
 				}
 			}
-			for _, c := range cancels {
-				valid := order.Cancel{OrderID: "1747566428", AssetType: asset.Spot, Type: order.Limit}
-				sameID := c
-				sameID.OrderID = valid.OrderID
-				for _, batch := range [][]order.Cancel{{c}, {valid, c}, {c, valid}, {valid, c, valid}, {valid, sameID}} {
-					resp, err := ex.CancelBatchOrders(t.Context(), batch)
-					assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelBatchOrders should refuse an order of type %s and asset %q on pair %s and side %s", orderType, c.AssetType, c.Pair, c.Side)
-					assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of type %s", orderType)
-				}
+			// Serial, as the types' cases number tens of thousands, and parallel ones would each hold a goroutine until they run
+			for _, tc := range cancels {
+				t.Run(tc.name, func(t *testing.T) {
+					for _, batch := range refusedCancelBatches(&tc.c, &order.Cancel{OrderID: "1747566428", AssetType: asset.Spot, Type: order.Limit}) {
+						t.Run(batch.name, func(t *testing.T) {
+							resp, err := ex.CancelBatchOrders(t.Context(), batch.cancels)
+							assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelBatchOrders should refuse an order of type %s and asset %q on pair %s and side %s", orderType, tc.c.AssetType, tc.c.Pair, tc.c.Side)
+							assert.Nilf(t, resp, "CancelBatchOrders should return no response when it refuses an order of type %s", orderType)
+						})
+					}
+				})
 			}
 		})
 	}
@@ -2413,6 +2677,41 @@ func newRefusingTestExchange(t *testing.T) *Exchange {
 		assert.Failf(t, "the test server should receive no request for a call refused before sending anything", "%s %s", r.Method, r.URL.Path)
 		http.Error(w, "unexpected request", http.StatusBadRequest)
 	}))
+}
+
+// cancelCase is a cancellation a test sends, under the name of its subtest
+type cancelCase struct {
+	name string
+	c    order.Cancel
+}
+
+// newCancelCase returns a cancellation named by its asset, side and pair
+func newCancelCase(c *order.Cancel) cancelCase {
+	name := cmp.Or(c.AssetType.String(), "no asset") + ", side " + c.Side.String()
+	if !c.Pair.IsEmpty() {
+		name += ", pair " + c.Pair.String()
+	}
+	return cancelCase{name: name, c: *c}
+}
+
+// cancelBatchCase is a batch of cancellations a test sends, under the name of its shape
+type cancelBatchCase struct {
+	name    string
+	cancels []order.Cancel
+}
+
+// refusedCancelBatches returns batches holding a cancellation CancelBatchOrders refuses: alone, beside valid ones, and
+// after a valid one whose order ID it shares
+func refusedCancelBatches(refused, valid *order.Cancel) []cancelBatchCase {
+	sameID := *refused
+	sameID.OrderID = valid.OrderID
+	return []cancelBatchCase{
+		{name: "in a batch of its own", cancels: []order.Cancel{*refused}},
+		{name: "after a valid one", cancels: []order.Cancel{*valid, *refused}},
+		{name: "before a valid one", cancels: []order.Cancel{*refused, *valid}},
+		{name: "between valid ones", cancels: []order.Cancel{*valid, *refused, *valid}},
+		{name: "after a valid one with its order ID", cancels: []order.Cancel{*valid, sameID}},
+	}
 }
 
 // assertNoWebsocketInputs checks that the mock websocket received no input request of any type
@@ -2646,20 +2945,23 @@ func TestCancelAllOrders(t *testing.T) {
 			t.Run("refuses "+cmp.Or(a.String(), "an undefined asset"), func(t *testing.T) {
 				t.Parallel()
 				ex := newRefusingTestExchange(t)
-				for _, c := range []order.Cancel{
-					{AssetType: a},
-					{AssetType: a, Side: order.AnySide, Type: order.AnyType},
-					{AssetType: a, Pair: currency.NewBTCUSD()},
-					{AssetType: a, Pair: testDerivativePair},
-					{AssetType: a, Pair: testCoinMarginedPair},
-					{AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)},
-					{
+				for _, tc := range []cancelCase{
+					{name: "the asset alone", c: order.Cancel{AssetType: a}},
+					{name: "any side and type", c: order.Cancel{AssetType: a, Side: order.AnySide, Type: order.AnyType}},
+					{name: "a spot pair", c: order.Cancel{AssetType: a, Pair: currency.NewBTCUSD()}},
+					{name: "a USDT margined contract", c: order.Cancel{AssetType: a, Pair: testDerivativePair}},
+					{name: "a coin margined contract", c: order.Cancel{AssetType: a, Pair: testCoinMarginedPair}},
+					{name: "a pair without a quote", c: order.Cancel{AssetType: a, Pair: currency.NewPair(currency.USD, currency.EMPTYCODE)}},
+					{name: "every field set", c: order.Cancel{
 						Exchange: ex.Name, OrderID: "1747566428", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: order.Limit, Side: order.Sell,
 						AssetType: a, MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
-					},
+					}},
 				} {
-					_, err := ex.CancelAllOrders(t.Context(), &c)
-					assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelAllOrders should refuse orders of asset %q on pair %s, rather than report nothing to cancel", a, c.Pair)
+					t.Run(tc.name, func(t *testing.T) {
+						t.Parallel()
+						_, err := ex.CancelAllOrders(t.Context(), &tc.c)
+						assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelAllOrders should refuse orders of asset %q on pair %s, rather than report nothing to cancel", a, tc.c.Pair)
+					})
 				}
 			})
 		}
@@ -2669,22 +2971,25 @@ func TestCancelAllOrders(t *testing.T) {
 				ex := newRefusingTestExchange(t)
 				assets := slices.Concat([]asset.Item{asset.Empty, asset.All}, testOrderAssets)
 				sides := []order.Side{order.UnknownSide, order.AnySide, order.Buy, order.Sell, order.Bid, order.Ask, order.Long, order.Short}
-				cancels := make([]order.Cancel, 0, 2*len(assets)*len(sides)+1)
-				cancels = append(cancels, order.Cancel{
+				cancels := make([]cancelCase, 0, 2*len(assets)*len(sides)+1)
+				cancels = append(cancels, cancelCase{name: "every field set", c: order.Cancel{
 					Exchange: ex.Name, OrderID: "1747566428", ClientOrderID: "1678987199446", AccountID: "1", ClientID: "2", Type: orderType, Side: order.Sell,
 					AssetType: asset.All, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel,
-				})
+				}})
 				for _, a := range assets {
 					for _, side := range sides {
-						cancels = append(cancels, order.Cancel{AssetType: a, Side: side, Type: orderType})
+						cancels = append(cancels, newCancelCase(&order.Cancel{AssetType: a, Side: side, Type: orderType}))
 						if p, ok := testOrderAssetPairs[a]; ok {
-							cancels = append(cancels, order.Cancel{AssetType: a, Pair: p, Side: side, Type: orderType})
+							cancels = append(cancels, newCancelCase(&order.Cancel{AssetType: a, Pair: p, Side: side, Type: orderType}))
 						}
 					}
 				}
-				for _, c := range cancels {
-					_, err := ex.CancelAllOrders(t.Context(), &c)
-					assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelAllOrders should refuse %s orders of asset %q on pair %s and side %s, rather than report nothing to cancel", orderType, c.AssetType, c.Pair, c.Side)
+				// Serial, as the types' cases number thousands, and parallel ones would each hold a goroutine until they run
+				for _, tc := range cancels {
+					t.Run(tc.name, func(t *testing.T) {
+						_, err := ex.CancelAllOrders(t.Context(), &tc.c)
+						assert.ErrorIsf(t, err, errUnsupportedOrderType, "CancelAllOrders should refuse %s orders of asset %q on pair %s and side %s, rather than report nothing to cancel", orderType, tc.c.AssetType, tc.c.Pair, tc.c.Side)
+					})
 				}
 			})
 		}
@@ -2692,10 +2997,13 @@ func TestCancelAllOrders(t *testing.T) {
 			t.Run("takes "+orderType.String(), func(t *testing.T) {
 				t.Parallel()
 				ex, cancellations := newCancelTestExchange(t, nil, nil)
+				// The cases share ex, and the check after them reads the cancellations they sent
 				for _, a := range testOrderAssets {
-					resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: orderType})
-					require.NoErrorf(t, err, "CancelAllOrders must take %s orders of asset %s", orderType, a)
-					assert.Emptyf(t, resp.Status, "CancelAllOrders should report no %s order of asset %s with none open", orderType, a)
+					t.Run(a.String(), func(t *testing.T) {
+						resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: orderType})
+						require.NoErrorf(t, err, "CancelAllOrders must take %s orders of asset %s", orderType, a)
+						assert.Emptyf(t, resp.Status, "CancelAllOrders should report no %s order of asset %s with none open", orderType, a)
+					})
 				}
 				assert.Emptyf(t, cancellations(), "CancelAllOrders should send no cancellation with no %s order open", orderType)
 			})
@@ -2873,6 +3181,82 @@ func newPathResponseServerExchange(t *testing.T, bodies map[string]string) *Exch
 			body = `[]`
 		}
 		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+}
+
+// newHistoryWindowExchange returns an exchange whose history at path holds a record for each time given, newest first,
+// and serves it as Bitfinex does: the records from the start to the end of the window asked, both included, newest
+// first and at most the limit asked, refusing a window ending where it starts. row gives the record at an index, and
+// windows records each window asked for, its start and end in milliseconds
+func newHistoryWindowExchange(t *testing.T, path string, times []int64, row func(i int) string, windows *[][2]int64) *Exchange {
+	t.Helper()
+	return newHistoryWindowsExchange(t, map[string]historyFixture{path: {times: times, row: row, windows: windows}})
+}
+
+// historyFixture is the history a path serves: a record for each time given, newest first, row giving the record at an
+// index, and windows recording each window asked for, its start and end in milliseconds
+type historyFixture struct {
+	times   []int64
+	row     func(i int) string
+	windows *[][2]int64
+}
+
+// newHistoryWindowsExchange returns an exchange serving each path's history as newHistoryWindowExchange serves one
+func newHistoryWindowsExchange(t *testing.T, histories map[string]historyFixture) *Exchange {
+	t.Helper()
+	var mu sync.Mutex
+	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h, ok := histories[r.URL.Path]
+		if !assert.Truef(t, ok, "the request should read a history, not %s", r.URL.Path) {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		var q struct{ Start, End, Limit int64 }
+		var body map[string]json.RawMessage
+		if r.Method == http.MethodPost && !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the request should not error") {
+			http.Error(w, "undecodable request", http.StatusBadRequest)
+			return
+		}
+		for k, v := range map[string]*int64{"start": &q.Start, "end": &q.End, "limit": &q.Limit} {
+			var err error
+			if raw, ok := body[k]; ok {
+				err = json.Unmarshal(raw, v)
+			} else if r.Method != http.MethodPost && r.URL.Query().Has(k) {
+				*v, err = strconv.ParseInt(r.URL.Query().Get(k), 10, 64)
+			} else {
+				continue
+			}
+			assert.NoErrorf(t, err, "the request's %s should be a number", k)
+			assert.NotZerof(t, *v, "the request should leave out a %s of zero rather than send it", k)
+		}
+		mu.Lock()
+		*h.windows = append(*h.windows, [2]int64{q.Start, q.End})
+		mu.Unlock()
+		if q.Start != 0 && q.End != 0 && q.End <= q.Start {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := w.Write([]byte(`["error",10020,"time_interval: invalid"]`))
+			assert.NoError(t, err, "Writing the response should not error")
+			return
+		}
+		var b strings.Builder
+		b.WriteByte('[')
+		var n int64
+		for i, at := range h.times {
+			if (q.Start != 0 && at < q.Start) || (q.End != 0 && at > q.End) {
+				continue
+			}
+			if n == q.Limit {
+				break
+			}
+			if n > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(h.row(i))
+			n++
+		}
+		b.WriteByte(']')
+		_, err := w.Write([]byte(b.String()))
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
 }
@@ -3583,6 +3967,142 @@ func TestGetOrderHistory(t *testing.T) {
 				assert.Lenf(t, history, len(records), "GetOrderHistory should page back through every order for pairs %s", pairs)
 			})
 		}
+	})
+
+	t.Run("a full page whose oldest order is at the start", func(t *testing.T) {
+		t.Parallel()
+		// Two orders are created at the start, one on each page
+		start := time.UnixMilli(1678987199446)
+		times := make([]int64, ordersHistoryPageLimit+2)
+		for i := range ordersHistoryPageLimit {
+			times[i] = start.UnixMilli() + int64(ordersHistoryPageLimit-1-i)
+		}
+		times[ordersHistoryPageLimit], times[ordersHistoryPageLimit+1] = start.UnixMilli(), start.UnixMilli()-1
+		rows := make([]string, len(times))
+		for i := range times {
+			o := testOrderRecord{
+				id: uint64(len(times)) - uint64(i), symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: "CANCELED", amount: 1, original: 1, price: 100,
+				createdAt: strconv.FormatInt(times[i], 10), updatedAt: strconv.FormatInt(times[i]+time.Hour.Milliseconds(), 10),
+			}
+			rows[i] = o.String()
+		}
+		row := func(i int) string { return rows[i] }
+		want := make([]string, ordersHistoryPageLimit+1)
+		for i := range want {
+			want[i] = strconv.Itoa(len(times) - i)
+		}
+		for path, pairs := range map[string]currency.Pairs{
+			"/v2/auth/r/orders/hist":         nil,
+			"/v2/auth/r/orders/tETHUSD/hist": {currency.NewPair(currency.ETH, currency.USD)},
+		} {
+			for _, w := range []struct {
+				name    string
+				end     time.Time
+				wireEnd int64
+			}{
+				{name: "ending an hour after the start", end: start.Add(time.Hour), wireEnd: start.Add(time.Hour).UnixMilli()},
+				{name: "with no end"},
+			} {
+				t.Run(subtestName(pairs.Join())+", "+w.name, func(t *testing.T) {
+					t.Parallel()
+					var windows [][2]int64
+					ex := newHistoryWindowExchange(t, path, times, row, &windows)
+					req := &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: slices.Clone(pairs), StartTime: start, EndTime: w.end, Side: order.AnySide, Type: order.AnyType}
+					asked := *req
+					asked.Pairs = slices.Clone(req.Pairs)
+					history, err := ex.GetOrderHistory(t.Context(), req)
+					require.NoErrorf(t, err, "GetOrderHistory must not error for a full page whose oldest order is at the start, for pairs %s %s", pairs, w.name)
+					got := make([]string, len(history))
+					for i := range history {
+						got[i] = history[i].OrderID
+					}
+					assert.Equalf(t, want, got, "GetOrderHistory should return every order from the start once, newest first, for pairs %s %s", pairs, w.name)
+					assert.Equalf(t, [][2]int64{{start.UnixMilli(), w.wireEnd}, {start.UnixMilli() - 1, start.UnixMilli()}}, windows, "GetOrderHistory should read the page ending at the start from a millisecond earlier, for pairs %s %s", pairs, w.name)
+					assert.Equalf(t, asked, *req, "GetOrderHistory should leave the request as it was asked, for pairs %s %s", pairs, w.name)
+				})
+			}
+		}
+
+		t.Run("two pairs", func(t *testing.T) {
+			t.Parallel()
+			btcTimes := []int64{start.UnixMilli() + 10, start.UnixMilli(), start.UnixMilli() - 1}
+			btcRows := make([]string, len(btcTimes))
+			for i := range btcTimes {
+				o := testOrderRecord{
+					id: 3003 - uint64(i), symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "CANCELED", amount: 1, original: 1, price: 100,
+					createdAt: strconv.FormatInt(btcTimes[i], 10), updatedAt: strconv.FormatInt(btcTimes[i]+time.Hour.Milliseconds(), 10),
+				}
+				btcRows[i] = o.String()
+			}
+			ethOrders := make([]string, len(want))
+			for i := range want {
+				ethOrders[i] = want[i] + " ETHUSD"
+			}
+			end := start.Add(time.Hour).UnixMilli()
+			for _, tc := range []struct {
+				name                  string
+				end                   time.Time
+				ethTimes              []int64
+				exp                   []string
+				ethWindows, btcWindow [][2]int64
+			}{
+				{
+					name: "the first with a full page whose oldest order is at the start", end: time.UnixMilli(end), ethTimes: times,
+					exp:        append(slices.Clone(ethOrders), "3003 BTCUSD", "3002 BTCUSD"),
+					ethWindows: [][2]int64{{start.UnixMilli(), end}, {start.UnixMilli() - 1, start.UnixMilli()}}, btcWindow: [][2]int64{{start.UnixMilli(), end}},
+				},
+				{
+					name: "the first with a full page whose oldest order is at the start, with no end", ethTimes: times,
+					exp:        append(slices.Clone(ethOrders), "3003 BTCUSD", "3002 BTCUSD"),
+					ethWindows: [][2]int64{{start.UnixMilli(), 0}, {start.UnixMilli() - 1, start.UnixMilli()}}, btcWindow: [][2]int64{{start.UnixMilli(), 0}},
+				},
+				{
+					name: "the first with no orders", end: time.UnixMilli(end),
+					exp:        []string{"3003 BTCUSD", "3002 BTCUSD"},
+					ethWindows: [][2]int64{{start.UnixMilli(), end}}, btcWindow: [][2]int64{{start.UnixMilli(), end}},
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					var ethWindows, btcWindows [][2]int64
+					ex := newHistoryWindowsExchange(t, map[string]historyFixture{
+						"/v2/auth/r/orders/tETHUSD/hist": {times: tc.ethTimes, row: row, windows: &ethWindows},
+						"/v2/auth/r/orders/tBTCUSD/hist": {times: btcTimes, row: func(i int) string { return btcRows[i] }, windows: &btcWindows},
+					})
+					// The pairs carry a delimiter, which Bitfinex's symbols do not, in an order a sort would change
+					req := &order.MultiOrderRequest{
+						AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "USD", "/"), currency.NewPairWithDelimiter("BTC", "USD", "/")},
+						StartTime: start, EndTime: tc.end, Side: order.AnySide, Type: order.AnyType,
+					}
+					asked := *req
+					asked.Pairs = slices.Clone(req.Pairs)
+					history, err := ex.GetOrderHistory(t.Context(), req)
+					require.NoErrorf(t, err, "GetOrderHistory must not error for two pairs, %s", tc.name)
+					got := make([]string, len(history))
+					for i := range history {
+						got[i] = history[i].OrderID + " " + history[i].Pair.Base.String() + history[i].Pair.Quote.String()
+					}
+					assert.Equalf(t, tc.exp, got, "GetOrderHistory should return each pair's orders from the start once, newest first, for two pairs, %s", tc.name)
+					assert.Equalf(t, tc.ethWindows, ethWindows, "the first pair's history should be read for the window asked, for two pairs, %s", tc.name)
+					assert.Equalf(t, tc.btcWindow, btcWindows, "the second pair's history should be read for the window asked, whatever the first's paging reached, for two pairs, %s", tc.name)
+					assert.Equalf(t, asked, *req, "GetOrderHistory should leave the request as it was asked, for two pairs, %s", tc.name)
+				})
+			}
+			t.Run("the second's history refused", func(t *testing.T) {
+				t.Parallel()
+				first := testOrderRecord{
+					id: 101, symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: "CANCELED", amount: 1, original: 1, price: 100,
+					createdAt: strconv.FormatInt(start.UnixMilli()+5, 10), updatedAt: strconv.FormatInt(start.UnixMilli()+time.Hour.Milliseconds(), 10),
+				}
+				ex := newPathResponseServerExchange(t, map[string]string{
+					"/v2/auth/r/orders/tETHUSD/hist": `[` + first.String() + `]`,
+					"/v2/auth/r/orders/tBTCUSD/hist": `["error",10001,"symbol: invalid"]`,
+				})
+				_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USD), currency.NewBTCUSD()}, StartTime: start, EndTime: time.UnixMilli(end), Side: order.AnySide, Type: order.AnyType})
+				var apiErr *APIError
+				assert.ErrorAs(t, err, &apiErr, "GetOrderHistory should return the error Bitfinex reports for the second pair's history, after the first's is read")
+			})
+		})
 	})
 
 	// Beside the scenario above, as when it was a test of its own
@@ -4694,6 +5214,38 @@ func TestGetLatestFundingRates(t *testing.T) { //nolint:tparallel // serial subt
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("rates over two pages of snapshots", func(t *testing.T) {
+		t.Parallel()
+		// A snapshot a minute, seven seconds past it, so no page ends at the window's start
+		start := time.Now().Add(-10 * 24 * time.Hour).Truncate(derivativeFundingInterval)
+		end := start.Add(90 * time.Hour)
+		const snapshots = 6000
+		times := make([]int64, snapshots)
+		for i := range snapshots {
+			times[i] = start.Add(time.Duration(snapshots-1-i)*time.Minute + 7*time.Second).UnixMilli()
+		}
+		event := func(ms int64) int { return int(time.UnixMilli(ms).Sub(start) / derivativeFundingInterval) }
+		rate := func(e int) float64 { return float64(e+1) / 10000 }
+		row := func(i int) string {
+			e := event(times[i])
+			next := start.Add(time.Duration(e+1) * derivativeFundingInterval)
+			return `[` + strconv.FormatInt(times[i], 10) + `,null,70000,70001,null,1000,null,` + strconv.FormatInt(next.UnixMilli(), 10) + `,0.00001,10,null,` + strconv.FormatFloat(rate(e), 'f', -1, 64) + `,null,null,70000,null,null,100,null,null,null,-0.003,0.003]`
+		}
+		var windows [][2]int64
+		ex := newHistoryWindowExchange(t, "/v2/status/deriv/tBTCF0:USTF0/hist", times, row, &windows)
+		rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error over two pages of snapshots")
+		exp := make([]fundingrate.Rate, 0, 12)
+		for e := 0; !start.Add(time.Duration(e) * derivativeFundingInterval).After(end); e++ {
+			exp = append(exp, fundingrate.Rate{Time: start.Add(time.Duration(e) * derivativeFundingInterval), Rate: decimal.MustFromFloat(rate(e))})
+		}
+		assert.Equal(t, exp, rates.FundingRates, "GetHistoricalFundingRates should return every funding event's rate in the window, oldest first")
+		require.Len(t, windows, 2, "GetHistoricalFundingRates must read two pages of snapshots")
+		assert.Equal(t, [2]int64{start.UnixMilli(), end.Add(derivativeFundingInterval).UnixMilli()}, windows[0], "the first page should cover the window and a funding interval after it")
+		first := slices.IndexFunc(times, func(ms int64) bool { return ms <= end.Add(derivativeFundingInterval).UnixMilli() })
+		assert.Equal(t, [2]int64{start.UnixMilli(), times[first+statusHistoryPageLimit-1]}, windows[1], "the second page should end at the first's oldest snapshot")
+	})
+
 	t.Run("window end", func(t *testing.T) {
 		t.Parallel()
 		var ends []int64
@@ -4932,8 +5484,19 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		})
 	}
 	orderArray := func(id uint64, created time.Time, status string) string {
+		remaining, average := "0.1", "0"
+		if strings.HasPrefix(status, "EXECUTED") {
+			remaining, average = "0", "80000"
+		}
 		return `[` + strconv.FormatUint(id, 10) + `,null,null,"tBTCF0:USTF0",` + strconv.FormatInt(created.UnixMilli(), 10) + `,` + strconv.FormatInt(created.UnixMilli(), 10) +
-			`,0,0.1,"LIMIT",null,null,null,0,"` + status + `",null,null,80000,80000,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,{"$F33":10}]`
+			`,` + remaining + `,0.1,"LIMIT",null,null,null,0,"` + status + `",null,null,80000,` + average + `,0,0,null,null,null,0,0,null,null,null,"API>BFX",null,null,{"$F33":10}]`
+	}
+	orderIDs := func(orders []order.Detail) []string {
+		ids := make([]string, len(orders))
+		for i := range orders {
+			ids[i] = orders[i].OrderID
+		}
+		return ids
 	}
 	var historyBodies []map[string]any
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -4968,14 +5531,95 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 
 	historyBodies = nil
 	earliest := time.Now().Add(-orderHistoryReach).UnixMilli()
-	_, err = ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: now, RespectOrderHistoryLimits: true})
+	clamped := &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: now, RespectOrderHistoryLimits: true}
+	asked := *clamped
+	asked.Pairs = slices.Clone(clamped.Pairs)
+	got, err = ex.GetFuturesPositionOrders(t.Context(), clamped)
 	latest := time.Now().Add(-orderHistoryReach).UnixMilli()
 	require.NoError(t, err, "GetFuturesPositionOrders must not error for a window starting before the order history")
+	assert.Equal(t, asked, *clamped, "GetFuturesPositionOrders should leave the request as it was asked, its start included")
+	require.Len(t, got, 1, "GetFuturesPositionOrders must return the pair's orders for a window starting before the order history")
+	assert.Equal(t, []string{"3", "2"}, orderIDs(got[0].Orders), "GetFuturesPositionOrders should leave out an open order placed before the order history's reach")
 	require.Len(t, historyBodies, 1, "GetFuturesPositionOrders must read the order history")
 	historyStart, ok := historyBodies[0]["start"].(float64)
 	require.True(t, ok, "the order history request must have a start")
 	assert.GreaterOrEqual(t, historyStart, float64(earliest), "a window starting before the order history should start as far back as it reaches")
 	assert.LessOrEqual(t, historyStart, float64(latest), "a window starting before the order history should start as far back as it reaches")
+
+	historyBodies = nil
+	ended := now.AddDate(0, 0, -4)
+	got, err = ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: ended, RespectOrderHistoryLimits: true})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error for a window starting before the order history and ending four days ago")
+	require.Len(t, got, 1, "GetFuturesPositionOrders must return the pair's orders for a window ending four days ago")
+	assert.Empty(t, got[0].Orders, "GetFuturesPositionOrders should leave out the orders placed after the window's end and before the order history's reach")
+	require.Len(t, historyBodies, 1, "GetFuturesPositionOrders must read the order history for a window ending four days ago")
+	assert.Equal(t, float64(ended.UnixMilli()), historyBodies[0]["end"], "the order history should be read to the window's end")
+
+	t.Run("a request refused before any order is read", func(t *testing.T) {
+		t.Parallel()
+		unsent := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "GetFuturesPositionOrders should read no orders for a request it refuses", "%s %s", r.Method, r.URL.Path)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}))
+		ethPair := currency.NewPair(currency.NewCode("ETHF0"), currency.NewCode("USTF0"))
+		for _, tc := range []struct {
+			name string
+			r    futures.PositionsRequest
+			err  error
+		}{
+			{name: "a window ending before the order history's reach", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -30), EndDate: now.AddDate(0, 0, -20), RespectOrderHistoryLimits: true}, err: common.ErrStartAfterEnd},
+			{name: "an empty pair", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.EMPTYPAIR}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "an empty pair and a window ending before the order history's reach", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.EMPTYPAIR}, StartDate: now.AddDate(0, 0, -30), EndDate: now.AddDate(0, 0, -20), RespectOrderHistoryLimits: true}, err: currency.ErrCurrencyPairEmpty},
+			{name: "a spot pair and a window ending before the order history's reach", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSD()}, StartDate: now.AddDate(0, 0, -30), EndDate: now.AddDate(0, 0, -20), RespectOrderHistoryLimits: true}, err: errPairNotOfAsset},
+			{name: "an empty pair after a contract", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, currency.EMPTYPAIR}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "a spot pair after a contract", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, ethPair, currency.NewBTCUSD()}, StartDate: now.Add(-time.Hour), EndDate: now}, err: errPairNotOfAsset},
+			{name: "an empty pair before a contract", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.EMPTYPAIR, testDerivativePair}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "an empty pair between contracts", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, currency.EMPTYPAIR, ethPair}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "a coin margined contract after a USDT margined one", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, testCoinMarginedPair}, StartDate: now.Add(-time.Hour), EndDate: now}, err: errPairNotOfAsset},
+			{name: "an empty pair after a coin margined contract", r: futures.PositionsRequest{Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedPair, currency.EMPTYPAIR}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "an empty pair before a spot pair", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.EMPTYPAIR, currency.NewBTCUSD()}, StartDate: now.Add(-time.Hour), EndDate: now}, err: currency.ErrCurrencyPairEmpty},
+			{name: "a spot pair before an empty pair", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSD(), currency.EMPTYPAIR}, StartDate: now.Add(-time.Hour), EndDate: now}, err: errPairNotOfAsset},
+			{name: "a pair whose base is no contract's", r: futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair, currency.NewPair(currency.BTC, currency.NewCode("USTF0"))}, StartDate: now.Add(-time.Hour), EndDate: now}, err: errPairNotOfAsset},
+			{name: "a USDT margined contract after a coin margined one", r: futures.PositionsRequest{Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedPair, testDerivativePair}, StartDate: now.Add(-time.Hour), EndDate: now}, err: errPairNotOfAsset},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := unsent.GetFuturesPositionOrders(t.Context(), &tc.r)
+				assert.ErrorIsf(t, err, tc.err, "GetFuturesPositionOrders should refuse %+v", tc.r)
+			})
+		}
+	})
+
+	for _, tc := range []struct {
+		name   string
+		a      asset.Item
+		p      currency.Pair
+		symbol string
+	}{
+		{name: "a paper trading contract", a: asset.USDTMarginedFutures, p: currency.NewPair(currency.NewCode("TESTBTCF0"), currency.NewCode("TESTUSDTF0")), symbol: "tTESTBTCF0:TESTUSDTF0"},
+		{name: "a coin margined contract", a: asset.CoinMarginedFutures, p: testCoinMarginedPair, symbol: "tETHF0:BTCF0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var paths []string
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				mu.Unlock()
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			got, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: tc.a, Pairs: currency.Pairs{tc.p}, StartDate: now.Add(-time.Hour), EndDate: now})
+			require.NoErrorf(t, err, "GetFuturesPositionOrders must take %s", tc.name)
+			require.Lenf(t, got, 1, "GetFuturesPositionOrders must return %s's orders", tc.name)
+			assert.Equalf(t, tc.p, got[0].Pair, "GetFuturesPositionOrders should return %s's orders", tc.name)
+			assert.Equalf(t, tc.a, got[0].Asset, "GetFuturesPositionOrders should report %s as of its asset", tc.name)
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equalf(t, []string{"/v2/auth/r/orders/" + tc.symbol, "/v2/auth/r/orders/" + tc.symbol + "/hist"}, paths, "GetFuturesPositionOrders should read %s's open orders, then its order history", tc.name)
+		})
+	}
 
 	req := &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.Add(-time.Hour), EndDate: now}
 	var apiErr *APIError
