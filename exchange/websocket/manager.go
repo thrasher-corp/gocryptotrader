@@ -181,10 +181,22 @@ func SetupGlobalReporter(r Reporter) {
 	globalReporter = r
 }
 
+// ManagerOption configures a Manager that NewManager creates
+type ManagerOption func(*Manager)
+
+// WithDataHandlerCapacity gives the new Manager a DataHandler of the capacity given in place of the default one, so a
+// caller wanting another capacity does not allocate and discard the default; zero keeps the default
+func WithDataHandlerCapacity(capacity uint) ManagerOption {
+	return func(m *Manager) {
+		if capacity > 0 {
+			m.DataHandler = stream.NewRelay(capacity)
+		}
+	}
+}
+
 // NewManager initialises the websocket struct
-func NewManager() *Manager {
-	return &Manager{
-		DataHandler:  stream.NewRelay(jobBuffer),
+func NewManager(opts ...ManagerOption) *Manager {
+	m := &Manager{
 		ShutdownC:    make(chan struct{}),
 		TrafficAlert: make(chan struct{}, 1),
 		// ReadMessageErrors is buffered for an edge case when `Connect` fails
@@ -198,6 +210,13 @@ func NewManager() *Manager {
 		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
 	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	if m.DataHandler == nil {
+		m.DataHandler = stream.NewRelay(jobBuffer)
+	}
+	return m
 }
 
 // Setup sets main variables for websocket connection

@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 41306,
-    "bytes": 10309296,
+    "allocs": 42245,
+    "bytes": 10614337,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Crypto.com in testdata/configtest.json, gave medians from 42245 to 42268. 0.4% is about 169 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -557,12 +557,16 @@
     "allocs": 1,
     "bytes": 128
   },
+  "exchanges/sharedtestvalues.BenchmarkNewTestWebsocket": {
+    "allocs": 15,
+    "bytes": 13552
+  },
   "internal/testing/exchange.BenchmarkSetup": {
-    "allocs": 10074,
-    "bytes": 2286951,
+    "allocs": 10153,
+    "bytes": 2175274,
     "allocs_tolerance": 0.12,
     "bytes_tolerance": 0.08,
-    "reason": "Base.SetConfigPairs walks the config's assets in map order, and each store of an asset's available pairs rebuilds the matcher for every available pair stored so far, so a call's allocations depend on that order. BENCH_FLAGS runs in November 2026 gave 40 medians from 9946 to 10903 allocs/op and from 2262536 to 2411958 B/op, in two bands. The budget is a run from the lower band; 12% and 8% put the limits 379 allocs/op and 57949 B/op above the highest medians measured, 3.7 and 4.4 standard deviations of the upper band's 13 medians (101 allocs/op and 13079 B/op)"
+    "reason": "Base.SetConfigPairs walks the config's assets in map order, and each store of an asset's available pairs rebuilds the matcher for every available pair stored so far, so a call's allocations depend on that order. BENCH_FLAGS runs in November 2026 gave 40 medians from 9939 to 10882 allocs/op and from 2135256 to 2295095 B/op, in two bands. The budget is a run from the lower band; 12% and 8% put the limits 489 allocs/op and 54201 B/op above the highest medians measured, 5.7 and 4.2 standard deviations of the upper band's 10 medians (85 allocs/op and 12778 B/op)"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,
