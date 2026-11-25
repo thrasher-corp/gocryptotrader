@@ -63,5 +63,5 @@ func TestTickerResponseReservedPriceATH(t *testing.T) {
 	legacy := protowire.AppendTag(nil, 10, protowire.Fixed64Type)
 	legacy = protowire.AppendFixed64(legacy, 123)
 	require.NoError(t, proto.Unmarshal(legacy, response), "legacy price_ath field must remain decodable as unknown data")
-	assert.False(t, response.ProtoReflect().Has(descriptor.Fields().ByName("last_updated")), "legacy price_ath should not populate the timestamp")
+	assert.Equal(t, protoreflect.RawFields(legacy), response.ProtoReflect().GetUnknown(), "legacy price_ath should remain in the unknown fields")
 }

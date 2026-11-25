@@ -80,6 +80,18 @@ func TestDowngradeConfig(t *testing.T) {
 			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
 		},
 		{
+			name:     "numeric selection",
+			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":1}}}`,
+			errs:     []error{common.ErrTypeAssertFailure},
+			errField: "gRPC timestamp precision",
+		},
+		{
+			name:     "string selection",
+			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":"true"}}}`,
+			errs:     []error{common.ErrTypeAssertFailure},
+			errField: "gRPC timestamp precision",
+		},
+		{
 			name:     "missing gRPC configuration remains absent",
 			input:    `{"name":"gocryptotrader"}`,
 			expected: `{"name":"gocryptotrader"}`,
@@ -107,7 +119,7 @@ func TestDowngradeConfig(t *testing.T) {
 			output, err := new(v20.Version).DowngradeConfig(t.Context(), []byte(tc.input))
 			if len(tc.errs) != 0 {
 				for _, want := range tc.errs {
-					require.ErrorIs(t, err, want, "DowngradeConfig must preserve the field-access sentinel and parser error")
+					require.ErrorIs(t, err, want, "DowngradeConfig must return the expected error")
 				}
 				require.ErrorContains(t, err, tc.errField, "DowngradeConfig must name the field it failed to read")
 				assert.Equal(t, tc.input, string(output), "DowngradeConfig should return the original configuration on error")

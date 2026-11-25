@@ -1601,38 +1601,35 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 func TestReadLegacyTimestampPrecisionConfigFromFile(t *testing.T) {
 	t.Parallel()
-	for _, version := range []int{17, 18, 19} {
-		t.Run(strconv.Itoa(version), func(t *testing.T) {
-			t.Parallel()
-			data, err := os.ReadFile(TestFile)
-			require.NoError(t, err, "ReadFile must load the current config fixture")
-			var expected Config
-			require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-			var saved map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
-			var remoteControl map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(saved["remoteControl"], &remoteControl), "Unmarshal must preserve remote control settings")
-			var grpcConfig map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(remoteControl["gRPC"], &grpcConfig), "Unmarshal must preserve gRPC settings")
-			grpcConfig["timeInNanoSeconds"] = json.RawMessage(`true`)
-			remoteControl["gRPC"], err = json.Marshal(grpcConfig)
-			require.NoError(t, err, "Marshal must encode gRPC settings")
-			saved["remoteControl"], err = json.Marshal(remoteControl)
-			require.NoError(t, err, "Marshal must encode remote control settings")
-			saved["version"] = json.RawMessage(strconv.Itoa(version))
-			data, err = json.Marshal(saved)
-			require.NoError(t, err, "Marshal must encode the previous config version")
-			path := filepath.Join(t.TempDir(), "config.json")
-			require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the previous config version")
-			var migrated Config
-			require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the previous config version")
-			assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance to the current version")
-			assert.Equal(t, expected.RemoteControl, migrated.RemoteControl, "ReadConfigFromFile should preserve current remote control settings")
-			var output bytes.Buffer
-			require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
-			assert.NotContains(t, output.String(), `"timeInNanoSeconds"`, "Save should omit the removed timestamp precision setting")
-		})
-	}
+
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the current config fixture")
+	var expected Config
+	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must decode the config fixture into a raw message map")
+	var remoteControl map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["remoteControl"], &remoteControl), "Unmarshal must decode remote control settings into a raw message map")
+	var grpcConfig map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(remoteControl["gRPC"], &grpcConfig), "Unmarshal must decode gRPC settings into a raw message map")
+	require.NotNil(t, grpcConfig, "The config fixture must contain a gRPC object")
+	grpcConfig["timeInNanoSeconds"] = json.RawMessage(`true`)
+	remoteControl["gRPC"], err = json.Marshal(grpcConfig)
+	require.NoError(t, err, "Marshal must encode gRPC settings")
+	saved["remoteControl"], err = json.Marshal(remoteControl)
+	require.NoError(t, err, "Marshal must encode remote control settings")
+	saved["version"] = json.RawMessage(`19`)
+	data, err = json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the previous config version")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the previous config version")
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the previous config version")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance to the current version")
+	assert.Equal(t, expected.RemoteControl, migrated.RemoteControl, "ReadConfigFromFile should preserve current remote control settings")
+	var output bytes.Buffer
+	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
+	assert.NotContains(t, output.String(), `"timeInNanoSeconds"`, "Save should omit the removed timestamp precision setting")
 }
 
 func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {

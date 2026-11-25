@@ -20,8 +20,8 @@ func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) 
 }
 
 // DowngradeConfig restores the legacy default expected by older releases, as the
-// upgrade discarded any configured precision. An explicitly supplied setting is
-// preserved.
+// upgrade discarded any configured precision. An explicitly supplied boolean is
+// preserved, and other non-null values return an error.
 func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
 	_, valueType, _, err := jsonparser.Get(config, "remoteControl", "gRPC")
 	switch {
@@ -35,8 +35,10 @@ func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error
 
 	_, precisionType, _, err := jsonparser.Get(config, "remoteControl", "gRPC", "timeInNanoSeconds")
 	switch {
-	case err == nil && precisionType != jsonparser.Null:
+	case err == nil && precisionType == jsonparser.Boolean:
 		return config, nil
+	case err == nil && precisionType != jsonparser.Null:
+		return config, fmt.Errorf("%w: gRPC timestamp precision must be a boolean, got %v", common.ErrTypeAssertFailure, precisionType)
 	case err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError):
 		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrGettingField, err)
 	}
