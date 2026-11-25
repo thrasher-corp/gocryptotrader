@@ -209,7 +209,6 @@ func NewManager(opts ...ManagerOption) *Manager {
 		features:          &protocol.Features{},
 		Orderbook:         orderbookmanager.Orderbook{},
 		connections:       make(map[Connection]*websocket),
-		readersDone:       make(map[Connection]chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(m)
