@@ -4,8 +4,10 @@ package decimal
 
 import (
 	"database/sql/driver"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/quagmt/udecimal"               //nolint:depguard // Selected implementation for the udecimal_on build.
 	shopspring "github.com/shopspring/decimal" //nolint:depguard // Scan takes the default build's own type, as the default build does.
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // MaxFractionalDigits is the fractional precision retained by udecimal arithmetic.
@@ -417,11 +420,58 @@ func (d Decimal) Value() (driver.Value, error) {
 	return d.value.Value()
 }
 
+// MarshalBSONValue implements the MongoDB Go driver v2's bson.ValueMarshaler
+// interface as the default build does, storing d as a BSON Decimal128. A value
+// needing more than 34 significant digits is an error rather than being
+// rounded.
+func (d Decimal) MarshalBSONValue() (typ byte, data []byte, err error) {
+	data, err = encodeDecimal128(d.value)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error marshalling decimal BSON value: %w", err)
+	}
+	return bsonwire.TypeDecimal128, data, nil
+}
+
+// UnmarshalBSONValue implements the MongoDB Go driver v2's bson.ValueUnmarshaler
+// interface. As in the default build, it reads BSON Decimal128, string, double,
+// int32 and int64 values and reads null and undefined as zero. d is zero after
+// a 16-byte Decimal128 or a string's text fails to decode, and unchanged after
+// any other failure, such as a value of the wrong length.
+func (d *Decimal) UnmarshalBSONValue(typ byte, data []byte) error {
+	var err error
+	switch {
+	case typ == bsonwire.TypeNull || typ == bsonwire.TypeUndefined:
+		*d = Decimal{}
+	case typ == bsonwire.TypeDecimal128 && len(data) == decimal128Bytes:
+		*d, err = decodeDecimal128(data)
+	case typ == bsonwire.TypeString && len(data) >= 5:
+		// As in the default build, the text runs from after the int32 length to
+		// before the final byte, and neither is checked.
+		*d, err = NewFromString(string(data[4 : len(data)-1]))
+	case typ == bsonwire.TypeDouble && len(data) == 8:
+		var value udecimal.Decimal
+		if value, err = newUdecimalFromFloat(math.Float64frombits(binary.LittleEndian.Uint64(data)), 64); err == nil {
+			d.value = value
+		}
+	case typ == bsonwire.TypeInt32 && len(data) == 4:
+		*d = NewFromInt32(int32(binary.LittleEndian.Uint32(data))) //nolint:gosec // BSON stores a signed int32 in these bits
+	case typ == bsonwire.TypeInt64 && len(data) == 8:
+		*d = NewFromInt(int64(binary.LittleEndian.Uint64(data))) //nolint:gosec // BSON stores a signed int64 in these bits
+	default:
+		err = fmt.Errorf("%w: type %#02x with %d bytes", errUnsupportedBSONValue, typ, len(data))
+	}
+	if err != nil {
+		return fmt.Errorf("error unmarshalling decimal BSON value: %w", err)
+	}
+	return nil
+}
+
 // Format implements fmt.Formatter for the verbs the default backend supports.
 // %v, %s, %q, %x and %X format String(). %f and %F print fixed-point notation,
 // rounded like StringFixed when a precision is given, with fmt's width and sign
-// flags. %#v prints the MustFromString call that recreates d. Other verbs print
-// fmt's usual error, such as %!d(decimal.Decimal=3.14).
+// flags. %#v prints the MustFromString call that recreates d's value, without
+// any trailing fractional zeros d holds. Other verbs print fmt's usual error,
+// such as %!d(decimal.Decimal=3.14).
 func (d Decimal) Format(state fmt.State, verb rune) {
 	switch verb {
 	case 'v', 's', 'q', 'x', 'X':

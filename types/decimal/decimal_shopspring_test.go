@@ -89,6 +89,16 @@ func TestDecimalScan(t *testing.T) {
 	})
 }
 
+func TestDecimalMarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	t.Run("Decimal128 encoding", testDecimalMarshalBSONValue)
+}
+
+func TestDecimalUnmarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	t.Run("BSON values", testDecimalUnmarshalBSONValue)
+}
+
 // testDecimalFormatGoSyntax checks shopspring's %#v form, which the udecimal
 // build replaces with a MustFromString call.
 func testDecimalFormatGoSyntax(t *testing.T) {

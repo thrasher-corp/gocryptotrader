@@ -4,6 +4,8 @@ package decimal
 
 import (
 	"database/sql/driver"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -17,6 +19,7 @@ import (
 	shopspring "github.com/shopspring/decimal" //nolint:depguard // The default build's type, which Scan accepts.
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 func TestImplementation(t *testing.T) {
@@ -779,6 +782,93 @@ func TestDecimalValue(t *testing.T) {
 	value, err := MustFromString("1.25").Value()
 	require.NoError(t, err, "Value must not error")
 	assert.Equal(t, driver.Value("1.25"), value, "Value should return the canonical string")
+}
+
+func TestDecimalMarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	t.Run("Decimal128 encoding", testDecimalMarshalBSONValue)
+	t.Run("NewFromString drops trailing fractional zeros", func(t *testing.T) {
+		t.Parallel()
+		// The default build keeps them, storing 150 at exponent -2.
+		_, data, err := MustFromString("1.50").MarshalBSONValue()
+		require.NoError(t, err, "MarshalBSONValue must store the value")
+		assert.Equal(t, "0f000000000000000000000000003e30", hex.EncodeToString(data), "MarshalBSONValue should store the coefficient that NewFromString keeps")
+	})
+	for _, tc := range []struct {
+		name  string
+		value Decimal
+	}{
+		{name: "35 significant digits", value: MustFromString("12345678901234567890123456789012345")},
+		{name: "power of ten beyond the largest exponent", value: MustFromString("1e5").Pow(NewFromInt(1229))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := tc.value.MarshalBSONValue()
+			assert.ErrorIs(t, err, errDecimal128Overflow, "MarshalBSONValue should refuse a value that does not fit a Decimal128")
+		})
+	}
+}
+
+func TestDecimalUnmarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	t.Run("BSON values", testDecimalUnmarshalBSONValue)
+	for _, value := range []string{
+		"96000000000000000000000000003c30",
+		"08e201000000000000000000000038b0",
+		"01000000000000000000000000001ab0",
+		"0a000000000000000000000000001a30",
+		"ffffffff638e8d37c087adbe09ed1b30",
+	} {
+		t.Run("Decimal128 "+value+" read and written back", func(t *testing.T) {
+			t.Parallel()
+			var decoded Decimal
+			require.NoError(t, decoded.UnmarshalBSONValue(bsonwire.TypeDecimal128, bsonDecimal128(t, value)), "UnmarshalBSONValue must decode the Decimal128")
+			_, data, err := decoded.MarshalBSONValue()
+			require.NoError(t, err, "MarshalBSONValue must store the decoded value")
+			assert.Equal(t, value, hex.EncodeToString(data), "MarshalBSONValue should store the Decimal128 that UnmarshalBSONValue read")
+		})
+	}
+	t.Run("Decimal128 at 200 digits", func(t *testing.T) {
+		t.Parallel()
+		decoded := NewFromInt(7)
+		require.NoError(t, decoded.UnmarshalBSONValue(bsonwire.TypeDecimal128, bsonDecimal128(t, "0100000000000000000000000000ce31")), "UnmarshalBSONValue must decode 10^199")
+		assert.Equal(t, "1"+strings.Repeat("0", 199), decoded.String(), "UnmarshalBSONValue should decode 10^199")
+	})
+	for _, tc := range []struct {
+		name, expected string
+		value          float64
+	}{
+		{name: "double beyond nineteen fractional digits", value: 1.2345678901234567e-5, expected: "0.0000123456789012345"},
+		{name: "double below 1e-19", value: 1e-25, expected: "0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			decoded := NewFromInt(7)
+			require.NoError(t, decoded.UnmarshalBSONValue(bsonwire.TypeDouble, binary.LittleEndian.AppendUint64(nil, math.Float64bits(tc.value))), "UnmarshalBSONValue must decode the double")
+			assert.Equal(t, tc.expected, decoded.String(), "UnmarshalBSONValue should truncate the double as MustFromFloat does")
+		})
+	}
+	for _, tc := range []struct {
+		name, expected string
+		typ            byte
+		data           []byte
+		err            error
+	}{
+		{name: "Decimal128 needing 20 fractional digits", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "0f000000000000000000000000001830"), err: errPrecisionOutOfRange, expected: "0"},
+		{name: "Decimal128 expanding beyond 200 digits", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "0100000000000000000000000000d031"), err: errInvalidDecimal, expected: "0"},
+		{name: "Decimal128 NaN", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "0000000000000000000000000000007c"), err: errInvalidDecimal, expected: "0"},
+		{name: "invalid string", typ: bsonwire.TypeString, data: bsonwire.MarshalString("invalid"), err: errInvalidDecimal, expected: "0"},
+		{name: "double NaN", typ: bsonwire.TypeDouble, data: binary.LittleEndian.AppendUint64(nil, math.Float64bits(math.NaN())), err: errInvalidDecimal, expected: "7"},
+		{name: "short Decimal128", typ: bsonwire.TypeDecimal128, data: make([]byte, 15), err: errUnsupportedBSONValue, expected: "7"},
+		{name: "boolean", typ: 0x08, data: []byte{1}, err: errUnsupportedBSONValue, expected: "7"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			decoded := NewFromInt(7)
+			assert.ErrorIs(t, decoded.UnmarshalBSONValue(tc.typ, tc.data), tc.err, "UnmarshalBSONValue should return the expected error")
+			assert.Equal(t, tc.expected, decoded.String(), "UnmarshalBSONValue should leave the expected value after the error")
+		})
+	}
 }
 
 func TestParseDecimalParts(t *testing.T) {

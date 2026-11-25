@@ -3,9 +3,11 @@
 package decimal
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -25,13 +27,27 @@ const (
 	// except on zero and trailing-zero input; this limit rejects those too, so
 	// the udecimal build accepts no exponent that the default build rejects.
 	shopspringMaxDecodeExponent = 10000
+
+	// A BSON Decimal128 is a little-endian IEEE 754-2008 decimal128 in the binary
+	// integer decimal encoding. A finite value in its usual form holds, from the
+	// top bit down, a sign bit, a 14-bit exponent biased by 6176 and a
+	// coefficient of at most 34 decimal digits.
+	decimal128Bytes        = 16
+	decimal128ExponentBias = 6176
+	decimal128MaxExponent  = 6111
+	decimal128MaxDigits    = 34
 )
 
 var (
-	errInvalidDecimal      = errors.New("invalid decimal")
-	errPrecisionOutOfRange = errors.New("decimal precision out of range")
-	errExponentOutOfRange  = errors.New("decimal exponent out of range")
-	errUnsupportedScanType = errors.New("unsupported decimal scan type")
+	errInvalidDecimal       = errors.New("invalid decimal")
+	errPrecisionOutOfRange  = errors.New("decimal precision out of range")
+	errExponentOutOfRange   = errors.New("decimal exponent out of range")
+	errUnsupportedScanType  = errors.New("unsupported decimal scan type")
+	errUnsupportedBSONValue = errors.New("unsupported BSON value for decimal")
+	errDecimal128Overflow   = errors.New("decimal does not fit a BSON Decimal128")
+
+	// decimal128MaxCoefficient is 10^34 - 1, the largest Decimal128 coefficient.
+	decimal128MaxCoefficient = new(big.Int).Sub(new(big.Int).Exp(big.NewInt(10), big.NewInt(34), nil), big.NewInt(1))
 )
 
 // useNativeParser reports whether text may go to udecimal's own parser. Beyond
@@ -315,4 +331,80 @@ func normalise(value string, truncate bool) (string, error) {
 		return "", err
 	}
 	return formatDecimalParts(digits, scale, negative)
+}
+
+// encodeDecimal128 stores value as a BSON Decimal128 the way the default build
+// does. Trailing zeros move from the coefficient to the exponent only while the
+// coefficient exceeds 34 digits, and a value that still does not fit is an
+// error rather than being rounded.
+func encodeDecimal128(value udecimal.Decimal) ([]byte, error) {
+	// StringFixed at the stored precision keeps the trailing zeros that String
+	// drops, so its digits are the stored coefficient.
+	digits := strings.Replace(strings.TrimPrefix(value.StringFixed(value.PrecUint()), "-"), ".", "", 1)
+	exponent := -int(value.PrecUint())
+	// Only a value whose magnitude is at least one has more than 34 digits, so
+	// these have no leading zeros. Stopping at the largest exponent keeps a huge power of ten
+	// from overflowing the exponent field.
+	if len(digits) > decimal128MaxDigits {
+		trailingZeros := len(digits) - len(strings.TrimRight(digits, "0"))
+		moved := min(len(digits)-decimal128MaxDigits, trailingZeros, decimal128MaxExponent-exponent)
+		digits = digits[:len(digits)-moved]
+		exponent += moved
+		if len(digits) > decimal128MaxDigits {
+			return nil, fmt.Errorf("%w: its coefficient needs %d digits at exponent %d", errDecimal128Overflow, len(digits), exponent)
+		}
+	}
+	// The digits are plain decimal text, so SetString cannot fail.
+	coefficient, _ := new(big.Int).SetString(digits, 10)
+	var coefficientBytes [decimal128Bytes]byte
+	coefficient.FillBytes(coefficientBytes[:])
+	high := binary.BigEndian.Uint64(coefficientBytes[:8]) | uint64(exponent+decimal128ExponentBias)<<49 //nolint:gosec // the biased exponent is between 6157 and 12287
+	if value.IsNeg() {
+		high |= 1 << 63
+	}
+	data := make([]byte, decimal128Bytes)
+	binary.LittleEndian.PutUint64(data, binary.BigEndian.Uint64(coefficientBytes[8:]))
+	binary.LittleEndian.PutUint64(data[8:], high)
+	return data, nil
+}
+
+// decodeDecimal128 reads a BSON Decimal128 the way the default build does: NaN
+// and infinities are errors, and IEEE 754 reads a coefficient above 10^34 - 1
+// as zero. A value needing more than 19 fractional digits or expanding beyond
+// 200 digits is rejected, as its scientific notation would be.
+func decodeDecimal128(data []byte) (Decimal, error) {
+	low := binary.LittleEndian.Uint64(data)
+	high := binary.LittleEndian.Uint64(data[8:])
+	switch {
+	case high>>59&0xF == 0xF:
+		return Decimal{}, fmt.Errorf("%w: BSON Decimal128 NaN or infinity", errInvalidDecimal)
+	case high>>61&3 == 3:
+		// This form's coefficient always exceeds 10^34 - 1.
+		return Decimal{}, nil
+	}
+	negative := high>>63 == 1
+	exponent := int64(high>>49&0x3FFF) - decimal128ExponentBias
+	high &= 1<<49 - 1
+	var coefficientBytes [decimal128Bytes]byte
+	binary.BigEndian.PutUint64(coefficientBytes[:8], high)
+	binary.BigEndian.PutUint64(coefficientBytes[8:], low)
+	coefficient := new(big.Int).SetBytes(coefficientBytes[:])
+	if coefficient.Cmp(decimal128MaxCoefficient) > 0 {
+		return Decimal{}, nil
+	}
+	if exponent <= 0 && exponent >= -maxPrecision {
+		// The default build keeps the stored exponent. Keeping the coefficient's
+		// trailing zeros likewise lets a non-zero value read and written back keep
+		// its encoding.
+		value, err := udecimal.NewFromHiLo(negative, high, low, uint8(-exponent))
+		if err != nil {
+			return Decimal{}, fmt.Errorf("%w: %w", errInvalidDecimal, err)
+		}
+		return Decimal{value: value}, nil
+	}
+	text := coefficient.String() + "e" + strconv.FormatInt(exponent, 10)
+	if negative {
+		text = "-" + text
+	}
+	return NewFromString(text)
 }

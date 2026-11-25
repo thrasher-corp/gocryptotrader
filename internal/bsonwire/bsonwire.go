@@ -9,14 +9,18 @@ import (
 	"fmt"
 )
 
-// BSON value types used by this package.
+// BSON value types handled by the BSON value methods and their tests.
 const (
+	TypeDouble           byte = 0x01
 	TypeString           byte = 0x02
 	TypeEmbeddedDocument byte = 0x03
 	TypeArray            byte = 0x04
+	TypeUndefined        byte = 0x06
 	TypeNull             byte = 0x0A
 	TypeSymbol           byte = 0x0E
 	TypeInt32            byte = 0x10
+	TypeInt64            byte = 0x12
+	TypeDecimal128       byte = 0x13
 )
 
 // Errors returned for a BSON value of the wrong type or with malformed bytes
