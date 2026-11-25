@@ -3104,7 +3104,7 @@ func TestTypesBooleanPostOnly(t *testing.T) {
 	assert.Equal(t, types.Boolean(true), o.PostOnly, "a post only flag sent as a string should decode")
 }
 
-func TestSetupFromVersion19Config(t *testing.T) {
+func TestSetupFromVersion20Config(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3121,10 +3121,10 @@ func TestSetupFromVersion19Config(t *testing.T) {
 		`"spot":{"assetEnabled":true,"enabled":"BTC-USD","available":"BTC-USD,ETH-USD"}}}`), "currencyPairs")
 	require.NoError(t, err, "jsonparser.Set must not error for the pairs")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":19,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 19 config")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":20,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 20 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 19 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 20 config")
 	exchCfg, err := cfg.GetExchangeConfig("Coinbase")
 	require.NoError(t, err, "GetExchangeConfig must not error")
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), exchCfg.Features.Subscriptions.Clone())
@@ -3168,7 +3168,7 @@ func TestSetupFromVersion19Config(t *testing.T) {
 	}
 }
 
-func TestSetupFromVersion19CustomisedConfig(t *testing.T) {
+func TestSetupFromVersion20CustomisedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3186,10 +3186,10 @@ func TestSetupFromVersion19CustomisedConfig(t *testing.T) {
 		`"spot":{"assetEnabled":true,"enabled":"BTC-USD","available":"BTC-USD,ETH-USD"}}}`), "currencyPairs")
 	require.NoError(t, err, "jsonparser.Set must not error for the pairs")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":19,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 19 config")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":20,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 20 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 19 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 20 config")
 	exchCfg, err := cfg.GetExchangeConfig("Coinbase")
 	require.NoError(t, err, "GetExchangeConfig must not error")
 	ex := new(Exchange)

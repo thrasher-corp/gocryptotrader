@@ -88,7 +88,7 @@ func (e *ExchangeRates) GetSymbols() (map[string]string, error) {
 }
 
 // GetLatestRates returns a map of forex rates based on the supplied params
-// baseCurrency - USD	[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - EUR	[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
 func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (*Rates, error) {
@@ -111,7 +111,7 @@ func (e *ExchangeRates) GetLatestRates(baseCurrency, symbols string) (*Rates, er
 // GetHistoricalRates returns historical exchange rate data for all available or
 // a specific set of currencies.
 // date - YYYY-MM-DD	[required] A date in the past
-// baseCurrency - USD 			[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - EUR 			[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
 func (e *ExchangeRates) GetHistoricalRates(date time.Time, baseCurrency string, symbols []string) (*HistoricalRates, error) {
@@ -162,7 +162,7 @@ func (e *ExchangeRates) ConvertCurrency(from, to string, amount float64, date ti
 // specified dates for all available or a specific set of currencies.
 // startDate - YYYY-MM-DD	[required] A date in the past
 // endDate - YYYY-MM-DD	[required] A date in the past but greater than the startDate
-// baseCurrency - USD 	[optional] The base currency to use for forex rates, defaults to EUR
+// baseCurrency - EUR 	[optional] The base currency to use for forex rates, defaults to EUR
 // symbols - AUD,USD 	[optional] The symbols to query the forex rates for, default is
 // all supported currencies
 func (e *ExchangeRates) GetTimeSeriesRates(startDate, endDate time.Time, baseCurrency string, symbols []string) (*TimeSeriesRates, error) {
