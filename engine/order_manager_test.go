@@ -479,6 +479,7 @@ func TestCancelOrder(t *testing.T) {
 	err = m.Cancel(t.Context(), cancel)
 	assert.NoError(t, err)
 	assert.False(t, o.LastUpdated.Before(beforeCancel), "successful local cancellation should stamp its update time")
+	assert.Equal(t, order.PendingCancel, o.Status, "the cancel acknowledgement should leave the order pending")
 	closeTime := beforeCancel.Add(-30 * time.Millisecond)
 	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1337", Status: order.Cancelled, CloseTime: closeTime, LastUpdated: closeTime}), "older exchange confirmation must enrich the locally cancelled order")
 	assert.Equal(t, closeTime, o.CloseTime, "exchange confirmation should preserve its close time despite the newer local stamp")
@@ -486,6 +487,27 @@ func TestCancelOrder(t *testing.T) {
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
 	}
+
+	t.Run("cancel acknowledgement leaves the order eligible for polling", func(t *testing.T) {
+		for _, status := range []order.Status{order.Open, order.PartiallyFilled, order.PendingCancel, order.Cancelled, order.PartiallyCancelled} {
+			t.Run(status.String(), func(t *testing.T) {
+				manager := OrdersSetup(t)
+				entry := &order.Detail{Exchange: testExchange, OrderID: "1338", AssetType: asset.Spot, Pair: btcusdPair, Amount: 2, Status: order.Open}
+				require.NoError(t, manager.orderStore.add(entry), "the order must be stored")
+				require.NoError(t, manager.Cancel(t.Context(), &order.Cancel{Exchange: testExchange, OrderID: entry.OrderID, AssetType: asset.Spot, Pair: btcusdPair}), "Cancel must accept the venue acknowledgement")
+				assert.Equal(t, order.PendingCancel, entry.Status, "the acknowledged cancellation should be pending")
+				assert.True(t, entry.IsActive(), "the order should remain eligible for polling")
+				report := order.Detail{Exchange: testExchange, OrderID: entry.OrderID, Status: status, Amount: 2}
+				if status == order.PartiallyFilled || status == order.PartiallyCancelled {
+					report.ExecutedAmount, report.RemainingAmount = 0.5, 1.5
+				}
+				_, err := manager.UpsertOrder(&report)
+				require.NoError(t, err, "the venue report must merge")
+				assert.Equal(t, status, entry.Status, "the stored order should follow the venue status")
+				assert.Equal(t, !status.IsInactive(), entry.IsActive(), "polling eligibility should follow the venue status")
+			})
+		}
+	})
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -531,7 +553,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if checkDeets.Status == order.Cancelled {
+	if checkDeets.Status == order.Cancelled || checkDeets.Status == order.PendingCancel {
 		t.Error("Order should not be cancelled")
 	}
 
@@ -546,8 +568,8 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if checkDeets.Status != order.Cancelled {
-		t.Error("Order should be cancelled", checkDeets.Status)
+	if checkDeets.Status != order.PendingCancel {
+		t.Error("Order should be pending cancellation", checkDeets.Status)
 	}
 }
 
@@ -648,7 +670,7 @@ func TestOrderManagerStopCancelsOrdersOnShutdown(t *testing.T) {
 
 	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, orderID)
 	require.NoError(t, err)
-	assert.Equal(t, order.Cancelled, checkDeets.Status)
+	assert.Equal(t, order.PendingCancel, checkDeets.Status)
 }
 
 func TestSubmit(t *testing.T) {

@@ -87,6 +87,7 @@ func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {
 		d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Amount: 12})
 		want := filled(storedID)
 		assert.Equalf(t, execution(&want), execution(&d), "an amendment of order %q in place should keep its execution", storedID)
+		assert.Equal(t, want.Status, d.Status, "an amendment or initial ID assignment should keep its status")
 	}
 	d := filled("1")
 	d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Amount: 10, RemainingAmount: 9})
@@ -94,6 +95,28 @@ func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {
 	require.NoError(t, d.UpdateOrderFromDetail(&Detail{OrderID: "2", Amount: 10, ExecutedAmount: 1, RemainingAmount: 9, Status: Cancelled}), "replacement order update must merge")
 	assert.Equal(t, Cancelled, d.Status, "the replacement order's cancellation should finish it")
 	assert.Equal(t, 1.0, d.ExecutedAmount, "the replacement order's execution should be its own")
+
+	t.Run("replacement starts its own lifecycle", func(t *testing.T) {
+		t.Parallel()
+		for _, status := range []Status{Open, PartiallyFilled, Cancelled, PartiallyCancelled, Filled, Rejected, Expired, Closed, Liquidated} {
+			t.Run(status.String(), func(t *testing.T) {
+				t.Parallel()
+				d := filled("1")
+				d.Status, d.CloseTime = status, time.Unix(1, 0)
+				d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Amount: 10})
+				assert.Equal(t, New, d.Status, "a replacement should start with a fresh status")
+				assert.Zero(t, d.RemainingAmount, "an omitted remainder should be unknown")
+				assert.Empty(t, d.CloseTime, "a replacement should have no close time")
+				require.NoError(t, d.UpdateOrderFromDetail(&Detail{OrderID: "2", Amount: 10, Status: Open}), "the replacement snapshot must merge")
+				assert.Equal(t, Open, d.Status, "the replacement should accept its own status")
+			})
+		}
+		d := filled("1")
+		d.Status = Cancelled
+		d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Status: Open, RemainingAmount: 9})
+		assert.Equal(t, Open, d.Status, "the replacement reply's status should apply")
+		assert.Equal(t, 9.0, d.RemainingAmount, "the replacement reply's remainder should apply")
+	})
 }
 
 func testUpdateOrderFromDetailAmendmentSequences(t *testing.T) {

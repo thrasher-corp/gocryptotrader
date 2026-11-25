@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -722,6 +723,33 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Run("partial fills before and after booking", func(t *testing.T) {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		pair := currency.NewBTCUSD()
+		sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, pair)
+		stored := order.Detail{Amount: 10, RemainingAmount: 10, Status: order.New}
+		for _, step := range []struct {
+			event               string
+			executed, remaining float64
+			status              order.Status
+		}{
+			{"fill", 2, 8, order.PartiallyFilled},
+			{"booked", 2, 8, order.Active},
+			{"fill", 9.75, 0.25, order.PartiallyFilled},
+			{"fill", 10, 0, order.Filled},
+		} {
+			frame := fmt.Sprintf(`[{"type":%q,"order_id":"109535955","symbol":"btcusd","side":"sell","order_type":"exchange limit","timestampms":1547743216580,"is_live":%t,"executed_amount":"%v","remaining_amount":"%v","original_amount":"10","price":"3592.23"}]`, step.event, step.remaining > 0, step.executed, step.remaining)
+			require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame)), "the order event must be handled")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "one order update must be relayed")
+			detail, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+			require.True(t, ok, "the relayed event must contain an order detail")
+			assert.Equalf(t, step.status, detail.Status, "the %s event should relay its execution status", step.event)
+			require.NoError(t, stored.UpdateOrderFromDetail(detail), "the update must merge")
+			assert.Equal(t, step.status, stored.Status, "the stored order should follow the event")
+			assert.Equal(t, step.remaining > 0, stored.IsActive(), "the order should remain active while quantity remains")
+		}
+	})
 }
 
 func TestWsSubAck(t *testing.T) {

@@ -177,6 +177,7 @@ func TestWebsocketHandleMyOrdersMsg(t *testing.T) {
 
 				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.PartiallyFilled, ExecutedQuoteAmount: 80}), "the next quote-only update must merge")
 				assert.Equal(t, 80.0, stored.ExecutedQuoteAmount, "the next update should retain quote progress")
+				assert.Zero(t, stored.ExecutedAmount, "quote progress should invalidate the base fill from the earlier total")
 				assert.Zero(t, stored.AverageExecutedPrice, "quote progress should invalidate the average from the earlier fill")
 
 				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.Filled, ExecutedAmount: 0.002, ExecutedQuoteAmount: 100}), "the final REST snapshot must merge")

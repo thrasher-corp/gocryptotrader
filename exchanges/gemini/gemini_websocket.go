@@ -212,6 +212,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			if result[i].Type == "fill" && result[i].RemainingAmount > 0 {
+				oStatus = order.PartiallyFilled
+			}
 
 			enabledPairs, err := e.GetAvailablePairs(asset.Spot)
 			if err != nil {

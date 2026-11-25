@@ -1227,6 +1227,37 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	t.Run("mixed clocks", testUpdateOrderFromDetailMixedClocks)
 	t.Run("delayed snapshots", testUpdateOrderFromDetailDelayedSnapshots)
 
+	t.Run("quote-only progress invalidates an earlier base fill", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                                                  string
+			amount, quote, base, wantBase, wantQuote, wantAverage float64
+			status                                                Status
+		}{
+			{"partial fill", 0, 80, 0, 0, 80, 0, PartiallyFilled},
+			{"final fill", 0, 100, 0, 0, 100, 0, Filled},
+			{"partial cancellation", 0, 80, 0, 0, 80, 0, PartiallyCancelled},
+			{"base fill restated", 0, 100, 0.5, 0.5, 100, 200, Filled},
+			{"same quote total", 0, 60, 0, 0.25, 60, 240, PartiallyFilled},
+			{"older quote total", 0, 50, 0, 0.25, 60, 240, PartiallyFilled},
+			{"base sized order", 1, 80, 0, 0.25, 80, 320, PartiallyFilled},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				stored := Detail{Amount: tc.amount, QuoteAmount: 100, ExecutedAmount: 0.25, ExecutedQuoteAmount: 60, AverageExecutedPrice: 240, Status: PartiallyFilled, AssetType: asset.Spot}
+				update := Detail{ExecutedAmount: tc.base, ExecutedQuoteAmount: tc.quote, Status: tc.status}
+				if tc.amount > 0 {
+					update.AverageExecutedPrice = 320
+				}
+				require.NoError(t, stored.UpdateOrderFromDetail(&update), "the snapshot must merge")
+				assert.Equal(t, tc.wantBase, stored.ExecutedAmount, "the stored base fill should describe the current execution")
+				assert.Equal(t, tc.wantQuote, stored.ExecutedQuoteAmount, "the quote total should follow cumulative progress")
+				assert.Equal(t, tc.wantAverage, stored.AverageExecutedPrice, "the average should describe the current execution")
+				assert.Equal(t, tc.status, stored.Status, "the status should follow the snapshot")
+			})
+		}
+	})
+
 	t.Run("reported terminal status survives non-terminal updates", func(t *testing.T) {
 		t.Parallel()
 		for _, status := range []Status{Filled, PartiallyCancelled, Cancelled, Rejected, Expired, Closed, Liquidated} {

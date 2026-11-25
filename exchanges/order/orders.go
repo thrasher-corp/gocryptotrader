@@ -245,6 +245,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && (m.ExecutedAmount > 0 || m.AverageExecutedPrice > 0 || quoteSized) && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
 	if executedQuoteAmountChanged {
 		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
+		if quoteSized && m.ExecutedAmount == 0 {
+			// The previous base fill may describe a smaller quote total.
+			d.ExecutedAmount = 0
+		}
 		updated = true
 	}
 	if m.AverageExecutedPrice != 0 {
@@ -394,10 +398,13 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	if m.OrderID != "" && d.OrderID != m.OrderID {
 		if d.OrderID != "" {
 			// A reply with another order ID describes a replacement order, which
-			// has its own execution.
+			// has its own execution and lifecycle.
 			d.ExecutedAmount, d.ExecutedQuoteAmount, d.AverageExecutedPrice, d.Fee = 0, 0, 0, 0
 			d.FeeAsset = currency.EMPTYCODE
 			d.Trades = nil
+			d.RemainingAmount = 0
+			d.Status = New
+			d.CloseTime = time.Time{}
 		}
 		d.OrderID = m.OrderID
 		updated = true
