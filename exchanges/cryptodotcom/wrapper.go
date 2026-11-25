@@ -79,6 +79,7 @@ var (
 	errQuoteAmountUnsupported    = errors.New("only a market buy is placed by its quote amount")
 	errQuoteAmountWithAmount     = errors.New("an order is placed by its amount or by its quote amount, not both")
 	errSlippageUnsupported       = errors.New("slippage tolerance unsupported")
+	errStopDirectionUnsupported  = errors.New("stop direction unsupported")
 	errTriggerOrderQuantity      = errors.New("a trigger order is placed by its quantity")
 	errTriggerOrderMargin        = errors.New("a trigger order takes neither leverage nor isolated margin")
 	errLeverageUnsupported       = errors.New("leverage unsupported for spot orders")
@@ -1283,6 +1284,10 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 			return nil, errTriggerOrderQuantity
 		case leverage != 0 || s.MarginType == margin.Isolated:
 			return nil, errTriggerOrderMargin
+		// StopDown is the zero value, so only a rise can be told from a direction left unset; Crypto.com triggers a sell
+		// stop and a buy take profit as the price falls
+		case s.StopDirection == order.StopUp && (side == SideSell) == (orderType == OrderTypeStopLoss || orderType == OrderTypeStopLimit):
+			return nil, fmt.Errorf("%w: a %s %s order triggers as the price falls", errStopDirectionUnsupported, side, orderType)
 		}
 		priceType, err := referencePriceType(s.TriggerPriceType)
 		if err != nil {
@@ -1602,7 +1607,7 @@ type orderAmendment struct {
 // newOrderAmendment returns the request amending an order. Crypto.com takes a regular amendment's quantity and limit
 // price together, so those left unset are restated from the order; a trigger order or an order-list leg is amended
 // through the advanced endpoint. A type given must be one Crypto.com places and, where the order is looked up, the
-// order's own or, for a trigger order, its other form
+// order's own or, for a trigger order, its other form; an order looked up must be of the asset given
 func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*orderAmendment, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -1638,6 +1643,10 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		o, fromAdvanced, err := e.orderByID(ctx, m.OrderID, m.ClientOrderID)
 		if err != nil {
 			return nil, err
+		}
+		// An ID finds the order whatever the asset given, and the order manager stores the asset an amendment reports
+		if orderAsset(o.InstrumentName, o.ExecutionInstructions) != m.AssetType {
+			return nil, fmt.Errorf("%w: order %s is not a %s order", errOrderAssetMismatch, cmp.Or(m.OrderID, m.ClientOrderID), m.AssetType)
 		}
 		orderType, err := orderTypeFromString(o.OrderType)
 		if err != nil {
@@ -2928,10 +2937,14 @@ func (e *Exchange) isolatedPosition(ctx context.Context, instrumentName string) 
 }
 
 // GetLeverage returns the leverage of a derivative's isolated position, or of its cross margin position, the lower of
-// the account's leverage and the instrument's maximum, as Crypto.com applies whichever is lower
+// the account's leverage and the instrument's maximum, as Crypto.com applies whichever is lower; a margin type a
+// derivative does not trade on is refused
 func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pair, marginType margin.Type, _ order.Side) (float64, error) {
 	if !a.IsFutures() || !e.SupportsAsset(a) {
 		return 0, fmt.Errorf("%w: %s", futures.ErrNotFuturesAsset, a)
+	}
+	if !assetMarginType(a, marginType) {
+		return 0, fmt.Errorf("%w: %s for %s", margin.ErrMarginTypeUnsupported, marginType, a)
 	}
 	if marginType == margin.Isolated {
 		name, err := e.instrumentName(a, p)
@@ -2981,10 +2994,14 @@ func (e *Exchange) crossMarginLeverage(ctx context.Context, instrumentName strin
 }
 
 // SetLeverage sets the leverage of a derivative's isolated position, or the account's leverage, a whole number up to
-// 100, which its cross margin positions share
+// 100, which its cross margin positions share; a margin type a derivative does not trade on is refused rather than taken
+// as cross margin
 func (e *Exchange) SetLeverage(ctx context.Context, a asset.Item, p currency.Pair, marginType margin.Type, amount float64, _ order.Side) error {
 	if !a.IsFutures() || !e.SupportsAsset(a) {
 		return fmt.Errorf("%w: %s", futures.ErrNotFuturesAsset, a)
+	}
+	if !assetMarginType(a, marginType) {
+		return fmt.Errorf("%w: %s for %s", margin.ErrMarginTypeUnsupported, marginType, a)
 	}
 	if marginType == margin.Isolated {
 		name, err := e.instrumentName(a, p)

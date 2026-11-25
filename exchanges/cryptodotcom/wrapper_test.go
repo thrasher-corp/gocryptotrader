@@ -2345,6 +2345,74 @@ func TestNewOrderRequest(t *testing.T) { //nolint:tparallel // the cases build o
 			}
 		})
 	}
+
+	// Crypto.com triggers a sell stop and a buy take profit as the price falls, and the others as it rises; StopDown is
+	// the zero value, so only a rise can be told from a direction left unset, and a direction changes nothing sent
+	falling := map[order.Type]bool{order.Stop: true, order.StopMarket: true, order.StopLimit: true, order.TakeProfit: false, order.TakeProfitMarket: false, order.TakeProfitLimit: false}
+	for _, orderType := range []order.Type{order.Stop, order.StopMarket, order.StopLimit, order.TakeProfit, order.TakeProfitMarket, order.TakeProfitLimit} {
+		for _, side := range []order.Side{order.Buy, order.Bid, order.Long, order.Sell, order.Ask, order.Short} {
+			for a, p := range pairs {
+				t.Run(fmt.Sprintf("a %s %s %s order's stop direction", side, a, orderType), func(t *testing.T) {
+					reduceOnly := []bool{false}
+					if a != asset.Spot {
+						reduceOnly = append(reduceOnly, true)
+					}
+					// A limit form priced below, at and above its trigger price, and a market form with no price or such a price, which
+					// it leaves unsent, as Crypto.com takes the direction from the type and side alone
+					prices := []float64{0, 0.0279, 0.028, 0.0281}
+					if orderType == order.StopLimit || orderType == order.TakeProfitLimit {
+						prices = []float64{0.0279, 0.028, 0.0281}
+					}
+					// The margin types a trigger order of the asset trades on, unset or named
+					marginTypes := map[asset.Item][]margin.Type{asset.Spot: {margin.Unset, margin.NoMargin}, asset.Margin: {margin.Unset, margin.Multi}, asset.PerpetualSwap: {margin.Unset, margin.Multi}, asset.Futures: {margin.Unset, margin.Multi}}[a]
+					for _, priceType := range []order.PriceType{order.LastPrice, order.MarkPrice, order.IndexPrice} {
+						for _, tif := range []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.ImmediateOrCancel, order.FillOrKill, order.PostOnly, order.GoodTillCancel | order.PostOnly} {
+							for _, reduce := range reduceOnly {
+								for _, price := range prices {
+									// A leverage of one, which a trigger order may state, is no leverage
+									for _, leverage := range []float64{0, 1} {
+										for _, marginType := range marginTypes {
+											s := testTriggerSubmit()
+											s.Type, s.Side, s.Pair, s.AssetType, s.TriggerPriceType, s.TimeInForce, s.ReduceOnly, s.Price, s.Leverage, s.MarginType = orderType, side, p, a, priceType, tif, reduce, price, leverage, marginType
+											down, err := e.newOrderRequest(s)
+											require.NoErrorf(t, err, "newOrderRequest must take the order with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s, with its stop direction left unset", priceType, tif, reduce, price, leverage, marginType)
+											s.StopDirection = order.StopUp
+											given := *s
+											up, err := e.newOrderRequest(s)
+											assert.Equalf(t, given, *s, "newOrderRequest should leave the order as given with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s", priceType, tif, reduce, price, leverage, marginType)
+											if side.IsShort() == falling[orderType] {
+												assert.ErrorIsf(t, err, errStopDirectionUnsupported, "newOrderRequest should refuse a rise for the order with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s", priceType, tif, reduce, price, leverage, marginType)
+												continue
+											}
+											if assert.NoErrorf(t, err, "newOrderRequest should take a rise for the order with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s", priceType, tif, reduce, price, leverage, marginType) {
+												assert.Equalf(t, down, up, "newOrderRequest should build the order with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s, the same for either direction", priceType, tif, reduce, price, leverage, marginType)
+											}
+											s.TriggerPrice = 0
+											_, err = e.newOrderRequest(s)
+											assert.ErrorIsf(t, err, errInvalidReferencePrice, "newOrderRequest should refuse a rise without a trigger price for the order with price type %s, time in force %s, reduce only %t, price %v, leverage %v, margin type %s", priceType, tif, reduce, price, leverage, marginType)
+										}
+									}
+								}
+							}
+						}
+					}
+				})
+			}
+		}
+	}
+	for _, orderType := range []order.Type{order.Limit, order.Market} {
+		t.Run(orderType.String()+" orders, which take no stop direction", func(t *testing.T) {
+			for _, side := range []order.Side{order.Buy, order.Sell} {
+				s := testSubmit()
+				s.Type, s.Side, s.StopDirection = orderType, side, order.StopUp
+				if orderType == order.Market {
+					s.Price, s.TimeInForce = 0, order.UnknownTIF
+				}
+				_, err := e.newOrderRequest(s)
+				assert.NoErrorf(t, err, "newOrderRequest should take a %s %s order given a stop direction", side, orderType)
+			}
+		})
+	}
 }
 
 func TestAssetMarginType(t *testing.T) {
@@ -2511,6 +2579,16 @@ func TestSubmitOrder(t *testing.T) {
 		Params: `{"instrument_name":"CRO_USD","side":"SELL","type":"STOP_LIMIT","quantity":"10","price":"0.0279","ref_price":"0.028","ref_price_type":"LAST_PRICE"}`,
 	}}
 	assert.Equal(t, expRequests, received(), "SubmitOrder should place a trigger order with the advanced order methods")
+
+	t.Run("refuses a sell stop triggering as the price rises before any request", func(t *testing.T) {
+		t.Parallel()
+		refuser, refused := newRoutesServerExchange(t, nil)
+		s := testTriggerSubmit()
+		s.Exchange, s.StopDirection = refuser.Name, order.StopUp
+		_, err := refuser.SubmitOrder(t.Context(), s)
+		assert.ErrorIs(t, err, errStopDirectionUnsupported, "SubmitOrder should refuse a sell stop triggering as the price rises")
+		assert.Empty(t, refused(), "SubmitOrder should send no request for a stop direction it refuses")
+	})
 
 	t.Run("refuses an order on a margin type its asset does not trade on before any request", func(t *testing.T) {
 		t.Parallel()
@@ -2793,6 +2871,16 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "WebsocketSubmitOrder should refuse a margin order on spot isolated margin")
 		assert.Empty(t, refuseVenue.received("private/create-order"), "WebsocketSubmitOrder should send no order on a margin type it refuses")
 	})
+
+	t.Run("refuses a sell stop triggering as the price rises before sending it", func(t *testing.T) {
+		t.Parallel()
+		refuseEx, refuseVenue := newWebsocketTestExchange(t)
+		risingStop := testTriggerSubmit()
+		risingStop.Exchange, risingStop.StopDirection = refuseEx.Name, order.StopUp
+		_, err := refuseEx.WebsocketSubmitOrder(t.Context(), risingStop)
+		assert.ErrorIs(t, err, errStopDirectionUnsupported, "WebsocketSubmitOrder should refuse a sell stop triggering as the price rises")
+		assert.Empty(t, refuseVenue.received("private/advanced/create-order"), "WebsocketSubmitOrder should send no order for a stop direction it refuses")
+	})
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
@@ -2851,6 +2939,27 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		_, err := refuseEx.WebsocketSubmitOrders(t.Context(), []*order.Submit{valid, spotIsolated})
 		assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "WebsocketSubmitOrders should refuse a margin order on spot isolated margin")
 		assert.Empty(t, refuseVenue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list holding an order on a margin type it refuses")
+	})
+	t.Run("refuses a sell stop triggering as the price rises before sending any list", func(t *testing.T) {
+		t.Parallel()
+		refuseEx, refuseVenue := newWebsocketTestExchange(t)
+		fallingStop, risingStop := testTriggerSubmit(), testTriggerSubmit()
+		fallingStop.Exchange = refuseEx.Name
+		risingStop.Exchange, risingStop.ClientOrderID, risingStop.StopDirection = refuseEx.Name, "rising_stop", order.StopUp
+		_, err := refuseEx.WebsocketSubmitOrders(t.Context(), []*order.Submit{fallingStop, risingStop})
+		assert.ErrorIs(t, err, errStopDirectionUnsupported, "WebsocketSubmitOrders should refuse a sell stop triggering as the price rises")
+		assert.Empty(t, refuseVenue.received("private/advanced/create-order-list"), "WebsocketSubmitOrders should send no list holding a stop direction it refuses")
+	})
+	t.Run("refuses a sell stop triggering as the price rises before sending the list of orders beside it", func(t *testing.T) {
+		t.Parallel()
+		refuseEx, refuseVenue := newWebsocketTestExchange(t)
+		limitOrder, risingStop := testSubmit(), testTriggerSubmit()
+		limitOrder.Exchange = refuseEx.Name
+		risingStop.Exchange, risingStop.ClientOrderID, risingStop.StopDirection = refuseEx.Name, "rising_stop", order.StopUp
+		_, err := refuseEx.WebsocketSubmitOrders(t.Context(), []*order.Submit{limitOrder, risingStop})
+		assert.ErrorIs(t, err, errStopDirectionUnsupported, "WebsocketSubmitOrders should refuse a sell stop triggering as the price rises")
+		assert.Empty(t, refuseVenue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders beside a stop direction it refuses")
+		assert.Empty(t, refuseVenue.received("private/advanced/create-order-list"), "WebsocketSubmitOrders should send no list holding a stop direction it refuses")
 	})
 	t.Run("tracks margin orders", func(t *testing.T) {
 		t.Parallel()
@@ -3551,6 +3660,14 @@ func TestNewOrderAmendment(t *testing.T) {
 		})
 	}
 
+	// An instrument name of each asset's form, and a margin order's execution instruction
+	assetInstruments := map[asset.Item]string{
+		asset.Spot:          `"instrument_name":"CRO_USD"`,
+		asset.Margin:        `"instrument_name":"CRO_USD","exec_inst":["MARGIN_ORDER"]`,
+		asset.PerpetualSwap: `"instrument_name":"CROUSD-PERP"`,
+		asset.Futures:       `"instrument_name":"CROUSD-261030"`,
+	}
+
 	t.Run("takes a type of the kind of the order it looks up and refuses another", func(t *testing.T) {
 		t.Parallel()
 		// Each order type Crypto.com reports, the kind of order an amendment keeps it, its limit price, and whether it is a
@@ -3628,76 +3745,166 @@ func TestNewOrderAmendment(t *testing.T) {
 			for _, s := range stored {
 				t.Run("a "+s.orderType+" order held by "+h.name, func(t *testing.T) {
 					t.Parallel()
-					fields := `"order_id":"1","client_oid":"client42","order_type":"` + s.orderType + `","side":"SELL","quantity":"10","limit_price":"` + strconv.FormatFloat(s.limitPrice, 'f', -1, 64) + `","status":"ACTIVE","instrument_name":"CRO_USD"`
+					fields := `"order_id":"1","client_oid":"client42","order_type":"` + s.orderType + `","side":"SELL","quantity":"10","limit_price":"` + strconv.FormatFloat(s.limitPrice, 'f', -1, 64) + `","status":"ACTIVE"`
 					if s.trigger {
 						fields += `,"ref_price":"0.028","ref_price_type":"MARK_PRICE"`
 					}
 					if h.listID != "" {
 						fields += `,"list_id":"` + h.listID + `"`
 					}
-					detail := testResult("{" + fields + "}")
-					routes := map[string]testRoute{"private/get-order-detail": detail}
-					if h.advanced {
-						routes = map[string]testRoute{"private/get-order-detail": notFound, "private/advanced/get-order-detail": detail}
+					// The order looked up is of the asset the modification names
+					routes := make(map[asset.Item]map[string]testRoute, len(assetInstruments))
+					for assetType, instrument := range assetInstruments {
+						detail := testResult("{" + fields + "," + instrument + "}")
+						routes[assetType] = map[string]testRoute{"private/get-order-detail": detail}
+						if h.advanced {
+							routes[assetType] = map[string]testRoute{"private/get-order-detail": notFound, "private/advanced/get-order-detail": detail}
+						}
 					}
 					for _, a := range amended {
 						t.Run("amended as "+a.orderType.String(), func(t *testing.T) {
 							t.Parallel()
-							ex, received := newRoutesServerExchange(t, routes)
 							for i := range named {
-								for _, sh := range shapes {
-									if (sh.triggerOnly && (a.kind == "" || a.kind == OrderTypeLimit || a.kind == OrderTypeMarket)) || (sh.limitOnly && a.marketForm) {
-										continue
+								t.Run(named[i].AssetType.String(), func(t *testing.T) {
+									t.Parallel()
+									ex, received := newRoutesServerExchange(t, routes[named[i].AssetType])
+									for _, sh := range shapes {
+										if (sh.triggerOnly && (a.kind == "" || a.kind == OrderTypeLimit || a.kind == OrderTypeMarket)) || (sh.limitOnly && a.marketForm) {
+											continue
+										}
+										m := named[i]
+										m.Type, m.Price, m.Amount, m.TriggerPrice, m.TimeInForce, m.TriggerPriceType = a.orderType, sh.price, sh.amount, sh.triggerPrice, sh.timeInForce, sh.priceType
+										sent := len(received())
+										got, err := ex.newOrderAmendment(t.Context(), &m)
+										params := `{"client_oid":"client42"}`
+										if m.OrderID != "" {
+											params = `{"order_id":"1"}`
+										}
+										lookups := []testRequest{{Method: "private/get-order-detail", Params: params}}
+										if h.advanced {
+											lookups = append(lookups, testRequest{Method: "private/advanced/get-order-detail", Params: params})
+										}
+										assert.Equalf(t, lookups, received()[sent:], "newOrderAmendment should look the %s order up by %s for %s", m.AssetType, params, sh.name)
+										switch {
+										case a.kind != "" && a.kind != s.kind:
+											assert.ErrorIsf(t, err, errOrderTypeNotAmendable, "newOrderAmendment should refuse a %s order with %s", m.AssetType, sh.name)
+											continue
+										case sh.priceType != order.LastPrice && !s.trigger:
+											assert.ErrorIsf(t, err, errPriceTypeNotAmendable, "newOrderAmendment should refuse a %s order with %s", m.AssetType, sh.name)
+											continue
+										}
+										price, amount := cmp.Or(m.Price, s.limitPrice), cmp.Or(m.Amount, 10)
+										if a.limitForm && price == 0 {
+											assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "newOrderAmendment should refuse a %s order with %s, as it has no price", m.AssetType, sh.name)
+											continue
+										}
+										var orderType order.Type
+										marketForm := a.marketForm
+										if a.kind == "" {
+											orderType = storedTypes[s.orderType]
+											marketForm = s.orderType == OrderTypeStopLoss || s.orderType == OrderTypeTakeProfit
+										}
+										if marketForm {
+											price = 0
+										}
+										exp := &orderAmendment{price: price, amount: amount, orderType: orderType}
+										if h.advanced || s.trigger {
+											exp.trigger = &AmendAdvancedOrderRequest{OrderID: m.OrderID, ClientOrderID: m.ClientOrderID, NewQuantity: types.Number(amount), NewPrice: new(types.Number(price)), NewReferencePrice: types.Number(m.TriggerPrice)}
+										} else {
+											exp.order = &AmendOrderRequest{OrderID: m.OrderID, OriginalClientOrderID: m.ClientOrderID, NewPrice: types.Number(price), NewQuantity: types.Number(amount)}
+										}
+										if assert.NoErrorf(t, err, "newOrderAmendment should take a %s order with %s", m.AssetType, sh.name) {
+											assert.Equalf(t, exp, got, "newOrderAmendment should amend a %s order as asked with %s", m.AssetType, sh.name)
+										}
 									}
-									m := named[i]
-									m.Type, m.Price, m.Amount, m.TriggerPrice, m.TimeInForce, m.TriggerPriceType = a.orderType, sh.price, sh.amount, sh.triggerPrice, sh.timeInForce, sh.priceType
-									sent := len(received())
-									got, err := ex.newOrderAmendment(t.Context(), &m)
-									params := `{"client_oid":"client42"}`
-									if m.OrderID != "" {
-										params = `{"order_id":"1"}`
-									}
-									lookups := []testRequest{{Method: "private/get-order-detail", Params: params}}
-									if h.advanced {
-										lookups = append(lookups, testRequest{Method: "private/advanced/get-order-detail", Params: params})
-									}
-									assert.Equalf(t, lookups, received()[sent:], "newOrderAmendment should look the %s order up by %s for %s", m.AssetType, params, sh.name)
-									switch {
-									case a.kind != "" && a.kind != s.kind:
-										assert.ErrorIsf(t, err, errOrderTypeNotAmendable, "newOrderAmendment should refuse a %s order with %s", m.AssetType, sh.name)
-										continue
-									case sh.priceType != order.LastPrice && !s.trigger:
-										assert.ErrorIsf(t, err, errPriceTypeNotAmendable, "newOrderAmendment should refuse a %s order with %s", m.AssetType, sh.name)
-										continue
-									}
-									price, amount := cmp.Or(m.Price, s.limitPrice), cmp.Or(m.Amount, 10)
-									if a.limitForm && price == 0 {
-										assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "newOrderAmendment should refuse a %s order with %s, as it has no price", m.AssetType, sh.name)
-										continue
-									}
-									var orderType order.Type
-									marketForm := a.marketForm
-									if a.kind == "" {
-										orderType = storedTypes[s.orderType]
-										marketForm = s.orderType == OrderTypeStopLoss || s.orderType == OrderTypeTakeProfit
-									}
-									if marketForm {
-										price = 0
-									}
-									exp := &orderAmendment{price: price, amount: amount, orderType: orderType}
-									if h.advanced || s.trigger {
-										exp.trigger = &AmendAdvancedOrderRequest{OrderID: m.OrderID, ClientOrderID: m.ClientOrderID, NewQuantity: types.Number(amount), NewPrice: new(types.Number(price)), NewReferencePrice: types.Number(m.TriggerPrice)}
-									} else {
-										exp.order = &AmendOrderRequest{OrderID: m.OrderID, OriginalClientOrderID: m.ClientOrderID, NewPrice: types.Number(price), NewQuantity: types.Number(amount)}
-									}
-									if assert.NoErrorf(t, err, "newOrderAmendment should take a %s order with %s", m.AssetType, sh.name) {
-										assert.Equalf(t, exp, got, "newOrderAmendment should amend a %s order as asked with %s", m.AssetType, sh.name)
-									}
-								}
+								})
 							}
 						})
 					}
 				})
+			}
+		}
+	})
+
+	t.Run("refuses an order of another asset than the one named", func(t *testing.T) {
+		t.Parallel()
+		pairs := map[asset.Item]currency.Pair{asset.Spot: testSpotPair, asset.Margin: testSpotPair, asset.PerpetualSwap: testPerpetualPair, asset.Futures: testFuturesPair}
+		// A limit order the trading methods hold, a trigger order either order methods report, and an order list's leg only
+		// the advanced order methods hold
+		holders := []struct {
+			name      string
+			advanced  bool
+			trigger   bool
+			orderType order.Type
+			fields    string
+		}{
+			{"a limit order", false, false, order.Limit, `"order_type":"LIMIT"`},
+			{"a trigger order the trading methods report", false, true, order.StopLimit, `"order_type":"STOP_LIMIT","ref_price":"79000","ref_price_type":"MARK_PRICE"`},
+			{"a trigger order the advanced order methods hold", true, true, order.StopLimit, `"order_type":"STOP_LIMIT","ref_price":"79000","ref_price_type":"MARK_PRICE"`},
+			{"an order list's leg", true, false, order.Limit, `"order_type":"LIMIT","list_id":"9"`},
+		}
+		// Modifications that have the order looked up: an untyped one with a side, time in force, price and quantity; without
+		// a type, or with any type, restating the order's own price and quantity or not; leaving the quantity or the price to
+		// the order; giving a time in force and a smaller quantity; giving a trigger order's price type or a new trigger price;
+		// moving a trigger order to its market form; and giving an order the trading methods hold a new client order ID
+		shapes := []struct {
+			name        string
+			typed       bool
+			triggerOnly bool
+			regularOnly bool
+			orderType   order.Type
+			m           order.Modify
+		}{
+			{"untyped with a side, time in force, price and quantity", false, false, false, order.UnknownType, order.Modify{Side: order.Buy, TimeInForce: order.GoodTillCancel, Price: 77000, Amount: 0.02}},
+			{"without a type", false, false, false, order.UnknownType, order.Modify{Price: 77000, Amount: 0.02}},
+			{"with any type", false, false, false, order.UnknownType, order.Modify{Type: order.AnyType, Price: 77000, Amount: 0.02}},
+			{"restating the order's price and quantity without a type", false, false, false, order.UnknownType, order.Modify{Price: 78000, Amount: 0.01}},
+			{"leaving the quantity to the order", true, false, false, order.UnknownType, order.Modify{Price: 77000}},
+			{"leaving the price to the order", true, false, false, order.UnknownType, order.Modify{Amount: 0.02}},
+			{"giving a time in force and a smaller quantity", true, false, false, order.UnknownType, order.Modify{Price: 77000, Amount: 0.005, TimeInForce: order.GoodTillCancel}},
+			{"giving the order's trigger price type", true, true, false, order.UnknownType, order.Modify{Price: 77000, Amount: 0.02, TriggerPriceType: order.MarkPrice}},
+			{"giving a new trigger price, leaving the quantity to the order", true, true, false, order.UnknownType, order.Modify{Price: 77000, TriggerPrice: 79500}},
+			{"moving the order to its market form", false, true, false, order.Stop, order.Modify{}},
+			{"giving a new client order ID, leaving the quantity to the order", true, false, true, order.UnknownType, order.Modify{Price: 77000, NewClientOrderID: "renamed"}},
+		}
+		ids := []order.Modify{{OrderID: "1"}, {ClientOrderID: "client42"}, {OrderID: "1", ClientOrderID: "client42"}}
+		for _, h := range holders {
+			for storedAsset, instrument := range assetInstruments {
+				for namedAsset, pair := range pairs {
+					t.Run(fmt.Sprintf("%s on %s named as a %s order", h.name, storedAsset, namedAsset), func(t *testing.T) {
+						t.Parallel()
+						detail := testResult(`{"order_id":"1","client_oid":"client42",` + h.fields + `,"side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE",` + instrument + `}`)
+						routes := map[string]testRoute{"private/get-order-detail": detail}
+						if h.advanced {
+							routes = map[string]testRoute{"private/get-order-detail": notFound, "private/advanced/get-order-detail": detail}
+						}
+						ex, _ := newRoutesServerExchange(t, routes)
+						for _, sh := range shapes {
+							if (sh.triggerOnly && !h.trigger) || (sh.regularOnly && (h.trigger || h.advanced)) {
+								continue
+							}
+							for _, id := range ids {
+								t.Run(fmt.Sprintf("%s, by order ID %q and client order ID %q", sh.name, id.OrderID, id.ClientOrderID), func(t *testing.T) {
+									t.Parallel()
+									m := sh.m
+									m.OrderID, m.ClientOrderID, m.AssetType, m.Pair = id.OrderID, id.ClientOrderID, namedAsset, pair
+									switch {
+									case sh.orderType != order.UnknownType:
+										m.Type = sh.orderType
+									case sh.typed:
+										m.Type = h.orderType
+									}
+									_, err := ex.newOrderAmendment(t.Context(), &m)
+									if namedAsset == storedAsset {
+										assert.NoError(t, err, "newOrderAmendment should take an order of the asset named")
+										return
+									}
+									assert.ErrorIs(t, err, errOrderAssetMismatch, "newOrderAmendment should refuse an order of another asset than the one named")
+								})
+							}
+						}
+					})
+				}
 			}
 		}
 	})
@@ -3794,7 +4001,7 @@ func TestOrderKind(t *testing.T) {
 	}
 }
 
-func TestModifyOrder(t *testing.T) { //nolint:tparallel // the cases run in order, as ModifyOrder is called again after them
+func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "ModifyOrder must refuse a nil modification")
@@ -3979,6 +4186,78 @@ func TestModifyOrder(t *testing.T) { //nolint:tparallel // the cases run in orde
 	}
 	assert.Equal(t, expRequests, received(), "ModifyOrder should name an order to the advanced order methods by its client order ID")
 
+	// An order ID names an order whatever its asset, and the order manager, which sends the stored order's side and time in
+	// force, stores the asset a modification reports
+	for _, tc := range []struct {
+		name       string
+		detail     string
+		tif        order.TimeInForce
+		named      asset.Item
+		pair       currency.Pair
+		amended    bool
+		orderType  string
+		limitPrice string
+		status     string
+		advanced   bool
+	}{
+		{"a spot order named as a spot order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Spot, testSpotPair, true, "", "", "", false},
+		{"a spot order named as a margin order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", false},
+		{"a post only margin order named as a margin order", `"instrument_name":"BTC_USD","exec_inst":["POST_ONLY","MARGIN_ORDER"]`, order.GoodTillCancel | order.PostOnly, asset.Margin, testSpotPair, true, "", "", "", false},
+		{"a post only margin order named as a spot order", `"instrument_name":"BTC_USD","exec_inst":["POST_ONLY","MARGIN_ORDER"]`, order.GoodTillCancel | order.PostOnly, asset.Spot, testSpotPair, false, "", "", "", false},
+		{"a margin order with its instructions in the other order named as a margin order", `"instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER","POST_ONLY"]`, order.GoodTillCancel | order.PostOnly, asset.Margin, testSpotPair, true, "", "", "", false},
+		{"a margin order with its instructions in the other order named as a spot order", `"instrument_name":"BTC_USD","exec_inst":["MARGIN_ORDER","POST_ONLY"]`, order.GoodTillCancel | order.PostOnly, asset.Spot, testSpotPair, false, "", "", "", false},
+		{"an isolated perpetual swap order named as a perpetual swap order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7"`, order.GoodTillCancel, asset.PerpetualSwap, testPerpetualPair, true, "", "", "", false},
+		{"an isolated perpetual swap order named as a margin order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", false},
+		{"a leveraged isolated perpetual swap order with its instruction named as a perpetual swap order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","exec_inst":["ISOLATED_MARGIN"],"leverage":"10"`, order.GoodTillCancel, asset.PerpetualSwap, testPerpetualPair, true, "", "", "", false},
+		{"a leveraged isolated perpetual swap order with its instruction named as a margin order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","exec_inst":["ISOLATED_MARGIN"],"leverage":"10"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", false},
+		{"a smart post only margin order named as a margin order", `"instrument_name":"BTC_USD","exec_inst":["SMART_POST_ONLY","MARGIN_ORDER"]`, order.GoodTillCancel | order.PostOnly, asset.Margin, testSpotPair, true, "", "", "", false},
+		{"a smart post only margin order named as a spot order", `"instrument_name":"BTC_USD","exec_inst":["SMART_POST_ONLY","MARGIN_ORDER"]`, order.GoodTillCancel | order.PostOnly, asset.Spot, testSpotPair, false, "", "", "", false},
+		{"a reduce only perpetual swap order named as a futures order", `"instrument_name":"BTCUSD-PERP","exec_inst":["REDUCE_ONLY"]`, order.GoodTillCancel, asset.Futures, testFuturesPair, false, "", "", "", false},
+		{"a perpetual swap order named as a futures order on its own pair, as the order manager sends it", `"instrument_name":"BTCUSD-PERP"`, order.GoodTillCancel, asset.Futures, testPerpetualPair, false, "", "", "", false},
+		{"a futures order named as a perpetual swap order on its own pair, as the order manager sends it", `"instrument_name":"BTCUSD-261030"`, order.GoodTillCancel, asset.PerpetualSwap, testFuturesPair, false, "", "", "", false},
+		{"a spot stop loss order named as a margin order", `"instrument_name":"BTC_USD","ref_price":"79000"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, OrderTypeStopLoss, "0", "", false},
+		{"a new spot order named as a spot order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Spot, testSpotPair, true, "", "", "NEW", false},
+		{"a new spot order named as a margin order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "NEW", false},
+		{"a pending spot order named as a spot order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Spot, testSpotPair, true, "", "", "PENDING", false},
+		{"a pending spot order named as a margin order", `"instrument_name":"BTC_USD"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "PENDING", false},
+		{"an isolated perpetual swap leg as the advanced order methods report it named as a perpetual swap order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"]`, order.GoodTillCancel, asset.PerpetualSwap, testPerpetualPair, true, "", "", "", false},
+		{"an isolated perpetual swap leg as the advanced order methods report it named as a margin order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"]`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", false},
+		{"an isolated perpetual swap leg as the advanced order methods report it named as a futures order on its own pair", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"]`, order.GoodTillCancel, asset.Futures, testPerpetualPair, false, "", "", "", false},
+		{"a partly filled spot order named as a spot order", `"instrument_name":"BTC_USD","cumulative_quantity":"0.005"`, order.GoodTillCancel, asset.Spot, testSpotPair, true, "", "", "", false},
+		{"a partly filled spot order named as a margin order", `"instrument_name":"BTC_USD","cumulative_quantity":"0.005"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", false},
+		{"an isolated perpetual swap leg only the advanced order methods hold named as a perpetual swap order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"],"list_id":"9","leg_id":"2","exchange_order_id":"3"`, order.GoodTillCancel, asset.PerpetualSwap, testPerpetualPair, true, "", "", "", true},
+		{"an isolated perpetual swap leg only the advanced order methods hold named as a futures order on its own pair", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"],"list_id":"9","leg_id":"2","exchange_order_id":"3"`, order.GoodTillCancel, asset.Futures, testPerpetualPair, false, "", "", "", true},
+		{"an isolated perpetual swap leg only the advanced order methods hold named as a margin order", `"instrument_name":"BTCUSD-PERP","isolation_id":"7","isolation_type":"ISOLATED_MARGIN","contingency_type":"DERIV_ATTACH","exec_inst":["ISOLATED_MARGIN"],"list_id":"9","leg_id":"2","exchange_order_id":"3"`, order.GoodTillCancel, asset.Margin, testSpotPair, false, "", "", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			detail := testResult(`{"order_id":"1","order_type":"` + cmp.Or(tc.orderType, OrderTypeLimit) + `","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","quantity":"0.0100","limit_price":"` + cmp.Or(tc.limitPrice, "78000.0") + `","status":"` + cmp.Or(tc.status, "ACTIVE") + `","fee_instrument_name":"USD",` + tc.detail + `}`)
+			routes := map[string]testRoute{
+				"private/get-order-detail":     detail,
+				"private/amend-order":          testResult(`{"order_id":"1"}`),
+				"private/advanced/amend-order": testResult(`{"order_id":"1"}`),
+			}
+			lookups := []testRequest{{Method: "private/get-order-detail", Params: `{"order_id":"1"}`}}
+			amendment := testRequest{Method: "private/amend-order", Params: `{"order_id":"1","new_price":"77000","new_quantity":"0.01"}`}
+			if tc.advanced {
+				routes["private/get-order-detail"] = func(string) (string, *APIError) { return "", &APIError{Code: 40401, Message: "NOT_FOUND"} }
+				routes["private/advanced/get-order-detail"] = detail
+				lookups = append(lookups, testRequest{Method: "private/advanced/get-order-detail", Params: `{"order_id":"1"}`})
+				amendment = testRequest{Method: "private/advanced/amend-order", Params: `{"order_id":"1","new_quantity":"0.01","new_price":"77000"}`}
+			}
+			assetEx, assetRequests := newRoutesServerExchange(t, routes)
+			got, err := assetEx.ModifyOrder(t.Context(), &order.Modify{Exchange: assetEx.Name, OrderID: "1", AssetType: tc.named, Pair: tc.pair, Side: order.Buy, TimeInForce: tc.tif, Price: 77000, Amount: 0.01})
+			if !tc.amended {
+				assert.ErrorIsf(t, err, errOrderAssetMismatch, "ModifyOrder should refuse %s", tc.name)
+				assert.Equalf(t, lookups, assetRequests(), "ModifyOrder should send no amendment for %s", tc.name)
+				return
+			}
+			require.NoErrorf(t, err, "ModifyOrder must not error for %s", tc.name)
+			assert.Equalf(t, tc.named, got.AssetType, "ModifyOrder should report the asset of %s", tc.name)
+			assert.Equalf(t, append(lookups, amendment), assetRequests(), "ModifyOrder should look up and amend %s", tc.name)
+		})
+	}
+
 	// A trigger order the trading methods' order detail reports is amended by the advanced order methods
 	ex, received = newRoutesServerExchange(t, map[string]testRoute{
 		"private/get-order-detail":     testResult(`{"order_id":"1","order_type":"STOP_LOSS","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","status":"ACTIVE","instrument_name":"CRO_USD"}`),
@@ -4016,6 +4295,18 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "WebsocketModifyOrder must refuse a nil modification")
+	t.Run("refuses an order of another asset than the one named before sending an amendment", func(t *testing.T) {
+		t.Parallel()
+		assetVenue := newWebsocketVenue(t)
+		assetEx, assetLookups := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE","instrument_name":"BTC_USD"}`),
+		})
+		connectWebsocketVenue(t, assetEx, assetVenue)
+		_, err := assetEx.WebsocketModifyOrder(t.Context(), &order.Modify{Exchange: assetEx.Name, OrderID: "1", AssetType: asset.Margin, Pair: testSpotPair, Side: order.Buy, TimeInForce: order.GoodTillCancel, Price: 77000, Amount: 0.01})
+		assert.ErrorIs(t, err, errOrderAssetMismatch, "WebsocketModifyOrder should refuse a spot order named as a margin order")
+		assert.Equal(t, []testRequest{{Method: "private/get-order-detail", Params: `{"order_id":"1"}`}}, assetLookups(), "WebsocketModifyOrder should look the order up")
+		assert.Empty(t, assetVenue.received("private/amend-order"), "WebsocketModifyOrder should send no amendment for an order of another asset")
+	})
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t)
 	m := &order.Modify{Exchange: ex.Name, OrderID: tradingTestOrderID, Type: order.Limit, Side: order.Buy, AssetType: asset.PerpetualSwap, Pair: testPerpetualPair, Price: 50000, Amount: 0.0002}
@@ -6311,6 +6602,9 @@ func TestIsolatedPosition(t *testing.T) {
 	assert.Equal(t, lookups, received(), "isolatedPosition should look the isolated position up in the account's balance")
 }
 
+// leverageSides are the seven sides the RPC takes by name, ClosePosition, which a Go caller can give, and none
+var leverageSides = []order.Side{order.UnknownSide, order.Buy, order.Sell, order.Bid, order.Ask, order.AnySide, order.Long, order.Short, order.ClosePosition}
+
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLeverage(t.Context(), asset.Spot, testSpotPair, margin.Multi, order.UnknownSide)
@@ -6385,14 +6679,160 @@ func TestGetLeverage(t *testing.T) {
 		require.ErrorAs(t, err, &apiErr, "GetLeverage must return the catalogue's failure")
 		assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "GetLeverage should return the catalogue's error")
 	})
-	_, err = ex.GetLeverage(t.Context(), asset.PerpetualSwap, currency.EMPTYPAIR, margin.Multi, order.UnknownSide)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage should refuse an empty pair before any request")
+	for _, mt := range []margin.Type{margin.Unset, margin.Multi, margin.Isolated} {
+		t.Run("refuses an empty pair on margin type "+mt.String()+" before any request", func(t *testing.T) {
+			t.Parallel()
+			refuser, refused := newRoutesServerExchange(t, nil)
+			got, err := refuser.GetLeverage(t.Context(), asset.PerpetualSwap, currency.EMPTYPAIR, mt, order.UnknownSide)
+			assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage should refuse an empty pair")
+			assert.Zero(t, got, "GetLeverage should return no leverage for an empty pair")
+			assert.Empty(t, refused(), "GetLeverage should send no request for an empty pair")
+		})
+	}
+
+	derivatives := map[asset.Item]currency.Pair{asset.PerpetualSwap: testPerpetualPair, asset.Futures: testFuturesPair}
+	for a, p := range derivatives {
+		t.Run(a.String()+" refuses the margin types it does not trade on before any request", func(t *testing.T) {
+			t.Parallel()
+			refuser, refused := newRoutesServerExchange(t, nil)
+			// The margin types share one exchange, whose requests each case counts, so they run in turn
+			for mt := margin.Type(0); ; mt++ {
+				if mt != margin.Unset && mt != margin.Multi && mt != margin.Isolated {
+					t.Run(fmt.Sprintf("margin type %d", mt), func(t *testing.T) {
+						for _, side := range leverageSides {
+							for _, pair := range []currency.Pair{p, currency.EMPTYPAIR} {
+								sent := len(refused())
+								got, err := refuser.GetLeverage(t.Context(), a, pair, mt, side)
+								assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "GetLeverage should refuse %q on margin type %d for side %s", pair, mt, side)
+								assert.Zerof(t, got, "GetLeverage should return no leverage for %q on margin type %d for side %s", pair, mt, side)
+								assert.Lenf(t, refused(), sent, "GetLeverage should send no request for %q on margin type %d for side %s", pair, mt, side)
+							}
+						}
+					})
+				}
+				if mt == math.MaxUint8 {
+					break
+				}
+			}
+		})
+		for name, mt := range map[string]margin.Type{"an unset": margin.Unset, "a cross": margin.Multi} {
+			t.Run(a.String()+" reads the cross margin leverage on "+name+" margin type", func(t *testing.T) {
+				t.Parallel()
+				exch, received := newRoutesServerExchange(t, map[string]testRoute{
+					"private/get-account-settings": testResult(`[{"leverage":"50"}]`),
+					"public/get-instruments":       testResult(`{"data":[{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"20","tradable":true},{"symbol":"BTCUSD-261030","inst_type":"FUTURE","max_leverage":"6","tradable":true}]}`),
+				})
+				// The account's leverage is above both instruments' maximums, so each is capped by its own
+				capped := map[asset.Item]float64{asset.PerpetualSwap: 20, asset.Futures: 6}[a]
+				for _, side := range leverageSides {
+					sent := len(received())
+					got, err := exch.GetLeverage(t.Context(), a, p, mt, side)
+					require.NoErrorf(t, err, "GetLeverage must not error for a %s pair on %s margin type for side %s", a, name, side)
+					assert.Equalf(t, capped, got, "GetLeverage should return the cross margin leverage for a %s pair on %s margin type for side %s", a, name, side)
+					assert.Equalf(t, []testRequest{{Method: "private/get-account-settings", Params: `{}`}, {Method: "public/get-instruments"}}, received()[sent:], "GetLeverage should read the account's leverage for a %s pair on %s margin type for side %s", a, name, side)
+				}
+			})
+		}
+	}
+	t.Run("a dated future's isolated position", func(t *testing.T) {
+		t.Parallel()
+		exch, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-positions": testResult(`{"data":[{"instrument_name":"BTCUSD-261030","type":"FUTURE","quantity":"0.0002","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}]}`),
+			"private/user-balance":  testPositionRoutes["private/user-balance"],
+		})
+		for _, side := range leverageSides {
+			sent := len(received())
+			got, err := exch.GetLeverage(t.Context(), asset.Futures, testFuturesPair, margin.Isolated, side)
+			require.NoErrorf(t, err, "GetLeverage must not error for a dated future's isolated position for side %s", side)
+			assert.Equalf(t, 2.0, got, "GetLeverage should return a dated future's isolated position's leverage for side %s", side)
+			assert.Equalf(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-261030"}`}, {Method: "private/user-balance", Params: `{}`}}, received()[sent:], "GetLeverage should read a dated future's isolated position for side %s", side)
+		}
+	})
 }
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Spot, testSpotPair, margin.Multi, 2, order.UnknownSide), futures.ErrNotFuturesAsset, "SetLeverage must refuse a spot pair")
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, 2.5, order.UnknownSide), errLeverageNotWhole, "SetLeverage must refuse an account leverage that is not a whole number")
+	t.Run("refuses an isolated position's leverage without its pair before any request", func(t *testing.T) {
+		t.Parallel()
+		refuser, refused := newRoutesServerExchange(t, nil)
+		for _, a := range []asset.Item{asset.PerpetualSwap, asset.Futures} {
+			for _, side := range leverageSides {
+				assert.ErrorIsf(t, refuser.SetLeverage(t.Context(), a, currency.EMPTYPAIR, margin.Isolated, 7, side), currency.ErrCurrencyPairEmpty, "SetLeverage should refuse a %s isolated position's leverage without its pair for side %s", a, side)
+			}
+		}
+		assert.Empty(t, refused(), "SetLeverage should send no request for an isolated position without its pair")
+	})
+	derivatives := map[asset.Item]currency.Pair{asset.PerpetualSwap: testPerpetualPair, asset.Futures: testFuturesPair}
+	for a, p := range derivatives {
+		t.Run(a.String()+" refuses the margin types it does not trade on before any request", func(t *testing.T) {
+			t.Parallel()
+			refuser, refused := newRoutesServerExchange(t, nil)
+			// The margin types share one exchange, whose requests each case counts, so they run in turn
+			for mt := margin.Type(0); ; mt++ {
+				if mt != margin.Unset && mt != margin.Multi && mt != margin.Isolated {
+					t.Run(fmt.Sprintf("margin type %d", mt), func(t *testing.T) {
+						for _, side := range leverageSides {
+							for _, pair := range []currency.Pair{p, currency.EMPTYPAIR} {
+								for _, leverage := range []float64{0, 1, 7} {
+									sent := len(refused())
+									err := refuser.SetLeverage(t.Context(), a, pair, mt, leverage, side)
+									assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "SetLeverage should refuse leverage %v for %q on margin type %d for side %s", leverage, pair, mt, side)
+									assert.Lenf(t, refused(), sent, "SetLeverage should send no request for leverage %v for %q on margin type %d for side %s", leverage, pair, mt, side)
+								}
+							}
+						}
+					})
+				}
+				if mt == math.MaxUint8 {
+					break
+				}
+			}
+		})
+		for name, mt := range map[string]margin.Type{"an unset": margin.Unset, "a cross": margin.Multi} {
+			t.Run(a.String()+" sets the account's leverage on "+name+" margin type", func(t *testing.T) {
+				t.Parallel()
+				exch, received := newRoutesServerExchange(t, map[string]testRoute{
+					"private/get-accounts":            testResult(`{"this_account":{"uuid":"52e7c00f-1324-5a6a-bf6e-de445bde21a5"}}`),
+					"private/change-account-leverage": testResult(""),
+				})
+				// The account's leverage names no pair, so a request without one sets it too
+				for _, side := range leverageSides {
+					for _, pair := range []currency.Pair{p, currency.EMPTYPAIR} {
+						for _, leverage := range []uint64{1, 7} {
+							sent := len(received())
+							require.NoErrorf(t, exch.SetLeverage(t.Context(), a, pair, mt, float64(leverage), side), "SetLeverage must not error for leverage %d for %q on %s margin type for side %s", leverage, pair, name, side)
+							exp := []testRequest{{Method: "private/get-accounts", Params: `{}`}, {Method: "private/change-account-leverage", Params: `{"account_id":"52e7c00f-1324-5a6a-bf6e-de445bde21a5","leverage":` + strconv.FormatUint(leverage, 10) + `}`}}
+							assert.Equalf(t, exp, received()[sent:], "SetLeverage should set the account's leverage to %d for %q on %s margin type for side %s", leverage, pair, name, side)
+						}
+					}
+				}
+				sent := len(received())
+				require.NoErrorf(t, exch.SetLeverage(t.Context(), a, p, mt, maxAccountLeverage, order.UnknownSide), "SetLeverage must not error for the account's maximum leverage on %s margin type", name)
+				exp := []testRequest{{Method: "private/get-accounts", Params: `{}`}, {Method: "private/change-account-leverage", Params: `{"account_id":"52e7c00f-1324-5a6a-bf6e-de445bde21a5","leverage":100}`}}
+				assert.Equalf(t, exp, received()[sent:], "SetLeverage should set the account's leverage to its maximum on %s margin type", name)
+				assert.ErrorIsf(t, exch.SetLeverage(t.Context(), a, p, mt, maxAccountLeverage+1, order.UnknownSide), errInvalidLeverage, "SetLeverage should refuse an account leverage above its maximum on %s margin type", name)
+			})
+		}
+	}
+	t.Run("a dated future's isolated position", func(t *testing.T) {
+		t.Parallel()
+		exch, received := newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-positions":                   testResult(`{"data":[{"instrument_name":"BTCUSD-261030","type":"FUTURE","quantity":"0.0002","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}]}`),
+			"private/user-balance":                    testPositionRoutes["private/user-balance"],
+			"private/change-isolated-margin-leverage": testResult(""),
+		})
+		for _, side := range leverageSides {
+			sent := len(received())
+			require.NoErrorf(t, exch.SetLeverage(t.Context(), asset.Futures, testFuturesPair, margin.Isolated, 3, side), "SetLeverage must not error for a dated future's isolated position for side %s", side)
+			assert.Equalf(t, []testRequest{
+				{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-261030"}`},
+				{Method: "private/user-balance", Params: `{}`},
+				{Method: "private/change-isolated-margin-leverage", Params: `{"isolation_id":"19848526","leverage":"3"}`},
+			}, received()[sent:], "SetLeverage should set a dated future's isolated position's leverage for side %s", side)
+		}
+	})
 	routes := maps.Clone(testPositionRoutes)
 	routes["private/get-accounts"] = testResult(`{"this_account":{"uuid":"52e7c00f-1324-5a6a-bf6e-de445bde21a5"}}`)
 	routes["private/change-account-leverage"] = testResult("")
