@@ -953,29 +953,101 @@ func TestGetHistoricTrades(t *testing.T) {
 			})
 		}
 	})
-	// Each full page's trades are after the start and two milliseconds apart, but for the three at its oldest time: two
-	// on the first page, alike but for their IDs, and one left for the second, which may also hold a trade five
-	// milliseconds older
-	for _, older := range []bool{false, true} {
-		name := "a full page and one trade left"
-		if older {
-			name = "a full page and two trades left, one older than the first page"
+	t.Run("trades at the end, which Bitfinex sends and trade.FilterTradesByTime leaves out", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now().Add(-4 * time.Hour).Truncate(time.Second).Add(437 * time.Millisecond)
+		end := start.Add(3 * time.Hour)
+		times := []int64{end.UnixMilli(), end.UnixMilli(), end.UnixMilli() - 1, start.UnixMilli() + 1}
+		for _, tc := range []struct {
+			name, path string
+			pair       currency.Pair
+			asset      asset.Item
+		}{
+			{name: "pair", path: "/v2/trades/tBTCUSD/hist", pair: currency.NewBTCUSD(), asset: asset.Spot},
+			{name: "funding currency", path: "/v2/trades/fUSD/hist", pair: testFundingUSD, asset: asset.MarginFunding},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				row := func(i int) string {
+					r := `[` + strconv.Itoa(len(times)-i) + `,` + strconv.FormatInt(times[i], 10) + `,0.01,` + strconv.FormatFloat(70000+float64(i)/100, 'f', -1, 64)
+					if tc.asset == asset.MarginFunding {
+						r += `,2`
+					}
+					return r + `]`
+				}
+				var windows [][2]int64
+				ex := newHistoryWindowExchange(t, tc.path, times, row, &windows)
+				trades, err := ex.GetHistoricTrades(t.Context(), tc.pair, tc.asset, start, end)
+				require.NoErrorf(t, err, "GetHistoricTrades must not error for %s trades at the end", tc.name)
+				ids := make([]string, len(trades))
+				for i := range trades {
+					ids[i] = trades[i].TID
+				}
+				assert.Equalf(t, []string{"1", "2"}, ids, "GetHistoricTrades should return the %s trades before the end, oldest first, and leave out those at it", tc.name)
+				assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}}, windows, "GetHistoricTrades should read one page of %s trades for the window", tc.name)
+			})
 		}
+	})
+	// Each full page's trades are after the start and two milliseconds apart, but for those at its oldest time: two or
+	// three on the first page, alike but for their IDs, and one or three left for the second, which may also hold a trade
+	// five milliseconds older. Bitfinex's trades of one millisecond come back numbered in no order, so three on the first
+	// page are listed out of order, and three left are numbered below, between and above them, the one between alike
+	for _, shape := range []struct {
+		name  string
+		left  int
+		older bool
+	}{
+		{name: "a full page and one trade left", left: 1},
+		{name: "a full page and two trades left, one older than the first page", left: 1, older: true},
+		{name: "a full page and three trades left at its oldest time, numbered below, between and above it", left: 3},
+		{name: "a full page, three trades left at its oldest time, numbered below, between and above it, and one older", left: 3, older: true},
+	} {
+		name := shape.name
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			start := time.Now().Add(-4 * time.Hour).Truncate(time.Second).Add(437 * time.Millisecond)
 			end := start.Add(3 * time.Hour)
-			times := make([]int64, tradesPageLimit+1, tradesPageLimit+2)
-			for i := range times {
-				times[i] = start.Add(time.Hour - time.Duration(2*min(i, tradesPageLimit-2))*time.Millisecond).UnixMilli()
+			// The first page's trades at its oldest time, two or three
+			firstAtOldest := tradesPageLimit - 2
+			if shape.left == 3 {
+				firstAtOldest--
 			}
-			if older {
+			times := make([]int64, tradesPageLimit+shape.left, tradesPageLimit+shape.left+1)
+			for i := range times {
+				times[i] = start.Add(time.Hour - time.Duration(2*min(i, firstAtOldest))*time.Millisecond).UnixMilli()
+			}
+			if shape.older {
 				times = append(times, times[tradesPageLimit]-5)
 			}
-			// values gives each trade's amount and price, a funding trade's rate, the two oldest on the first page alike
+			// tradeID numbers the trades newest first, or with three left, the full page's oldest three 40, 20 and 30, those
+			// left 5, 35 and 50,000, the older one 2, and the rest from 20,100 down in twos
+			tradeID := func(i int) string {
+				if shape.left == 1 {
+					return strconv.Itoa(len(times) - i)
+				}
+				switch i - tradesPageLimit {
+				case -3:
+					return "40"
+				case -2:
+					return "20"
+				case -1:
+					return "30"
+				case 0:
+					return "5"
+				case 1:
+					return "35"
+				case 2:
+					return "50000"
+				case 3:
+					return "2"
+				}
+				return strconv.Itoa(100 + 2*(tradesPageLimit-i))
+			}
+			// values gives each trade's amount and price, a funding trade's rate, those on the first page at its oldest time
+			// alike, and with three left, the one numbered between them too
 			values := func(i int, funding bool) (amount, price float64) {
-				if i == tradesPageLimit-1 {
-					i--
+				if i > firstAtOldest && i < tradesPageLimit || (shape.left == 3 && i == tradesPageLimit+1) {
+					i = firstAtOldest
 				}
 				amount = 0.01 + float64(i)/1e6
 				if i%3 == 0 {
@@ -999,7 +1071,7 @@ func TestGetHistoricTrades(t *testing.T) {
 					funding := tc.asset == asset.MarginFunding
 					row := func(i int) string {
 						amount, price := values(i, funding)
-						r := `[` + strconv.Itoa(len(times)-i) + `,` + strconv.FormatInt(times[i], 10) + `,` + strconv.FormatFloat(amount, 'f', -1, 64) + `,` + strconv.FormatFloat(price, 'f', -1, 64)
+						r := `[` + tradeID(i) + `,` + strconv.FormatInt(times[i], 10) + `,` + strconv.FormatFloat(amount, 'f', -1, 64) + `,` + strconv.FormatFloat(price, 'f', -1, 64)
 						if funding {
 							r += `,2`
 						}
@@ -1023,7 +1095,7 @@ func TestGetHistoricTrades(t *testing.T) {
 						if (amount < 0) != funding {
 							side = order.Sell
 						}
-						id := strconv.Itoa(len(times) - i)
+						id := tradeID(i)
 						j, ok := byID[id]
 						require.Truef(t, ok, "GetHistoricTrades must return %s trade %s", tc.name, id)
 						got := &trades[j]
@@ -1036,6 +1108,54 @@ func TestGetHistoricTrades(t *testing.T) {
 			}
 		})
 	}
+	// The second page is full counting the first page's oldest trade, which it holds again, so a pager judging a page full
+	// by what it adds, rather than by what Bitfinex sent, stops before the third
+	t.Run("two full pages and a third with the trades left", func(t *testing.T) {
+		t.Parallel()
+		start := time.Now().Add(-4 * time.Hour).Truncate(time.Second).Add(437 * time.Millisecond)
+		end := start.Add(3 * time.Hour)
+		times := make([]int64, 2*tradesPageLimit+1)
+		for i := range times {
+			times[i] = start.Add(time.Hour - time.Duration(2*i)*time.Millisecond).UnixMilli()
+		}
+		for _, tc := range []struct {
+			name, path string
+			pair       currency.Pair
+			asset      asset.Item
+		}{
+			{name: "pair", path: "/v2/trades/tBTCUSD/hist", pair: currency.NewBTCUSD(), asset: asset.Spot},
+			{name: "funding currency", path: "/v2/trades/fUSD/hist", pair: testFundingUSD, asset: asset.MarginFunding},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				row := func(i int) string {
+					r := `[` + strconv.Itoa(len(times)-i) + `,` + strconv.FormatInt(times[i], 10) + `,` + strconv.FormatFloat(0.01+float64(i)/1e6, 'f', -1, 64) + `,` + strconv.FormatFloat(70000+float64(i)/100, 'f', -1, 64)
+					if tc.asset == asset.MarginFunding {
+						r += `,2`
+					}
+					return r + `]`
+				}
+				var windows [][2]int64
+				ex := newHistoryWindowExchange(t, tc.path, times, row, &windows)
+				trades, err := ex.GetHistoricTrades(t.Context(), tc.pair, tc.asset, start, end)
+				require.NoErrorf(t, err, "GetHistoricTrades must not error for three pages of %s trades", tc.name)
+				require.Lenf(t, trades, len(times), "GetHistoricTrades must return every %s trade of three pages once", tc.name)
+				ids := make(map[string]bool, len(trades))
+				for i := range trades {
+					require.Falsef(t, i > 0 && trades[i].Timestamp.Before(trades[i-1].Timestamp), "GetHistoricTrades must return %s trades oldest first", tc.name)
+					ids[trades[i].TID] = true
+				}
+				var missing []string
+				for i := range times {
+					if id := strconv.Itoa(len(times) - i); !ids[id] {
+						missing = append(missing, id)
+					}
+				}
+				assert.Emptyf(t, missing, "GetHistoricTrades should return every %s trade of the three pages", tc.name)
+				assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}, {start.UnixMilli(), times[tradesPageLimit-1]}, {start.UnixMilli(), times[2*tradesPageLimit-2]}}, windows, "GetHistoricTrades should read each page of %s trades from the start to its predecessor's oldest trade", tc.name)
+			})
+		}
+	})
 	ex := newWrapperTestExchange(t)
 	start, end := historyWindow(time.Hour)
 	_, err := ex.GetHistoricTrades(t.Context(), currency.NewBTCUSD(), asset.Spot, end, start)
@@ -1266,6 +1386,94 @@ func TestPlaceOrderRequest(t *testing.T) {
 							require.NoErrorf(t, err, "placeOrderRequest must build a %s order given order.StopUp", name)
 							assert.Equalf(t, exp, got, "placeOrderRequest should build a %s order given order.StopUp as one given no direction", name)
 						})
+					}
+				}
+			}
+		}
+	})
+
+	t.Run("amounts signed by each name for a side, on each asset and type, with its times in force, reduce only and other options", func(t *testing.T) {
+		t.Parallel()
+		// Bitfinex signs an order's amount by its side, buying positive and selling negative; each name for a side, and
+		// names of one side at once, which order.Submit.Validate takes
+		sides := []struct {
+			name string
+			side order.Side
+			sign float64
+		}{
+			{name: "buy", side: order.Buy, sign: 1},
+			{name: "bid", side: order.Bid, sign: 1},
+			{name: "long", side: order.Long, sign: 1},
+			{name: "buy and bid", side: order.Buy | order.Bid, sign: 1},
+			{name: "buy and long", side: order.Buy | order.Long, sign: 1},
+			{name: "bid and long", side: order.Bid | order.Long, sign: 1},
+			{name: "buy, bid and long", side: order.Buy | order.Bid | order.Long, sign: 1},
+			{name: "sell", side: order.Sell, sign: -1},
+			{name: "ask", side: order.Ask, sign: -1},
+			{name: "short", side: order.Short, sign: -1},
+			{name: "sell and ask", side: order.Sell | order.Ask, sign: -1},
+			{name: "sell and short", side: order.Sell | order.Short, sign: -1},
+			{name: "ask and short", side: order.Ask | order.Short, sign: -1},
+			{name: "sell, ask and short", side: order.Sell | order.Ask | order.Short, sign: -1},
+		}
+		// Each time in force placeOrderRequest takes alone for each type, none among them, good till day with good till
+		// time, post only with good till time, and every flag the type takes at once that order.Submit.Validate takes
+		everyStopTIF := order.GoodTillCancel | order.PostOnly | order.GoodTillDay | order.GoodTillTime
+		stopTIFs := []order.TimeInForce{order.UnknownTIF, order.PostOnly, order.GoodTillCancel, order.GoodTillTime, order.GoodTillDay | order.GoodTillTime, order.PostOnly | order.GoodTillTime, everyStopTIF}
+		marketTIFs := append([]order.TimeInForce{order.ImmediateOrCancel}, stopTIFs...)
+		limitTIFs := append([]order.TimeInForce{order.FillOrKill, order.GoodTillCrossing, everyStopTIF | order.GoodTillCrossing}, marketTIFs...)
+		// The other options an order of each asset takes, all set at once or none: a derivative order's leverage, a
+		// leverage of 1 on spot and margin, which reads as none, the margin type the asset trades on, a client order ID
+		// and a trailing stop's distance mode
+		marginTypes := map[asset.Item]margin.Type{asset.Spot: margin.NoMargin, asset.Margin: margin.Multi, asset.USDTMarginedFutures: margin.Isolated, asset.CoinMarginedFutures: margin.Isolated}
+		const amount = 0.29345678
+		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+			for _, o := range []struct {
+				s    order.Submit
+				tifs []order.TimeInForce
+			}{
+				{s: order.Submit{Type: order.Limit, Amount: amount, Price: 100}, tifs: limitTIFs},
+				{s: order.Submit{Type: order.Market, Amount: amount}, tifs: marketTIFs},
+				{s: order.Submit{Type: order.Stop, Amount: amount, TriggerPrice: 100}, tifs: stopTIFs},
+				{s: order.Submit{Type: order.StopLimit, Amount: amount, Price: 90, TriggerPrice: 95}, tifs: stopTIFs},
+				{s: order.Submit{Type: order.TrailingStop, Amount: amount, TrackingValue: 10}, tifs: stopTIFs},
+			} {
+				for _, tif := range o.tifs {
+					for _, reduceOnly := range []bool{false, true} {
+						for _, options := range []bool{false, true} {
+							for _, side := range sides {
+								name := a.String() + " " + side.name + " " + o.s.Type.String()
+								if tif != order.UnknownTIF {
+									name += " " + tif.String()
+								}
+								if reduceOnly {
+									name += " reduce only"
+								}
+								if options {
+									name += " with leverage, margin type and client order ID"
+								}
+								t.Run(name, func(t *testing.T) {
+									t.Parallel()
+									s := o.s
+									s.AssetType, s.Pair, s.Side, s.TimeInForce, s.ReduceOnly = a, testOrderAssetPairs[a], side.side, tif, reduceOnly
+									if tif.Is(order.GoodTillTime) {
+										s.EndTime = time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+									}
+									if options {
+										s.Leverage, s.MarginType, s.ClientOrderID = 1, marginTypes[a], "493"
+										if isDerivativeAsset(a) {
+											s.Leverage = 10
+										}
+										if s.Type == order.TrailingStop {
+											s.TrackingMode = order.Distance
+										}
+									}
+									req, err := placeOrderRequest(&s)
+									require.NoErrorf(t, err, "placeOrderRequest must build a %s order", name)
+									assert.Equalf(t, side.sign*amount, req.Amount, "placeOrderRequest should sign a %s order's amount by its side", name)
+								})
+							}
+						}
 					}
 				}
 			}
@@ -3492,6 +3700,136 @@ func TestCancelAllOrders(t *testing.T) {
 			_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Type: order.OCO})
 			assert.ErrorIs(t, err, errUnsupportedOrderType, "CancelAllOrders should refuse OCO orders with the websocket connected")
 			assertNoWebsocketInputs(t, venue, "CancelAllOrders")
+		})
+		t.Run("refuses a time in force or margin type", func(t *testing.T) {
+			t.Parallel()
+			tifs := []struct {
+				name string
+				tif  order.TimeInForce
+			}{
+				{name: "good till cancelled", tif: order.GoodTillCancel},
+				{name: "post only", tif: order.PostOnly},
+				{name: "good till time", tif: order.GoodTillTime},
+				{name: "good till day", tif: order.GoodTillDay},
+				{name: "good till day and good till time", tif: order.GoodTillDay | order.GoodTillTime},
+				{name: "good till crossing", tif: order.GoodTillCrossing},
+				{name: "immediate or cancel", tif: order.ImmediateOrCancel},
+				{name: "fill or kill", tif: order.FillOrKill},
+				{name: "stop or reduce", tif: order.StopOrReduce},
+				{name: "post only and good till time", tif: order.PostOnly | order.GoodTillTime},
+				{name: "immediate or cancel and post only", tif: order.ImmediateOrCancel | order.PostOnly},
+				{name: "an undefined time in force below good till cancelled", tif: order.TimeInForce(1)},
+				{name: "an undefined time in force", tif: order.TimeInForce(1 << 15)},
+			}
+			margins := []struct {
+				name       string
+				marginType margin.Type
+			}{
+				{name: "isolated", marginType: margin.Isolated},
+				{name: "multi", marginType: margin.Multi},
+				{name: "no margin", marginType: margin.NoMargin},
+				{name: "spot isolated", marginType: margin.SpotIsolated},
+				{name: "unknown", marginType: margin.Unknown},
+				{name: "isolated and multi", marginType: margin.Isolated | margin.Multi},
+				{name: "an undefined margin type", marginType: margin.Type(1 << 7)},
+			}
+			sides := []struct {
+				name string
+				side order.Side
+			}{
+				{name: "no side", side: order.UnknownSide},
+				{name: "any side", side: order.AnySide},
+				{name: "buy", side: order.Buy},
+				{name: "bid", side: order.Bid},
+				{name: "long", side: order.Long},
+				{name: "sell", side: order.Sell},
+				{name: "ask", side: order.Ask},
+				{name: "short", side: order.Short},
+				{name: "sell and ask", side: order.Sell | order.Ask},
+				{name: "buy and long", side: order.Buy | order.Long},
+			}
+			orderTypes := []order.Type{order.UnknownType, order.AnyType, order.Limit, order.Market, order.Stop, order.StopLimit, order.TrailingStop}
+			type refusalCase struct {
+				name string
+				c    order.Cancel
+				err  error
+			}
+			var cases []refusalCase
+			// refusals adds c with a time in force and with a margin type, which CancelAllOrders refuses whatever else it names
+			refusals := func(name string, c order.Cancel) {
+				withTIF, withMargin := c, c
+				withTIF.TimeInForce, withMargin.MarginType = order.PostOnly, margin.Isolated
+				cases = append(cases,
+					refusalCase{name: name + ", time in force post only", c: withTIF, err: order.ErrUnsupportedTimeInForce},
+					refusalCase{name: name + ", margin type isolated", c: withMargin, err: margin.ErrMarginTypeUnsupported})
+			}
+			longSymbolPair := currency.NewPair(currency.DOGE, currency.USD)
+			for _, a := range slices.Concat([]asset.Item{asset.Empty, asset.All}, testOrderAssets) {
+				// Each asset alone and on a pair it trades, spot and margin also on a pair Bitfinex spells with a colon; no
+				// asset, or every one, on each of those
+				pairs := []currency.Pair{currency.EMPTYPAIR, currency.NewBTCUSD(), longSymbolPair, testDerivativePair, testCoinMarginedPair}
+				if p, ok := testOrderAssetPairs[a]; ok {
+					pairs = []currency.Pair{currency.EMPTYPAIR, p}
+					if !isDerivativeAsset(a) {
+						pairs = append(pairs, longSymbolPair)
+					}
+				}
+				for _, p := range pairs {
+					name := cmp.Or(a.String(), "no asset")
+					if !p.IsEmpty() {
+						name += ", pair " + p.String()
+					}
+					for _, side := range sides {
+						for _, orderType := range orderTypes {
+							refusals(name+", side "+side.name+", type "+cmp.Or(orderType.String(), "none"), order.Cancel{AssetType: a, Pair: p, Side: side.side, Type: orderType})
+						}
+					}
+					refusals(name+", an order ID", order.Cancel{AssetType: a, Pair: p, OrderID: "41"})
+					refusals(name+", a client order ID", order.Cancel{AssetType: a, Pair: p, ClientOrderID: "941"})
+					refusals(name+", an order ID and client order ID", order.Cancel{AssetType: a, Pair: p, OrderID: "41", ClientOrderID: "941"})
+					// Every time in force and margin type, alone and together, with each order type
+					for _, orderType := range orderTypes {
+						typed := name + ", type " + cmp.Or(orderType.String(), "none")
+						for _, tif := range tifs {
+							cases = append(cases, refusalCase{name: typed + ", time in force " + tif.name, c: order.Cancel{AssetType: a, Pair: p, Type: orderType, TimeInForce: tif.tif}, err: order.ErrUnsupportedTimeInForce})
+						}
+						for _, m := range margins {
+							cases = append(cases, refusalCase{name: typed + ", margin type " + m.name, c: order.Cancel{AssetType: a, Pair: p, Type: orderType, MarginType: m.marginType}, err: margin.ErrMarginTypeUnsupported})
+						}
+						cases = append(cases,
+							refusalCase{name: typed + ", post only and isolated", c: order.Cancel{AssetType: a, Pair: p, Type: orderType, TimeInForce: order.PostOnly, MarginType: margin.Isolated}, err: order.ErrUnsupportedTimeInForce},
+							refusalCase{name: typed + ", good till cancelled and no margin", c: order.Cancel{AssetType: a, Pair: p, Type: orderType, TimeInForce: order.GoodTillCancel, MarginType: margin.NoMargin}, err: order.ErrUnsupportedTimeInForce})
+					}
+				}
+			}
+			for _, connected := range []bool{false, true} {
+				t.Run("websocket connected "+strconv.FormatBool(connected), func(t *testing.T) {
+					t.Parallel()
+					if connected && !mockTests {
+						t.Skip("the websocket would reach Bitfinex")
+					}
+					ex := newRefusingTestExchange(t)
+					var venue *websocketVenue
+					if connected {
+						venue = connectWebsocketTestExchange(t, ex, subscription.List{})
+						require.True(t, ex.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
+					}
+					// Connected, the cases share the websocket, and the check after them reads every input it received
+					for _, tc := range cases {
+						t.Run(tc.name, func(t *testing.T) {
+							if !connected {
+								t.Parallel()
+							}
+							resp, err := ex.CancelAllOrders(t.Context(), &tc.c)
+							assert.ErrorIsf(t, err, tc.err, "CancelAllOrders should refuse %s before reading any order, rather than cancel the orders of every other", tc.name)
+							assert.Emptyf(t, resp.Status, "CancelAllOrders should report no cancellation for %s", tc.name)
+						})
+					}
+					if connected {
+						assertNoWebsocketInputs(t, venue, "CancelAllOrders")
+					}
+				})
+			}
 		})
 
 		skipLiveUnlessCanManipulate(t)

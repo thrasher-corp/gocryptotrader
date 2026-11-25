@@ -13,6 +13,7 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -1048,7 +1049,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 // update's amount as, less what the order has executed. It is worked out in decimal, so the amount sent carries no
 // binary rounding error
 func remainingOrderAmount(amount float64, id uint64, executed decimal.Decimal) (float64, error) {
-	total, err := decimal.NewFromString(strconv.FormatFloat(amount, 'f', -1, 64))
+	total, err := gctmath.DecimalFromFloat(amount)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %v: %w", errInvalidAmount, amount, err)
 	}
@@ -1062,8 +1063,8 @@ func remainingOrderAmount(amount float64, id uint64, executed decimal.Decimal) (
 // sameAmount reports whether two amounts are the same to the 8 decimal places Bitfinex keeps amounts to, as an amount
 // carried as a float, such as the order store's, can differ past them from what Bitfinex reports
 func sameAmount(a, b float64) bool {
-	x, errX := decimal.NewFromString(strconv.FormatFloat(a, 'f', -1, 64))
-	y, errY := decimal.NewFromString(strconv.FormatFloat(b, 'f', -1, 64))
+	x, errX := gctmath.DecimalFromFloat(a)
+	y, errY := gctmath.DecimalFromFloat(b)
 	return errX == nil && errY == nil && x.Round(amountDecimalPlaces).Equal(y.Round(amountDecimalPlaces))
 }
 
@@ -1192,7 +1193,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 // CancelAllOrders submits the account's open orders of an asset, on a pair and of a side and order type when they are
 // given, for cancellation. A request naming none of them, such as the nil one the cancel all orders RPC sends, cancels
 // every open order through Bitfinex's own cancellation of them all, which also reaches an order placed after they are
-// listed
+// listed. A time in force or a margin type to cancel by is refused, rather than left out to cancel the orders of every
+// other
 func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
 	if c == nil {
 		c = new(order.Cancel)
@@ -1208,6 +1210,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 	oneType := c.Type != order.UnknownType && c.Type != order.AnyType
 	if oneType && !isTradedOrderType(c.Type) {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", errUnsupportedOrderType, c.Type)
+	}
+	if c.TimeInForce != order.UnknownTIF {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s, as orders are cancelled by asset, pair, side and order type", order.ErrUnsupportedTimeInForce, c.TimeInForce)
+	}
+	if c.MarginType != margin.Unset {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s, as orders are cancelled by asset, pair, side and order type", margin.ErrMarginTypeUnsupported, c.MarginType)
 	}
 	open, err := e.openOrderDetails(ctx, c.Pair, c.AssetType)
 	if err != nil {

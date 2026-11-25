@@ -83,7 +83,8 @@ refused.
   cancellations of their own, and an order type other than the five `SubmitOrder` places. Neither needs an asset or an
   order type, both take `order.AnyType`, and `CancelAllOrders` also takes `asset.All`. Both report the orders
   Bitfinex's reply names pending cancellation, as Bitfinex confirms each when the order closes, and any other they
-  listed unknown.
+  listed unknown. `CancelAllOrders` refuses a time in force or a margin type to cancel by, rather than leave it out
+  and cancel the orders of every other.
 + `GetOrderInfo` returns an order with its trades and their fees, reading the order again when its trades show a fill
   the first read does not. `GetOrderHistory` returns the orders of the last two weeks, as Bitfinex keeps them. What an
   order has executed is read from the fills its status lists. Bitfinex cuts a status listing many fills short, keeping

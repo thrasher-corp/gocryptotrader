@@ -95,9 +95,9 @@ const exchangeName = "Bitfinex"
 // Version implements ExchangeVersion for Bitfinex's perpetual contracts
 type Version struct{}
 
-// Exchanges returns every exchange: the version manager matches the first name an exchange holds to the names a
-// version lists exactly, but the config loader finds Bitfinex's configuration by its name in any case, so
-// UpgradeExchange and DowngradeExchange pick Bitfinex out themselves
+// Exchanges returns every exchange, so UpgradeExchange and DowngradeExchange pick Bitfinex out themselves as the config
+// loader does: the version manager matches the names a version lists to the first name an exchange holds, while the
+// loader takes the last of a repeated name
 func (*Version) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange replaces Bitfinex's previous default subscriptions with the current defaults, which cover the
