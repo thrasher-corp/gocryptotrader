@@ -107,7 +107,7 @@ func (m *Manager) ConnectionSubscriptionCaps(url string) (map[any]int, error) {
 		if ws.setup.URL != url {
 			continue
 		}
-		caps[ws.setup.MessageFilter] = m.maxSubscriptionsPerConnection(ws)
+		caps[ws.setup.MessageFilter] = m.maxSubscriptions(ws)
 	}
 	return caps, nil
 }

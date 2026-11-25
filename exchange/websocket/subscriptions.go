@@ -289,16 +289,6 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	return subs
 }
 
-// maxSubscriptionsPerConnection returns the most subscriptions each connection of ws may carry: the cap its setup sets,
-// otherwise the manager's, which also applies to a connection the manager does not manage, for which ws is nil. Zero
-// means no cap
-func (m *Manager) maxSubscriptionsPerConnection(ws *websocket) int {
-	if ws != nil && ws.setup != nil && ws.setup.MaxSubscriptionsPerConnection > 0 {
-		return ws.setup.MaxSubscriptionsPerConnection
-	}
-	return m.MaxSubscriptionsPerConnection
-}
-
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {

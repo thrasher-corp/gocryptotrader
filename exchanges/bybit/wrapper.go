@@ -503,7 +503,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 				return e.wsHandleData(ctx, conn, asset.Spot, resp)
 			},
-			MaxSubscriptionsPerConnection: publicConnectionArgsLimit,
+			MaxSubscriptions: publicConnectionArgsLimit,
 		},
 		// Options - Inbound public data. Left uncapped, so that option trade subscriptions sharing a topic stay on one
 		// connection
@@ -537,8 +537,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 				return e.wsHandleData(ctx, conn, asset.USDTMarginedFutures, resp)
 			},
-			MaxSubscriptionsPerConnection: publicConnectionArgsLimit,
-			MessageFilter:                 asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+			MaxSubscriptions: publicConnectionArgsLimit,
+			MessageFilter:    asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 		},
 		// Linear - USDC margined futures inbound public data.
 		{
@@ -558,8 +558,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 				return e.wsHandleData(ctx, conn, asset.USDCMarginedFutures, resp)
 			},
-			MaxSubscriptionsPerConnection: publicConnectionArgsLimit,
-			MessageFilter:                 asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+			MaxSubscriptions: publicConnectionArgsLimit,
+			MessageFilter:    asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 		},
 		// Inverse - Coin margined futures inbound public data.
 		{
@@ -573,7 +573,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 				return e.wsHandleData(ctx, conn, asset.CoinMarginedFutures, resp)
 			},
-			MaxSubscriptionsPerConnection: publicConnectionArgsLimit,
+			MaxSubscriptions: publicConnectionArgsLimit,
 		},
 		// These connections subscribe only to the channels a user configures, none by default, so none of them is made
 		// unless asked for

@@ -371,9 +371,6 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		if c.Handler == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
 		}
-		if c.MaxSubscriptionsPerConnection < 0 {
-			return fmt.Errorf("%w: %w", errConnSetup, errInvalidMaxSubscriptions)
-		}
 
 		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
 			return errMessageFilterNotComparable
@@ -773,7 +770,7 @@ func (m *Manager) maxSubscriptions(ws *websocket) int {
 	if ws != nil && ws.setup != nil && ws.setup.MaxSubscriptions > 0 {
 		return ws.setup.MaxSubscriptions
 	}
-	return m.maxSubscriptionsPerConnection(ws)
+	return m.MaxSubscriptionsPerConnection
 }
 
 // Disable disables the exchange websocket protocol

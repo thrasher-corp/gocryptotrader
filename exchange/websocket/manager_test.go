@@ -746,20 +746,6 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding max subscriptions")
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error")
 
-	// A setup's own cap applies in place of the manager's, above or below it
-	ws.setup.MaxSubscriptionsPerConnection = 2
-	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
-	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	require.ErrorIs(t, err, errConnectionFault, "must connect when the subscriptions fit the setup's own cap above the manager's")
-	assert.NotErrorIs(t, err, errSubscriptionsExceedsLimit, "should not refuse subscriptions within the setup's own cap")
-	mgr.MaxSubscriptionsPerConnection = 0
-	ws.setup.MaxSubscriptionsPerConnection = 1
-	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding the setup's own max subscriptions")
-	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error for the setup's own cap")
-	assert.ErrorContains(t, err, "max subs allowed 1", "should report the setup's own cap")
-	ws.setup.MaxSubscriptionsPerConnection = 0
-
 	mgr.MaxSubscriptionsPerConnection = 0
 	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
@@ -920,6 +906,31 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding a connection limit below the manager's")
 		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce a connection limit below the manager's")
 	})
+}
+
+func TestMaxSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		managerLimit int
+		ws           *websocket
+		exp          int
+	}{
+		{name: "an unmanaged connection", managerLimit: 3, exp: 3},
+		{name: "a websocket without a setup", managerLimit: 3, ws: &websocket{}, exp: 3},
+		{name: "a setup without a limit", managerLimit: 3, ws: &websocket{setup: &ConnectionSetup{}}, exp: 3},
+		{name: "a negative setup limit", managerLimit: 3, ws: &websocket{setup: &ConnectionSetup{MaxSubscriptions: -1}}, exp: 3},
+		{name: "a setup limit below the manager's", managerLimit: 3, ws: &websocket{setup: &ConnectionSetup{MaxSubscriptions: 2}}, exp: 2},
+		{name: "a setup limit above the manager's", managerLimit: 3, ws: &websocket{setup: &ConnectionSetup{MaxSubscriptions: 5}}, exp: 5},
+		{name: "a setup limit without a manager limit", ws: &websocket{setup: &ConnectionSetup{MaxSubscriptions: 5}}, exp: 5},
+		{name: "no limit", ws: &websocket{setup: &ConnectionSetup{}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Manager{MaxSubscriptionsPerConnection: tc.managerLimit}
+			assert.Equalf(t, tc.exp, m.maxSubscriptions(tc.ws), "maxSubscriptions should return the limit applying to %s", tc.name)
+		})
+	}
 }
 
 // newConnectionCountingServer returns a mock server URL and dialer, along with the number of websocket connections the
@@ -1779,8 +1790,8 @@ func TestConnectionSubscriptionCaps(t *testing.T) {
 	m.MaxSubscriptionsPerConnection = 3
 	m.connectionManager = []*websocket{
 		{setup: &ConnectionSetup{URL: "wss://one.example/ws"}},
-		{setup: &ConnectionSetup{URL: "wss://one.example/ws", MessageFilter: "capped", MaxSubscriptionsPerConnection: 5}},
-		{setup: &ConnectionSetup{URL: "wss://two.example/ws", MaxSubscriptionsPerConnection: 2}},
+		{setup: &ConnectionSetup{URL: "wss://one.example/ws", MessageFilter: "capped", MaxSubscriptions: 5}},
+		{setup: &ConnectionSetup{URL: "wss://two.example/ws", MaxSubscriptions: 2}},
 	}
 	for _, tc := range []struct {
 		name string
@@ -2480,12 +2491,6 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
-	connSetup.MaxSubscriptionsPerConnection = -1
-	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errInvalidMaxSubscriptions, "SetupNewConnection must refuse a negative subscription cap")
-	require.Empty(t, multi.connectionManager, "SetupNewConnection must not register a setup it refuses")
-	connSetup.MaxSubscriptionsPerConnection = 0
-
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
