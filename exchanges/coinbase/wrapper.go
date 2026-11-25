@@ -99,6 +99,7 @@ var (
 	errTrailingStopDistance      = errors.New("a trailing stop needs a distance tracking value")
 	errOrderLabelNotUnique       = errors.New("label does not identify one open order")
 	errReduceOnlyNotSupported    = errors.New("reduce only orders are not supported")
+	errQuoteAmountNotSupported   = errors.New("quote amounts are not supported")
 	errClientOrderIDInUse        = errors.New("client order ID already names another order")
 	errTooManyOrders             = errors.New("too many orders for one cancel request")
 	// errProofTokenRequired is the EU's strong customer authentication asking for a proof token, which only the account
@@ -1612,8 +1613,13 @@ func orderConfigurationRequest(s *order.Submit) (OrderConfigurationRequest, erro
 	tif := s.TimeInForce
 	postOnly := tif.Is(order.PostOnly)
 	untilDate := tif.Is(order.GoodTillTime) || tif.Is(order.GoodTillDay) || !s.EndTime.IsZero()
-	if (s.Type == order.StopLimit || s.Type == order.Bracket) && s.Amount == 0 {
-		return nil, fmt.Errorf("%w: a %s order is sized in the base currency", order.ErrAmountMustBeSet, s.Type)
+	if s.Type == order.StopLimit || s.Type == order.Bracket {
+		if s.Amount == 0 {
+			return nil, fmt.Errorf("%w: a %s order is sized in the base currency", order.ErrAmountMustBeSet, s.Type)
+		}
+		if s.QuoteAmount != 0 {
+			return nil, fmt.Errorf("%w: a %s order is sized in the base currency", errQuoteAmountNotSupported, s.Type)
+		}
 	}
 	switch s.Type {
 	case order.Market:
@@ -1762,6 +1768,9 @@ func derivativesOrderRequest(s *order.Submit, instrumentName string) (*Derivativ
 	orderType, err := derivativesOrderTypeParam(s.Type)
 	if err != nil {
 		return nil, err
+	}
+	if s.QuoteAmount != 0 {
+		return nil, fmt.Errorf("%w: a gateway order is sized by its amount", errQuoteAmountNotSupported)
 	}
 	timeInForce, err := derivativesTimeInForceParam(s.TimeInForce)
 	if err != nil {

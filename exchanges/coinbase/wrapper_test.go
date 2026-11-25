@@ -1971,7 +1971,7 @@ func TestSubmitOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("refuses a stop or bracket order sized in the quote currency", func(t *testing.T) {
+	t.Run("refuses a stop limit or bracket order given a quote amount", func(t *testing.T) {
 		t.Parallel()
 		var creates atomic.Int32
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -1980,17 +1980,78 @@ func TestSubmitOrder(t *testing.T) {
 			assert.NoError(t, err, "writing the response should not error")
 		}))
 		// The cases share ex and creates, which the check after them reads, so they run in order
-		for _, s := range []order.Submit{
-			{Type: order.StopLimit, Side: order.Buy, QuoteAmount: 100, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp},
-			{Type: order.Bracket, Side: order.Sell, QuoteAmount: 100, Price: 90000, TriggerPrice: 80000},
+		for _, tc := range []struct {
+			name string
+			s    order.Submit
+			err  error
+		}{
+			{"stop limit order", order.Submit{Type: order.StopLimit, Side: order.Buy, QuoteAmount: 100, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp}, order.ErrAmountMustBeSet},
+			{"bracket order", order.Submit{Type: order.Bracket, Side: order.Sell, QuoteAmount: 100, Price: 90000, TriggerPrice: 80000}, order.ErrAmountMustBeSet},
+			{"stop limit order also given a base size", order.Submit{Type: order.StopLimit, Side: order.Buy, Amount: 1, QuoteAmount: 100, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp}, errQuoteAmountNotSupported},
+			{"bracket order also given a base size", order.Submit{Type: order.Bracket, Side: order.Sell, Amount: 1, QuoteAmount: 100, Price: 90000, TriggerPrice: 80000}, errQuoteAmountNotSupported},
 		} {
-			t.Run(s.Type.String(), func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
+				s := tc.s
 				s.Exchange, s.Pair, s.AssetType = ex.Name, currency.NewBTCUSD(), asset.Spot
 				_, err := ex.SubmitOrder(t.Context(), &s)
-				assert.ErrorIsf(t, err, order.ErrAmountMustBeSet, "SubmitOrder should refuse a %s order sized in the quote currency", s.Type)
+				assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse the %s", tc.name)
 			})
 		}
-		assert.Zero(t, creates.Load(), "SubmitOrder should not send an order without the size its configuration takes")
+		assert.Zero(t, creates.Load(), "SubmitOrder should not send a stop limit or bracket order given a quote amount")
+	})
+
+	t.Run("sends both sizes of an Advanced Trade market or limit order given both", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			orderType     order.Type
+			side          order.Side
+			timeInForce   order.TimeInForce
+			configuration string
+		}{
+			{"market buy", order.Market, order.Buy, order.UnknownTIF, "market_market_ioc"},
+			{"market sell", order.Market, order.Sell, order.UnknownTIF, "market_market_ioc"},
+			{"FOK market buy", order.Market, order.Buy, order.FillOrKill, "market_market_fok"},
+			{"limit buy", order.Limit, order.Buy, order.UnknownTIF, "limit_limit_gtc"},
+			{"limit sell", order.Limit, order.Sell, order.UnknownTIF, "limit_limit_gtc"},
+			{"FOK limit buy", order.Limit, order.Buy, order.FillOrKill, "limit_limit_fok"},
+			{"post only limit sell", order.Limit, order.Sell, order.GoodTillCancel | order.PostOnly, "limit_limit_gtc"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var sent []map[string]map[string]any
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var req struct {
+						ClientOrderID      string                    `json:"client_order_id"`
+						ProductID          string                    `json:"product_id"`
+						Side               string                    `json:"side"`
+						OrderConfiguration map[string]map[string]any `json:"order_configuration"`
+					}
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the order should decode") {
+						return
+					}
+					mu.Lock()
+					sent = append(sent, req.OrderConfiguration)
+					mu.Unlock()
+					_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"both-1","product_id":"` + req.ProductID + `","side":"` + req.Side + `","client_order_id":"` + req.ClientOrderID + `"}}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				s := order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Type: tc.orderType, Side: tc.side, TimeInForce: tc.timeInForce, Amount: 2, QuoteAmount: 50.125}
+				if tc.orderType == order.Limit {
+					s.Price = 80000
+				}
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				require.NoErrorf(t, err, "SubmitOrder must not error for a %s given both sizes", tc.name)
+				mu.Lock()
+				defer mu.Unlock()
+				require.Lenf(t, sent, 1, "SubmitOrder must send the %s once", tc.name)
+				assert.Equalf(t, "2", sent[0][tc.configuration]["base_size"], "SubmitOrder should send the %s's base size", tc.name)
+				assert.Equalf(t, "50.125", sent[0][tc.configuration]["quote_size"], "SubmitOrder should send the %s's quote size", tc.name)
+				assert.Equalf(t, 2.0, resp.Amount, "SubmitOrder should report the %s's base size", tc.name)
+				assert.Equalf(t, 50.125, resp.QuoteAmount, "SubmitOrder should report the %s's quote size", tc.name)
+			})
+		}
 	})
 
 	t.Run("reports the amount the gateway accepted", func(t *testing.T) {
@@ -2111,6 +2172,7 @@ func TestSubmitOrder(t *testing.T) {
 		for _, tc := range []struct {
 			name     string
 			leverage float64
+			quote    float64
 			reply    string
 			err      error
 			refusal  *DerivativesError
@@ -2121,6 +2183,12 @@ func TestSubmitOrder(t *testing.T) {
 				leverage: 2,
 				reply:    placement(gatewayOrder("USDC-30", DerivativesOrderStateOpen, "0")),
 				err:      order.ErrSubmitLeverageNotSupported,
+			},
+			{
+				name:  "refuses an order given a quote amount before sending it",
+				quote: 40,
+				reply: placement(gatewayOrder("USDC-30", DerivativesOrderStateOpen, "0")),
+				err:   errQuoteAmountNotSupported,
 			},
 			{
 				name:    "returns the gateway's refusal to place the order",
@@ -2157,7 +2225,7 @@ func TestSubmitOrder(t *testing.T) {
 					assert.Failf(t, "SubmitOrder should only place the order", "sent %s", req.Method)
 					return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
 				})
-				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Side: order.Buy, Type: order.Limit, Amount: 0.002, Price: 80000, ClientOrderID: "gct-placed", Leverage: tc.leverage})
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Side: order.Buy, Type: order.Limit, Amount: 0.002, Price: 80000, ClientOrderID: "gct-placed", Leverage: tc.leverage, QuoteAmount: tc.quote})
 				require.ErrorIs(t, err, tc.err, "SubmitOrder must return why it cannot confirm the order")
 				if tc.refusal != nil {
 					var refusal *DerivativesError
@@ -2445,6 +2513,13 @@ func TestValidateAdvancedTradeTimeInForce(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "orderConfigurationRequest should refuse a time in force rather than configure another")
 }
 
+// longAndShortSides are the sides an order can be placed with: each combination of the buy, bid and long flags, and
+// of the sell, ask and short flags
+var longAndShortSides = []order.Side{
+	order.Buy, order.Bid, order.Long, order.Buy | order.Bid, order.Buy | order.Long, order.Bid | order.Long, order.Buy | order.Bid | order.Long,
+	order.Sell, order.Ask, order.Short, order.Sell | order.Ask, order.Sell | order.Short, order.Ask | order.Short, order.Sell | order.Ask | order.Short,
+}
+
 func TestOrderConfigurationRequest(t *testing.T) {
 	t.Parallel()
 	end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
@@ -2465,6 +2540,19 @@ func TestOrderConfigurationRequest(t *testing.T) {
 		{"stop limit with an end time", order.Submit{Type: order.StopLimit, Amount: 1, Price: 2, TriggerPrice: 3, EndTime: end}, &StopLimitStopLimitGTDRequest{BaseSize: 1, LimitPrice: 2, StopPrice: 3, EndTime: end, StopDirection: StopDirectionStopDown}},
 		{"bracket", order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3}, &TriggerBracketGTCRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3}},
 		{"GTT bracket", order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3, TimeInForce: order.GoodTillTime, EndTime: end}, &TriggerBracketGTDRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3, EndTime: end}},
+		{"market given both sizes", order.Submit{Type: order.Market, Amount: 2, QuoteAmount: 50}, &MarketMarketIOCRequest{BaseSize: 2, QuoteSize: 50}},
+		{"FOK market given both sizes", order.Submit{Type: order.Market, Amount: 2, QuoteAmount: 50, TimeInForce: order.FillOrKill}, &MarketMarketFOKRequest{BaseSize: 2, QuoteSize: 50}},
+		{"FOK market buy given both sizes", order.Submit{Type: order.Market, Side: order.Buy, Amount: 2, QuoteAmount: 50, TimeInForce: order.FillOrKill}, &MarketMarketFOKRequest{BaseSize: 2, QuoteSize: 50}},
+		{"market given both sizes and a fractional quote", order.Submit{Type: order.Market, Amount: 0.5, QuoteAmount: 0.03125}, &MarketMarketIOCRequest{BaseSize: 0.5, QuoteSize: 0.03125}},
+		{"limit given both sizes", order.Submit{Type: order.Limit, Amount: 2, QuoteAmount: 50, Price: 2}, &LimitLimitGTCRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2}},
+		{"FOK limit given both sizes", order.Submit{Type: order.Limit, Amount: 2, QuoteAmount: 50, Price: 2, TimeInForce: order.FillOrKill}, &LimitLimitFOKRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2}},
+		{"FOK limit buy given both sizes", order.Submit{Type: order.Limit, Side: order.Buy, Amount: 2, QuoteAmount: 50, Price: 2, TimeInForce: order.FillOrKill}, &LimitLimitFOKRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2}},
+		{"post only limit sell given both sizes", order.Submit{Type: order.Limit, Side: order.Sell, Amount: 2, QuoteAmount: 50, Price: 2, TimeInForce: order.GoodTillCancel | order.PostOnly}, &LimitLimitGTCRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2, PostOnly: true}},
+		{"IOC limit given both sizes", order.Submit{Type: order.Limit, Amount: 2, QuoteAmount: 50, Price: 2, TimeInForce: order.ImmediateOrCancel}, &SORLimitIOCRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2}},
+		{"GTD limit given both sizes", order.Submit{Type: order.Limit, Amount: 2, QuoteAmount: 50, Price: 2, EndTime: end, TimeInForce: order.GoodTillDay}, &LimitLimitGTDRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2, EndTime: end}},
+		{"market with a trigger price given both sizes", order.Submit{Type: order.Market, Amount: 2, QuoteAmount: 50, TriggerPrice: 3}, &MarketMarketIOCRequest{BaseSize: 2, QuoteSize: 50}},
+		{"limit with a trigger price given both sizes", order.Submit{Type: order.Limit, Amount: 2, QuoteAmount: 50, Price: 2, TriggerPrice: 3}, &LimitLimitGTCRequest{BaseSize: 2, QuoteSize: 50, LimitPrice: 2}},
+		{"limit given a quote amount equal to its value at its price", order.Submit{Type: order.Limit, Amount: 0.25, QuoteAmount: 50, Price: 200}, &LimitLimitGTCRequest{BaseSize: 0.25, QuoteSize: 50, LimitPrice: 200}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2472,6 +2560,31 @@ func TestOrderConfigurationRequest(t *testing.T) {
 			require.NoErrorf(t, err, "orderConfigurationRequest must not error for %s %s", tc.s.Type, tc.s.TimeInForce)
 			assert.Equalf(t, tc.exp, got, "orderConfigurationRequest should convert a %s %s order", tc.s.Type, tc.s.TimeInForce)
 		})
+	}
+	for _, orderType := range []order.Type{order.StopLimit, order.Bracket} {
+		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+			t.Run("refuses a quote amount beside the base size of a "+a.String()+" "+orderType.String()+" order", func(t *testing.T) {
+				t.Parallel()
+				for _, side := range longAndShortSides {
+					for _, expiry := range []struct {
+						tif order.TimeInForce
+						end time.Time
+					}{{order.UnknownTIF, time.Time{}}, {order.GoodTillCancel, time.Time{}}, {order.UnknownTIF, end}, {order.GoodTillTime, end}, {order.GoodTillDay, end}} {
+						for _, amount := range []float64{1, 0.25} {
+							for _, trigger := range []float64{3, 0} {
+								// The quote amounts include one equal to the amount, ones equal to the amount at the limit and
+								// trigger prices and dust
+								for _, quote := range []float64{50, amount, amount * 2, amount * 3, 0.004, 1e-9, math.NaN(), math.Inf(1)} {
+									s := order.Submit{AssetType: a, Type: orderType, Side: side, TimeInForce: expiry.tif, EndTime: expiry.end, Amount: amount, QuoteAmount: quote, Price: 2, TriggerPrice: trigger}
+									_, err := orderConfigurationRequest(&s)
+									assert.ErrorIsf(t, err, errQuoteAmountNotSupported, "orderConfigurationRequest should refuse the quote amount %v beside the amount %v of a %s %s order with EndTime %s and trigger price %v", quote, amount, expiry.tif, side, expiry.end, trigger)
+								}
+							}
+						}
+					}
+				}
+			})
+		}
 	}
 }
 
@@ -2538,6 +2651,8 @@ func TestDerivativesOrderRequest(t *testing.T) {
 	}{
 		{"leverage 2", order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 2}, order.ErrSubmitLeverageNotSupported},
 		{"leverage 0.5", order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 0.5}, order.ErrSubmitLeverageNotSupported},
+		{"quote amount", order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 50}, errQuoteAmountNotSupported},
+		{"quote amount with an amount", order.Submit{Side: order.Buy, Type: order.Market, Amount: 2, QuoteAmount: 50}, errQuoteAmountNotSupported},
 		{"unknown side", order.Submit{Side: order.UnknownSide, Type: order.Limit}, order.ErrSideIsInvalid},
 		{"bracket", order.Submit{Side: order.Buy, Type: order.Bracket}, order.ErrUnsupportedOrderType},
 		{"GTT limit", order.Submit{Side: order.Buy, Type: order.Limit, TimeInForce: order.GoodTillTime}, order.ErrUnsupportedTimeInForce},
@@ -2553,6 +2668,33 @@ func TestDerivativesOrderRequest(t *testing.T) {
 			_, err := derivativesOrderRequest(&tc.s, "BTC_USDC-PERPETUAL")
 			assert.ErrorIsf(t, err, tc.err, "derivativesOrderRequest should refuse %+v", tc.s)
 		})
+	}
+	for _, instrument := range []struct {
+		name string
+		a    asset.Item
+	}{{"BTC_USDC-PERPETUAL", asset.USDCMarginedFutures}, {"BTC-PERPETUAL", asset.CoinMarginedFutures}} {
+		for _, orderType := range []order.Type{order.Market, order.Limit, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop} {
+			t.Run("refuses a quote amount on a "+instrument.name+" "+orderType.String()+" order", func(t *testing.T) {
+				t.Parallel()
+				for _, side := range longAndShortSides {
+					for _, tif := range []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.GoodTillCancel | order.PostOnly, order.GoodTillDay, order.ImmediateOrCancel, order.FillOrKill, order.PostOnly} {
+						for _, reduceOnly := range []bool{false, true} {
+							for _, leverage := range []float64{0, 1} {
+								for _, price := range []float64{80000, 0} {
+									// The quote amounts include one equal to the amount, ones equal to the amount at the limit
+									// and trigger prices and dust
+									for _, sizes := range [][2]float64{{0, 50}, {20, 50}, {20, 20}, {0.002, 160}, {0.002, 158}, {0.002, 0.004}, {0.002, 1e-9}, {20, math.NaN()}, {20, math.Inf(1)}} {
+										s := order.Submit{AssetType: instrument.a, Side: side, Type: orderType, TimeInForce: tif, ReduceOnly: reduceOnly, Leverage: leverage, Amount: sizes[0], QuoteAmount: sizes[1], Price: price, TriggerPrice: 79000, TriggerPriceType: order.LastPrice, TrackingMode: order.Distance, TrackingValue: 10}
+										_, err := derivativesOrderRequest(&s, instrument.name)
+										assert.ErrorIsf(t, err, errQuoteAmountNotSupported, "derivativesOrderRequest should refuse a %s %s order with amount %v, quote amount %v and price %v, reduce only %t, leverage %v", tif, side, sizes[0], sizes[1], price, reduceOnly, leverage)
+									}
+								}
+							}
+						}
+					}
+				}
+			})
+		}
 	}
 }
 

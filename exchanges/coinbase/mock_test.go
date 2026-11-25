@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -164,8 +166,13 @@ func (v *derivativesVenue) requestsFor(method string) []derivativesVenueRequest 
 	return slices.DeleteFunc(slices.Clone(v.requests), func(r derivativesVenueRequest) bool { return r.Method != method })
 }
 
+// derivativesVenueRequestLimit is how many requests a mock of the gateway's websocket answers before refusing any but a
+// logout, well above the 23 the busiest test exchange's mock receives in a run of the package
+const derivativesVenueRequestLimit = 100
+
 // answer replies to a request as the gateway does; a request without a recorded response is answered with an error,
-// so it fails at once, and reported
+// so it fails at once, and reported. A pager that stops advancing asks forever, so past derivativesVenueRequestLimit a
+// request other than a logout is refused the same way, failing the test rather than hanging it
 func (v *derivativesVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error {
 	var req derivativesVenueRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
@@ -173,11 +180,18 @@ func (v *derivativesVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) erro
 	}
 	v.mu.Lock()
 	v.requests = append(v.requests, req)
+	received := len(v.requests)
 	v.mu.Unlock()
 	if req.Method == "private/logout" {
 		return conn.Close()
 	}
-	result, answerErr := v.result(&req)
+	var result json.RawMessage
+	var answerErr error
+	if received > derivativesVenueRequestLimit {
+		answerErr = fmt.Errorf("%w: %s past the limit of %d requests", errDerivativesVenueRequest, req.Method, derivativesVenueRequestLimit)
+	} else {
+		result, answerErr = v.result(&req)
+	}
 	if answerErr != nil {
 		result = json.RawMessage(`{"error":{"code":-32601,"message":"no mock response"}}`)
 	}
@@ -346,4 +360,190 @@ func TestDerivativesVenueRequestIDs(t *testing.T) {
 	var envelope DerivativesEnvelope
 	require.NoError(t, json.Unmarshal(frame, &envelope), "the mock's answer must decode")
 	assert.Equal(t, uint64(math.MaxUint64), envelope.ID, "the mock should answer with the request's ID")
+}
+
+func TestDerivativesVenueAnswer(t *testing.T) {
+	t.Parallel()
+	// serve starts a mock of the gateway's websocket answering through the venue. Each connection it accepts sends the
+	// error answer returns for each request on a channel of its own rather than failing the test, so the refusals can
+	// be checked
+	serve := func(t *testing.T, venue *derivativesVenue) (dial func() (*gws.Conn, <-chan error)) {
+		t.Helper()
+		accepted := make(chan chan error, 4)
+		server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handled := make(chan error, 2*derivativesVenueRequestLimit)
+			accepted <- handled
+			mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, conn *gws.Conn) error {
+				handled <- venue.answer(t, msg, conn)
+				return nil
+			})
+		}))
+		dialer.HandshakeTimeout = 30 * time.Second
+		return func() (*gws.Conn, <-chan error) {
+			conn, resp, err := dialer.DialContext(t.Context(), "ws"+strings.TrimPrefix(server.URL, "http"), nil)
+			require.NoError(t, err, "DialContext must not error")
+			require.NoError(t, resp.Body.Close(), "closing the handshake response's body must not error")
+			t.Cleanup(func() { _ = conn.Close() })
+			select {
+			case handled := <-accepted:
+				return conn, handled
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the mock must accept the connection")
+				return nil, nil
+			}
+		}
+	}
+	send := func(t *testing.T, conn *gws.Conn, id uint64, method string) {
+		t.Helper()
+		body, err := json.Marshal(&JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: id, Method: method})
+		require.NoError(t, err, "the request must encode")
+		require.NoError(t, conn.SetWriteDeadline(time.Now().Add(30*time.Second)), "SetWriteDeadline must not error")
+		require.NoError(t, conn.WriteMessage(gws.TextMessage, body), "WriteMessage must not error")
+	}
+	handledError := func(t *testing.T, handled <-chan error) error {
+		t.Helper()
+		select {
+		case err := <-handled:
+			return err
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the mock must finish handling the request")
+			return nil
+		}
+	}
+	// reply returns the mock's reply to the connection's last request and the error answering it returned
+	reply := func(t *testing.T, conn *gws.Conn, handled <-chan error) (*JSONRPCResponse, error) {
+		t.Helper()
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(30*time.Second)), "SetReadDeadline must not error")
+		_, frame, err := conn.ReadMessage()
+		require.NoError(t, err, "ReadMessage must not error")
+		var resp *JSONRPCResponse
+		require.NoError(t, json.Unmarshal(frame, &resp), "the reply must decode")
+		return resp, handledError(t, handled)
+	}
+	closed := func(t *testing.T, conn *gws.Conn, handled <-chan error) {
+		t.Helper()
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(30*time.Second)), "SetReadDeadline must not error")
+		_, frame, err := conn.ReadMessage()
+		var closeErr *gws.CloseError
+		assert.ErrorAsf(t, err, &closeErr, "the mock should close the connection on a logout rather than answer %s", frame)
+		assert.NoError(t, handledError(t, handled), "the mock should close the connection on a logout without an error")
+	}
+	answered := func(id uint64) *JSONRPCResponse {
+		return &JSONRPCResponse{JSONRPC: jsonRPCVersion, ID: id, Result: "ok"}
+	}
+	refused := func(id uint64) *JSONRPCResponse {
+		return &JSONRPCResponse{JSONRPC: jsonRPCVersion, ID: id, Error: &DerivativesError{Code: -32601, Message: "no mock response"}}
+	}
+
+	t.Run("answers requests up to the limit and refuses the rest but a logout", func(t *testing.T) {
+		t.Parallel()
+		var lookups atomic.Int64
+		venue := new(derivativesVenue)
+		venue.respondWith(func(string, []byte) ([]byte, bool) {
+			lookups.Add(1)
+			return []byte(`{"result":"ok"}`), true
+		})
+		conn, handled := serve(t, venue)()
+		for id := uint64(1); id <= derivativesVenueRequestLimit+2; id++ {
+			method := "private/get_order_history_by_currency"
+			if id%2 == 0 {
+				method = "public/get_time"
+			}
+			send(t, conn, id, method)
+			resp, err := reply(t, conn, handled)
+			if id <= derivativesVenueRequestLimit {
+				require.NoErrorf(t, err, "the mock must answer request %d", id)
+				require.Equalf(t, answered(id), resp, "the mock must answer request %d with its result", id)
+				continue
+			}
+			assert.ErrorIsf(t, err, errDerivativesVenueRequest, "the mock should report request %d past the limit", id)
+			assert.Equalf(t, refused(id), resp, "the mock should refuse request %d past the limit", id)
+		}
+		assert.Equal(t, int64(derivativesVenueRequestLimit), lookups.Load(), "the mock should look up no response for a request past the limit")
+		send(t, conn, derivativesVenueRequestLimit+3, "private/logout")
+		closed(t, conn, handled)
+	})
+
+	t.Run("counts the requests of every connection and method together", func(t *testing.T) {
+		t.Parallel()
+		entered, release := make(chan struct{}), make(chan struct{})
+		releaseOnce := sync.OnceFunc(func() { close(release) })
+		var lookups atomic.Int64
+		var heldPastDeadline atomic.Bool
+		venue := new(derivativesVenue)
+		venue.respondWith(func(method string, _ []byte) ([]byte, bool) {
+			lookups.Add(1)
+			if method == "public/status" {
+				close(entered)
+				select {
+				case <-release:
+				case <-time.After(30 * time.Second):
+					heldPastDeadline.Store(true)
+				}
+			}
+			return []byte(`{"result":"ok"}`), true
+		})
+		dial := serve(t, venue)
+		first, firstHandled := dial()
+		second, secondHandled := dial()
+		t.Cleanup(releaseOnce)
+		// Each connection numbers its own requests, so the two reuse IDs
+		for n := uint64(1); n < derivativesVenueRequestLimit; n++ {
+			conn, handled, id, method := first, firstHandled, (n+1)/2, "public/test"
+			if n%2 == 0 {
+				conn, handled, id, method = second, secondHandled, n/2, "private/get_positions"
+			}
+			send(t, conn, id, method)
+			resp, err := reply(t, conn, handled)
+			require.NoErrorf(t, err, "the mock must answer request %d", n)
+			require.Equalf(t, answered(id), resp, "the mock must answer request %d with its result", n)
+		}
+		// The request at the limit is held until one past it on the other connection is refused
+		send(t, first, 51, "public/status")
+		select {
+		case <-entered:
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the mock must start answering the request at the limit")
+		}
+		send(t, second, 50, "private/get_positions")
+		resp, err := reply(t, second, secondHandled)
+		assert.ErrorIs(t, err, errDerivativesVenueRequest, "the mock should report a request past the limit on another connection")
+		assert.Equal(t, refused(50), resp, "the mock should refuse a request past the limit on another connection")
+		releaseOnce()
+		resp, err = reply(t, first, firstHandled)
+		require.NoError(t, err, "the mock must answer the request at the limit")
+		assert.Equal(t, answered(51), resp, "the mock should answer the request at the limit with its result")
+		assert.False(t, heldPastDeadline.Load(), "the mock should refuse the request past the limit while the one at it is held")
+		send(t, first, 52, "public/test")
+		resp, err = reply(t, first, firstHandled)
+		assert.ErrorIs(t, err, errDerivativesVenueRequest, "the mock should report a later request past the limit")
+		assert.Equal(t, refused(52), resp, "the mock should refuse a later request past the limit")
+		assert.Equal(t, int64(derivativesVenueRequestLimit), lookups.Load(), "the mock should look up no response for a request past the limit")
+	})
+
+	t.Run("counts a logout toward the limit and refuses requests past it without a responder", func(t *testing.T) {
+		t.Parallel()
+		dial := serve(t, new(derivativesVenue))
+		first, firstHandled := dial()
+		for id := uint64(1); id < derivativesVenueRequestLimit; id++ {
+			method := "public/unsubscribe_all"
+			if id%2 == 0 {
+				method = "private/unsubscribe_all"
+			}
+			send(t, first, id, method)
+			resp, err := reply(t, first, firstHandled)
+			require.NoErrorf(t, err, "the mock must answer request %d", id)
+			require.Equalf(t, answered(id), resp, "the mock must answer request %d with its result", id)
+		}
+		send(t, first, derivativesVenueRequestLimit, "private/logout")
+		closed(t, first, firstHandled)
+		second, secondHandled := dial()
+		for i, method := range []string{"public/unsubscribe_all", "private/unsubscribe_all"} {
+			id := uint64(i + 1)
+			send(t, second, id, method)
+			resp, err := reply(t, second, secondHandled)
+			assert.ErrorIsf(t, err, errDerivativesVenueRequest, "the mock should report a %s request past the limit", method)
+			assert.Equalf(t, refused(id), resp, "the mock should refuse a %s request past the limit", method)
+		}
+	})
 }

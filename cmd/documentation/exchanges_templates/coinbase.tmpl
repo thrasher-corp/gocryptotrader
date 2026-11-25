@@ -54,7 +54,7 @@ is replaced before it expires; its private websocket connection authenticates wi
 + `SubmitOrder` places Advanced Trade orders: market, limit, stop limit and bracket orders; fill or kill, immediate or
   cancel, post only and good till date orders, which a good till time or good till day order with an end time is; quote
   sized market and limit orders. A time in force Advanced Trade has no configuration for, a reduce only order, and a
-  stop limit or bracket order sized in the quote currency, which Coinbase sizes in the base currency, or asked to
+  stop limit or bracket order given a `QuoteAmount`, which Coinbase sizes in the base currency alone, or asked to
   trigger on a price other than the last trade price, which their configurations have no field for, are refused.
   Coinbase requires a client order ID, so an order without one is given a UUID, which the response returns. For a
   client order ID it already holds, Coinbase returns that order rather than placing another, so a reply naming another
@@ -67,9 +67,10 @@ is replaced before it expires; its private websocket connection authenticates wi
   price type sets their trigger; a trailing stop takes its distance from the `TrackingValue`. A post only order is
   rejected rather than repriced when it would take liquidity, and isolated margin places an order in the isolated margin
   subaccount the gateway binds to its instrument. Leverage is an instrument's, which `SetLeverage` sets. Its orders take
-  no end time, and the response reports the amount the gateway accepted, which it can reduce for a reduce only order.
-  A market order is reported as one though the gateway holds it as a limit order, and a trigger order that has fired is
-  reported closed, as the order it placed carries on under its own ID.
+  no end time, and their size is the `Amount` alone, so a `QuoteAmount` is refused. The response reports the amount the
+  gateway accepted, which it can reduce for a reduce only order. A market order is reported as one though the gateway
+  holds it as a limit order, and a trigger order that has fired is reported closed, as the order it placed carries on
+  under its own ID.
 + `ModifyOrder` changes an Advanced Trade limit order's price and size, which Coinbase requires together, so the
   order's own fill in for those left unset; it changes a gateway order by its ID, or by its label in the pair. The
   gateway takes an edit's flags afresh, so the order's amount, price, trigger price and reduce only flag are kept where
