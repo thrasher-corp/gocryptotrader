@@ -84,6 +84,7 @@ type channelControlledMockProvider struct {
 	resume chan struct{}
 	rates  map[string]float64
 	err    error
+	calls  atomic.Int64
 }
 
 func newChannelControlledMockProvider(called, resume chan struct{}, rates map[string]float64) (*forexprovider.ForexProviders, *channelControlledMockProvider) {
@@ -109,6 +110,7 @@ func (c *channelControlledMockProvider) GetSupportedCurrencies() ([]string, erro
 }
 
 func (c *channelControlledMockProvider) GetRates(_, _ string) (map[string]float64, error) {
+	c.calls.Add(1)
 	if c.called != nil {
 		select {
 		case c.called <- struct{}{}:
