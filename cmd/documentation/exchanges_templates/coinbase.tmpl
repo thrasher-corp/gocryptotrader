@@ -173,11 +173,13 @@ them open, then one channel a request, as its acknowledgements name no request; 
 connection, as its late acknowledgement would be taken for the next request's. A connection carries at most 30
 subscriptions, as Coinbase holds at most 30 level2 products a connection, and more connections open as needed. Each
 message's sequence number is checked; after a gap, the books are resubscribed for new snapshots, and the account
-channels for a fresh view of the account. A resubscription that fails closes the connection too. A closed connection
-has the manager reconnect every Coinbase connection, the gateway's included, and subscribe each afresh, so a request
-that times out on one connection resubscribes every channel. The standard channels use these channels: tickers
-`ticker`, candles `candles`, trades `market_trades`, order books `level2` and the account `user`; `status`,
-`ticker_batch` and `futures_balance_summary` take their own names.
+channels for a fresh view of the account. A message numbered at or below the last one accepted on its connection is
+dropped, apart from the order closes the account channel reports in it, which its snapshot of open orders cannot
+replay. A resubscription that fails closes the connection too. A closed connection has the manager reconnect every
+Coinbase connection, the gateway's included, and subscribe each afresh, so a request that times out on one connection
+resubscribes every channel. The standard channels use these channels: tickers `ticker`, candles `candles`, trades
+`market_trades`, order books `level2` and the account `user`; `status`, `ticker_batch` and `futures_balance_summary`
+take their own names.
 
 + The account channel, and `futures_balance_summary`, subscribe once, without an asset, as they cover every product.
   It reports no order's size, so each order takes the size it was placed, edited or last listed with; an order placed
@@ -189,11 +191,12 @@ that times out on one connection resubscribes every channel. The standard channe
   followed, and takes what it filled as its size when it fills beyond it. A report of such an order, whatever its
   status, relays no remaining amount while an edit is queued, or when its quantities give another size, as the report
   can predate an edit. An order Coinbase marks filled leaving dust
-  keeps its size. The record keeps the size an order it held closed with for at least an hour, and a later report of
-  the order's close with no size recorded for it, such as a repeated one, or one after a list read it closed, takes
-  that size, or for a filled order what it executed where that is larger. `ModifyOrder` records the size it gives an
-  order once Coinbase answers. Should a lookup started by the edit's own report list the order as it was before the
-  edit, and end before that answer, the order is relayed with its old size until its next report.
+  keeps its size. The record keeps the size an order closed with for at least an hour, when it held the order or was
+  looking it up, and a later report of the order's close with no size recorded for it, such as a repeated one, or one
+  after a list read it closed, takes that size, or for a filled order what it executed where that is larger.
+  `ModifyOrder` records the size it gives an order once Coinbase answers. Should a lookup started by the edit's own
+  report list the order as it was before the edit, and end before that answer, the order is relayed with its old size
+  until its next report.
 + On the gateway, tickers subscribe `ticker`, order books `book` and trades `trades`, aggregated over 100ms by default,
   `agg2` for an interval of a second or `raw` for `kline.Raw`, and candles `chart.trades` at their interval, of up to 2
   hours, as the gateway aligns longer ones to its daily settlement. Any of the gateway's channels can be subscribed by

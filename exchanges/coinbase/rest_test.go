@@ -200,6 +200,21 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 // testServerRequestLimit is the most requests a test server answers, well above the 44 the busiest test server receives
 const testServerRequestLimit = 100
 
+// awaitRelease holds a test server's response until the test releases it, returning whether it was released; a
+// response never released fails the test rather than holding its request until go test's timeout
+func awaitRelease(t *testing.T, r *http.Request, release <-chan struct{}) bool {
+	t.Helper()
+	select {
+	case <-release:
+		return true
+	case <-r.Context().Done():
+		return false
+	case <-time.After(30 * time.Second):
+		assert.Fail(t, "the test should release the response it holds")
+		return false
+	}
+}
+
 // subtestName names a subtest after a string case; t.Run numbers an empty name, so it is named "empty"
 func subtestName(s string) string {
 	if s == "" {

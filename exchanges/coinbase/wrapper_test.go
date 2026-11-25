@@ -2276,6 +2276,127 @@ func TestSubmitOrder(t *testing.T) {
 		}
 		assert.Equal(t, exp, resp, "SubmitOrder should return the placed order with its trades and their fees summed in their fee currency")
 	})
+	t.Run("has a pending size lookup relay the order its fee read finds closed", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "aaaaaaaa-1111-2222-3333-444444444444"
+		row := func(status, filled string) string {
+			return `{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"` + filled +
+				`","size_in_quote":false,"order_configuration":{"limit_limit_gtc":{"base_size":"0.5","limit_price":"90000"}}}`
+		}
+		for _, tc := range []struct {
+			filled string
+			status order.Status
+		}{{"0", order.Cancelled}, {"0.1", order.PartiallyFilledCancelled}} {
+			t.Run("having executed "+tc.filled, func(t *testing.T) {
+				t.Parallel()
+				posting, created, listing, release := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})
+				postingOnce, createdOnce := sync.OnceFunc(func() { close(posting) }), sync.OnceFunc(func() { close(created) })
+				listingOnce, releaseOnce := sync.OnceFunc(func() { close(listing) }), sync.OnceFunc(func() { close(release) })
+				t.Cleanup(createdOnce)
+				t.Cleanup(releaseOnce)
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.Method + " " + r.URL.Path {
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/batch":
+						listingOnce()
+						if !awaitRelease(t, r, release) {
+							return
+						}
+						// The list read the order before its cancellation
+						body = `{"orders":[` + row(OrderStatusOpen, "0") + `],"has_next":false,"cursor":""}`
+					case http.MethodPost + " /api/v3/brokerage/orders":
+						postingOnce()
+						if !awaitRelease(t, r, created) {
+							return
+						}
+						body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"SELL","client_order_id":"gct-fee-read"}}`
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+						body = `{"order":` + row(OrderStatusCancelled, tc.filled) + `}`
+					default:
+						assert.Failf(t, "SubmitOrder should place and read the order, and the user channel look it up", "%s %s", r.Method, r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				type submitted struct {
+					resp *order.SubmitResponse
+					err  error
+				}
+				submitting := make(chan submitted, 1)
+				go func() {
+					resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Sell, Type: order.Limit, Amount: 0.5, Price: 90000, ClientOrderID: "gct-fee-read", RetrieveFees: true})
+					submitting <- submitted{resp: resp, err: err}
+				}()
+				// Coinbase reports an order it accepts open, which can be before its reply to the create request
+				awaitClosed(t, posting, "SubmitOrder must send the order")
+				require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "0.5")), "wsHandleUser must not error")
+				awaitClosed(t, listing, "the order must be looked up")
+				require.Len(t, relayed[[]order.Detail](ex), 1, "the user channel must relay the order as reported")
+				createdOnce()
+				var result submitted
+				select {
+				case result = <-submitting:
+				case <-time.After(30 * time.Second):
+					require.FailNow(t, "SubmitOrder must return once the order is created")
+				}
+				require.NoError(t, result.err, "SubmitOrder must not error")
+				require.Equal(t, tc.status, result.resp.Status, "SubmitOrder must read the order cancelled")
+				releaseOnce()
+				awaitLookupsSettled(t, ex)
+				got := relayed[[]order.Detail](ex)
+				require.Len(t, got, 1, "the lookup must relay the order")
+				require.Len(t, got[0], 1, "the lookup must relay the order alone")
+				assert.Equal(t, tc.status, got[0][0].Status, "the lookup should relay the order as the fee read found it")
+				assert.Equal(t, 0.5, got[0][0].Amount, "the lookup should relay the size the fee read found")
+			})
+		}
+	})
+
+	t.Run("keeps the quote size of an order its fee read finds closed while it is not looked up", func(t *testing.T) {
+		t.Parallel()
+		// Another order's lookup is held throughout, so the order's own lookup decides, not any other
+		const orderID, otherID = "aaaaaaaa-1111-2222-3333-666666666666", "aaaaaaaa-1111-2222-3333-777777777777"
+		listing, release := make(chan struct{}), make(chan struct{})
+		listingOnce, releaseOnce := sync.OnceFunc(func() { close(listing) }), sync.OnceFunc(func() { close(release) })
+		t.Cleanup(releaseOnce)
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/batch":
+				assert.Equal(t, []string{otherID}, r.URL.Query()["order_ids"], "the user channel should look up only the other order")
+				listingOnce()
+				if !awaitRelease(t, r, release) {
+					return
+				}
+				body = listedOrder(otherID, "1")
+			case http.MethodPost + " /api/v3/brokerage/orders":
+				body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-quote-read"}}`
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+				body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"CANCELLED","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","size_in_quote":true,"order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"90000"}}}}`
+			default:
+				assert.Failf(t, "SubmitOrder should place and read the order, and the user channel look up the other", "%s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		require.NoError(t, handleUser(t, ex, userOrderEnvelope(otherID, OrderTypeLimit, OrderStatusOpen, "0", "1")), "wsHandleUser must not error for the other order")
+		awaitClosed(t, listing, "the other order must be looked up")
+		require.Len(t, relayed[[]order.Detail](ex), 1, "the user channel must relay the other order as reported")
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, QuoteAmount: 100, Price: 90000, ClientOrderID: "gct-quote-read", RetrieveFees: true})
+		require.NoError(t, err, "SubmitOrder must not error")
+		require.Equal(t, order.Cancelled, resp.Status, "SubmitOrder must read the order cancelled")
+		require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusCancelled, "0", "100")), "wsHandleUser must not error for the order's cancellation")
+		got := relayed[[]order.Detail](ex)
+		require.Len(t, got, 1, "the user channel must relay the cancellation")
+		require.Len(t, got[0], 1, "the user channel must relay the cancellation alone")
+		assert.Equal(t, 100.0, got[0][0].QuoteAmount, "the user channel should relay the quote size SubmitOrder recorded")
+		releaseOnce()
+		awaitLookupsSettled(t, ex)
+	})
 }
 
 func TestPlacedOrder(t *testing.T) {
@@ -3334,6 +3455,73 @@ func TestModifyOrder(t *testing.T) {
 				require.ErrorIs(t, err, tc.err, "ModifyOrder must return why it cannot read the order")
 				assert.Nil(t, resp, "ModifyOrder should return no edit")
 				assert.Zero(t, edits.Load(), "ModifyOrder should not edit an order it cannot read")
+			})
+		}
+	})
+	t.Run("has a pending size lookup relay the order its read finds closed", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "aaaaaaaa-1111-2222-3333-555555555555"
+		row := func(status, filled string) string {
+			return `{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"` + filled +
+				`","size_in_quote":false,"order_configuration":{"limit_limit_gtc":{"base_size":"0.5","limit_price":"90000"}}}`
+		}
+		for _, tc := range []struct {
+			filled string
+			status order.Status
+			// tif asks for another time in force, which ModifyOrder refuses before sending the edit
+			tif order.TimeInForce
+		}{
+			{filled: "0", status: order.Cancelled},
+			{filled: "0.1", status: order.PartiallyFilledCancelled},
+			{filled: "0.1", status: order.PartiallyFilledCancelled, tif: order.FillOrKill},
+		} {
+			name := "having executed " + tc.filled
+			if tc.tif != order.UnknownTIF {
+				name += " and refused its time in force"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				listing, release := make(chan struct{}), make(chan struct{})
+				listingOnce, releaseOnce := sync.OnceFunc(func() { close(listing) }), sync.OnceFunc(func() { close(release) })
+				t.Cleanup(releaseOnce)
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.Method + " " + r.URL.Path {
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/batch":
+						listingOnce()
+						if !awaitRelease(t, r, release) {
+							return
+						}
+						// The list read the order before its cancellation
+						body = `{"orders":[` + row(OrderStatusOpen, "0") + `],"has_next":false,"cursor":""}`
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+						body = `{"order":` + row(OrderStatusCancelled, tc.filled) + `}`
+					case http.MethodPost + " /api/v3/brokerage/orders/edit":
+						body = `{"success":false,"errors":[{"edit_failure_reason":"ORDER_NOT_FOUND"}]}`
+					default:
+						assert.Failf(t, "ModifyOrder should read and edit the order, and the user channel look it up", "%s %s", r.Method, r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "0.5")), "wsHandleUser must not error")
+				awaitClosed(t, listing, "the order must be looked up")
+				require.Len(t, relayed[[]order.Detail](ex), 1, "the user channel must relay the order as reported")
+				_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: orderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 91000, Amount: 0.5, TimeInForce: tc.tif})
+				if tc.tif != order.UnknownTIF {
+					require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder must refuse a time in force the edit cannot carry")
+				} else {
+					require.Error(t, err, "ModifyOrder must return Coinbase's refusal to edit the closed order")
+				}
+				releaseOnce()
+				awaitLookupsSettled(t, ex)
+				got := relayed[[]order.Detail](ex)
+				require.Len(t, got, 1, "the lookup must relay the order")
+				require.Len(t, got[0], 1, "the lookup must relay the order alone")
+				assert.Equal(t, tc.status, got[0][0].Status, "the lookup should relay the order as ModifyOrder's read found it")
+				assert.Equal(t, 0.5, got[0][0].Amount, "the lookup should relay the size ModifyOrder's read found")
 			})
 		}
 	})
@@ -6064,6 +6252,84 @@ func TestGetOrderInfo(t *testing.T) {
 		require.NoError(t, err, "GetOrderInfo must find an order first on its history page")
 		assert.Equal(t, "USDC-33", d.OrderID, "GetOrderInfo should return the order first on its history page")
 		assert.Equal(t, order.Filled, d.Status, "GetOrderInfo should return the order's state from the history")
+	})
+	t.Run("reports a quote's amount from the amount its state leaves", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, instrument, state string
+			a                       asset.Item
+			pair                    currency.Pair
+			quote                   bool
+			amount, filled          float64
+			want                    order.Detail
+			// isolated has an isolated margin subaccount hold the order, websocket reads its state over the websocket,
+			// and history has the gateway find it only in the order history, whose amount is the one requested
+			isolated, websocket, history, sell bool
+		}{
+			{name: "partly filled quote", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 0.75, filled: 0.25, want: order.Detail{Status: order.PartiallyFilled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}},
+			{name: "unfilled quote", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 1, want: order.Detail{Status: order.Open, Amount: 1, RemainingAmount: 1}},
+			{name: "filled quote", instrument: "BTC_USDC-PERPETUAL", state: "filled", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, filled: 1, want: order.Detail{Status: order.Filled, Amount: 1, ExecutedAmount: 1}},
+			{name: "partly filled quote cancelled", instrument: "BTC_USDC-PERPETUAL", state: "cancelled", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 0.75, filled: 0.25, want: order.Detail{Status: order.PartiallyFilledCancelled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}},
+			{name: "partly filled sell quote", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 0.75, filled: 0.25, want: order.Detail{Status: order.PartiallyFilled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}, sell: true},
+			{name: "partly filled inverse perpetual quote", instrument: "BTC-PERPETUAL", state: "open", a: asset.CoinMarginedFutures, pair: testCoinPerpetual, quote: true, amount: 60, filled: 40, want: order.Detail{Status: order.PartiallyFilled, Amount: 100, ExecutedAmount: 40, RemainingAmount: 60}},
+			{name: "partly filled order", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, amount: 1, filled: 0.25, want: order.Detail{Status: order.PartiallyFilled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}},
+			{name: "partly filled quote held isolated", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 0.75, filled: 0.25, want: order.Detail{Status: order.PartiallyFilled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}, isolated: true},
+			{name: "partly filled quote read over the websocket", instrument: "BTC_USDC-PERPETUAL", state: "open", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 0.75, filled: 0.25, want: order.Detail{Status: order.PartiallyFilled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}, websocket: true},
+			{name: "partly filled quote found in the order history", instrument: "BTC_USDC-PERPETUAL", state: "cancelled", a: asset.USDCMarginedFutures, pair: testUSDCPerpetual, quote: true, amount: 1, filled: 0.25, want: order.Detail{Status: order.PartiallyFilledCancelled, Amount: 1, ExecutedAmount: 0.25, RemainingAmount: 0.75}, history: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				direction := "buy"
+				if tc.sell {
+					direction = "sell"
+				}
+				state := `{"order_id":"USDC-80","order_state":"` + tc.state + `","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"` + tc.instrument +
+					`","direction":"` + direction + `","price":80000,"average_price":80000,"amount":` + strconv.FormatFloat(tc.amount, 'f', -1, 64) + `,"filled_amount":` + strconv.FormatFloat(tc.filled, 'f', -1, 64) +
+					`,"quote":` + strconv.FormatBool(tc.quote) + `,"isolated":` + strconv.FormatBool(tc.isolated) + `,"creation_timestamp":1792281600000,"last_update_timestamp":1792281660000}`
+				answer := func(method string, params []byte) (string, bool) {
+					switch {
+					case method == "private/get_order_state" && !tc.history && tc.isolated == strings.Contains(string(params), `"isolated":true`):
+						return `{"jsonrpc":"2.0","result":` + state + `}`, true
+					case method == "private/get_order_state":
+						return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`, true
+					case method == "private/get_subaccounts" && tc.history:
+						return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null}]}`, true
+					case method == "private/get_order_history_by_instrument" && tc.history:
+						return `{"jsonrpc":"2.0","result":{"orders":[` + state + `],"continuation":"none"}}`, true
+					case method == "private/get_user_trades_by_order":
+						return `{"jsonrpc":"2.0","result":[]}`, true
+					}
+					return "", false
+				}
+				var ex *Exchange
+				if tc.websocket {
+					if !mockTests {
+						t.Skip("the mock gateway websocket answers the order's state")
+					}
+					var venue *derivativesVenue
+					ex, venue = newDerivativesWebsocketTestExchange(t)
+					require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the order's state")
+					venue.respondWith(func(method string, params []byte) ([]byte, bool) {
+						body, handled := answer(method, params)
+						return []byte(body), handled
+					})
+				} else {
+					ex, _ = newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+						if body, handled := answer(req.Method, req.Params); handled {
+							return body
+						}
+						assert.Failf(t, "GetOrderInfo should read the order and its trades", "sent %s %s", req.Method, req.Params)
+						return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+					})
+				}
+				d, err := ex.GetOrderInfo(t.Context(), "USDC-80", tc.pair, tc.a)
+				require.NoErrorf(t, err, "GetOrderInfo must not error for a %s", tc.name)
+				assert.Equalf(t, tc.want.Status, d.Status, "GetOrderInfo should report a %s's status", tc.name)
+				assert.Equalf(t, tc.want.Amount, d.Amount, "GetOrderInfo should report a %s's amount", tc.name)
+				assert.Equalf(t, tc.want.ExecutedAmount, d.ExecutedAmount, "GetOrderInfo should report what a %s executed", tc.name)
+				assert.Equalf(t, tc.want.RemainingAmount, d.RemainingAmount, "GetOrderInfo should report what remains of a %s", tc.name)
+			})
+		}
 	})
 }
 

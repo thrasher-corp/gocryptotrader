@@ -541,8 +541,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	gap, stale := e.wsConnections.get(conn).sequence(envelope.Sequence)
 	if stale {
 		// Coinbase allows messages to arrive out of order; one older than the last is dropped, as acting on it would undo
-		// a newer one, and the gap it left has already been resynchronised
-		return fmt.Errorf("%w: %s sequence %d", errWebsocketStaleMessage, envelope.Channel, envelope.Sequence)
+		// a newer one, and the gap it left has already been resynchronised. The orders it reports closed are relayed, as
+		// nothing undoes a close and the snapshots resynchronising the gap list open orders only
+		err := fmt.Errorf("%w: %s sequence %d", errWebsocketStaleMessage, envelope.Channel, envelope.Sequence)
+		if envelope.Channel == wsChannelUser {
+			err = common.AppendError(err, e.wsRelayUserCloses(ctx, &envelope))
+		}
+		return err
 	}
 	var errs error
 	if gap {

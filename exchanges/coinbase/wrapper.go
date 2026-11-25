@@ -1480,6 +1480,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			if resp.Status, err = standardOrderStatus(placed.Status, placed.FilledSize.Float64()); err != nil {
 				return resp, fmt.Errorf("order %s placed, but error reading its status: %w", resp.OrderID, err)
 			}
+			// A read the lookup cannot take a close from leaves its outcome as it was
+			_ = e.noteClosedOrder(placed)
 			resp.Fee = placed.TotalFees.Float64()
 			resp.AverageExecutedPrice = placed.AverageFilledPrice.Float64()
 			resp.Cost = placed.FilledValue.Float64()
@@ -1935,6 +1937,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			return nil, err
 		}
 		if err == nil {
+			// A read the lookup cannot take a close from leaves its outcome as it was
+			_ = e.noteClosedOrder(existing)
 			if existingAsset, err := productTypeAsset(existing.ProductType); err == nil {
 				if existingPair, err := e.productPair(existing.ProductID, existingAsset); err == nil {
 					a, pair = existingAsset, existingPair
@@ -2423,6 +2427,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 			if o, err = e.derivativesClosedOrder(ctx, orderID, p, a); err == nil {
 				isolated = o.Isolated
 			}
+		} else if err == nil && o.Quote {
+			// A quote's state gives the amount it has left as its amount
+			o.Amount += o.FilledAmount
 		}
 		if err != nil {
 			return nil, err
@@ -2595,6 +2602,7 @@ func (e *Exchange) orderDetail(o *Order, listed listStamp) (*order.Detail, error
 		e.orderSizes.setListed(o.OrderID, values.baseSize, values.quoteSize, listed)
 	case isClosedOrderStatus(status):
 		e.orderSizes.remove(o.OrderID, values.baseSize)
+		e.orderSizes.foundClosed(d)
 	}
 	return d, nil
 }

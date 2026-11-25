@@ -439,9 +439,7 @@ func TestGlobalDerivativesAccessToken(t *testing.T) {
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if authCalls.Add(1) == 1 {
 				close(entered)
-				select {
-				case <-release:
-				case <-r.Context().Done():
+				if !awaitRelease(t, r, release) {
 					return
 				}
 			}

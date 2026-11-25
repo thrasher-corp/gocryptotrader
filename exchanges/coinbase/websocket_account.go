@@ -75,6 +75,38 @@ func (e *Exchange) wsHandleUser(ctx context.Context, envelope *WebsocketEnvelope
 	return errs
 }
 
+// wsRelayUserCloses relays the closes a user channel message older than the last one received reports, and nothing else
+// it holds, as a newer message may have changed the rest
+func (e *Exchange) wsRelayUserCloses(ctx context.Context, envelope *WebsocketEnvelope) error {
+	var events []WebsocketUserEvent
+	if err := json.Unmarshal(envelope.Events, &events); err != nil {
+		return err
+	}
+	var errs error
+	var closes []order.Detail
+	e.orderSizes.relayMu.Lock()
+	defer e.orderSizes.relayMu.Unlock()
+	for i := range events {
+		for j := range events[i].Orders {
+			o := &events[i].Orders[j]
+			if status, err := standardOrderStatus(o.Status, o.CumulativeQuantity.Float64()); err != nil || !isClosedOrderStatus(status) {
+				continue
+			}
+			detail, err := e.websocketOrderDetail(o, envelope)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			e.orderSizes.observe(detail, 0)
+			closes = append(closes, *detail)
+		}
+	}
+	if len(closes) != 0 {
+		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, closes))
+	}
+	return errs
+}
+
 // latestLive returns the orders whose latest report in a message is live, in the order reported; a message can report
 // an order more than once, and its lookup relays the report it began with
 func latestLive(reported []order.Detail) []order.Detail {
@@ -94,7 +126,8 @@ func latestLive(reported []order.Detail) []order.Detail {
 // wsLookUpOrderSizes lists the reported live orders whose sizes are unknown or disputed, in the background so the reader
 // goes on, and relays the channel's latest report of each with its size, which is recorded for the order's later
 // updates. The lookup takes only the size from the list, whose state can be older than the channel's; an order the
-// channel reports closed meanwhile is not relayed again, and an order already being looked up is left to that lookup
+// channel reports closed meanwhile is not relayed again, one a list or read finds closed is relayed as found, and an
+// order already being looked up is left to that lookup
 func (e *Exchange) wsLookUpOrderSizes(ctx context.Context, reported []order.Detail) {
 	claimed, started := e.orderSizes.claim(reported)
 	if len(claimed) == 0 {
@@ -117,7 +150,8 @@ func (e *Exchange) wsLookUpOrderSizes(ctx context.Context, reported []order.Deta
 
 // relayLookedUpOrders relays the channel's latest reports of orders looked up with their sizes, holding the user
 // channel's relays meanwhile, so that a report the channel relays next follows them. An order an open report since its
-// lookup began gave another size is looked up again, as the list may predate an edit the report shows
+// lookup began gave another size is looked up again, as the list may predate an edit the report shows, and one the list
+// reads closed is relayed as listed, as the channel's report predates its close
 func (e *Exchange) relayLookedUpOrders(ctx context.Context, orders []Order) {
 	e.orderSizes.relayMu.Lock()
 	defer e.orderSizes.relayMu.Unlock()
@@ -125,6 +159,9 @@ func (e *Exchange) relayLookedUpOrders(ctx context.Context, orders []Order) {
 	var again []order.Detail
 	for i := range orders {
 		values := orderConfigurationValues(orders[i].OrderConfiguration)
+		if err := e.noteClosedOrder(&orders[i]); err != nil {
+			_ = e.Websocket.DataHandler.Send(ctx, fmt.Errorf("%s websocket could not read looked up order %s: %w", e.Name, orders[i].OrderID, err))
+		}
 		d, outcome := e.orderSizes.complete(orders[i].OrderID, values.baseSize, values.quoteSize)
 		switch outcome {
 		case lookupRelay:
@@ -137,6 +174,19 @@ func (e *Exchange) relayLookedUpOrders(ctx context.Context, orders []Order) {
 		_ = e.Websocket.DataHandler.Send(ctx, details)
 	}
 	e.wsLookUpOrderSizes(ctx, again)
+}
+
+// noteClosedOrder has a lookup of an order that a list or read finds closed relay the order as found, as orderDetail
+// keeps it for the lookup; a live order is left to the lookup, and an order not being looked up keeps its recorded size
+func (e *Exchange) noteClosedOrder(o *Order) error {
+	if !e.orderSizes.lookingUp(o.OrderID) {
+		return nil
+	}
+	if status, err := standardOrderStatus(o.Status, o.FilledSize.Float64()); err != nil || !isClosedOrderStatus(status) {
+		return nil //nolint:nilerr // a status the lookup cannot read leaves it relaying the channel's report
+	}
+	_, err := e.orderDetail(o, e.orderSizes.stamp())
+	return err
 }
 
 // isLiveOrderStatus reports whether an order with a status can still trade
@@ -163,11 +213,13 @@ type advancedTradeOrderSizes struct {
 }
 
 // orderSizeLookup is a lookup of an order's size, the stamp it began at, the user channel's latest report of the order,
-// and the size of an order sized in the base currency that the channel's reports of it open have since given
+// the size of an order sized in the base currency that the channel's reports of it open have since given, and the order
+// as a list or read has found it closed since
 type orderSizeLookup struct {
 	started  uint64
 	latest   order.Detail
 	reported float64
+	closed   *order.Detail
 }
 
 // advancedTradeOrderSize is an order's size, in its base or quote currency, when it was recorded, its stamp, and whether
@@ -258,12 +310,13 @@ func (s *advancedTradeOrderSizes) get(orderID string) (advancedTradeOrderSize, b
 	return size, ok
 }
 
-// remove forgets a closed order's size, keeping the base size it closed with, when the record held the order, for a
-// report of it that comes after its close
+// remove forgets a closed order's size, keeping the base size it closed with, when the record held the order or is
+// looking it up, for a report of it that comes after its close
 func (s *advancedTradeOrderSizes) remove(orderID string, base float64) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	if _, ok := s.sizes[orderID]; !ok {
+	_, held := s.sizes[orderID]
+	if _, pending := s.pending[orderID]; !held && !pending {
 		return
 	}
 	delete(s.sizes, orderID)
@@ -275,6 +328,25 @@ func (s *advancedTradeOrderSizes) remove(orderID string, base float64) {
 		s.closed = make(map[string]closedOrderSize)
 	}
 	s.closed[orderID] = closedOrderSize{base: base, closed: time.Now()}
+}
+
+// lookingUp reports whether an order's size is being looked up
+func (s *advancedTradeOrderSizes) lookingUp(orderID string) bool {
+	s.m.Lock()
+	defer s.m.Unlock()
+	_, ok := s.pending[orderID]
+	return ok
+}
+
+// foundClosed keeps an order a list or read found closed for its lookup, which relays it in place of the channel's older
+// report
+func (s *advancedTradeOrderSizes) foundClosed(d *order.Detail) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if lookup, ok := s.pending[d.OrderID]; ok {
+		closed := *d
+		lookup.closed = &closed
+	}
 }
 
 // closedSize returns the base size a closed order closed with, or zero when none was kept
@@ -339,7 +411,8 @@ type lookupOutcome uint8
 const (
 	// lookupDrop relays nothing, as the order was not being looked up or the channel reported it closed meanwhile
 	lookupDrop lookupOutcome = iota
-	// lookupRelay relays the channel's latest report of the order with its size
+	// lookupRelay relays the channel's latest report of the order with its size, or the order as a list or read found it
+	// closed
 	lookupRelay
 	// lookupAgain looks the order up again, as an open report since the lookup began gave another size than the list
 	lookupAgain
@@ -347,8 +420,10 @@ const (
 
 // complete ends an order's lookup with the size listed, returning the user channel's latest report of the order and
 // whether to relay it with its size, drop it, as the channel reported the order closed meanwhile, or look the order up
-// again. A size recorded since the lookup began, by an edit, is newer than the one listed; an open report since then
-// that gives a base sized order another size than the list's means one of them predates an edit, so neither is taken
+// again; an order a list or read found closed is returned as found, forgetting any size recorded for it since, such as
+// by an edit's late response, as the order has closed. A size recorded since the lookup began, by an edit, is newer
+// than the one listed; an open report since then that gives a base sized order another size than the list's means one
+// of them predates an edit, so neither is taken
 func (s *advancedTradeOrderSizes) complete(orderID string, base, quote float64) (order.Detail, lookupOutcome) {
 	s.m.Lock()
 	defer s.m.Unlock()
@@ -357,6 +432,10 @@ func (s *advancedTradeOrderSizes) complete(orderID string, base, quote float64) 
 		return order.Detail{}, lookupDrop
 	}
 	delete(s.pending, orderID)
+	if lookup.closed != nil {
+		delete(s.sizes, orderID)
+		return *lookup.closed, lookupRelay
+	}
 	if size, ok := s.sizes[orderID]; ok && size.stamp > lookup.started {
 		base, quote = size.base, size.quote
 	} else {
