@@ -15,6 +15,10 @@ import (
 var mockTests = true
 
 func TestMain(m *testing.M) {
+	if useTestNet {
+		log.Fatal("cannot use testnet with mock tests")
+	}
+
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
@@ -22,6 +26,10 @@ func TestMain(m *testing.M) {
 
 	if err := testexch.MockHTTPInstance(e, "api"); err != nil {
 		log.Fatalf("Bitstamp MockHTTPInstance error: %s", err)
+	}
+	// Mock responses are served locally, so throttling protects nothing
+	if err := e.DisableRateLimiter(); err != nil {
+		log.Fatalf("Bitstamp DisableRateLimiter error: %s", err)
 	}
 
 	os.Exit(m.Run())
