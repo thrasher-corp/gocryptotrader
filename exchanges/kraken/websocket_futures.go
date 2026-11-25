@@ -600,7 +600,13 @@ func futuresOrderUpdateStatus(reason string, isCancel bool, filled float64) orde
 	case "contract_expired":
 		return order.Expired
 	case "post_order_failed_because_it_would_filled", "ioc_order_failed_because_it_would_not_be_executed", "would_execute_self",
-		"would_not_reduce_position", "order_for_edit_not_found":
+		"would_not_reduce_position":
+		// A rejection can describe the unfilled remainder of an order that executed in part
+		if filled > 0 {
+			return order.PartiallyFilledCancelled
+		}
+		return order.Rejected
+	case "order_for_edit_not_found":
 		return order.Rejected
 	}
 	if filled > 0 {

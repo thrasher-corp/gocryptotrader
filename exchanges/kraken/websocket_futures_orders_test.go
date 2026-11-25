@@ -186,24 +186,76 @@ func TestFuturesOrderFillsAfterRemoval(t *testing.T) {
 
 func TestFuturesOrderPartlyFilledCancellation(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
-	details := futuresOrderUpdates(t, ex,
-		futuresOpenOrderMessage("o-3", 10, 0, "new_placed_order_by_user"),
-		futuresFillMessage(wsFuturesFeedFills, "o-3", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
-		futuresOpenOrderMessage("o-3", 10, 4, "partial_fill"),
-		futuresRemovalMessage("o-3", "cancelled_by_user"),
-	)
-	require.Len(t, details, 4, "each message must relay an order update")
-	assert.Equal(t, &order.Detail{
-		Exchange:        ex.Name,
-		AssetType:       asset.Futures,
-		OrderID:         "o-3",
-		Status:          order.PartiallyFilledCancelled,
-		Amount:          10,
-		ExecutedAmount:  4,
-		RemainingAmount: 6,
-	}, details[3], "a cancellation after a fill should relay the order partly filled, with what it executed")
+	edit := futuresRemovalMessage("o-3", "order_for_edit_not_found")
+	triggered := futuresRemovalMessage("o-3", "stop_order_triggered")
+	// An order cancelled, or whose remainder is rejected, after part of it filled is partly filled and cancelled,
+	// whichever feed reports first and whether or not open_orders reported the order
+	for _, r := range []struct {
+		reason, orderType, fillType string
+		reduceOnly                  bool
+	}{
+		{"cancelled_by_user", "lmt", "taker", false},
+		{"post_order_failed_because_it_would_filled", "post", "maker", false},
+		{"ioc_order_failed_because_it_would_not_be_executed", "ioc", "taker", false},
+		{"would_execute_self", "lmt", "taker", false},
+		{"would_not_reduce_position", "lmt", "taker", true},
+	} {
+		// The fixtures report an order that does not only reduce, filled by its taker limit order
+		reported := strings.NewReplacer(`"reduce_only":false`, `"reduce_only":`+strconv.FormatBool(r.reduceOnly), `"order_type":"lmt"`, `"order_type":"`+r.orderType+`"`, `"fill_type":"taker"`, `"fill_type":"`+r.fillType+`"`)
+		open := reported.Replace(futuresOpenOrderMessage("o-3", 10, 0, "new_placed_order_by_user"))
+		fill := reported.Replace(futuresFillMessage(wsFuturesFeedFills, "o-3", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"))
+		partial := reported.Replace(futuresOpenOrderMessage("o-3", 10, 4, "partial_fill"))
+		removal := futuresRemovalMessage("o-3", r.reason)
+		carrying := func(filled float64) string {
+			return reported.Replace(`{"feed":"open_orders","order":` + futuresOpenOrder("o-3", 10, filled) + `,"is_cancel":true,"reason":"` + r.reason + `"}`)
+		}
+		for _, tc := range []struct {
+			name string
+			msgs []string
+			// idOnly has the last message name the order alone, so its update holds nothing but the status and quantities
+			idOnly                      bool
+			amount, executed, remaining float64
+		}{
+			{"after its fill and its update", []string{open, fill, partial, removal}, true, 10, 4, 6},
+			{"after its fill", []string{open, fill, removal}, true, 10, 4, 6},
+			{"after its update, before its fill", []string{open, partial, removal}, true, 10, 4, 6},
+			{"after its fill, before an edit's rejection", []string{open, fill, removal, edit}, true, 10, 4, 6},
+			{"after its stop triggered and its fill", []string{open, triggered, fill, removal}, true, 10, 4, 6},
+			{"after its fill, never reported open", []string{fill, removal}, true, 0, 0, 0},
+			{"before its fill", []string{open, removal, fill}, false, 10, 4, 6},
+			{"before an edit's rejection and its fill", []string{open, removal, edit, fill}, false, 10, 4, 6},
+			{"before its fill, never reported open", []string{removal, fill}, false, 0, 0, 0},
+			{"carrying the order", []string{open, carrying(4)}, false, 10, 4, 6},
+			{"carrying the order as reported before its fill", []string{open, fill, carrying(0)}, false, 10, 4, 6},
+			{"carrying the order, never reported open", []string{carrying(4)}, false, 10, 4, 6},
+		} {
+			t.Run(r.reason+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				seedTestAssetNames(ex)
+				details := futuresOrderUpdates(t, ex, tc.msgs...)
+				require.Len(t, details, len(tc.msgs), "each message must relay an order update")
+				last := details[len(details)-1]
+				if tc.idOnly {
+					assert.Equal(t, &order.Detail{
+						Exchange:        ex.Name,
+						AssetType:       asset.Futures,
+						OrderID:         "o-3",
+						Status:          order.PartiallyFilledCancelled,
+						Amount:          tc.amount,
+						ExecutedAmount:  tc.executed,
+						RemainingAmount: tc.remaining,
+					}, last, "the last update should relay the order partly filled and cancelled, with what it executed")
+				} else {
+					assert.Equal(t, order.PartiallyFilledCancelled, last.Status, "the last update should relay the order partly filled and cancelled")
+					assert.Equal(t, []float64{tc.amount, tc.executed, tc.remaining}, []float64{last.Amount, last.ExecutedAmount, last.RemainingAmount}, "the last update should relay the order's quantity, what it executed and what remained")
+				}
+				stored := &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "o-3", Status: order.Open, Amount: 10}
+				mergeOrderUpdates(t, stored, details)
+				assert.Equal(t, order.PartiallyFilledCancelled, stored.Status, "the order should be stored partly filled and cancelled")
+			})
+		}
+	}
 }
 
 func TestFuturesOrderFillReportedBeforeItsUpdate(t *testing.T) {
@@ -418,6 +470,8 @@ func TestFuturesOrderFillsCountedAcrossRemoval(t *testing.T) {
 	}{
 		{name: "cancelled", reason: "cancelled_by_user", status: order.PartiallyFilledCancelled},
 		{name: "cancelled after open_orders reported both fills", reason: "cancelled_by_user", status: order.PartiallyFilledCancelled, reported: true},
+		{name: "rejected", reason: "ioc_order_failed_because_it_would_not_be_executed", status: order.PartiallyFilledCancelled},
+		{name: "rejected after open_orders reported both fills", reason: "ioc_order_failed_because_it_would_not_be_executed", status: order.PartiallyFilledCancelled, reported: true},
 		{name: "expired", reason: "contract_expired", status: order.Expired},
 		{name: "expired after open_orders reported both fills", reason: "contract_expired", status: order.Expired, reported: true},
 	} {
@@ -528,37 +582,65 @@ func TestFuturesOrderFillsCountedAcrossResubscriptions(t *testing.T) {
 
 func TestFuturesOrderFillsAfterCancellation(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
-	// The fills feed can report a fill after open_orders reports the order cancelled
-	details := futuresOrderUpdates(t, ex,
-		futuresOpenOrderMessage("o-4", 10, 0, "new_placed_order_by_user"),
-		futuresRemovalMessage("o-4", "cancelled_by_user"),
-		futuresFillMessage(wsFuturesFeedFills, "o-4", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
-	)
-	require.Len(t, details, 3, "each message must relay an order update")
-	assert.Equal(t, order.Cancelled, details[1].Status, "the cancellation should relay the order cancelled while nothing is known filled")
-	stored := &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "o-4", Status: order.Open, Amount: 10}
-	mergeOrderUpdates(t, stored, details)
-	assert.Equal(t, order.PartiallyFilledCancelled, stored.Status, "a fill after the cancellation should make the order partly filled")
-	assert.Equal(t, 4.0, stored.ExecutedAmount, "a fill after the cancellation should relay what the order executed")
-	assertFuturesOrderTotalsUnset(t, stored, "an order filled after its cancellation")
+	// The fills feed can report a fill after open_orders reports the order cancelled, or the rest of it rejected
+	for _, tc := range []struct {
+		name    string
+		reason  string
+		removed order.Status
+	}{
+		{name: "cancelled", reason: "cancelled_by_user", removed: order.Cancelled},
+		{name: "rejected", reason: "ioc_order_failed_because_it_would_not_be_executed", removed: order.Rejected},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			details := futuresOrderUpdates(t, ex,
+				futuresOpenOrderMessage("o-4", 10, 0, "new_placed_order_by_user"),
+				futuresRemovalMessage("o-4", tc.reason),
+				futuresFillMessage(wsFuturesFeedFills, "o-4", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+			)
+			require.Len(t, details, 3, "each message must relay an order update")
+			assert.Equal(t, tc.removed, details[1].Status, "the removal should relay the status its reason gives while nothing is known filled")
+			stored := &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "o-4", Status: order.Open, Amount: 10}
+			mergeOrderUpdates(t, stored, details)
+			assert.Equal(t, order.PartiallyFilledCancelled, stored.Status, "a fill after the removal should make the order partly filled")
+			assert.Equal(t, 4.0, stored.ExecutedAmount, "a fill after the removal should relay what the order executed")
+			assertFuturesOrderTotalsUnset(t, stored, "an order filled after its removal")
+		})
+	}
 }
 
 func TestFuturesOrderRemovedWithOrder(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
 	// A removal can carry the order as last reported, before its last fill
-	removal := `{"feed":"open_orders","order":` + futuresOpenOrder("o-5", 10, 4) + `,"is_cancel":true,"reason":"full_fill"}`
-	details := futuresOrderUpdates(t, ex, futuresOpenOrderMessage("o-5", 10, 0, "new_placed_order_by_user"), removal)
-	require.Len(t, details, 2, "the placement and the removal must relay an order update")
-	assert.Equal(t, order.Filled, details[1].Status, "a removal as filled should relay the order filled")
-	assert.Equal(t, 10.0, details[1].ExecutedAmount, "a removal as filled should relay the order's quantity as executed")
-	assert.Zero(t, details[1].RemainingAmount, "a removal as filled should relay nothing remaining")
-	state := ex.futuresOrders.get("o-5")
-	assert.False(t, state.open, "a removal carrying the order should record the order as removed")
-	assert.Equal(t, "full_fill", state.reason, "a removal carrying the order should record why it was removed")
+	for _, tc := range []struct {
+		name      string
+		reason    string
+		filled    float64
+		status    order.Status
+		executed  float64
+		remaining float64
+	}{
+		{"filled", "full_fill", 4, order.Filled, 10, 0},
+		{"rejected after a fill", "would_execute_self", 4, order.PartiallyFilledCancelled, 4, 6},
+		{"rejected with nothing filled", "would_execute_self", 0, order.Rejected, 0, 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			removal := `{"feed":"open_orders","order":` + futuresOpenOrder("o-5", 10, tc.filled) + `,"is_cancel":true,"reason":"` + tc.reason + `"}`
+			details := futuresOrderUpdates(t, ex, futuresOpenOrderMessage("o-5", 10, 0, "new_placed_order_by_user"), removal)
+			require.Len(t, details, 2, "the placement and the removal must relay an order update")
+			assert.Equal(t, tc.status, details[1].Status, "the removal should relay the status its reason gives")
+			assert.Equal(t, tc.executed, details[1].ExecutedAmount, "the removal should relay what the order executed")
+			assert.Equal(t, tc.remaining, details[1].RemainingAmount, "the removal should relay what remained of the order")
+			state := ex.futuresOrders.get("o-5")
+			assert.False(t, state.open, "a removal carrying the order should record the order as removed")
+			assert.Equal(t, tc.reason, state.reason, "a removal carrying the order should record why it was removed")
+		})
+	}
 }
 
 func TestFuturesOrderEditRejectedAfterItsRemoval(t *testing.T) {
@@ -579,8 +661,28 @@ func TestFuturesOrderEditRejectedAfterItsRemoval(t *testing.T) {
 			after: []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")},
 			exp:   order.PartiallyFilledCancelled,
 		},
+		{name: "rejected", msgs: []string{placement, futuresRemovalMessage("o-66", "ioc_order_failed_because_it_would_not_be_executed")}, exp: order.Rejected},
+		{
+			name:  "rejected after a fill",
+			msgs:  []string{placement, fill, futuresRemovalMessage("o-66", "ioc_order_failed_because_it_would_not_be_executed")},
+			after: []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")},
+			exp:   order.PartiallyFilledCancelled,
+		},
+		{
+			name:  "rejected after a fill, never reported open",
+			msgs:  []string{fill, futuresRemovalMessage("o-66", "ioc_order_failed_because_it_would_not_be_executed")},
+			after: []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")},
+			exp:   order.PartiallyFilledCancelled,
+		},
 		{name: "expired", msgs: []string{placement, futuresRemovalMessage("o-66", "contract_expired")}, exp: order.Expired},
 		{name: "removed as filled", msgs: []string{placement, futuresRemovalMessage("o-66", "full_fill")}, exp: order.Filled},
+		// With no removal recorded, the edit's rejection gives the status
+		{
+			name:  "not yet removed, after a fill",
+			msgs:  []string{placement, fill},
+			after: []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")},
+			exp:   order.Rejected,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2183,6 +2285,14 @@ func TestFuturesOrderStateReportStatus(t *testing.T) {
 		{name: "a placement", state: futuresOrderState{quantity: 10}, reason: "new_placed_order_by_user", exp: order.Open},
 		{name: "a partial_fill update", state: partlyFilled, reason: "partial_fill", exp: order.PartiallyFilled},
 		{name: "a cancellation after a fill", state: partlyFilled, reason: "cancelled_by_user", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "an immediate or cancel order's rejection after a fill", state: partlyFilled, reason: "ioc_order_failed_because_it_would_not_be_executed", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a post only order's rejection after a fill", state: partlyFilled, reason: "post_order_failed_because_it_would_filled", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a self trade rejection after a fill", state: partlyFilled, reason: "would_execute_self", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a reduce only order's rejection after a fill", state: partlyFilled, reason: "would_not_reduce_position", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a rejection after open_orders reported a fill the fills feed has not", state: futuresOrderState{quantity: 10, filled: 4}, reason: "ioc_order_failed_because_it_would_not_be_executed", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a rejection after a fill of an order of unknown quantity", state: futuresOrderState{fillQuantity: 4}, reason: "ioc_order_failed_because_it_would_not_be_executed", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a rejection after a fill of an order whose relayed quantity was forgotten", state: futuresOrderState{fillQuantity: 4, quantitiesRelayed: true}, reason: "ioc_order_failed_because_it_would_not_be_executed", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a rejection with nothing filled", state: futuresOrderState{quantity: 10}, reason: "ioc_order_failed_because_it_would_not_be_executed", isCancel: true, exp: order.Rejected},
 		{name: "a stop's trigger after the last fill of an order of unknown quantity", state: unknownQuantity, reason: "stop_order_triggered", isCancel: true, exp: order.Closed},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2203,6 +2313,12 @@ func TestFuturesOrderStateFillStatus(t *testing.T) {
 		{name: "an order filled by fills all reported as they happened", state: futuresOrderState{fillQuantity: 10, filledInFull: true, liveOnly: true}, exp: order.Filled},
 		{name: "an order removed as filled", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "full_fill"}, exp: order.Filled},
 		{name: "a cancelled order", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "cancelled_by_user"}, exp: order.PartiallyFilledCancelled},
+		{name: "an immediate or cancel order whose rest was rejected", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "ioc_order_failed_because_it_would_not_be_executed"}, exp: order.PartiallyFilledCancelled},
+		{name: "a post only order whose rest was rejected", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "post_order_failed_because_it_would_filled"}, exp: order.PartiallyFilledCancelled},
+		{name: "an order whose rest was rejected as a self trade", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "would_execute_self"}, exp: order.PartiallyFilledCancelled},
+		{name: "a reduce only order whose rest was rejected", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "would_not_reduce_position"}, exp: order.PartiallyFilledCancelled},
+		{name: "an order of unknown quantity whose rest was rejected", state: futuresOrderState{fillQuantity: 4, reason: "ioc_order_failed_because_it_would_not_be_executed"}, exp: order.PartiallyFilledCancelled},
+		{name: "an order whose relayed quantity was forgotten and whose rest was rejected", state: futuresOrderState{fillQuantity: 4, quantitiesRelayed: true, reason: "ioc_order_failed_because_it_would_not_be_executed"}, exp: order.PartiallyFilledCancelled},
 		{name: "an order a stop placed, some of which remains", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "stop_order_triggered"}, exp: order.Closed},
 		{name: "an open order", state: futuresOrderState{quantity: 10, fillQuantity: 4}, exp: order.UnknownStatus},
 		{name: "an order a fill filled whose quantity is unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: order.UnknownStatus},

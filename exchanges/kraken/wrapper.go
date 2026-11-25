@@ -2326,6 +2326,10 @@ func (e *Exchange) futuresOrderStatusDetail(s *FuturesOrderStatusDetails) (*orde
 		status = order.Filled
 	case "REJECTED", "TRIGGER_ACTIVATION_FAILURE":
 		status = order.Rejected
+		// A rejection can describe the unfilled remainder of an order that executed in part
+		if s.Order.FilledQuantity > 0 {
+			status = order.PartiallyFilledCancelled
+		}
 	case "CANCELLED":
 		status = order.Cancelled
 		if s.Order.FilledQuantity > 0 {

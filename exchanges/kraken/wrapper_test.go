@@ -7356,7 +7356,7 @@ func TestGetOrderInfo(t *testing.T) {
 				ClientOrderID:   "gct-trailing-3",
 				Pair:            futuresTestPair,
 				Side:            order.Sell,
-				Status:          order.Rejected,
+				Status:          order.PartiallyFilledCancelled,
 				ReduceOnly:      true,
 				Price:           80400,
 				TriggerPrice:    80650,
@@ -8248,48 +8248,62 @@ func TestFuturesOrderStatusDetail(t *testing.T) { //nolint:tparallel // the case
 		PlacedTime:     placed,
 		LastUpdateTime: updated,
 	}
-	expected := func(status order.Status, filled, remaining, triggerPrice float64) *order.Detail {
-		return &order.Detail{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b",
-			ClientOrderID:   "gct-batch-1",
-			Pair:            futuresTestPair,
-			Side:            order.Buy,
-			Status:          status,
-			ReduceOnly:      true,
-			Price:           81450,
-			TriggerPrice:    triggerPrice,
-			Amount:          0.0007,
-			ExecutedAmount:  filled,
-			RemainingAmount: remaining,
-			Date:            placed,
-			LastUpdated:     updated,
-		}
-	}
 	trigger := &FuturesPriceTriggerOptions{TriggerPrice: 81500, TriggerSide: "TRIGGER_ABOVE", TriggerSignal: "MARK_PRICE"}
 	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
-		status  string
-		filled  float64
-		trigger *FuturesPriceTriggerOptions
-		exp     *order.Detail
+		status       string
+		quantity     float64
+		filled       float64
+		reduceOnly   bool
+		trigger      *FuturesPriceTriggerOptions
+		exp          order.Status
+		remaining    float64
+		triggerPrice float64
 	}{
-		{"ENTERED_BOOK", 0, nil, expected(order.Open, 0, 0.0007, 0)},
-		{"ENTERED_BOOK", 0.0003, nil, expected(order.PartiallyFilled, 0.0003, 0.0004, 0)},
-		{"TRIGGER_PLACED", 0, trigger, expected(order.Open, 0, 0.0007, 81500)},
-		{"FULLY_EXECUTED", 0.0007, nil, expected(order.Filled, 0.0007, 0, 0)},
-		{"REJECTED", 0, nil, expected(order.Rejected, 0, 0.0007, 0)},
-		{"TRIGGER_ACTIVATION_FAILURE", 0, trigger, expected(order.Rejected, 0, 0.0007, 81500)},
-		{"CANCELLED", 0, nil, expected(order.Cancelled, 0, 0.0007, 0)},
-		{"CANCELLED", 0.0003, nil, expected(order.PartiallyFilledCancelled, 0.0003, 0.0004, 0)},
+		{"ENTERED_BOOK", 0.0007, 0, true, nil, order.Open, 0.0007, 0},
+		{"ENTERED_BOOK", 0.0007, 0.0003, true, nil, order.PartiallyFilled, 0.0004, 0},
+		{"TRIGGER_PLACED", 0.0007, 0, true, trigger, order.Open, 0.0007, 81500},
+		{"FULLY_EXECUTED", 0.0007, 0.0007, true, nil, order.Filled, 0, 0},
+		{"REJECTED", 0.0007, 0, true, nil, order.Rejected, 0.0007, 0},
+		{"REJECTED", 0.0007, 0.0003, true, nil, order.PartiallyFilledCancelled, 0.0004, 0},
+		{"REJECTED", 0.0992, 0.0001, false, nil, order.PartiallyFilledCancelled, 0.0991, 0},
+		{"REJECTED", 0.0177, 0.0172, false, nil, order.PartiallyFilledCancelled, 0.0005, 0},
+		{"REJECTED", 5, 3, false, nil, order.PartiallyFilledCancelled, 2, 0},
+		{"REJECTED", 2, 0.0001, false, nil, order.PartiallyFilledCancelled, 1.9999, 0},
+		{"REJECTED", 0.1, 0.0999, false, nil, order.PartiallyFilledCancelled, 0.0001, 0},
+		{"REJECTED", 2, 1, false, nil, order.PartiallyFilledCancelled, 1, 0},
+		{"REJECTED", 0.3, 0.1, false, nil, order.PartiallyFilledCancelled, 0.2, 0},
+		{"TRIGGER_ACTIVATION_FAILURE", 0.0007, 0, true, trigger, order.Rejected, 0.0007, 81500},
+		{"TRIGGER_ACTIVATION_FAILURE", 0.0007, 0.0003, true, trigger, order.PartiallyFilledCancelled, 0.0004, 81500},
+		{"TRIGGER_ACTIVATION_FAILURE", 0.0992, 0.0001, false, trigger, order.PartiallyFilledCancelled, 0.0991, 81500},
+		{"TRIGGER_ACTIVATION_FAILURE", 0.0177, 0.0172, false, trigger, order.PartiallyFilledCancelled, 0.0005, 81500},
+		{"TRIGGER_ACTIVATION_FAILURE", 5, 3, false, trigger, order.PartiallyFilledCancelled, 2, 81500},
+		{"CANCELLED", 0.0007, 0, true, nil, order.Cancelled, 0.0007, 0},
+		{"CANCELLED", 0.0007, 0.0003, true, nil, order.PartiallyFilledCancelled, 0.0004, 0},
 	} {
-		t.Run(tc.status+" with "+strconv.FormatFloat(tc.filled, 'g', -1, 64)+" filled", func(t *testing.T) {
+		t.Run(tc.status+" with "+strconv.FormatFloat(tc.filled, 'g', -1, 64)+" of "+strconv.FormatFloat(tc.quantity, 'g', -1, 64)+" filled", func(t *testing.T) {
 			o := cached
-			o.FilledQuantity, o.PriceTriggerOptions = tc.filled, tc.trigger
+			o.Quantity, o.FilledQuantity, o.ReduceOnly, o.PriceTriggerOptions = tc.quantity, tc.filled, tc.reduceOnly, tc.trigger
 			got, err := e.futuresOrderStatusDetail(&FuturesOrderStatusDetails{Order: o, Status: tc.status})
-			require.NoErrorf(t, err, "futuresOrderStatusDetail must not error for %s with %v filled", tc.status, tc.filled)
-			assert.Equalf(t, tc.exp, got, "futuresOrderStatusDetail should convert %s with %v filled", tc.status, tc.filled)
+			require.NoErrorf(t, err, "futuresOrderStatusDetail must not error for %s with %v of %v filled", tc.status, tc.filled, tc.quantity)
+			exp := &order.Detail{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b",
+				ClientOrderID:   "gct-batch-1",
+				Pair:            futuresTestPair,
+				Side:            order.Buy,
+				Status:          tc.exp,
+				ReduceOnly:      tc.reduceOnly,
+				Price:           81450,
+				TriggerPrice:    tc.triggerPrice,
+				Amount:          tc.quantity,
+				ExecutedAmount:  tc.filled,
+				RemainingAmount: tc.remaining,
+				Date:            placed,
+				LastUpdated:     updated,
+			}
+			assert.Equalf(t, exp, got, "futuresOrderStatusDetail should convert %s with %v of %v filled", tc.status, tc.filled, tc.quantity)
 		})
 	}
 	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
