@@ -302,13 +302,14 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 }
 
 // sendWebsocketRequest sends a JSON-RPC request over a connection and decodes its result; a private method needs the
-// connection to be authenticated
+// connection to be authenticated. A nil connection, which a caller of Subscribe or Unsubscribe can pass, as the
+// websocket's Conn is under multi-connection management, is not connected
 func (e *Exchange) sendWebsocketRequest(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, method string, params, result any) error {
 	private := isPrivateMethod(method)
 	if private && !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%w: %s", errWebsocketNotAuthenticated, method)
 	}
-	if !websocketConnected(conn) {
+	if common.NilGuard(conn) != nil || !conn.IsConnected() {
 		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, method)
 	}
 	if private {
@@ -347,13 +348,6 @@ func (e *Exchange) sendWebsocketRequest(ctx context.Context, conn websocket.Conn
 		}
 		return nil
 	})
-}
-
-// websocketConnected reports whether a connection is connected; the manager dials a new connection each time, so one it
-// has shut down stays closed
-func websocketConnected(conn websocket.Connection) bool {
-	c, ok := conn.(interface{ IsConnected() bool })
-	return ok && c.IsConnected()
 }
 
 // wsHandleData passes a response to the request awaiting it on the connection, answers a heartbeat test request and

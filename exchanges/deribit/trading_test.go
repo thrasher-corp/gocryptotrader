@@ -777,7 +777,7 @@ func TestBuy(t *testing.T) {
 	})
 	require.NoError(t, err, "Buy must not error for a linked trailing stop")
 	exp := `{"instrument_name":"BTC-PERPETUAL","contracts":2,"type":"trailing_stop","post_only":false,"trigger_offset":50,"trigger":"mark_price","valid_until":1700000000000,"linked_order_type":"one_triggers_one_cancels_other","trigger_fill_condition":"incremental","otoco_config":[{"amount":20,"direction":"sell","type":"take_limit","price":90000,"reduce_only":true,"trigger_price":89000,"trigger":"last_price"}]}`
-	assert.JSONEq(t, exp, lastParams(), "Buy should send the documented params, always with post_only, which Deribit defaults to true")
+	assert.JSONEq(t, exp, lastParams(), "Buy should send the documented params, always with post_only")
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).Buy(t.Context(), mockBuyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Buy should reject a null result")
@@ -1224,8 +1224,36 @@ func TestEditOrder(t *testing.T) {
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"order":{},"trades":[]}}`)
 	_, err = ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: "94166", Contracts: 15, Price: 50000, TriggerOffset: 10, ValidUntil: time.UnixMilli(1700000000000), DisplayAmount: 5})
 	require.NoError(t, err, "EditOrder must not error")
-	exp := `{"order_id":"94166","contracts":15,"price":50000,"post_only":false,"trigger_offset":10,"valid_until":1700000000000,"display_amount":5}`
-	assert.JSONEq(t, exp, lastParams(), "EditOrder should always send post_only, and leave out an unset MMP flag, which Deribit rejects changing")
+	exp := `{"order_id":"94166","contracts":15,"price":50000,"trigger_offset":10,"valid_until":1700000000000,"display_amount":5}`
+	assert.JSONEq(t, exp, lastParams(), "EditOrder should leave out an unset post_only and MMP flag")
+
+	t.Run("post only setting", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name           string
+			postOnly       *bool
+			rejectPostOnly bool
+			exp            string
+			// reply is the edited order's post-only setting, which Deribit keeps when post_only is left out
+			reply                          string
+			expPostOnly, expRejectPostOnly bool
+		}{
+			{name: "left out", exp: `{"order_id":"94166","amount":1,"price":30100}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true", postOnly: new(true), exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":true}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true in reject mode", postOnly: new(true), rejectPostOnly: true, exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":true,"reject_post_only":true}`, reply: `"post_only":true,"reject_post_only":true`, expPostOnly: true, expRejectPostOnly: true},
+			{name: "set to false", postOnly: new(false), exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":false}`, reply: `"post_only":false`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"order":{"order_id":"94166",`+tc.reply+`},"trades":[]}}`)
+				result, err := ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: "94166", Amount: 1, Price: 30100, PostOnly: tc.postOnly, RejectPostOnly: tc.rejectPostOnly})
+				require.NoError(t, err, "EditOrder must not error")
+				assert.JSONEqf(t, tc.exp, lastParams(), "EditOrder should send post_only only as set, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expPostOnly, result.Order.PostOnly, "EditOrder should return the post-only setting Deribit reports, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expRejectPostOnly, result.Order.RejectPostOnly, "EditOrder should return the reject mode Deribit reports, for post_only %s", tc.name)
+			})
+		}
+	})
 
 	t.Run("live API", func(t *testing.T) {
 		t.Parallel()
@@ -1234,7 +1262,7 @@ func TestEditOrder(t *testing.T) {
 		}
 		skipLiveUnlessCanManipulate(t)
 		placed, order := placeLiveTradingOrder(t)
-		arg := &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		arg := &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: new(true), RejectPostOnly: true}
 		result, err := e.EditOrder(t.Context(), arg)
 		require.NoError(t, err, "EditOrder must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "EditOrder should reprice the order")
@@ -1268,9 +1296,37 @@ func TestEditOrderByLabel(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAdvancedOrderType, "EditOrderByLabel must reject an undocumented advanced order type")
 
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"order":{},"trades":[]}}`)
-	_, err = ex.EditOrderByLabel(t.Context(), &EditOrderByLabelRequest{InstrumentName: "BTC-PERPETUAL", Label: "gct", Amount: 20, PostOnly: true, ValidUntil: time.UnixMilli(1700000000000)})
+	_, err = ex.EditOrderByLabel(t.Context(), &EditOrderByLabelRequest{InstrumentName: "BTC-PERPETUAL", Label: "gct", Amount: 20, PostOnly: new(true), ValidUntil: time.UnixMilli(1700000000000)})
 	require.NoError(t, err, "EditOrderByLabel must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"post_only":true,"valid_until":1700000000000}`, lastParams(), "EditOrderByLabel should send the valid until time in Unix milliseconds")
+
+	t.Run("post only setting", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name           string
+			postOnly       *bool
+			rejectPostOnly bool
+			exp            string
+			// reply is the edited order's post-only setting, which Deribit keeps when post_only is left out
+			reply                          string
+			expPostOnly, expRejectPostOnly bool
+		}{
+			{name: "left out", exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true", postOnly: new(true), exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":true}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true in reject mode", postOnly: new(true), rejectPostOnly: true, exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":true,"reject_post_only":true}`, reply: `"post_only":true,"reject_post_only":true`, expPostOnly: true, expRejectPostOnly: true},
+			{name: "set to false", postOnly: new(false), exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":false}`, reply: `"post_only":false`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"order":{"label":"gct","instrument_name":"BTC-PERPETUAL",`+tc.reply+`},"trades":[]}}`)
+				result, err := ex.EditOrderByLabel(t.Context(), &EditOrderByLabelRequest{InstrumentName: "BTC-PERPETUAL", Label: "gct", Amount: 20, Price: 30100, PostOnly: tc.postOnly, RejectPostOnly: tc.rejectPostOnly})
+				require.NoError(t, err, "EditOrderByLabel must not error")
+				assert.JSONEqf(t, tc.exp, lastParams(), "EditOrderByLabel should send post_only only as set, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expPostOnly, result.Order.PostOnly, "EditOrderByLabel should return the post-only setting Deribit reports, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expRejectPostOnly, result.Order.RejectPostOnly, "EditOrderByLabel should return the reject mode Deribit reports, for post_only %s", tc.name)
+			})
+		}
+	})
 
 	t.Run("live API", func(t *testing.T) {
 		t.Parallel()
@@ -1279,7 +1335,7 @@ func TestEditOrderByLabel(t *testing.T) {
 		}
 		skipLiveUnlessCanManipulate(t)
 		placed, _ := placeLiveTradingOrder(t)
-		arg := &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		arg := &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: new(true), RejectPostOnly: true}
 		result, err := e.EditOrderByLabel(t.Context(), arg)
 		require.NoError(t, err, "EditOrderByLabel must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "EditOrderByLabel should reprice the order")

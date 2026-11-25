@@ -69,6 +69,20 @@ func undialledConnection(t *testing.T, ex *Exchange) websocket.Connection {
 	return conn
 }
 
+// wrappedConnection stands in for a connection wrapping another, which can be a typed nil
+type wrappedConnection struct{ websocket.Connection }
+
+// missingConnection is a form of connection a caller can pass without one
+type missingConnection struct {
+	name string
+	conn websocket.Connection
+}
+
+var missingConnections = []missingConnection{
+	{name: "nil"},
+	{name: "typed nil", conn: (*wrappedConnection)(nil)},
+}
+
 func TestSendWebsocketRequest(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
@@ -176,6 +190,17 @@ func TestSendWebsocketRequestOverConnection(t *testing.T) {
 
 	err := ex.sendWebsocketRequest(t.Context(), undialledConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "sendWebsocketRequest should error on a connection that is not connected")
+	t.Run("missing connection", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range missingConnections {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var decoded types.Time
+				err := newTestExchange(t).sendWebsocketRequest(t.Context(), tc.conn, nonMatchingEPL, "public/get_time", nil, &decoded)
+				assert.ErrorIsf(t, err, websocket.ErrNotConnected, "sendWebsocketRequest should report a %s connection as not connected", tc.name)
+			})
+		}
+	})
 	if mockTests {
 		venue.answerNext("public/get_time", `{"result":"soon"}`)
 		assert.Error(t, ex.sendWebsocketRequest(t.Context(), subscriptionConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result), "sendWebsocketRequest should return a result it cannot decode")
@@ -249,8 +274,8 @@ func TestWebsocketAPI(t *testing.T) {
 func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
-	assert.True(t, websocketConnected(requestConnection(t, ex)), "WebsocketConnect should dial the request connection")
-	assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "WebsocketConnect should dial the subscription connection")
+	assert.True(t, requestConnection(t, ex).IsConnected(), "WebsocketConnect should dial the request connection")
+	assert.True(t, subscriptionConnection(t, ex).IsConnected(), "WebsocketConnect should dial the subscription connection")
 	if mockTests {
 		require.Equal(t, 2, venue.connectionCount(), "the manager must connect the request connection and a subscription connection")
 		for connection := requestVenueConnection; connection <= subscriptionVenueConnection; connection++ {
@@ -295,7 +320,7 @@ func TestWebsocketConnect(t *testing.T) {
 		requests := venue.received("public/auth")
 		require.Len(t, requests, 1, "a failed login must stop the manager logging the other connections in")
 		assert.Equal(t, requestVenueConnection, requests[0].connection, "the manager should log the request connection in first")
-		assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "the manager should still connect the subscription connection")
+		assert.True(t, subscriptionConnection(t, ex).IsConnected(), "the manager should still connect the subscription connection")
 
 		// Each later cycle of connections logs in again, whether a flush, which reconnects without the manager's Connect, or
 		// the manager connects it; the cycles run serially and in order, as each reconnects the websocket the one before left
@@ -365,8 +390,8 @@ func TestWebsocketConnect(t *testing.T) {
 		// A request answered after the refusals on the request connection, whose reader matches answers in order
 		var result types.Time
 		require.NoError(t, ex.SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result), "SendWebsocketRequest must not error")
-		assert.True(t, websocketConnected(requestConnection(t, ex)), "a refused heartbeat should leave the request connection connected")
-		assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "a refused heartbeat should leave the subscription connection connected")
+		assert.True(t, requestConnection(t, ex).IsConnected(), "a refused heartbeat should leave the request connection connected")
+		assert.True(t, subscriptionConnection(t, ex).IsConnected(), "a refused heartbeat should leave the subscription connection connected")
 	})
 
 	unreachable := newTestExchange(t)
@@ -473,7 +498,7 @@ func TestWebsocketAuthenticate(t *testing.T) {
 		rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
 		require.NoError(t, rejected.websocketAuthenticate(t.Context(), subscriptionConnection(t, rejected)), "websocketAuthenticate must leave a connection whose login fails to serve public channels")
 		assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should stop authenticated requests after a failed login")
-		assert.True(t, websocketConnected(subscriptionConnection(t, rejected)), "websocketAuthenticate should leave a connection whose login fails connected")
+		assert.True(t, subscriptionConnection(t, rejected).IsConnected(), "websocketAuthenticate should leave a connection whose login fails connected")
 	})
 
 	unsupported := newTestExchange(t)
@@ -530,14 +555,6 @@ func TestWebsocketLogin(t *testing.T) {
 	uncredentialled.API.AuthenticatedWebsocketSupport = true
 	uncredentialled.SetCredentials(&accounts.Credentials{})
 	assert.Error(t, uncredentialled.wsLogin(t.Context(), undialledConnection(t, uncredentialled)), "wsLogin should need credentials")
-}
-
-func TestWebsocketConnected(t *testing.T) {
-	t.Parallel()
-	ex, _ := newWebsocketTestExchange(t)
-	assert.True(t, websocketConnected(requestConnection(t, ex)), "websocketConnected should report a dialled connection")
-	assert.False(t, websocketConnected(undialledConnection(t, ex)), "websocketConnected should not report an undialled connection")
-	assert.False(t, websocketConnected(nil), "websocketConnected should not report a missing connection")
 }
 
 func TestWebsocketHandleData(t *testing.T) {
@@ -1602,6 +1619,18 @@ func TestSubscribe(t *testing.T) {
 
 	assert.ErrorIs(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "Subscribe should reject an unknown channel")
 	assert.ErrorIs(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Subscribe should return a qualification failure")
+	t.Run("missing connection", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range missingConnections {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				unconnected := newTestExchange(t)
+				err := unconnected.Subscribe(t.Context(), tc.conn, subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "sol_usdc"}}})
+				assert.ErrorIsf(t, err, websocket.ErrNotConnected, "Subscribe should report a %s connection as not connected", tc.name)
+				assert.Nilf(t, heldSubscription(unconnected, channel), "Subscribe should hold no channel subscribed without a connection, for a %s connection", tc.name)
+			})
+		}
+	})
 
 	if !mockTests {
 		return
@@ -1757,6 +1786,17 @@ func TestUnsubscribe(t *testing.T) {
 
 	unconnected := newTestExchange(t)
 	assert.ErrorIs(t, unconnected.Unsubscribe(t.Context(), undialledConnection(t, unconnected), subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Unsubscribe should return a qualification failure")
+
+	t.Run("missing connection", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range missingConnections {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				err := newTestExchange(t).Unsubscribe(t.Context(), tc.conn, subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "sol_usdc"}}})
+				assert.ErrorIsf(t, err, websocket.ErrNotConnected, "Unsubscribe should report a %s connection as not connected", tc.name)
+			})
+		}
+	})
 }
 
 func TestHandleSubscription(t *testing.T) {

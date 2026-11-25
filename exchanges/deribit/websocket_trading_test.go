@@ -306,7 +306,7 @@ func TestWebsocketAPIEditOrder(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		ex, _ := newWebsocketTestExchange(t)
 		placed, order := placeLiveTradingOrder(t)
-		arg := &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		arg := &EditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: new(true), RejectPostOnly: true}
 		result, err := ex.WebsocketAPI().EditOrder(t.Context(), arg)
 		require.NoError(t, err, "WebsocketAPI.EditOrder must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "WebsocketAPI.EditOrder should reprice the order")
@@ -323,6 +323,41 @@ func TestWebsocketAPIEditOrder(t *testing.T) {
 		assert.Equal(t, testEditedOrderResponse(), result, "WebsocketAPI.EditOrder should decode every field")
 	})
 
+	t.Run("post only setting", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock websocket venue is checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		// The edits run in turn, as they share the mock websocket
+		for _, tc := range []struct {
+			name           string
+			postOnly       *bool
+			rejectPostOnly bool
+			exp            string
+			// reply is the edited order's post-only setting, which Deribit keeps when post_only is left out
+			reply                          string
+			expPostOnly, expRejectPostOnly bool
+		}{
+			{name: "left out", exp: `{"order_id":"94166","amount":1,"price":30100}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true", postOnly: new(true), exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":true}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true in reject mode", postOnly: new(true), rejectPostOnly: true, exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":true,"reject_post_only":true}`, reply: `"post_only":true,"reject_post_only":true`, expPostOnly: true, expRejectPostOnly: true},
+			{name: "set to false", postOnly: new(false), exp: `{"order_id":"94166","amount":1,"price":30100,"post_only":false}`, reply: `"post_only":false`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				venue.answerNext("private/edit", `{"result":{"order":{"order_id":"94166",`+tc.reply+`},"trades":[]}}`)
+				before := venue.received("private/edit")
+				result, err := ex.WebsocketAPI().EditOrder(t.Context(), &EditOrderRequest{OrderID: "94166", Amount: 1, Price: 30100, PostOnly: tc.postOnly, RejectPostOnly: tc.rejectPostOnly})
+				require.NoError(t, err, "WebsocketAPI.EditOrder must not error")
+				sent := venue.received("private/edit")
+				require.Len(t, sent, len(before)+1, "WebsocketAPI.EditOrder must send one private/edit over the websocket")
+				assert.JSONEqf(t, tc.exp, string(sent[len(sent)-1].Params), "WebsocketAPI.EditOrder should send post_only only as set, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expPostOnly, result.Order.PostOnly, "WebsocketAPI.EditOrder should return the post-only setting Deribit reports, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expRejectPostOnly, result.Order.RejectPostOnly, "WebsocketAPI.EditOrder should return the reject mode Deribit reports, for post_only %s", tc.name)
+			})
+		}
+	})
+
 	_, err := newTestExchange(t).WebsocketAPI().EditOrder(t.Context(), mockEditOrderRequest())
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.EditOrder should error without an authenticated connection")
 }
@@ -337,7 +372,7 @@ func TestWebsocketAPIEditOrderByLabel(t *testing.T) {
 		skipLiveUnlessCanManipulate(t)
 		ex, _ := newWebsocketTestExchange(t)
 		placed, _ := placeLiveTradingOrder(t)
-		arg := &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		arg := &EditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: new(true), RejectPostOnly: true}
 		result, err := ex.WebsocketAPI().EditOrderByLabel(t.Context(), arg)
 		require.NoError(t, err, "WebsocketAPI.EditOrderByLabel must not error")
 		assert.Equal(t, arg.Price, result.Order.Price.Value, "WebsocketAPI.EditOrderByLabel should reprice the order")
@@ -352,6 +387,41 @@ func TestWebsocketAPIEditOrderByLabel(t *testing.T) {
 		result, err := ex.WebsocketAPI().EditOrderByLabel(t.Context(), mockEditOrderByLabelRequest())
 		require.NoError(t, err, "WebsocketAPI.EditOrderByLabel must not error")
 		assert.Equal(t, testEditedOrderResponse(), result, "WebsocketAPI.EditOrderByLabel should decode every field")
+	})
+
+	t.Run("post only setting", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock websocket venue is checked in mock mode")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		// The edits run in turn, as they share the mock websocket
+		for _, tc := range []struct {
+			name           string
+			postOnly       *bool
+			rejectPostOnly bool
+			exp            string
+			// reply is the edited order's post-only setting, which Deribit keeps when post_only is left out
+			reply                          string
+			expPostOnly, expRejectPostOnly bool
+		}{
+			{name: "left out", exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true", postOnly: new(true), exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":true}`, reply: `"post_only":true,"reject_post_only":false`, expPostOnly: true},
+			{name: "set to true in reject mode", postOnly: new(true), rejectPostOnly: true, exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":true,"reject_post_only":true}`, reply: `"post_only":true,"reject_post_only":true`, expPostOnly: true, expRejectPostOnly: true},
+			{name: "set to false", postOnly: new(false), exp: `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"price":30100,"post_only":false}`, reply: `"post_only":false`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				venue.answerNext("private/edit_by_label", `{"result":{"order":{"label":"gct","instrument_name":"BTC-PERPETUAL",`+tc.reply+`},"trades":[]}}`)
+				before := venue.received("private/edit_by_label")
+				result, err := ex.WebsocketAPI().EditOrderByLabel(t.Context(), &EditOrderByLabelRequest{InstrumentName: "BTC-PERPETUAL", Label: "gct", Amount: 20, Price: 30100, PostOnly: tc.postOnly, RejectPostOnly: tc.rejectPostOnly})
+				require.NoError(t, err, "WebsocketAPI.EditOrderByLabel must not error")
+				sent := venue.received("private/edit_by_label")
+				require.Len(t, sent, len(before)+1, "WebsocketAPI.EditOrderByLabel must send one private/edit_by_label over the websocket")
+				assert.JSONEqf(t, tc.exp, string(sent[len(sent)-1].Params), "WebsocketAPI.EditOrderByLabel should send post_only only as set, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expPostOnly, result.Order.PostOnly, "WebsocketAPI.EditOrderByLabel should return the post-only setting Deribit reports, for post_only %s", tc.name)
+				assert.Equalf(t, tc.expRejectPostOnly, result.Order.RejectPostOnly, "WebsocketAPI.EditOrderByLabel should return the reject mode Deribit reports, for post_only %s", tc.name)
+			})
+		}
 	})
 
 	_, err := newTestExchange(t).WebsocketAPI().EditOrderByLabel(t.Context(), mockEditOrderByLabelRequest())

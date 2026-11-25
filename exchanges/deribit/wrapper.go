@@ -1126,10 +1126,11 @@ func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory
 }
 
 // ModifyOrder edits an open order, identified by its ID or by its label in the pair; an amount left unset keeps the
-// order's amount, as Deribit requires an amount or a contract count with every edit. A take profit or stop loss
-// attached through RiskManagementModes is refused, as Deribit attaches neither with an edit. An edit that leaves the
-// order filled or closed reports no status, as the response carries no executed amount, so the order manager keeps the
-// order active rather than storing it finished with nothing executed
+// order's amount, as Deribit requires an amount or a contract count with every edit, and a time in force without post
+// only keeps the order's post-only setting. A take profit or stop loss attached through RiskManagementModes is
+// refused, as Deribit attaches neither with an edit. An edit that leaves the order filled or closed reports no status,
+// as the response carries no executed amount, so the order manager keeps the order active rather than storing it
+// finished with nothing executed
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
@@ -1138,7 +1139,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 		return nil, fmt.Errorf("%w: a take profit or stop loss edited with an order", common.ErrFunctionNotSupported)
 	}
 	overWebsocket := e.websocketForWrapper(true)
-	postOnly := m.TimeInForce.Is(order.PostOnly)
+	var postOnly *bool
+	if m.TimeInForce.Is(order.PostOnly) {
+		postOnly = new(true)
+	}
 	var edited *OrderWithTradesResponse
 	if m.OrderID != "" {
 		amount := m.Amount
@@ -1155,7 +1159,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			Amount:         amount,
 			Price:          m.Price,
 			PostOnly:       postOnly,
-			RejectPostOnly: postOnly,
+			RejectPostOnly: postOnly != nil,
 			TriggerPrice:   m.TriggerPrice,
 		}, overWebsocket)
 		if err != nil {
@@ -1188,7 +1192,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			Amount:         amount,
 			Price:          m.Price,
 			PostOnly:       postOnly,
-			RejectPostOnly: postOnly,
+			RejectPostOnly: postOnly != nil,
 			TriggerPrice:   m.TriggerPrice,
 		}, overWebsocket)
 		if err != nil {

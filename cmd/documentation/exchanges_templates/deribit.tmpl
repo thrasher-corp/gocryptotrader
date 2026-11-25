@@ -71,10 +71,10 @@ sent this way, and the challenge is returned instead.
   requires.
 + `ModifyOrder` edits an order identified by its ID, or by its label in a pair. Deribit requires an amount or a
   contract count with every edit, so when the modification leaves the amount unset, the order is fetched first and
-  keeps its amount. A take profit or stop loss attached through `RiskManagementModes` is refused, as Deribit
-  attaches neither with an edit. An edit that leaves the order filled or closed reports no status, as the response
-  carries no executed amount, so the order manager keeps the order active rather than storing it finished with nothing
-  executed.
+  keeps its amount. A time in force without post only keeps the order's post-only setting. A take profit or stop loss
+  attached through `RiskManagementModes` is refused, as Deribit attaches neither with an edit. An edit that leaves the
+  order filled or closed reports no status, as the response carries no executed amount, so the order manager keeps
+  the order active rather than storing it finished with nothing executed.
 + `CancelBatchOrders` is not supported, as Deribit cancels no list of order IDs; `CancelOrder` cancels each order.
   `CancelAllOrders` cancels a pair's orders, or every order of the asset when the pair is empty, on both sides
   together, so a cancellation of one side's orders is refused. Deribit cancels stop and take profit orders only as

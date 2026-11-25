@@ -2890,6 +2890,341 @@ func TestModifyOrder(t *testing.T) {
 			})
 		}
 	})
+	t.Run("post only setting of the edit", func(t *testing.T) {
+		t.Parallel()
+		option, err := currency.NewPairFromString(mockWrapperLabelInstrument)
+		require.NoError(t, err, "NewPairFromString must not error")
+		type restingOrder struct {
+			name        string
+			timeInForce string
+			postOnly    bool
+			base        order.TimeInForce
+		}
+		goodTillCancel := []restingOrder{
+			{name: "good till cancel", timeInForce: "good_til_cancelled", base: order.GoodTillCancel},
+			{name: "good till cancel post only", timeInForce: "good_til_cancelled", postOnly: true, base: order.GoodTillCancel},
+		}
+		goodTillDay := []restingOrder{
+			{name: "good till day", timeInForce: "good_til_day", base: order.GoodTillDay},
+			{name: "good till day post only", timeInForce: "good_til_day", postOnly: true, base: order.GoodTillDay},
+		}
+		type instrumentCase struct {
+			a       asset.Item
+			pair    currency.Pair
+			name    string
+			amount  float64
+			price   float64
+			created int64
+			orders  []restingOrder
+		}
+		instruments := []instrumentCase{
+			{a: asset.Futures, pair: wrapperTestPair(t, asset.Futures), name: "BTC-PERPETUAL", amount: 10, price: 30100, created: 1700000000000, orders: slices.Concat(goodTillCancel, goodTillDay)},
+			// Deribit takes no good till day spot order
+			{a: asset.Spot, pair: wrapperTestPair(t, asset.Spot), name: "BTC_USDC", amount: 0.5, price: 30100, created: 1700000000000, orders: goodTillCancel},
+			// An order on the option was placed before its expiry on 15 February 2019
+			{a: asset.Options, pair: option, name: mockWrapperLabelInstrument, amount: 1, price: 0.003, created: 1549000000000, orders: slices.Concat(goodTillCancel, goodTillDay)},
+		}
+		routes := []struct {
+			name         string
+			orderID      string
+			label        string
+			withAmount   bool
+			withoutPrice bool
+			lookup       string
+			method       string
+		}{
+			{name: "by order ID", orderID: "1", withAmount: true, method: "private/edit"},
+			{name: "by order ID without an amount", orderID: "1", lookup: "private/get_order_state", method: "private/edit"},
+			{name: "by order ID without a price", orderID: "1", withAmount: true, withoutPrice: true, method: "private/edit"},
+			{name: "by label", label: "label", withAmount: true, method: "private/edit_by_label"},
+			{name: "by label without an amount", label: "label", lookup: "private/get_open_orders_by_label", method: "private/edit_by_label"},
+			{name: "by label without an amount or a price", label: "label", withoutPrice: true, lookup: "private/get_open_orders_by_label", method: "private/edit_by_label"},
+			{name: "by order ID and label", orderID: "1", label: "label", withAmount: true, method: "private/edit"},
+		}
+		timesInForce := []struct {
+			name     string
+			tif      order.TimeInForce
+			postOnly bool
+		}{
+			{name: "without a time in force"},
+			{name: "good till cancel", tif: order.GoodTillCancel},
+			{name: "good till day", tif: order.GoodTillDay},
+			{name: "good till crossing", tif: order.GoodTillCrossing},
+			{name: "immediate or cancel", tif: order.ImmediateOrCancel},
+			{name: "fill or kill", tif: order.FillOrKill},
+			{name: "stop or reduce", tif: order.StopOrReduce},
+			{name: "post only", tif: order.PostOnly, postOnly: true},
+			{name: "good till cancel post only", tif: order.GoodTillCancel | order.PostOnly, postOnly: true},
+			{name: "good till day post only", tif: order.GoodTillDay | order.PostOnly, postOnly: true},
+			{name: "good till time", tif: order.GoodTillTime},
+			{name: "good till time post only", tif: order.GoodTillTime | order.PostOnly, postOnly: true},
+			{name: "good till crossing post only", tif: order.GoodTillCrossing | order.PostOnly, postOnly: true},
+			{name: "stop or reduce post only", tif: order.StopOrReduce | order.PostOnly, postOnly: true},
+		}
+		// Deribit reports reject_post_only only for a post only order
+		orderJSON := func(instrument instrumentCase, resting restingOrder, postOnly, rejectPostOnly bool) string {
+			flags := `"post_only":false`
+			if postOnly {
+				flags = `"post_only":true,"reject_post_only":` + strconv.FormatBool(rejectPostOnly)
+			}
+			return `{"order_id":"1","order_state":"open","order_type":"limit","time_in_force":"` + resting.timeInForce + `",` + flags +
+				`,"label":"label","instrument_name":"` + instrument.name + `","direction":"buy","amount":` + strconv.FormatFloat(instrument.amount, 'f', -1, 64) +
+				`,"filled_amount":0,"price":` + strconv.FormatFloat(instrument.price, 'f', -1, 64) + `,"creation_timestamp":` + strconv.FormatInt(instrument.created, 10) +
+				`,"last_update_timestamp":` + strconv.FormatInt(instrument.created+1, 10) + `,"api":true}`
+		}
+		editParams := func(method string, instrument instrumentCase, price float64, postOnly bool) string {
+			params := `{"order_id":"1"`
+			if method == "private/edit_by_label" {
+				params = `{"label":"label","instrument_name":"` + instrument.name + `"`
+			}
+			params += `,"amount":` + strconv.FormatFloat(instrument.amount, 'f', -1, 64)
+			if price != 0 {
+				params += `,"price":` + strconv.FormatFloat(price, 'f', -1, 64)
+			}
+			if postOnly {
+				params += `,"post_only":true,"reject_post_only":true`
+			}
+			return params + "}"
+		}
+		// Deribit keeps an order's post-only setting through an edit leaving post_only out
+		editedTimeInForce := func(resting restingOrder, postOnlyEdit bool) order.TimeInForce {
+			if resting.postOnly || postOnlyEdit {
+				return resting.base | order.PostOnly
+			}
+			return resting.base
+		}
+		for _, instrument := range instruments {
+			for _, route := range routes {
+				t.Run(instrument.a.String()+" "+route.name, func(t *testing.T) {
+					t.Parallel()
+					var (
+						mu            sync.Mutex
+						before, after string
+						sent          []websocketVenueRequest
+					)
+					ex := newWrapperServerExchange(t, func(method string, params json.RawMessage) string {
+						mu.Lock()
+						defer mu.Unlock()
+						sent = append(sent, websocketVenueRequest{Method: method, Params: params})
+						switch method {
+						case "private/get_order_state":
+							return `{"jsonrpc":"2.0","result":` + before + `}`
+						case "private/get_open_orders_by_label":
+							return `{"jsonrpc":"2.0","result":[` + before + `]}`
+						}
+						return `{"jsonrpc":"2.0","result":{"order":` + after + `,"trades":[]}}`
+					})
+					expMethods := []string{route.method}
+					if route.lookup != "" {
+						expMethods = []string{route.lookup, route.method}
+					}
+					var amount float64
+					if route.withAmount {
+						amount = instrument.amount
+					}
+					price := instrument.price
+					if route.withoutPrice {
+						price = 0
+					}
+					// The edits run in turn, as they share the route's test venue
+					for _, tif := range timesInForce {
+						for _, resting := range instrument.orders {
+							t.Run(tif.name+" edit of a "+resting.name+" order", func(t *testing.T) {
+								mu.Lock()
+								before = orderJSON(instrument, resting, resting.postOnly, false)
+								// A post only edit also sends reject_post_only, which Deribit then reports
+								after = orderJSON(instrument, resting, resting.postOnly || tif.postOnly, tif.postOnly)
+								sent = nil
+								mu.Unlock()
+								m := &order.Modify{OrderID: route.orderID, ClientOrderID: route.label, Pair: instrument.pair, AssetType: instrument.a, Amount: amount, Price: price, TimeInForce: tif.tif}
+								resp, err := ex.ModifyOrder(t.Context(), m)
+								require.NoErrorf(t, err, "ModifyOrder must not error for a %s edit of a %s order", tif.name, resting.name)
+
+								mu.Lock()
+								requests := slices.Clone(sent)
+								mu.Unlock()
+								methods := make([]string, len(requests))
+								for i := range requests {
+									methods[i] = requests[i].Method
+								}
+								require.Equalf(t, expMethods, methods, "ModifyOrder must send the requests of an edit %s", route.name)
+								assert.JSONEqf(t, editParams(route.method, instrument, price, tif.postOnly), string(requests[len(requests)-1].Params), "ModifyOrder should send post_only and reject_post_only only for a post only edit, for a %s edit of a %s order", tif.name, resting.name)
+								assert.Equalf(t, editedTimeInForce(resting, tif.postOnly), resp.TimeInForce, "ModifyOrder should return the time in force Deribit reports for a %s edit of a %s order", tif.name, resting.name)
+							})
+						}
+					}
+				})
+			}
+		}
+		t.Run("authenticated websocket", func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("the mock websocket venue is checked in mock mode")
+			}
+			perpetual := instruments[0]
+			methods := []string{"private/get_order_state", "private/get_open_orders_by_label", "private/edit", "private/edit_by_label"}
+			for _, route := range routes {
+				t.Run(route.name, func(t *testing.T) {
+					t.Parallel()
+					ex, venue := newWebsocketTestExchange(t)
+					require.True(t, ex.websocketForWrapper(true), "websocketForWrapper must send private requests over the authenticated mock websocket")
+					received := func() map[string][]websocketVenueRequest {
+						requests := make(map[string][]websocketVenueRequest, len(methods))
+						for _, method := range methods {
+							requests[method] = venue.received(method)
+						}
+						return requests
+					}
+					var amount float64
+					if route.withAmount {
+						amount = perpetual.amount
+					}
+					price := perpetual.price
+					if route.withoutPrice {
+						price = 0
+					}
+					// The edits run in turn, as they share the route's mock websocket
+					for _, tif := range timesInForce {
+						for _, resting := range perpetual.orders {
+							t.Run(tif.name+" edit of a "+resting.name+" order", func(t *testing.T) {
+								before := orderJSON(perpetual, resting, resting.postOnly, false)
+								switch route.lookup {
+								case "private/get_order_state":
+									venue.answerNext(route.lookup, `{"result":`+before+`}`)
+								case "private/get_open_orders_by_label":
+									venue.answerNext(route.lookup, `{"result":[`+before+`]}`)
+								}
+								venue.answerNext(route.method, `{"result":{"order":`+orderJSON(perpetual, resting, resting.postOnly || tif.postOnly, tif.postOnly)+`,"trades":[]}}`)
+								sentBefore := received()
+								m := &order.Modify{OrderID: route.orderID, ClientOrderID: route.label, Pair: perpetual.pair, AssetType: perpetual.a, Amount: amount, Price: price, TimeInForce: tif.tif}
+								resp, err := ex.ModifyOrder(t.Context(), m)
+								require.NoErrorf(t, err, "ModifyOrder must not error for a %s edit of a %s order over the websocket", tif.name, resting.name)
+
+								sentAfter := received()
+								for _, method := range methods {
+									exp := 0
+									if method == route.lookup || method == route.method {
+										exp = 1
+									}
+									require.Lenf(t, sentAfter[method], len(sentBefore[method])+exp, "ModifyOrder must send %d %s over the websocket for an edit %s", exp, method, route.name)
+								}
+								edits := sentAfter[route.method]
+								assert.JSONEqf(t, editParams(route.method, perpetual, price, tif.postOnly), string(edits[len(edits)-1].Params), "ModifyOrder should send post_only and reject_post_only only for a post only edit over the websocket, for a %s edit of a %s order", tif.name, resting.name)
+								assert.Equalf(t, editedTimeInForce(resting, tif.postOnly), resp.TimeInForce, "ModifyOrder should return the time in force Deribit reports for a %s edit of a %s order over the websocket", tif.name, resting.name)
+							})
+						}
+					}
+				})
+			}
+		})
+		// An edit's reply describes the order after the edit, which another caller can have made post only since the order
+		// was looked up for its amount, or replaced with another order under the same label
+		t.Run("reply over a stale lookup", func(t *testing.T) {
+			t.Parallel()
+			perpetual := instruments[0]
+			for _, tc := range []struct {
+				name, orderID, label          string
+				lookup, method                string
+				lookupPostOnly, replyPostOnly bool
+				reply                         restingOrder
+				exp                           order.TimeInForce
+			}{
+				{name: "by order ID made post only meanwhile", orderID: "1", lookup: "private/get_order_state", method: "private/edit", reply: goodTillCancel[0], replyPostOnly: true, exp: order.GoodTillCancel | order.PostOnly},
+				{name: "by order ID no longer post only", orderID: "1", lookup: "private/get_order_state", method: "private/edit", lookupPostOnly: true, reply: goodTillCancel[0], exp: order.GoodTillCancel},
+				{name: "by label made post only meanwhile", label: "label", lookup: "private/get_open_orders_by_label", method: "private/edit_by_label", reply: goodTillCancel[0], replyPostOnly: true, exp: order.GoodTillCancel | order.PostOnly},
+				{name: "by label no longer post only", label: "label", lookup: "private/get_open_orders_by_label", method: "private/edit_by_label", lookupPostOnly: true, reply: goodTillCancel[0], exp: order.GoodTillCancel},
+				{name: "by label replaced meanwhile", label: "label", lookup: "private/get_open_orders_by_label", method: "private/edit_by_label", reply: goodTillDay[0], exp: order.GoodTillDay},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					lookedUp := orderJSON(perpetual, goodTillCancel[0], tc.lookupPostOnly, false)
+					var (
+						mu      sync.Mutex
+						methods []string
+					)
+					ex := newWrapperServerExchange(t, func(method string, _ json.RawMessage) string {
+						mu.Lock()
+						defer mu.Unlock()
+						methods = append(methods, method)
+						switch method {
+						case "private/get_order_state":
+							return `{"jsonrpc":"2.0","result":` + lookedUp + `}`
+						case "private/get_open_orders_by_label":
+							return `{"jsonrpc":"2.0","result":[` + lookedUp + `]}`
+						}
+						return `{"jsonrpc":"2.0","result":{"order":` + orderJSON(perpetual, tc.reply, tc.replyPostOnly, false) + `,"trades":[]}}`
+					})
+					resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, ClientOrderID: tc.label, Pair: perpetual.pair, AssetType: perpetual.a, Price: perpetual.price})
+					require.NoError(t, err, "ModifyOrder must not error")
+					mu.Lock()
+					defer mu.Unlock()
+					require.Equal(t, []string{tc.lookup, tc.method}, methods, "ModifyOrder must look the order up for its amount, then edit it")
+					assert.Equal(t, tc.exp, resp.TimeInForce, "ModifyOrder should return the time in force of the edit's reply rather than of the order it looked up")
+				})
+			}
+		})
+		// Deribit takes post_only on an edit of any order type but market
+		t.Run("order type of the edit", func(t *testing.T) {
+			t.Parallel()
+			perpetual := instruments[0]
+			for _, orderType := range []order.Type{order.UnknownType, order.Limit, order.StopLimit} {
+				t.Run(orderType.String(), func(t *testing.T) {
+					t.Parallel()
+					var (
+						mu   sync.Mutex
+						sent []json.RawMessage
+					)
+					ex := newWrapperServerExchange(t, func(_ string, params json.RawMessage) string {
+						mu.Lock()
+						defer mu.Unlock()
+						sent = append(sent, params)
+						return `{"jsonrpc":"2.0","result":{"order":` + orderJSON(perpetual, goodTillCancel[1], true, true) + `,"trades":[]}}`
+					})
+					m := &order.Modify{OrderID: "1", Type: orderType, Pair: perpetual.pair, AssetType: perpetual.a, Amount: perpetual.amount, Price: perpetual.price, TimeInForce: order.PostOnly}
+					_, err := ex.ModifyOrder(t.Context(), m)
+					require.NoErrorf(t, err, "ModifyOrder must not error for a post only edit of a %s order", orderType)
+					mu.Lock()
+					defer mu.Unlock()
+					require.Lenf(t, sent, 1, "ModifyOrder must send one edit of a %s order", orderType)
+					assert.JSONEqf(t, editParams("private/edit", perpetual, perpetual.price, true), string(sent[0]), "ModifyOrder should send post_only and reject_post_only for a post only edit of a %s order", orderType)
+				})
+			}
+		})
+		t.Run("time in force of the reply", func(t *testing.T) {
+			t.Parallel()
+			perpetual := instruments[0]
+			for _, tc := range []struct {
+				name                     string
+				timeInForce              string
+				postOnly, rejectPostOnly bool
+				filled                   bool
+				exp                      order.TimeInForce
+			}{
+				{name: "good till cancel", timeInForce: "good_til_cancelled", exp: order.GoodTillCancel},
+				{name: "good till day", timeInForce: "good_til_day", exp: order.GoodTillDay},
+				{name: "fill or kill", timeInForce: "fill_or_kill", exp: order.FillOrKill},
+				{name: "immediate or cancel", timeInForce: "immediate_or_cancel", exp: order.ImmediateOrCancel},
+				{name: "post only", timeInForce: "good_til_cancelled", postOnly: true, exp: order.GoodTillCancel | order.PostOnly},
+				{name: "post only in reject mode", timeInForce: "good_til_cancelled", postOnly: true, rejectPostOnly: true, exp: order.GoodTillCancel | order.PostOnly},
+				// Deribit can fill an edited order at once, and the reply still gives its time in force
+				{name: "filled by the edit", timeInForce: "good_til_cancelled", filled: true, exp: order.GoodTillCancel},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					reply := orderJSON(perpetual, restingOrder{timeInForce: tc.timeInForce}, tc.postOnly, tc.rejectPostOnly)
+					if tc.filled {
+						reply = strings.NewReplacer(`"order_state":"open"`, `"order_state":"filled"`, `"filled_amount":0`, `"filled_amount":`+strconv.FormatFloat(perpetual.amount, 'f', -1, 64)).Replace(reply)
+					}
+					ex := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+						return `{"jsonrpc":"2.0","result":{"order":` + reply + `,"trades":[]}}`
+					})
+					resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "1", Pair: perpetual.pair, AssetType: perpetual.a, Amount: perpetual.amount, Price: perpetual.price})
+					require.NoError(t, err, "ModifyOrder must not error")
+					assert.Equal(t, tc.exp, resp.TimeInForce, "ModifyOrder should return each time in force Deribit reports for an order")
+				})
+			}
+		})
+	})
 
 	ethPair := currency.NewPairWithDelimiter("ETH", perpString, currency.DashDelimiter)
 	labelled, err := currency.NewPairFromString(mockWrapperLabelInstrument)

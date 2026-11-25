@@ -30,8 +30,9 @@ type OrderRequest struct {
 	TimeInForce string `json:"time_in_force,omitempty"`
 	// DisplayAmount is the visible amount of an iceberg order
 	DisplayAmount float64 `json:"display_amount,omitempty"`
-	// PostOnly moves a price that would take liquidity to just inside the spread, or with RejectPostOnly rejects the
-	// order; it is always sent, as Deribit documents it defaulting to true
+	// PostOnly moves a buy price that would take liquidity to just below the spread and a sell price to just above it,
+	// or with RejectPostOnly, which a post only spot order routed to Coinbase Exchange requires, rejects the order; it
+	// is always sent, so an order is post only exactly when asked, whatever Deribit's default is
 	PostOnly       bool `json:"post_only"`
 	RejectPostOnly bool `json:"reject_post_only,omitempty"`
 	ReduceOnly     bool `json:"reduce_only,omitempty"`
@@ -259,11 +260,10 @@ type EditOrderRequest struct {
 	// Price is the limit price, in USD for an advanced usd option order and in implied volatility percent for an implv
 	// one
 	Price float64 `json:"price,omitempty"`
-	// PostOnly is always sent, as Deribit documents it defaulting to true, so it must be set again to keep an order
-	// post only
-	PostOnly       bool `json:"post_only"`
-	ReduceOnly     bool `json:"reduce_only,omitempty"`
-	RejectPostOnly bool `json:"reject_post_only,omitempty"`
+	// PostOnly is left out when nil, as Deribit then keeps the order's post-only setting
+	PostOnly       *bool `json:"post_only,omitempty"`
+	ReduceOnly     bool  `json:"reduce_only,omitempty"`
+	RejectPostOnly bool  `json:"reject_post_only,omitempty"`
 	// Advanced is usd or implv, and must be set again to edit an advanced option order
 	Advanced      string  `json:"advanced,omitempty"`
 	TriggerPrice  float64 `json:"trigger_price,omitempty"`
@@ -290,11 +290,10 @@ type EditOrderByLabelRequest struct {
 	Amount    float64 `json:"amount,omitempty"`
 	Contracts float64 `json:"contracts,omitempty"`
 	Price     float64 `json:"price,omitempty"`
-	// PostOnly is always sent, as Deribit documents it defaulting to true, so it must be set again to keep an order
-	// post only
-	PostOnly       bool `json:"post_only"`
-	ReduceOnly     bool `json:"reduce_only,omitempty"`
-	RejectPostOnly bool `json:"reject_post_only,omitempty"`
+	// PostOnly is left out when nil, as Deribit then keeps the order's post-only setting
+	PostOnly       *bool `json:"post_only,omitempty"`
+	ReduceOnly     bool  `json:"reduce_only,omitempty"`
+	RejectPostOnly bool  `json:"reject_post_only,omitempty"`
 	// Advanced is usd or implv, and must be set again to edit an advanced option order
 	Advanced     string  `json:"advanced,omitempty"`
 	TriggerPrice float64 `json:"trigger_price,omitempty"`

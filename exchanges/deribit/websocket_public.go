@@ -262,7 +262,7 @@ func (e *Exchange) changeChannel(ctx context.Context, conn websocket.Connection,
 func (e *Exchange) onConnection(conn websocket.Connection, sub *subscription.Subscription, change func() error) error {
 	e.subscriptionMtx.Lock()
 	defer e.subscriptionMtx.Unlock()
-	if !websocketConnected(conn) {
+	if !conn.IsConnected() {
 		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, sub.QualifiedChannel)
 	}
 	if e.Websocket.GetSubscription(qualifiedChannelKey{sub}) != sub {

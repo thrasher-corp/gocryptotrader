@@ -1337,7 +1337,7 @@
   "/api/v2/private/edit": {
    "POST": [
     {
-     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit\",\"params\":{\"order_id\":\"438994\",\"amount\":4,\"price\":222,\"post_only\":false,\"advanced\":\"implv\"}}",
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit\",\"params\":{\"order_id\":\"438994\",\"amount\":4,\"price\":222,\"advanced\":\"implv\"}}",
      "data": {
       "jsonrpc": "2.0",
       "result": {
@@ -1375,7 +1375,7 @@
      "queryString": ""
     },
     {
-     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit\",\"params\":{\"order_id\":\"438994\",\"amount\":4,\"price\":222,\"post_only\":false}}",
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit\",\"params\":{\"order_id\":\"438994\",\"amount\":4,\"price\":222}}",
      "data": {
       "jsonrpc": "2.0",
       "result": {
@@ -1524,7 +1524,7 @@
   "/api/v2/private/edit_by_label": {
    "POST": [
     {
-     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit_by_label\",\"params\":{\"label\":\"i_love_deribit\",\"instrument_name\":\"BTC-PERPETUAL\",\"amount\":150,\"price\":50111,\"post_only\":false}}",
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit_by_label\",\"params\":{\"label\":\"i_love_deribit\",\"instrument_name\":\"BTC-PERPETUAL\",\"amount\":150,\"price\":50111}}",
      "data": {
       "jsonrpc": "2.0",
       "result": {
@@ -1562,7 +1562,7 @@
      "queryString": ""
     },
     {
-     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit_by_label\",\"params\":{\"label\":\"fooBar\",\"instrument_name\":\"BTC-15FEB19-3250-P\",\"amount\":10,\"price\":0.003,\"post_only\":false}}",
+     "bodyParams": "{\"jsonrpc\":\"2.0\",\"method\":\"private/edit_by_label\",\"params\":{\"label\":\"fooBar\",\"instrument_name\":\"BTC-15FEB19-3250-P\",\"amount\":10,\"price\":0.003}}",
      "data": {
       "jsonrpc": "2.0",
       "result": {
