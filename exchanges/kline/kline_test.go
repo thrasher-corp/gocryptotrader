@@ -928,6 +928,46 @@ func TestDataSummary(t *testing.T) {
 	}
 }
 
+func TestIntervalsWithoutData(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name        string
+		hasData     []bool
+		wantMissing uint64
+	}{
+		{name: "no data", hasData: []bool{false, false, false}, wantMissing: 3},
+		{name: "every interval", hasData: []bool{true, true, true}},
+		{name: "one interval in a later range", hasData: []bool{true, true, false}, wantMissing: 1},
+		{name: "one interval in the first range", hasData: []bool{false, true, true}, wantMissing: 1},
+		{name: "one interval between intervals with data", hasData: []bool{true, false, true}, wantMissing: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h, err := CalculateCandleDateRanges(start, start.Add(15*time.Minute), FiveMin, 2)
+			require.NoError(t, err, "CalculateCandleDateRanges must not error")
+			require.Len(t, h.Ranges, 2, "CalculateCandleDateRanges must split the intervals into two ranges")
+			var i int
+			for x := range h.Ranges {
+				for y := range h.Ranges[x].Intervals {
+					h.Ranges[x].Intervals[y].HasData = tc.hasData[i]
+					i++
+				}
+			}
+			missing, total := h.IntervalsWithoutData()
+			assert.Equal(t, tc.wantMissing, missing, "IntervalsWithoutData should count the intervals without data")
+			assert.Equal(t, uint64(3), total, "IntervalsWithoutData should count every interval")
+		})
+	}
+
+	t.Run("no ranges", func(t *testing.T) {
+		t.Parallel()
+		missing, total := new(IntervalRangeHolder).IntervalsWithoutData()
+		assert.Zero(t, missing, "IntervalsWithoutData should count no missing intervals without ranges")
+		assert.Zero(t, total, "IntervalsWithoutData should count no intervals without ranges")
+	})
+}
+
 func TestHasDataAtDate(t *testing.T) {
 	t.Parallel()
 	tt1 := time.Now().Round(OneDay.Duration())

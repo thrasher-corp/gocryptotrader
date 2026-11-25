@@ -276,7 +276,7 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 }
 
 func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
-	if interval == 0 {
+	if p.IsEmpty() {
 		return nil, errExpectedTestError
 	}
 	return &kline.Item{
@@ -297,6 +297,20 @@ type candleRequestRecorder struct {
 func (c candleRequestRecorder) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
 	*c.requested = append(*c.requested, p.Upper().String()+" "+a.String())
 	return c.fExchange.GetHistoricCandlesExtended(ctx, p, a, interval, timeStart, timeEnd)
+}
+
+func (c candleRequestRecorder) GetHistoricCandles(ctx context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, timeEnd time.Time) (*kline.Item, error) {
+	*c.requested = append(*c.requested, p.Upper().String()+" "+a.String())
+	return c.fExchange.GetHistoricCandles(ctx, p, a, interval, timeStart, timeEnd)
+}
+
+// newCandleRequestRecorder adds a candleRequestRecorder with BTC-USD enabled for spot to em
+func newCandleRequestRecorder(t *testing.T, em *ExchangeManager) (name string, requested *[]string) {
+	t.Helper()
+	exch := buildFakeExchange(t, NewExchangeManager(), map[asset.Item]currency.Pairs{asset.Spot: {currency.NewBTCUSD()}})
+	requested = new([]string)
+	require.NoError(t, em.Add(candleRequestRecorder{IBotExchange: exch, requested: requested}), "Add must not error")
+	return exch.GetName(), requested
 }
 
 func (f fExchange) GetCurrencyTradeURL(_ context.Context, _ asset.Item, _ currency.Pair) (string, error) {
@@ -914,6 +928,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error("expected fancy new candle based off fancy new trade data")
 	}
 
+	// Subtests run serially, as the deferred CleanRPCTest closes the shared database and removes its file
 	t.Run("range too large", func(t *testing.T) {
 		_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
 			Exchange:     testExchange,
@@ -952,6 +967,36 @@ func TestGetHistoricCandles(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, errRangeTooLarge, "GetHistoricCandles should reject a range of 100,001 candles")
 	})
+
+	for _, tc := range []struct {
+		name      string
+		interval  kline.Interval
+		useDB     bool
+		exRequest bool
+	}{
+		{name: "unset interval from the exchange"},
+		{name: "unset interval from the exchange over several requests", exRequest: true},
+		{name: "unset interval from the database", useDB: true},
+		{name: "negative interval from the exchange", interval: -kline.OneHour},
+		{name: "negative interval from the exchange over several requests", interval: -kline.OneHour, exRequest: true},
+		{name: "negative interval from the database", interval: -kline.OneHour, useDB: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name, requested := newCandleRequestRecorder(t, engerino.ExchangeManager)
+			_, err := s.GetHistoricCandles(t.Context(), &gctrpc.GetHistoricCandlesRequest{
+				Exchange:     name,
+				Pair:         &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USD.String()},
+				AssetType:    asset.Spot.String(),
+				Start:        defaultStart.Format(common.SimpleTimeFormatWithTimezone),
+				End:          defaultEnd.Format(common.SimpleTimeFormatWithTimezone),
+				TimeInterval: int64(tc.interval),
+				UseDb:        tc.useDB,
+				ExRequest:    tc.exRequest,
+			})
+			assert.ErrorIs(t, err, kline.ErrInvalidInterval, "GetHistoricCandles should reject an interval that is not positive")
+			assert.Empty(t, *requested, "GetHistoricCandles should not request candles for an interval that is not positive")
+		})
+	}
 }
 
 func TestFindMissingSavedTradeIntervals(t *testing.T) {
@@ -3053,8 +3098,9 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		Exchange:  fakeExchangeName,
 		AssetType: "upsideprofitcontract",
 		Pair:      &gctrpc.CurrencyPair{},
+		Interval:  int64(kline.OneDay),
 	})
-	require.ErrorIs(t, err, errExpectedTestError)
+	assert.ErrorIs(t, err, errExpectedTestError, "GetTechnicalAnalysis should return the exchange's candle error")
 
 	_, err = s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{
 		Exchange:  fakeExchangeName,
@@ -3252,6 +3298,38 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 		_, err := s.GetTechnicalAnalysis(t.Context(), &gctrpc.GetTechnicalAnalysisRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 		assert.ErrorIs(t, err, errCurrencyPairUnset, "GetTechnicalAnalysis should reject a request without a pair")
 	})
+
+	rangeStart := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name     string
+		interval kline.Interval
+		dated    bool
+	}{
+		{name: "unset interval"},
+		{name: "unset interval with a date range", dated: true},
+		{name: "negative interval", interval: -kline.OneHour},
+		{name: "negative interval with a date range", interval: -kline.OneHour, dated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			name, requested := newCandleRequestRecorder(t, em)
+			req := &gctrpc.GetTechnicalAnalysisRequest{
+				Exchange:      name,
+				AssetType:     asset.Spot.String(),
+				Pair:          &gctrpc.CurrencyPair{Base: "btc", Quote: "usd"},
+				Interval:      int64(tc.interval),
+				AlgorithmType: "sma",
+				Period:        9,
+			}
+			if tc.dated {
+				req.Start = timestamppb.New(rangeStart)
+				req.End = timestamppb.New(rangeStart.Add(24 * time.Hour))
+			}
+			_, err := s.GetTechnicalAnalysis(t.Context(), req)
+			assert.ErrorIs(t, err, kline.ErrInvalidInterval, "GetTechnicalAnalysis should reject an interval that is not positive")
+			assert.Empty(t, *requested, "GetTechnicalAnalysis should not request candles for an interval that is not positive")
+		})
+	}
 
 	t.Run("COCO other pair without a quote currency", func(t *testing.T) {
 		t.Parallel()
@@ -5514,6 +5592,14 @@ func TestGetForexProviders(t *testing.T) {
 // newFakeExchange adds an exchange with a unique name and the given enabled pairs to em
 func newFakeExchange(t *testing.T, em *ExchangeManager, pairs map[asset.Item]currency.Pairs) *exchange.Base {
 	t.Helper()
+	exch := buildFakeExchange(t, em, pairs)
+	require.NoError(t, em.Add(exch), "Add must not error")
+	return exch.GetBase()
+}
+
+// buildFakeExchange returns an exchange with a unique name and the given enabled pairs, without adding it to em
+func buildFakeExchange(t *testing.T, em *ExchangeManager, pairs map[asset.Item]currency.Pairs) exchange.IBotExchange {
+	t.Helper()
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err, "NewExchangeByName must not error")
 	exch.SetDefaults()
@@ -5530,8 +5616,7 @@ func newFakeExchange(t *testing.T, em *ExchangeManager, pairs map[asset.Item]cur
 			RequestFormat: &currency.PairFormat{Uppercase: true},
 		}
 	}
-	require.NoError(t, em.Add(exch), "Add must not error")
-	return b
+	return exch
 }
 
 func TestGetOrderbooks(t *testing.T) {
@@ -5754,14 +5839,15 @@ func TestCheckIntervalCount(t *testing.T) {
 		{name: "fraction beyond whole seconds", end: start.Add(1500 * time.Millisecond), interval: 10 * time.Millisecond, wantErr: errRangeTooLarge},
 		{name: "range longer than a duration can hold", end: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), interval: 10 * 365 * 24 * time.Hour, wantErr: errRangeTooLarge},
 		{name: "long range within the limit", end: time.Date(2420, 1, 1, 0, 0, 0, 0, time.UTC), interval: 5 * 365 * 24 * time.Hour},
-		{name: "unset interval is left to later validation", end: start.Add(1000 * time.Hour)},
+		{name: "unset interval", end: start.Add(1000 * time.Hour), wantErr: kline.ErrInvalidInterval, wantMessage: "interval: 0s"},
+		{name: "negative interval", end: start.Add(1000 * time.Hour), interval: -time.Hour, wantErr: kline.ErrInvalidInterval, wantMessage: "interval: -1h0m0s"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			err := checkIntervalCount(start.Add(tc.startOffset), tc.end, tc.interval, 100)
 			require.ErrorIs(t, err, tc.wantErr, "checkIntervalCount must return the expected error")
 			if tc.wantMessage != "" {
-				assert.ErrorContains(t, err, tc.wantMessage, "checkIntervalCount should report the intervals needed")
+				assert.ErrorContains(t, err, tc.wantMessage, "checkIntervalCount should say what it rejects")
 			}
 		})
 	}

@@ -951,36 +951,6 @@ func TestCandleRuns(t *testing.T) {
 	}
 }
 
-func TestIntervalsWithoutData(t *testing.T) {
-	t.Parallel()
-	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	for _, tc := range []struct {
-		name        string
-		hasData     []bool
-		wantMissing int
-	}{
-		{name: "no data", hasData: []bool{false, false, false}, wantMissing: 3},
-		{name: "every interval", hasData: []bool{true, true, true}},
-		{name: "one interval in a later range", hasData: []bool{true, true, false}, wantMissing: 1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			h, err := kline.CalculateCandleDateRanges(start, start.Add(15*time.Minute), kline.FiveMin, 2)
-			require.NoError(t, err, "CalculateCandleDateRanges must not error")
-			var i int
-			for x := range h.Ranges {
-				for y := range h.Ranges[x].Intervals {
-					h.Ranges[x].Intervals[y].HasData = tc.hasData[i]
-					i++
-				}
-			}
-			missing, total := intervalsWithoutData(h)
-			assert.Equal(t, tc.wantMissing, missing, "intervalsWithoutData should count the intervals without data")
-			assert.Equal(t, 3, total, "intervalsWithoutData should count every interval")
-		})
-	}
-}
-
 func TestRangeResult(t *testing.T) {
 	t.Parallel()
 	result := func(status dataHistoryStatus) DataHistoryJobResult { return DataHistoryJobResult{Status: status} }

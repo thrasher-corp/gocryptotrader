@@ -261,19 +261,6 @@ func padSourceCandles(candles []kline.Candle, start, end time.Time, interval kli
 	return padded, present
 }
 
-// intervalsWithoutData returns how many intervals of h have no data, and how many intervals h has
-func intervalsWithoutData(h *kline.IntervalRangeHolder) (missing, total int) {
-	for x := range h.Ranges {
-		for _, interval := range h.Ranges[x].Intervals {
-			total++
-			if !interval.HasData {
-				missing++
-			}
-		}
-	}
-	return missing, total
-}
-
 // rangeResult reports whether a range's results decide it and, if so, whether it completed rather than finishing with
 // issues found, whatever order the results were loaded in
 func rangeResult(results []DataHistoryJobResult) (decided, complete bool) {
@@ -1047,7 +1034,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 	if saved != nil {
 		setHasDataByCandleTime(intervals.Ranges, saved.Candles)
 	}
-	if missing, total := intervalsWithoutData(intervals); missing > 0 {
+	if missing, total := intervals.IntervalsWithoutData(); missing > 0 {
 		r.Result = fmt.Sprintf("missing %d of %d converted candles from %v - %v. ", missing, total,
 			startRange.Format(common.SimpleTimeFormatWithTimezone), endRange.Format(common.SimpleTimeFormatWithTimezone))
 		r.Status = dataHistoryStatusFailed

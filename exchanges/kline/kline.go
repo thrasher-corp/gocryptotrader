@@ -732,6 +732,19 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 	return nil
 }
 
+// IntervalsWithoutData returns how many intervals of the holder have no data, and how many intervals it holds
+func (h *IntervalRangeHolder) IntervalsWithoutData() (missing, total uint64) {
+	for x := range h.Ranges {
+		for y := range h.Ranges[x].Intervals {
+			total++
+			if !h.Ranges[x].Intervals[y].HasData {
+				missing++
+			}
+		}
+	}
+	return missing, total
+}
+
 // DataSummary returns a summary of a data range to highlight where data is missing
 func (h *IntervalRangeHolder) DataSummary(includeHasData bool) []string {
 	var (

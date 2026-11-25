@@ -79,10 +79,10 @@ var (
 // interval in the range; longer back-fills belong in data history jobs
 const maxRequestIntervals = 100_000
 
-// checkIntervalCount rejects a time range which spans more than limit intervals
+// checkIntervalCount rejects an unset interval, and a time range which spans more than limit intervals
 func checkIntervalCount(start, end time.Time, interval time.Duration, limit float64) error {
 	if interval <= 0 {
-		return nil
+		return fmt.Errorf("%w: %s", kline.ErrInvalidInterval, interval)
 	}
 	// Wall clock seconds and nanoseconds are combined as floats, as a time.Duration saturates on ranges longer than 292 years
 	window := float64(end.Unix()-start.Unix())*float64(time.Second) + float64(end.Nanosecond()-start.Nanosecond())
