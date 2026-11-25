@@ -1581,7 +1581,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	assert.Empty(t, subs, "generateSubscriptions should generate nothing with spot disabled")
 }
 
-func TestOneOrderbookSubscription(t *testing.T) { //nolint:tparallel // the cases share the subscriptions, so they run in order while the test runs in parallel
+func TestOneOrderbookSubscription(t *testing.T) {
 	t.Parallel()
 	// Subscriptions arrive expanded, with one pair each
 	btc, eth := currency.Pairs{currency.NewBTCUSDT()}, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}
@@ -1605,6 +1605,7 @@ func TestOneOrderbookSubscription(t *testing.T) { //nolint:tparallel // the case
 		{name: "diff depth after partial depth", subs: subscription.List{partial20, tickerSub, diff, otherPairDiff}, exp: subscription.List{tickerSub, diff, otherPairDiff}, conflict: true},
 		{name: "two diff depths", subs: subscription.List{diff, diffEverySecond}, exp: subscription.List{diff}, conflict: true},
 		{name: "two partial depths", subs: subscription.List{partial5, partial20}, exp: subscription.List{partial5}, conflict: true},
+		{name: "two partial depths, the deeper first", subs: subscription.List{partial20, partial5}, exp: subscription.List{partial20.Clone()}, conflict: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := oneOrderbookSubscription(tc.subs)
@@ -1616,45 +1617,169 @@ func TestOneOrderbookSubscription(t *testing.T) { //nolint:tparallel // the case
 			}
 		})
 	}
+	// Every two settings an asset's book takes, in both orders, and every order of two diff and two partial books, for
+	// each asset, so that neither depth, speed, asset nor the previous book alone decides the choice
+	spotBookStreams := map[derivativesBookSetting]string{
+		{0, 0}: "depth", {0, kline.HundredMilliseconds}: "depth@100ms", {5, 0}: "depth5", {5, kline.HundredMilliseconds}: "depth5@100ms",
+		{10, 0}: "depth10", {10, kline.HundredMilliseconds}: "depth10@100ms", {20, 0}: "depth20", {20, kline.HundredMilliseconds}: "depth20@100ms",
+	}
+	spotBookSettings := make([]derivativesBookSetting, 0, len(spotBookStreams))
+	for _, levels := range []int{0, 5, 10, 20} {
+		spotBookSettings = append(spotBookSettings, derivativesBookSetting{levels, 0}, derivativesBookSetting{levels, kline.HundredMilliseconds})
+	}
+	for _, tc := range []struct {
+		a        asset.Item
+		settings []derivativesBookSetting
+		streams  map[derivativesBookSetting]string
+		four     []derivativesBookSetting
+	}{
+		{asset.Spot, spotBookSettings, spotBookStreams, []derivativesBookSetting{{0, 0}, {0, kline.HundredMilliseconds}, {5, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.USDTMarginedFutures, derivativesBookSettings(asset.USDTMarginedFutures), derivativesBookStreams, []derivativesBookSetting{{0, kline.HundredMilliseconds}, {0, kline.FiveHundredMilliseconds}, {5, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.CoinMarginedFutures, derivativesBookSettings(asset.CoinMarginedFutures), derivativesBookStreams, []derivativesBookSetting{{0, 0}, {0, kline.FiveHundredMilliseconds}, {10, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.Options, derivativesBookSettings(asset.Options), derivativesBookStreams, []derivativesBookSetting{{0, kline.HundredMilliseconds}, {0, kline.FiveHundredMilliseconds}, {5, kline.FiveHundredMilliseconds}, {20, kline.HundredMilliseconds}}},
+	} {
+		book := func(setting derivativesBookSetting) *subscription.Subscription {
+			return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: tc.a, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: setting.levels, Interval: setting.interval, QualifiedChannel: "btcusdt@" + tc.streams[setting]}
+		}
+		for _, first := range tc.settings {
+			for _, second := range tc.settings {
+				if first == second {
+					continue
+				}
+				t.Run(tc.a.String()+" "+first.String()+" before "+second.String(), func(t *testing.T) {
+					t.Parallel()
+					a, b := book(first), book(second)
+					wantA, wantB := book(first), book(second)
+					kept := a
+					if first.levels != 0 && second.levels == 0 {
+						kept = b
+					}
+					got, err := oneOrderbookSubscription(subscription.List{a, b})
+					assert.ErrorIs(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the order book subscription it leaves out")
+					require.Len(t, got, 1, "oneOrderbookSubscription must keep one order book subscription for the pair")
+					assert.Same(t, kept, got[0], "oneOrderbookSubscription should keep the diff book, or the first when both books are of one kind")
+					assert.Equal(t, wantA, a, "oneOrderbookSubscription should leave the first subscription as it was")
+					assert.Equal(t, wantB, b, "oneOrderbookSubscription should leave the second subscription as it was")
+				})
+			}
+		}
+		var orders [][]derivativesBookSetting
+		var permute func(prefix, rest []derivativesBookSetting)
+		permute = func(prefix, rest []derivativesBookSetting) {
+			if len(rest) == 0 {
+				orders = append(orders, prefix)
+				return
+			}
+			for i := range rest {
+				permute(append(slices.Clone(prefix), rest[i]), slices.Concat(rest[:i], rest[i+1:]))
+			}
+		}
+		permute(nil, tc.four)
+		for _, order := range orders {
+			names := make([]string, len(order))
+			for i, setting := range order {
+				names[i] = setting.String()
+			}
+			t.Run(tc.a.String()+" "+strings.Join(names, ", then "), func(t *testing.T) {
+				t.Parallel()
+				subs, want := make(subscription.List, len(order)), make(subscription.List, len(order))
+				var kept *subscription.Subscription
+				for i, setting := range order {
+					subs[i], want[i] = book(setting), book(setting)
+					if kept == nil && setting.levels == 0 {
+						kept = subs[i]
+					}
+				}
+				got, err := oneOrderbookSubscription(subs)
+				assert.ErrorIs(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the order book subscriptions it leaves out")
+				require.Len(t, got, 1, "oneOrderbookSubscription must keep one order book subscription for the pair")
+				assert.Same(t, kept, got[0], "oneOrderbookSubscription should keep the first diff book")
+				assert.Equal(t, want, subs, "oneOrderbookSubscription should leave the subscriptions as they were")
+			})
+		}
+	}
 }
 
 // TestDistinctSubscriptions ensures that only the first of the subscriptions the subscription store holds as one is
 // kept, its pairs compared whatever their order, case or delimiter, and that subscriptions of different streams are
 // all kept
-func TestDistinctSubscriptions(t *testing.T) { //nolint:tparallel // the cases share a subscription, so they run in order while the test runs in parallel
+func TestDistinctSubscriptions(t *testing.T) {
 	t.Parallel()
 	eth := currency.NewPair(currency.ETH, currency.USDT)
-	base := func() *subscription.Subscription {
-		return &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT(), eth}, Levels: 5, Interval: kline.OneMin}
-	}
-	first := base()
-	first.QualifiedChannel = "first"
-	// The cases share first, so they run in order, and each also checks that a call leaves it as it was for the next
-	for _, tc := range []struct {
-		name     string
-		other    func(*subscription.Subscription)
-		distinct bool
-	}{
-		{"identical", func(*subscription.Subscription) {}, false},
-		{"pairs in another order, case and delimiter", func(s *subscription.Subscription) {
-			s.Pairs = currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
-		}, false},
-		{"another channel", func(s *subscription.Subscription) { s.Channel = subscription.AllTradesChannel }, true},
-		{"another asset", func(s *subscription.Subscription) { s.Asset = asset.CoinMarginedFutures }, true},
-		{"other pairs", func(s *subscription.Subscription) { s.Pairs = currency.Pairs{currency.NewBTCUSDT()} }, true},
-		{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
-		{"another interval", func(s *subscription.Subscription) { s.Interval = kline.FiveMin }, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			other := base()
-			tc.other(other)
-			got := distinctSubscriptions(subscription.List{first, other})
-			if tc.distinct {
-				assert.Equalf(t, subscription.List{first, other}, got, "distinctSubscriptions should keep both subscriptions with %s", tc.name)
-			} else {
-				assert.Equalf(t, subscription.List{first}, got, "distinctSubscriptions should keep only the first subscription with %s", tc.name)
+	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}
+	for _, channel := range channels {
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+			anotherAsset := asset.CoinMarginedFutures
+			if a == asset.CoinMarginedFutures {
+				anotherAsset = asset.USDTMarginedFutures
 			}
-		})
+			t.Run(channel+" on "+a.String(), func(t *testing.T) {
+				t.Parallel()
+				// Generated subscriptions carry their stream name, which stays the same in every case
+				base := func() *subscription.Subscription {
+					s := &subscription.Subscription{Channel: channel, Asset: a, Pairs: currency.Pairs{currency.NewBTCUSDT(), eth}, QualifiedChannel: "btcusdt@stream"}
+					switch channel {
+					case subscription.CandlesChannel:
+						s.Interval = kline.OneMin
+					case subscription.OrderbookChannel:
+						s.Levels, s.Interval = 5, kline.HundredMilliseconds
+					}
+					return s
+				}
+				cases := []struct {
+					name     string
+					other    func(*subscription.Subscription)
+					distinct bool
+				}{
+					{"identical", func(*subscription.Subscription) {}, false},
+					{"pairs in another order, case and delimiter", func(s *subscription.Subscription) {
+						s.Pairs = currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
+					}, false},
+					{"other parameters", func(s *subscription.Subscription) { s.Params = map[string]any{"depth": map[string]any{"levels": 10.0}} }, false},
+					{"another asset", func(s *subscription.Subscription) { s.Asset = anotherAsset }, true},
+					{"other pairs", func(s *subscription.Subscription) { s.Pairs = currency.Pairs{currency.NewBTCUSDT()} }, true},
+					{"pairs of the same bases in another quote", func(s *subscription.Subscription) {
+						s.Pairs = currency.Pairs{currency.NewPair(currency.BTC, currency.USDC), currency.NewPair(currency.ETH, currency.USDC)}
+					}, true},
+					{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
+					{"another interval", func(s *subscription.Subscription) {
+						s.Interval = kline.FiveMin
+						if channel == subscription.OrderbookChannel {
+							s.Interval = kline.FiveHundredMilliseconds
+						}
+					}, true},
+				}
+				for _, another := range channels {
+					if another != channel {
+						cases = append(cases, struct {
+							name     string
+							other    func(*subscription.Subscription)
+							distinct bool
+						}{"another channel, " + another, func(s *subscription.Subscription) { s.Channel = another }, true})
+					}
+				}
+				for _, tc := range cases {
+					t.Run(tc.name, func(t *testing.T) {
+						t.Parallel()
+						first, other := base(), base()
+						tc.other(other)
+						wantFirst, wantOther := base(), base()
+						tc.other(wantOther)
+						got := distinctSubscriptions(subscription.List{first, other})
+						if tc.distinct {
+							require.Lenf(t, got, 2, "distinctSubscriptions must keep both subscriptions with %s", tc.name)
+							assert.Samef(t, first, got[0], "distinctSubscriptions should keep the first subscription first with %s", tc.name)
+							assert.Samef(t, other, got[1], "distinctSubscriptions should keep the other subscription second with %s", tc.name)
+						} else {
+							require.Lenf(t, got, 1, "distinctSubscriptions must keep one subscription with %s", tc.name)
+							assert.Samef(t, first, got[0], "distinctSubscriptions should keep the first subscription with %s", tc.name)
+						}
+						assert.Equalf(t, wantFirst, first, "distinctSubscriptions should leave the first subscription as it was with %s", tc.name)
+						assert.Equalf(t, wantOther, other, "distinctSubscriptions should leave the other subscription as it was with %s", tc.name)
+					})
+				}
+			})
+		}
 	}
 }
 
