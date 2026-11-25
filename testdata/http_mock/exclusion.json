@@ -18,6 +18,7 @@
   "username",
   "login",
   "secret",
-  "apiKey"
+  "apiKey",
+  "api_key"
  ]
 }
