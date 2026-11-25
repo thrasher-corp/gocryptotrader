@@ -85,8 +85,9 @@ order, dispatch explicitly sized batches at the call site.
   amount in USD or a term in days, append it to the API's term in the field name, spelled out,
   rather than leaving it to a comment, and spell out a scale marker such as the `E8` of `apyE8`:
   prefer `TermInDays`, `TotalEquityInUSD`, `FundingIntervalInMinutes` and `APYScaledBy1E8` over
-  `Term`, `TotalEquity`, `FundingInterval` and `APYE8`. A value held as `time.Time`, `types.Time` or
-  `time.Duration` needs no unit in its name. Leave other qualifiers in the field's comment, so that
+  `Term`, `TotalEquity`, `FundingInterval` and `APYE8`. A value held as `time.Time`, `types.Time`,
+  `time.Duration` or a type based on `time.Duration`, such as `types.DurationSeconds`, needs no unit
+  in its name. Leave other qualifiers in the field's comment, so that
   the name keeps the API's term: prefer `Leverage`, commented as the current maximum, over
   `CurrentMaximumLeverage`.
 - Declare nested objects as named types rather than anonymous structs, so they can be referred to,
