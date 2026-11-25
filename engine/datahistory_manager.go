@@ -294,26 +294,6 @@ func (j *DataHistoryJob) markRangeIssuesFound(start, end time.Time) {
 	}
 }
 
-// setHasDataByCandleTime sets HasData for each interval of the ranges given that a candle starts, from whether a candle
-// starting there has data, and leaves the intervals no candle starts as they were, as SetHasDataFromCandles, in kline,
-// leaves those after its last candle. That function matches candles in order from a holder's first interval, so it
-// rejects both a gap before later candles, which the candles a conversion job saves can have, and the candles fetched
-// for any range after a job's first.
-func setHasDataByCandleTime(ranges []kline.IntervalRange, candles []kline.Candle) {
-	starts := make(map[int64]bool, len(candles))
-	for i := range candles {
-		start := candles[i].Time.UnixNano()
-		starts[start] = starts[start] || candles[i].HasData()
-	}
-	for x := range ranges {
-		for y := range ranges[x].Intervals {
-			if hasData, ok := starts[ranges[x].Intervals[y].Start.Time.UnixNano()]; ok {
-				ranges[x].Intervals[y].HasData = hasData
-			}
-		}
-	}
-}
-
 func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
@@ -338,7 +318,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				setHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
+				kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
@@ -356,7 +336,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				setHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
+				kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
 			}
 			jobs[i].dropStaleResults()
 		default:
@@ -839,7 +819,7 @@ func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHis
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	setHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
+	kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -898,7 +878,7 @@ func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHist
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	setHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
+	kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -1032,7 +1012,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return nil, fmt.Errorf("%s could not load saved candles: %w", job.Nickname, err)
 	}
 	if saved != nil {
-		setHasDataByCandleTime(intervals.Ranges, saved.Candles)
+		kline.SetHasDataByCandleTime(intervals.Ranges, saved.Candles)
 	}
 	if missing, total := intervals.IntervalsWithoutData(); missing > 0 {
 		r.Result = fmt.Sprintf("missing %d of %d converted candles from %v - %v. ", missing, total,

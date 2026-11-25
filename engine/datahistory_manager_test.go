@@ -1030,58 +1030,6 @@ func TestDataHistoryJobMarkRangeIssuesFound(t *testing.T) {
 	assert.Equal(t, []DataHistoryJobResult{issues, shorter, issues}, job.Results[start.Unix()], "markRangeIssuesFound should mark every result recorded for the range and leave the others")
 }
 
-func TestSetHasDataByCandleTime(t *testing.T) {
-	t.Parallel()
-	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	withData := func(offset time.Duration) kline.Candle {
-		return kline.Candle{Time: start.Add(offset), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}
-	}
-	for _, tc := range []struct {
-		name    string
-		candles []kline.Candle
-		want    []bool
-	}{
-		{name: "no candles", want: []bool{false, false, false}},
-		{name: "every interval", candles: []kline.Candle{withData(0), withData(5 * time.Minute), withData(10 * time.Minute)}, want: []bool{true, true, true}},
-		{name: "gap before later batches", candles: []kline.Candle{withData(5 * time.Minute), withData(10 * time.Minute)}, want: []bool{false, true, true}},
-		{name: "candle away from an interval start", candles: []kline.Candle{withData(2 * time.Minute)}, want: []bool{false, false, false}},
-		{name: "candle a nanosecond after an interval start", candles: []kline.Candle{withData(time.Nanosecond)}, want: []bool{false, false, false}},
-		{name: "starts shared by candles with and without data", candles: []kline.Candle{{Time: start}, withData(0), withData(5 * time.Minute), {Time: start.Add(5 * time.Minute)}}, want: []bool{true, true, false}},
-		{name: "candle after the last interval", candles: []kline.Candle{withData(15 * time.Minute)}, want: []bool{false, false, false}},
-		{name: "candle without data", candles: []kline.Candle{{Time: start, Open: -1, High: -1, Low: -1, Close: -1}}, want: []bool{false, false, false}},
-		{name: "not a number", candles: []kline.Candle{{Time: start, Open: math.NaN(), High: -1, Low: -1, Close: -1}}, want: []bool{true, false, false}},
-		{name: "open only", candles: []kline.Candle{{Time: start, Open: 1}}, want: []bool{true, false, false}},
-		{name: "high only", candles: []kline.Candle{{Time: start, High: 1}}, want: []bool{true, false, false}},
-		{name: "low only", candles: []kline.Candle{{Time: start, Low: 1}}, want: []bool{true, false, false}},
-		{name: "close only", candles: []kline.Candle{{Time: start, Close: 1}}, want: []bool{true, false, false}},
-		{name: "volume only", candles: []kline.Candle{{Time: start, Volume: 1}}, want: []bool{true, false, false}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			h, err := kline.CalculateCandleDateRanges(start, start.Add(15*time.Minute), kline.FiveMin, 2)
-			require.NoError(t, err, "CalculateCandleDateRanges must not error")
-			setHasDataByCandleTime(h.Ranges, tc.candles)
-			var got []bool
-			for _, r := range h.Ranges {
-				for _, interval := range r.Intervals {
-					got = append(got, interval.HasData)
-				}
-			}
-			assert.Equal(t, tc.want, got, "each interval's HasData should match its saved candle")
-		})
-	}
-
-	t.Run("only the ranges given", func(t *testing.T) {
-		t.Parallel()
-		h, err := kline.CalculateCandleDateRanges(start, start.Add(20*time.Minute), kline.FiveMin, 1)
-		require.NoError(t, err, "CalculateCandleDateRanges must not error")
-		h.Ranges[1].Intervals[0].HasData = true
-		h.Ranges[2].Intervals[0].HasData = true
-		setHasDataByCandleTime(h.Ranges[1:], []kline.Candle{withData(0), {Time: start.Add(5 * time.Minute)}, withData(15 * time.Minute)})
-		assert.Equal(t, [][]bool{{false}, {false}, {true}, {true}}, rangesHasData(h), "setHasDataByCandleTime should set each interval of the ranges given that a candle starts and leave the rest as they were")
-	})
-}
-
 func TestCompareJobsToData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)

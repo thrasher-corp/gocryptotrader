@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1463,6 +1464,120 @@ func TestSetHasDataFromCandles(t *testing.T) {
 		err = ranges.SetHasDataFromCandles([]Candle{{Time: start}, {Time: start.Add(OneHour.Duration() + time.Minute)}})
 		assert.ErrorIs(t, err, errCandleTimeMismatch, "SetHasDataFromCandles should reject a candle away from its interval start")
 	})
+}
+
+func TestSetHasDataByCandleTime(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	zone := time.FixedZone("UTC+10", 10*60*60)
+	withData := func(offset time.Duration) Candle {
+		return Candle{Time: start.Add(offset), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}
+	}
+	for _, tc := range []struct {
+		name    string
+		candles []Candle
+		want    []bool
+	}{
+		{name: "no candles", want: []bool{false, false, false}},
+		{name: "every interval", candles: []Candle{withData(0), withData(5 * time.Minute), withData(10 * time.Minute)}, want: []bool{true, true, true}},
+		{name: "gap before later candles", candles: []Candle{withData(5 * time.Minute), withData(10 * time.Minute)}, want: []bool{false, true, true}},
+		{name: "candle away from an interval start", candles: []Candle{withData(2 * time.Minute)}, want: []bool{false, false, false}},
+		{name: "candle a nanosecond after an interval start", candles: []Candle{withData(time.Nanosecond)}, want: []bool{false, false, false}},
+		{name: "candle 2^64 nanoseconds before an interval start", candles: []Candle{{Time: start.Add(-math.MaxInt64).Add(-math.MaxInt64).Add(-2), Open: 1}}, want: []bool{false, false, false}},
+		{name: "candle at an interval start in another time zone", candles: []Candle{{Time: start.In(zone), Open: 1}}, want: []bool{true, false, false}},
+		{name: "starts shared by candles with and without data", candles: []Candle{{Time: start}, withData(0), withData(5 * time.Minute), {Time: start.Add(5 * time.Minute)}}, want: []bool{true, true, false}},
+		{name: "start shared by candles with and without data in different time zones", candles: []Candle{withData(0), {Time: start.In(zone)}}, want: []bool{true, false, false}},
+		{name: "start shared by candles with data", candles: []Candle{withData(0), withData(0)}, want: []bool{true, false, false}},
+		{name: "candle after the last interval", candles: []Candle{withData(15 * time.Minute)}, want: []bool{false, false, false}},
+		{name: "candle without data", candles: []Candle{{Time: start, Open: -1, High: -1, Low: -1, Close: -1}}, want: []bool{false, false, false}},
+		{name: "not a number", candles: []Candle{{Time: start, Open: math.NaN(), High: -1, Low: -1, Close: -1}}, want: []bool{true, false, false}},
+		{name: "open only", candles: []Candle{{Time: start, Open: 1}}, want: []bool{true, false, false}},
+		{name: "high only", candles: []Candle{{Time: start, High: 1}}, want: []bool{true, false, false}},
+		{name: "low only", candles: []Candle{{Time: start, Low: 1}}, want: []bool{true, false, false}},
+		{name: "close only", candles: []Candle{{Time: start, Close: 1}}, want: []bool{true, false, false}},
+		{name: "volume only", candles: []Candle{{Time: start, Volume: 1}}, want: []bool{true, false, false}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h, err := CalculateCandleDateRanges(start, start.Add(15*time.Minute), FiveMin, 2)
+			require.NoError(t, err, "CalculateCandleDateRanges must not error")
+			SetHasDataByCandleTime(h.Ranges, tc.candles)
+			var got []bool
+			for _, r := range h.Ranges {
+				for _, interval := range r.Intervals {
+					got = append(got, interval.HasData)
+				}
+			}
+			assert.Equal(t, tc.want, got, "each interval's HasData should match the candles starting it")
+		})
+	}
+
+	t.Run("only the ranges given", func(t *testing.T) {
+		t.Parallel()
+		h, err := CalculateCandleDateRanges(start, start.Add(20*time.Minute), FiveMin, 1)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		h.Ranges[1].Intervals[0].HasData = true
+		h.Ranges[2].Intervals[0].HasData = true
+		SetHasDataByCandleTime(h.Ranges[1:], []Candle{withData(0), {Time: start.Add(5 * time.Minute)}, withData(15 * time.Minute)})
+		assert.Equal(t, [][]bool{{false}, {false}, {true}, {true}}, rangesHasData(h), "SetHasDataByCandleTime should set each interval of the ranges given that a candle starts and leave the rest as they were")
+	})
+
+	t.Run("ranges in another time zone", func(t *testing.T) {
+		t.Parallel()
+		h, err := CalculateCandleDateRanges(start.In(zone), start.Add(15*time.Minute).In(zone), FiveMin, 2)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		require.Equal(t, zone, h.Ranges[0].Intervals[0].Start.Time.Location(), "CalculateCandleDateRanges must keep the first interval in the time zone it is given")
+		SetHasDataByCandleTime(h.Ranges, []Candle{withData(0), withData(5 * time.Minute)})
+		assert.Equal(t, [][]bool{{true, true}, {false}}, rangesHasData(h), "SetHasDataByCandleTime should match each candle to the interval it starts whatever their time zones")
+	})
+
+	t.Run("sub-second interval starts either side of the Unix epoch", func(t *testing.T) {
+		t.Parallel()
+		epoch := time.Unix(0, 0).UTC()
+		h, err := CalculateCandleDateRanges(epoch.Add(-200*time.Millisecond), epoch.Add(200*time.Millisecond), HundredMilliseconds, 0)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		SetHasDataByCandleTime(h.Ranges, []Candle{{Time: epoch.Add(-100 * time.Millisecond), Open: 1}, {Time: epoch.Add(100 * time.Millisecond), Open: 1}})
+		assert.Equal(t, [][]bool{{false, true, false, true}}, rangesHasData(h), "SetHasDataByCandleTime should match each candle to the sub-second interval it starts")
+	})
+
+	t.Run("interval starts a nanosecond apart", func(t *testing.T) {
+		t.Parallel()
+		h, err := CalculateCandleDateRanges(start, start.Add(4*time.Nanosecond), Interval(time.Nanosecond), 0)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		SetHasDataByCandleTime(h.Ranges, []Candle{withData(0), withData(3 * time.Nanosecond)})
+		assert.Equal(t, [][]bool{{true, false, false, true}}, rangesHasData(h), "SetHasDataByCandleTime should match each candle to the interval starting at its exact nanosecond")
+	})
+
+	t.Run("ranges 2^64 nanoseconds before a candle", func(t *testing.T) {
+		t.Parallel()
+		past := time.Date(1440, 6, 13, 0, 25, 0, 0, time.UTC)
+		h, err := CalculateCandleDateRanges(past, past.Add(15*time.Minute), FiveMin, 2)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		SetHasDataByCandleTime(h.Ranges, []Candle{{Time: past.Add(math.MaxInt64).Add(math.MaxInt64).Add(2), Open: 1}})
+		assert.Equal(t, [][]bool{{false, false}, {false}}, rangesHasData(h), "SetHasDataByCandleTime should leave the intervals no candle starts as they were")
+	})
+
+	t.Run("ranges sharing interval starts", func(t *testing.T) {
+		t.Parallel()
+		first, err := CalculateCandleDateRanges(start, start.Add(15*time.Minute), FiveMin, 2)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		second, err := CalculateCandleDateRanges(start, start.Add(15*time.Minute), FiveMin, 2)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		SetHasDataByCandleTime(slices.Concat(first.Ranges, second.Ranges), []Candle{withData(0)})
+		assert.Equal(t, [][]bool{{true, false}, {false}}, rangesHasData(first), "SetHasDataByCandleTime should set the first holder's interval the candle starts")
+		assert.Equal(t, [][]bool{{true, false}, {false}}, rangesHasData(second), "SetHasDataByCandleTime should set the second holder's interval the candle starts")
+	})
+}
+
+// rangesHasData returns the HasData of each range's intervals
+func rangesHasData(h *IntervalRangeHolder) [][]bool {
+	hasData := make([][]bool, len(h.Ranges))
+	for i := range h.Ranges {
+		for _, interval := range h.Ranges[i].Intervals {
+			hasData[i] = append(hasData[i], interval.HasData)
+		}
+	}
+	return hasData
 }
 
 func TestCandleHasData(t *testing.T) {
