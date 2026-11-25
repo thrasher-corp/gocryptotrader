@@ -11,8 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
-// Case is a value to store, and the value it should read back as
+// Case is a value to store, and the value it should read back as. Name is the subtest name; when empty, the test uses
+// the value's string and Go-syntax representation.
 type Case[T any] struct {
+	Name string
 	In   T
 	Want T
 }
@@ -37,7 +39,11 @@ func AssertRoundTrip[T interface {
 }](t *testing.T, initial T, cases []Case[T]) {
 	t.Helper()
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%v %#v", tc.In, tc.In), func(t *testing.T) {
+		name := tc.Name
+		if name == "" {
+			name = fmt.Sprintf("%v %#v", tc.In, tc.In)
+		}
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			typ, data, err := tc.In.MarshalBSONValue()
 			require.NoError(t, err, "MarshalBSONValue must not error")
