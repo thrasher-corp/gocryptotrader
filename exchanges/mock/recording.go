@@ -473,6 +473,7 @@ var defaultExcludedVariables = []string{
 	"account_number",
 	"username",
 	"apiKey",
+	"api_key",
 }
 
 // Exclusion defines a list of items to be excluded from the main mock output
