@@ -3171,6 +3171,81 @@ func TestShutdown(t *testing.T) {
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }
 
+func TestShutdownLost(t *testing.T) {
+	t.Parallel()
+
+	newConnected := func(t *testing.T) *Manager {
+		t.Helper()
+		m := NewManager()
+		m.defaultURL = "wss://default"
+		require.NoError(t, m.subscriptions.Add(&subscription.Subscription{Channel: "trades"}), "Add must not error")
+		m.setState(connectedState)
+		return m
+	}
+
+	t.Run("reports the loss, then shuts down", func(t *testing.T) {
+		t.Parallel()
+		m := newConnected(t)
+		exp := []any{ConnectionLost{URL: "wss://default", Subscriptions: m.subscriptions.List(), Err: errDastardlyReason}}
+		require.NoError(t, m.shutdownLost(t.Context(), errDastardlyReason), "shutdownLost must not error")
+		assert.Equal(t, exp, drainReports(m), "the loss should be reported with the subscriptions held before the shutdown")
+		assert.False(t, m.IsConnected(), "shutdownLost should shut the websocket down")
+	})
+
+	t.Run("reports nothing when not connected", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		require.ErrorIs(t, m.shutdownLost(t.Context(), errDastardlyReason), ErrNotConnected, "shutdownLost must error when not connected")
+		assert.Empty(t, drainReports(m), "shutdownLost should report nothing when not connected")
+	})
+
+	// A Connect holds m.m while it subscribes, then reports any loss restored. A loss reported outside the lock would land
+	// at once, so a short wait is enough to catch it, and it can never land while the lock is held
+	for _, tc := range []struct {
+		name   string
+		holder func(context.Context, *Manager) error // What the lock's holder does before it releases m.m
+		lost   bool
+		err    error
+	}{
+		{
+			name: "waits for a Connect holding m.m",
+			holder: func(ctx context.Context, m *Manager) error {
+				m.reportConnectionRestored(ctx)
+				return nil
+			},
+			lost: true,
+		},
+		{
+			name:   "reports nothing after a Shutdown made while it waits",
+			holder: func(_ context.Context, m *Manager) error { return m.shutdown() },
+			err:    ErrNotConnected,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := newConnected(t)
+			var exp []any
+			if tc.lost {
+				exp = []any{ConnectionLost{URL: "wss://default", Subscriptions: m.subscriptions.List(), Err: errDastardlyReason}}
+			}
+			m.m.Lock()
+			done := make(chan error, 1)
+			go func() { done <- m.shutdownLost(t.Context(), errDastardlyReason) }()
+			assert.Never(t, func() bool { return len(m.DataHandler.C) != 0 }, 100*time.Millisecond, time.Millisecond, "nothing should be reported while m.m is held")
+			assert.NoError(t, tc.holder(t.Context(), m), "the lock's holder should not error")
+			m.m.Unlock()
+			select {
+			case err := <-done:
+				assert.ErrorIs(t, err, tc.err, "shutdownLost should return the expected error")
+			case <-time.After(time.Minute):
+				require.FailNow(t, "shutdownLost must return once m.m is released")
+			}
+			assert.Equal(t, exp, drainReports(m), "only what shutdownLost finds once it holds m.m should be reported")
+			assert.False(t, m.IsConnected(), "the websocket should be shut down")
+		})
+	}
+}
+
 func TestCreateConnectAndSubscribeRecordsPartialSubscriptions(t *testing.T) {
 	t.Parallel()
 
