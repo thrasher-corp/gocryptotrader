@@ -77,6 +77,10 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// MaxSubscriptions is the most subscriptions each connection made from this setup can hold, for endpoints whose
+	// limit differs from the manager's. Zero uses the manager's MaxSubscriptionsPerConnection. Multi-connection
+	// management only; SetupNewConnection rejects a positive value otherwise.
+	MaxSubscriptions int
 	// AuthenticatedOnly skips connecting and flushing subscriptions while authenticated endpoints cannot be used, for a
 	// connection that only carries authenticated requests and whose failure would otherwise stop the public connections
 	AuthenticatedOnly bool
