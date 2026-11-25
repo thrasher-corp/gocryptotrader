@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -96,6 +98,84 @@ func TestNewVCRServer(t *testing.T) {
 	// clean up test.json file
 	err = os.Remove(testFile)
 	require.NoError(t, err, "Remove testFile must not error")
+
+	// The test runs serially, as this case changes the working directory
+	t.Run("creates a missing recording", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		for _, tc := range []struct {
+			name string
+			path string
+		}{
+			{name: "bare file name", path: "http.json"},
+			{name: "nested path", path: filepath.Join("testdata", "nested", "http.json")},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				serverURL, client, err := NewVCRServer(tc.path)
+				require.NoError(t, err, "NewVCRServer must not error for a missing recording")
+				recording, err := os.ReadFile(tc.path)
+				require.NoError(t, err, "ReadFile must find the recording NewVCRServer created")
+				var created VCRMock
+				require.NoError(t, json.Unmarshal(recording, &created), "Unmarshal must decode the created recording")
+				assert.Empty(t, created.Routes, "NewVCRServer should create an empty recording")
+
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL, http.NoBody)
+				require.NoError(t, err, "NewRequestWithContext must not error")
+				resp, err := client.Do(req)
+				require.NoError(t, err, "Do must reach the server")
+				assert.NoError(t, resp.Body.Close(), "Close should not error")
+				assert.Equal(t, http.StatusNotFound, resp.StatusCode, "the server should answer from the empty recording with not found")
+			})
+		}
+	})
+
+	t.Run("recording path through a file", func(t *testing.T) {
+		notADirectory := filepath.Join(t.TempDir(), "file")
+		require.NoError(t, os.WriteFile(notADirectory, nil, 0o600), "WriteFile must not error")
+		_, _, err := NewVCRServer(filepath.Join(notADirectory, "http.json"))
+		assert.Error(t, err, "NewVCRServer should error for a recording path through a file")
+	})
+
+	t.Run("existing recording that cannot be read", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "http.json")
+		const kept = `{"routes":{"/kept":{}}}`
+		require.NoError(t, os.WriteFile(path, []byte(kept), 0o200), "WriteFile must not error")
+		t.Cleanup(func() { assert.NoError(t, os.Chmod(path, 0o600), "Chmod should not error") })
+		if _, err := os.ReadFile(path); err == nil {
+			t.Skip("file permissions cannot stop this user reading the recording")
+		}
+		_, _, err := NewVCRServer(path)
+		assert.ErrorIs(t, err, fs.ErrPermission, "NewVCRServer should return the error reading the recording")
+		require.NoError(t, os.Chmod(path, 0o600), "Chmod must not error")
+		recording, err := os.ReadFile(path)
+		require.NoError(t, err, "ReadFile must not error")
+		assert.JSONEq(t, kept, string(recording), "NewVCRServer should leave a recording it cannot read unchanged")
+	})
+
+	t.Run("missing recording in a directory it cannot write", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chmod(dir, 0o500), "Chmod must not error")
+		t.Cleanup(func() { assert.NoError(t, os.Chmod(dir, 0o700), "Chmod should not error") })
+		if probe, err := os.CreateTemp(dir, "probe"); err == nil {
+			assert.NoError(t, probe.Close(), "Close should not error")
+			t.Skip("file permissions cannot stop this user writing to the directory")
+		}
+		_, _, err := NewVCRServer(filepath.Join(dir, "http.json"))
+		assert.ErrorIs(t, err, fs.ErrPermission, "NewVCRServer should return the error creating the recording")
+	})
+
+	t.Run("recording that is not JSON", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "http.json")
+		require.NoError(t, os.WriteFile(path, []byte("{"), 0o600), "WriteFile must not error")
+		_, _, err := NewVCRServer(path)
+		assert.ErrorContains(t, err, "not valid JSON", "NewVCRServer should error for a recording that is not JSON")
+	})
+
+	t.Run("recording of the wrong shape", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "http.json")
+		require.NoError(t, os.WriteFile(path, []byte(`{"routes":5}`), 0o600), "WriteFile must not error")
+		_, _, err := NewVCRServer(path)
+		assert.Error(t, err, "NewVCRServer should error for a recording it cannot decode")
+	})
 }
 
 func TestRegisterHandlerAndMatching(t *testing.T) {
