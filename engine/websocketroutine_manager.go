@@ -109,7 +109,7 @@ func (m *WebsocketRoutineManager) Stop() error {
 
 	m.receiversMu.Lock()
 	receivers := m.dataReceivers
-	m.dataReceivers = nil
+	m.dataReceivers = make(map[string]context.CancelFunc)
 	m.receiversMu.Unlock()
 
 	for _, cancel := range receivers {
@@ -189,7 +189,7 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 	}
 
 	if m.state.Load() == stoppedState {
-		return nil
+		return errRoutineManagerNotStarted
 	}
 
 	if !exch.SupportsWebsocket() {
@@ -229,15 +229,17 @@ func (m *WebsocketRoutineManager) unregisterExchange(name string) error {
 		return common.ErrExchangeNameNotSet
 	}
 
-	key := strings.ToLower(name)
+	name = strings.ToLower(name)
 	m.receiversMu.Lock()
-	cancel := m.dataReceivers[key]
-	delete(m.dataReceivers, key)
-	m.receiversMu.Unlock()
-
-	if cancel != nil {
-		cancel()
+	if cancel, ok := m.dataReceivers[name]; ok {
+		delete(m.dataReceivers, name)
+		if cancel == nil {
+			m.receiversMu.Unlock()
+			return fmt.Errorf("no cancel function found for exchange %s", name)
+		}
+		defer cancel()
 	}
+	m.receiversMu.Unlock()
 	return nil
 }
 
@@ -274,9 +276,6 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 		m.receiversMu.Unlock()
 		cancel()
 		return errRoutineManagerNotStarted
-	}
-	if m.dataReceivers == nil {
-		m.dataReceivers = make(map[string]context.CancelFunc)
 	}
 	key := strings.ToLower(ws.GetName())
 	if previous := m.dataReceivers[key]; previous != nil {

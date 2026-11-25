@@ -650,6 +650,10 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	require.ErrorIs(t, m.registerExchange(t.Context(), (*websocketTestExchange)(nil)), errExchangeIsNil, "registerExchange must reject a typed-nil exchange")
 	require.ErrorIs(t, nilManager.unregisterExchange(websocketTestExchangeName), ErrNilSubsystem, "unregisterExchange must reject a nil manager")
 	require.ErrorIs(t, m.unregisterExchange(""), common.ErrExchangeNameNotSet, "unregisterExchange must reject an empty name")
+	m.receiversMu.Lock()
+	m.dataReceivers["missingcancel"] = nil
+	m.receiversMu.Unlock()
+	require.ErrorContains(t, m.unregisterExchange("missingcancel"), "no cancel function found for exchange", "unregisterExchange must reject a nil cancel entry")
 
 	var connects atomic.Int32
 	ws, err := testWebsocketManager(&connects)
@@ -657,7 +661,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
 	t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
 
-	require.NoError(t, m.registerExchange(t.Context(), exch), "registerExchange must ignore a stopped routine manager")
+	require.ErrorIs(t, m.registerExchange(t.Context(), exch), errRoutineManagerNotStarted, "registerExchange must reject a stopped routine manager")
 	assert.False(t, ws.IsConnected(), "websocket should stay disconnected before the routine manager starts")
 
 	require.NoError(t, m.Start(t.Context()))
