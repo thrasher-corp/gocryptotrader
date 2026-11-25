@@ -746,7 +746,11 @@ func (m *Manager) reportConnectionsRestored(ctx context.Context) {
 		ws.downSince = time.Time{}
 	}
 	m.connectionManagerMu.Unlock()
-	m.sendConnectionsRestored(ctx, reports)
+	for _, report := range reports {
+		if err := m.DataHandler.Send(ctx, report); err != nil {
+			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
+		}
+	}
 }
 
 // reportConnectionRestored reports the single-connection websocket restored.
@@ -760,18 +764,13 @@ func (m *Manager) reportConnectionRestored(ctx context.Context) {
 	downSince := m.downSince
 	m.downSince = time.Time{}
 	m.connectionManagerMu.Unlock()
-	m.sendConnectionsRestored(ctx, []ConnectionRestored{{
+	report := ConnectionRestored{
 		URL:           m.defaultURL,
 		Subscriptions: m.subscriptions.List(),
 		Downtime:      time.Since(downSince),
-	}})
-}
-
-func (m *Manager) sendConnectionsRestored(ctx context.Context, reports []ConnectionRestored) {
-	for _, report := range reports {
-		if err := m.DataHandler.Send(ctx, report); err != nil {
-			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
-		}
+	}
+	if err := m.DataHandler.Send(ctx, report); err != nil {
+		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
 	}
 }
 

@@ -68,6 +68,139 @@ func requireConnectionReport[T ConnectionLost | ConnectionRestored](t *testing.T
 	return report
 }
 
+// newReportingManager returns a multi connection manager whose first setup holds no connection, and whose other two
+// hold connections and a subscription of their own
+func newReportingManager(t *testing.T) (m *Manager, idle, first, second *websocket) {
+	t.Helper()
+	newSetup := func(name string, connections int) *websocket {
+		ws := &websocket{setup: &ConnectionSetup{URL: "wss://" + name, MessageFilter: name}, subscriptions: subscription.NewStore()}
+		for range connections {
+			ws.connections = append(ws.connections, &connection{})
+		}
+		if connections > 0 {
+			require.NoError(t, ws.subscriptions.Add(&subscription.Subscription{Channel: name}), "Add must not error")
+		}
+		return ws
+	}
+	m = NewManager()
+	m.useMultiConnectionManagement = true
+	idle, first, second = newSetup("idle", 0), newSetup("first", 2), newSetup("second", 1)
+	m.connectionManager = []*websocket{idle, first, second}
+	return m, idle, first, second
+}
+
+// drainReports returns every payload relayed so far; the report functions send before they return
+func drainReports(m *Manager) []any {
+	var reports []any
+	for {
+		select {
+		case payload := <-m.DataHandler.C:
+			reports = append(reports, payload.Data)
+		default:
+			return reports
+		}
+	}
+}
+
+func TestReportConnectionsLost(t *testing.T) {
+	t.Parallel()
+
+	t.Run("multi connection reports each setup holding connections once until restored", func(t *testing.T) {
+		t.Parallel()
+		m, _, first, second := newReportingManager(t)
+		exp := []any{
+			ConnectionLost{URL: "wss://first", MessageFilter: "first", Subscriptions: first.subscriptions.List(), Err: errDastardlyReason},
+			ConnectionLost{URL: "wss://second", MessageFilter: "second", Subscriptions: second.subscriptions.List(), Err: errDastardlyReason},
+		}
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		assert.Equal(t, exp, drainReports(m), "a loss should be reported once for each setup holding connections")
+		m.reportConnectionsRestored(t.Context())
+		drainReports(m)
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		assert.Equal(t, exp, drainReports(m), "a loss after a restore should be reported again")
+	})
+
+	t.Run("single connection reports the default URL once until restored", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.defaultURL = "wss://default"
+		m.runningURL = "wss://running"
+		require.NoError(t, m.subscriptions.Add(&subscription.Subscription{Channel: "trades"}), "Add must not error")
+		exp := []any{ConnectionLost{URL: "wss://default", Subscriptions: m.subscriptions.List(), Err: errDastardlyReason}}
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		assert.Equal(t, exp, drainReports(m), "a loss should be reported once with the default URL")
+		m.reportConnectionRestored(t.Context())
+		drainReports(m)
+		m.reportConnectionsLost(t.Context(), errDastardlyReason)
+		assert.Equal(t, exp, drainReports(m), "a loss after a restore should be reported again")
+	})
+}
+
+func TestReportConnectionsRestored(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reports each lost setup once it holds connections, with its own downtime", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			m, idle, first, second := newReportingManager(t)
+			m.reportConnectionsRestored(t.Context())
+			require.Empty(t, drainReports(m), "setups never lost must not be reported restored")
+			secondConnections := second.connections
+			second.connections = nil
+			m.reportConnectionsLost(t.Context(), errDastardlyReason)
+			time.Sleep(10 * time.Second)
+			second.connections = secondConnections
+			m.reportConnectionsLost(t.Context(), errDastardlyReason)
+			time.Sleep(20 * time.Second)
+			idle.connections = []Connection{&connection{}}
+			m.reportConnectionsLost(t.Context(), errDastardlyReason)
+			require.Len(t, drainReports(m), 3, "each setup must be reported lost once")
+
+			idle.connections = nil // As if its reconnect generated no subscriptions and left it without a connection
+			time.Sleep(60 * time.Second)
+			m.reportConnectionsRestored(t.Context())
+			m.reportConnectionsRestored(t.Context())
+			exp := []any{
+				ConnectionRestored{URL: "wss://first", MessageFilter: "first", Subscriptions: first.subscriptions.List(), Downtime: 90 * time.Second},
+				ConnectionRestored{URL: "wss://second", MessageFilter: "second", Subscriptions: second.subscriptions.List(), Downtime: 80 * time.Second},
+			}
+			assert.Equal(t, exp, drainReports(m), "each lost setup holding connections should be reported restored once")
+
+			idle.connections = []Connection{&connection{}}
+			time.Sleep(15 * time.Second)
+			m.reportConnectionsRestored(t.Context())
+			exp = []any{ConnectionRestored{URL: "wss://idle", MessageFilter: "idle", Subscriptions: idle.subscriptions.List(), Downtime: 75 * time.Second}}
+			assert.Equal(t, exp, drainReports(m), "a lost setup should be reported restored once it holds connections again")
+		})
+	})
+}
+
+func TestReportConnectionRestored(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reports the default URL once, timed from the first loss, though it holds no subscriptions", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			m := NewManager()
+			m.defaultURL = "wss://default"
+			m.runningURL = "wss://running"
+			m.reportConnectionRestored(t.Context())
+			require.Empty(t, drainReports(m), "a connection never lost must not be reported restored")
+			m.reportConnectionsLost(t.Context(), errDastardlyReason)
+			time.Sleep(30 * time.Second)
+			m.reportConnectionsLost(t.Context(), errDastardlyReason)
+			require.Len(t, drainReports(m), 1, "the loss must be reported once")
+			time.Sleep(60 * time.Second)
+			m.reportConnectionRestored(t.Context())
+			m.reportConnectionRestored(t.Context())
+			exp := []any{ConnectionRestored{URL: "wss://default", Subscriptions: m.subscriptions.List(), Downtime: 90 * time.Second}}
+			assert.Equal(t, exp, drainReports(m), "the restore should be reported once with the default URL, timed from the first loss")
+		})
+	})
+}
+
 func requireNoConnectionReport(t *testing.T, ws *Manager) {
 	t.Helper()
 	select {
