@@ -49,41 +49,41 @@ func TestUnmarshalString(t *testing.T) {
 		"wrong type": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x04, 0x00, 0x00, 0x00, 'B', 'T', 'C', 0x00},
-			wantErr: errWrongType,
+			wantErr: ErrWrongType,
 		},
 		"no bytes": {
 			typ:     TypeString,
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"truncated length": {
 			typ:     TypeString,
 			data:    []byte{0x05, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"zero length": {
 			typ:     TypeString,
 			data:    []byte{0x00, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"negative length": {
 			typ:     TypeString,
 			data:    []byte{0xFF, 0xFF, 0xFF, 0xFF},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"length beyond data": {
 			typ:     TypeString,
 			data:    []byte{0xFF, 0x00, 0x00, 0x00, 'G', 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"length short of data": {
 			typ:     TypeString,
 			data:    []byte{0x04, 0x00, 0x00, 0x00, 'B', 'T', 'C', 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"missing NUL": {
 			typ:     TypeString,
 			data:    []byte{0x04, 0x00, 0x00, 0x00, 'B', 'T', 'C', 'X'},
-			wantErr: errMissingNUL,
+			wantErr: ErrMissingNUL,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -151,41 +151,41 @@ func TestUnmarshalDocument(t *testing.T) {
 		"wrong type": {
 			typ:     TypeString,
 			data:    []byte{0x05, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errWrongType,
+			wantErr: ErrWrongType,
 		},
 		"no bytes": {
 			typ:     TypeEmbeddedDocument,
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"truncated length": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x05, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"length below minimum": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x04, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"length beyond data": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x06, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"length short of data": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x05, 0x00, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"missing terminator": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x05, 0x00, 0x00, 0x00, 0x01},
-			wantErr: errMissingNUL,
+			wantErr: ErrMissingNUL,
 		},
 		"truncated element": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x08, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"key not terminated": {
 			typ:     TypeEmbeddedDocument,
@@ -200,17 +200,17 @@ func TestUnmarshalDocument(t *testing.T) {
 		"zero string length": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x0C, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"string beyond document": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x0C, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"string into terminator": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x10, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x05, 0x00, 0x00, 0x00, 'B', 'T', 'C', 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"stray byte after last field": {
 			typ:     TypeEmbeddedDocument,
@@ -225,17 +225,17 @@ func TestUnmarshalDocument(t *testing.T) {
 		"negative string length": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x0C, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"string length cut short": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x0A, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x00, 0x00, 0x00},
-			wantErr: errLength,
+			wantErr: ErrLength,
 		},
 		"string missing NUL": {
 			typ:     TypeEmbeddedDocument,
 			data:    []byte{0x10, 0x00, 0x00, 0x00, 0x02, 'b', 0x00, 0x04, 0x00, 0x00, 0x00, 'B', 'T', 'C', 'X', 0x00},
-			wantErr: errMissingNUL,
+			wantErr: ErrMissingNUL,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

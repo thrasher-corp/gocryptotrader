@@ -19,10 +19,11 @@ const (
 	TypeInt32            byte = 0x10
 )
 
+// Errors returned for a BSON value of the wrong type or with malformed bytes
 var (
-	errWrongType       = errors.New("wrong BSON type")
-	errLength          = errors.New("invalid BSON length")
-	errMissingNUL      = errors.New("missing BSON NUL terminator")
+	ErrWrongType       = errors.New("wrong BSON type")
+	ErrLength          = errors.New("invalid BSON length")
+	ErrMissingNUL      = errors.New("missing BSON NUL terminator")
 	errUnterminatedKey = errors.New("unterminated BSON document key")
 	errNonStringField  = errors.New("non-string BSON document field")
 )
@@ -55,17 +56,17 @@ func MarshalString(s string) []byte {
 // match the data, and a value that does not end with a NUL byte.
 func UnmarshalString(typ byte, data []byte) (string, error) {
 	if typ != TypeString {
-		return "", fmt.Errorf("%w: expected a BSON string, got type %#02x", errWrongType, typ)
+		return "", fmt.Errorf("%w: expected a BSON string, got type %#02x", ErrWrongType, typ)
 	}
 	if len(data) < 5 {
-		return "", fmt.Errorf("%w: BSON string is %d bytes, need at least 5", errLength, len(data))
+		return "", fmt.Errorf("%w: BSON string is %d bytes, need at least 5", ErrLength, len(data))
 	}
 	length := binary.LittleEndian.Uint32(data[:4])
 	if int64(length) != int64(len(data)-4) {
-		return "", fmt.Errorf("%w: BSON string length is %d, but %d bytes follow", errLength, length, len(data)-4)
+		return "", fmt.Errorf("%w: BSON string length is %d, but %d bytes follow", ErrLength, length, len(data)-4)
 	}
 	if data[len(data)-1] != 0 {
-		return "", fmt.Errorf("%w: BSON string does not end with a NUL byte", errMissingNUL)
+		return "", fmt.Errorf("%w: BSON string does not end with a NUL byte", ErrMissingNUL)
 	}
 	return string(data[4 : len(data)-1]), nil
 }
@@ -89,17 +90,17 @@ func MarshalDocument(fields ...Field) []byte {
 // whose key or value is malformed, and a field that is not a string.
 func UnmarshalDocument(typ byte, data []byte) ([]Field, error) {
 	if typ != TypeEmbeddedDocument {
-		return nil, fmt.Errorf("%w: expected a BSON document, got type %#02x", errWrongType, typ)
+		return nil, fmt.Errorf("%w: expected a BSON document, got type %#02x", ErrWrongType, typ)
 	}
 	if len(data) < 5 {
-		return nil, fmt.Errorf("%w: BSON document is %d bytes, need at least 5", errLength, len(data))
+		return nil, fmt.Errorf("%w: BSON document is %d bytes, need at least 5", ErrLength, len(data))
 	}
 	length := binary.LittleEndian.Uint32(data[:4])
 	if int64(length) != int64(len(data)) {
-		return nil, fmt.Errorf("%w: BSON document length is %d, but it is %d bytes", errLength, length, len(data))
+		return nil, fmt.Errorf("%w: BSON document length is %d, but it is %d bytes", ErrLength, length, len(data))
 	}
 	if data[len(data)-1] != 0 {
-		return nil, fmt.Errorf("%w: BSON document does not end with a NUL byte", errMissingNUL)
+		return nil, fmt.Errorf("%w: BSON document does not end with a NUL byte", ErrMissingNUL)
 	}
 
 	fields := make([]Field, 0)
@@ -117,11 +118,11 @@ func UnmarshalDocument(typ byte, data []byte) ([]Field, error) {
 			return nil, fmt.Errorf("%w: BSON document field %q has type %#02x, want a string", errNonStringField, key, fieldType)
 		}
 		if i+4 > len(data)-1 {
-			return nil, fmt.Errorf("%w: BSON document field %q has no string length", errLength, key)
+			return nil, fmt.Errorf("%w: BSON document field %q has no string length", ErrLength, key)
 		}
 		valueLength := binary.LittleEndian.Uint32(data[i : i+4])
 		if int64(valueLength) > int64(len(data)-1-i-4) {
-			return nil, fmt.Errorf("%w: BSON document field %q string length is %d, beyond the document", errLength, key, valueLength)
+			return nil, fmt.Errorf("%w: BSON document field %q string length is %d, beyond the document", ErrLength, key, valueLength)
 		}
 		valueEnd := i + 4 + int(valueLength)
 		value, err := UnmarshalString(TypeString, data[i:valueEnd])
