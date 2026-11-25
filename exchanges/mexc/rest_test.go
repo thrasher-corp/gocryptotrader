@@ -2100,6 +2100,43 @@ func TestGetOrderInfo(t *testing.T) {
 		_, err := ex.GetOrderInfo(t.Context(), "12342", currency.EMPTYPAIR, asset.Spot)
 		require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	})
+	t.Run("futures order pair", func(t *testing.T) {
+		t.Parallel()
+		ethUSDT := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+		for _, tc := range []struct {
+			name   string
+			symbol string
+			pair   currency.Pair
+			exp    currency.Pair
+		}{
+			{name: "unresolved symbol takes the caller's pair", symbol: "UNLISTED", pair: currency.NewBTCUSD().Lower(), exp: futuresInversePair},
+			{name: "unresolved symbol takes an unavailable caller's pair", symbol: "UNLISTED", pair: currency.NewPair(currency.ETH, currency.USDT), exp: ethUSDT},
+			{name: "available symbol wins over the caller's pair", symbol: "BTC_USD", pair: currency.NewBTCUSDT(), exp: futuresInversePair},
+			{name: "unavailable symbol wins over the caller's pair", symbol: "ETH_USDT", pair: currency.NewBTCUSDT(), exp: ethUSDT},
+			{name: "available symbol without a caller's pair", symbol: "BTC_USD", pair: currency.EMPTYPAIR, exp: futuresInversePair},
+			{name: "unavailable symbol without a caller's pair", symbol: "ETH_USDT", pair: currency.EMPTYPAIR, exp: ethUSDT},
+			{name: "unresolved symbol without a caller's pair", symbol: "UNLISTED", pair: currency.EMPTYPAIR},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+					method: http.MethodGet,
+					path:   "private/order/get/42",
+					data:   `{"orderId":"42","symbol":"` + tc.symbol + `","dealVol":0}`,
+				}), liveUnavailable)
+				detail, err := ex.GetOrderInfo(t.Context(), "42", tc.pair, asset.Futures)
+				if tc.exp.IsEmpty() {
+					require.ErrorContains(t, err, "delimiter not found", "GetOrderInfo must return why the symbol has no pair")
+					return
+				}
+				require.NoError(t, err, "GetOrderInfo must not error")
+				assert.Equal(t, tc.exp, detail.Pair, "GetOrderInfo should report the order under the expected pair")
+				assert.Equal(t, "42", detail.OrderID, "GetOrderInfo should report the order asked for")
+				assert.Equal(t, ex.Name, detail.Exchange, "GetOrderInfo should report the order's exchange")
+				assert.Equal(t, asset.Futures, detail.AssetType, "GetOrderInfo should report the order's asset")
+			})
+		}
+	})
 	// Serial, and before the checks below: its calls on e come first, as they could when it was a test of its own, so
 	// a call that kept a request for the next fails those checks
 	t.Run("futures", func(t *testing.T) {

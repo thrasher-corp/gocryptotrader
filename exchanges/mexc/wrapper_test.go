@@ -319,6 +319,51 @@ func TestGetLatestFundingRates(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("request for the pairs asked for", func(t *testing.T) {
+		t.Parallel()
+		rate := func(symbol, fundingRate string) string {
+			return `{"symbol":"` + symbol + `","fundingRate":` + fundingRate + `,"collectCycle":8,"nextSettleTime":1792857600000}`
+		}
+		for _, tc := range []struct {
+			name    string
+			enabled currency.Pairs
+			pair    currency.Pair
+			path    string
+			data    string
+			exp     currency.Pair
+			rate    float64
+		}{
+			{
+				name: "no pair named reads every contract's rate", enabled: currency.Pairs{futuresTradablePair},
+				path: "contract/funding_rate", data: "[" + rate("ETH_USDT", "0.0007") + "," + rate("BTC_USDT", "0.0001") + "]",
+				exp: futuresTradablePair, rate: 0.0001,
+			},
+			{
+				name: "pair named reads its contract's rate", enabled: currency.Pairs{futuresTradablePair, futuresInversePair}, pair: currency.NewBTCUSD(),
+				path: "contract/funding_rate/BTC_USD", data: rate("BTC_USD", "0.0002"),
+				exp: futuresInversePair, rate: 0.0002,
+			},
+			{
+				name: "pair named but not enabled reads its contract's rate", enabled: currency.Pairs{futuresTradablePair}, pair: currency.NewBTCUSD(),
+				path: "contract/funding_rate/BTC_USD", data: rate("BTC_USD", "0.0002"),
+				exp: futuresInversePair, rate: 0.0002,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				handler, requests := countRequests(futuresHandler(t, futuresRoute{method: http.MethodGet, path: tc.path, data: tc.data}))
+				ex := testExchangeFor(t, handler, liveUnavailable)
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, tc.enabled, true), "StorePairs must not error")
+				result, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Futures, Pair: tc.pair})
+				require.NoError(t, err, "GetLatestFundingRates must not error")
+				assert.EqualValues(t, 1, requests.Load(), "the rate should be read in one request")
+				require.Len(t, result, 1, "the rate asked for must be returned")
+				assert.Equal(t, tc.exp, result[0].Pair, "the rate should be the pair asked for")
+				assert.True(t, decimal.MustFromFloat(tc.rate).Equal(result[0].LatestRate.Rate), "the rate should be the pair's own")
+			})
+		}
+	})
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {

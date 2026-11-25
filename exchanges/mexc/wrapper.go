@@ -1667,7 +1667,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if result == nil || result.OrderID == "" {
 			return nil, common.ErrNoResponse
 		}
-		// A pair which has left the available pairs falls back to the one the caller named
+		// The caller's pair stands in when the order's symbol cannot be resolved, so the order is still reported
 		fallback := currency.EMPTYPAIR
 		if !pair.IsEmpty() {
 			fallback = pair.Format(pairFormat)
@@ -2275,7 +2275,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 	}
-	// One pair is read on its own, and several from the list of every contract's rate
+	// With no pair named, one request for every contract's rate serves the enabled pairs, rather than one for each
 	query := currency.EMPTYPAIR
 	if !r.Pair.IsEmpty() {
 		query = pairs[0]
