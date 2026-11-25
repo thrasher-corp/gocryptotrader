@@ -22,6 +22,7 @@ exchange/order
 exchange/order/limits
 exchange/orderbook
 exchange/request
+exchange/sharedtestvalues
 exchange/websocket/orderbookmanager
 exchanges/binance
 exchanges/gateio
