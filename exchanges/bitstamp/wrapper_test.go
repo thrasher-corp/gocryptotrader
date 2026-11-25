@@ -275,8 +275,8 @@ func TestSetup(t *testing.T) {
 	assert.Equal(t, []string{configuredWebsocketURL}, urls, "Setup should configure the websocket URL from the configuration")
 }
 
-// previousVersionConfig writes the test config as config version 19 saved it, with Bitstamp's subscriptions replaced
-// and authentication set up with only a key and secret; v19 required a client ID, so configs saved before the v2 API
+// previousVersionConfig writes the test config as config version 20 saved it, with Bitstamp's subscriptions replaced
+// and authentication set up with only a key and secret; v20 required a client ID, so configs saved before the v2 API
 // update keep that requirement and the default client ID placeholder, and hold no perpetual contract pairs
 func previousVersionConfig(t *testing.T, subscriptions string) string {
 	t.Helper()
@@ -309,7 +309,7 @@ func previousVersionConfig(t *testing.T, subscriptions string) string {
 	}
 	saved["exchanges"], err = json.Marshal(exchanges)
 	require.NoError(t, err, "Marshal must not error for the exchanges")
-	saved["version"] = json.RawMessage(`19`)
+	saved["version"] = json.RawMessage(`20`)
 	data, err = json.Marshal(saved)
 	require.NoError(t, err, "Marshal must not error for the config")
 	path := filepath.Join(t.TempDir(), "config.json")
