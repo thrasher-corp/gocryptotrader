@@ -132,8 +132,8 @@ func newLiveDerivativesExchange(t *testing.T, a asset.Item) *Exchange {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 	ex.Accounts = accounts.MustNewAccounts(ex)
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 	ex.Name = t.Name()
 	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		ex.API.AuthenticatedSupport = true
@@ -299,6 +299,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		ex := new(Exchange)
 		ex.SetDefaults()
 		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		ex.Accounts = accounts.MustNewAccounts(ex)
 		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 		for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testUSDTMarginedFuturesPair, asset.CoinMarginedFutures: testCoinMarginedFuturesPair, asset.Options: testOptionsPair} {
 			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, false), "StorePairs must not error for %s available pairs", a)
@@ -319,41 +320,414 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds},
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 	})
-	for _, tc := range []struct {
+	type generationCase struct {
 		name     string
-		generate func() (subscription.List, error)
+		generate func(*Exchange) (subscription.List, error)
 		exp      subscription.List
 		partial  bool
-	}{
-		{"spot", ex.generateSubscriptions, subscription.List{}, false},
-		{"USDⓈ-M /public", ex.generateUSDTMarginedFuturesPublicSubscriptions, subscription.List{
+		setup    func(*testing.T) *Exchange
+	}
+	type listedStream struct {
+		pair  currency.Pair
+		topic string
+	}
+	const explicitPairs = "explicit pairs determine the streams/"
+	listing := func(name string, a asset.Item, template *subscription.Subscription, available, enabled currency.Pairs, generate func(*Exchange) (subscription.List, error), streams ...listedStream) generationCase {
+		listed := make(currency.Pairs, 0, len(streams))
+		want := make(subscription.List, 0, len(streams))
+		for _, stream := range streams {
+			listed = append(listed, stream.pair)
+			s := template.Clone()
+			s.Asset = a
+			s.Pairs = currency.Pairs{stream.pair}
+			s.QualifiedChannel = stream.topic
+			want = append(want, s)
+		}
+		return generationCase{
+			name: explicitPairs + name, generate: generate, exp: want,
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				configured := template.Clone()
+				configured.Pairs = listed
+				rowExchange := setup(t, subscription.List{configured})
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(a, available, false), "StorePairs must set the available pairs")
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(a, enabled, true), "StorePairs must set the enabled pairs")
+				return rowExchange
+			},
+		}
+	}
+	trades := func(name string, a, configuredAsset asset.Item, available, enabled currency.Pairs, generate func(*Exchange) (subscription.List, error), streams ...listedStream) generationCase {
+		return listing(name, a, &subscription.Subscription{Enabled: true, Asset: configuredAsset, Channel: subscription.AllTradesChannel}, available, enabled, generate, streams...)
+	}
+	btcUSDC := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
+	bnbUSDT := currency.NewPairWithDelimiter("BNB", "USDT", currency.UnderscoreDelimiter)
+	dotPerpetual := currency.NewPairWithDelimiter("DOTUSD", "PERP", currency.UnderscoreDelimiter)
+	ethPut := currency.NewPairWithDelimiter("ETH", "261009-2700-P", currency.DashDelimiter)
+	firstStrike := currency.NewPairWithDelimiter("ETH", "261225-2700-C", currency.DashDelimiter)
+	strikes := make([]listedStream, 0, 51)
+	for i := range 50 {
+		strike := strconv.Itoa(2700 + 10*i)
+		pair := currency.NewPairWithDelimiter("ETH", "261225-"+strike+"-C", currency.UnderscoreDelimiter)
+		strikes = append(strikes, listedStream{pair, "eth-261225-" + strike + "-c@optionTrade"})
+	}
+	strikes = append(strikes, listedStream{currency.NewPairWithDelimiter("BTC", "261225-2700-C", currency.DashDelimiter), "btc-261225-2700-c@optionTrade"})
+	delimiters := []string{currency.UnderscoreDelimiter, currency.DashDelimiter, currency.ForwardSlashDelimiter}
+	moreStrikes := make([]listedStream, 0, 202)
+	for i := range 201 {
+		strike := strconv.Itoa(2700 + 10*i)
+		pair := currency.NewPairWithDelimiter("ETH", "261225-"+strike+"-C", delimiters[i%len(delimiters)])
+		moreStrikes = append(moreStrikes, listedStream{pair, "eth-261225-" + strike + "-c@optionTrade"})
+	}
+	moreStrikes = append(moreStrikes, listedStream{currency.NewPairWithDelimiter("BTC", "261225-2700-C", currency.ForwardSlashDelimiter), "btc-261225-2700-c@optionTrade"})
+	usdtMarginedPerpetuals := make([]listedStream, 0, 51)
+	coinMarginedPerpetuals := make([]listedStream, 0, 51)
+	for i := range 51 {
+		base := "ALT" + strconv.Itoa(i)
+		usdtMarginedPerpetuals = append(usdtMarginedPerpetuals, listedStream{currency.NewPairWithDelimiter(base, "USDT", currency.UnderscoreDelimiter), strings.ToLower(base) + "usdt@aggTrade"})
+		coinMarginedPerpetuals = append(coinMarginedPerpetuals, listedStream{currency.NewPairWithDelimiter(base+"USD", "PERP", currency.UnderscoreDelimiter), strings.ToLower(base) + "usd_perp@aggTrade"})
+	}
+	ethfiUSDT := currency.NewPairWithDelimiter("ETHFI", "USDT", currency.UnderscoreDelimiter)
+	xrpUSDT := currency.NewPairWithDelimiter("XRP", "USDT", currency.UnderscoreDelimiter)
+	expand := func(template *subscription.Subscription, streams ...listedStream) subscription.List {
+		subs := make(subscription.List, 0, len(streams))
+		for _, stream := range streams {
+			s := template.Clone()
+			s.Pairs = currency.Pairs{stream.pair}
+			s.QualifiedChannel = stream.topic
+			subs = append(subs, s)
+		}
+		return subs
+	}
+	withPairs := func(template *subscription.Subscription, pairs ...currency.Pair) *subscription.Subscription {
+		s := template.Clone()
+		s.Pairs = slices.Clone(pairs)
+		return s
+	}
+	bnbUSDTSlash := currency.NewPairWithDelimiter("BNB", "USDT", currency.ForwardSlashDelimiter)
+	usdtMarginedTrades := &subscription.Subscription{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel}
+	usdtMarginedTicker := &subscription.Subscription{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel}
+	usdtMarginedCandles := &subscription.Subscription{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin}
+	usdtMarginedMonthlyCandles := &subscription.Subscription{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMonth}
+	usdtMarginedBook := &subscription.Subscription{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.OrderbookChannel, Levels: 5, Interval: kline.HundredMilliseconds}
+	coinMarginedTicker := &subscription.Subscription{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel}
+	coinMarginedCandles := &subscription.Subscription{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.OneMin}
+	coinMarginedBook := &subscription.Subscription{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.OrderbookChannel}
+	optionsTicker := &subscription.Subscription{Enabled: true, Asset: asset.Options, Channel: subscription.TickerChannel}
+	optionsBook := &subscription.Subscription{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds}
+	optionsCandles := &subscription.Subscription{Enabled: true, Asset: asset.Options, Channel: subscription.CandlesChannel, Interval: kline.OneMin}
+	usdtMarginedPairs := currency.Pairs{testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair}
+	coinMarginedPairs := currency.Pairs{testCoinMarginedFuturesDisabledPair, dotPerpetual}
+	optionsPairs := currency.Pairs{testOptionsPair, testOptionsDisabledPair}
+	everyChannel := func(t *testing.T) *Exchange {
+		t.Helper()
+		return setup(t, subscription.List{
+			withPairs(usdtMarginedTicker, usdtMarginedPairs...), withPairs(usdtMarginedCandles, usdtMarginedPairs...), withPairs(usdtMarginedMonthlyCandles, usdtMarginedPairs...),
+			withPairs(usdtMarginedBook, usdtMarginedPairs...),
+			withPairs(coinMarginedTicker, coinMarginedPairs...), withPairs(coinMarginedCandles, coinMarginedPairs...), withPairs(coinMarginedBook, coinMarginedPairs...),
+			withPairs(optionsTicker, optionsPairs...), withPairs(optionsBook, optionsPairs...), withPairs(optionsCandles, optionsPairs...),
+		})
+	}
+	const everyChannelOn = explicitPairs + "tickers, candles and order books of two pairs on "
+	allAssets := func(template *subscription.Subscription) *subscription.Subscription {
+		s := template.Clone()
+		s.Asset = asset.All
+		return s
+	}
+	asAsset := func(a asset.Item, subs subscription.List) subscription.List {
+		for _, s := range subs {
+			s.Asset = a
+		}
+		return subs
+	}
+	everyAllAssetsChannel := func(templates ...*subscription.Subscription) func(*testing.T) *Exchange {
+		return func(t *testing.T) *Exchange {
+			t.Helper()
+			configured := make(subscription.List, 0, len(templates))
+			for _, template := range templates {
+				configured = append(configured, allAssets(template))
+			}
+			return setup(t, configured)
+		}
+	}
+	const everyAllAssetsChannelOn = explicitPairs + "all-assets tickers, candles and order books of two pairs on "
+	usdtMarginedPerpetualsEnabled := make(currency.Pairs, 0, len(usdtMarginedPerpetuals))
+	for _, stream := range usdtMarginedPerpetuals {
+		usdtMarginedPerpetualsEnabled = append(usdtMarginedPerpetualsEnabled, stream.pair)
+	}
+	optionsTrades := &subscription.Subscription{Enabled: true, Asset: asset.Options, Channel: subscription.AllTradesChannel}
+	// An all-assets subscription's listed pairs reach every derivatives asset unfiltered, as with subscription templates
+	mixedAssets := func(connection string, a asset.Item, generate func(*Exchange) (subscription.List, error), enabled currency.Pair, streams ...listedStream) generationCase {
+		return trades("all-assets list of every derivatives asset's pairs on "+connection, a, asset.All, currency.Pairs{enabled}, currency.Pairs{enabled}, generate, streams...)
+	}
+	for _, tc := range []generationCase{
+		{"spot", (*Exchange).generateSubscriptions, subscription.List{}, false, nil},
+		{"USDⓈ-M /public", (*Exchange).generateUSDTMarginedFuturesPublicSubscriptions, subscription.List{
 			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, Levels: 20, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth20@100ms"},
-		}, false},
-		{"USDⓈ-M /market", ex.generateUSDTMarginedFuturesMarketSubscriptions, subscription.List{
+		}, false, nil},
+		{"USDⓈ-M /market", (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions, subscription.List{
 			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
 			{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesDisabledPair}, QualifiedChannel: "ethusdt@aggTrade"},
-		}, false},
-		{"COIN-M", ex.generateCoinMarginedFuturesSubscriptions, subscription.List{
+		}, false, nil},
+		{"COIN-M", (*Exchange).generateCoinMarginedFuturesSubscriptions, subscription.List{
 			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
-		}, true},
-		{"options /public", ex.generateOptionsPublicSubscriptions, subscription.List{
+		}, true, nil},
+		{"options /public", (*Exchange).generateOptionsPublicSubscriptions, subscription.List{
 			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btc-261030-85000-c@depth@100ms"},
-		}, true},
-		{"options /market", ex.generateOptionsMarketSubscriptions, subscription.List{
+		}, true, nil},
+		{"options /market", (*Exchange).generateOptionsMarketSubscriptions, subscription.List{
 			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.FiveMin, QualifiedChannel: "btc-261030-85000-c@kline_5m"},
-		}, false},
+		}, false, nil},
+		trades("USDⓈ-M with one enabled pair listed", asset.USDTMarginedFutures, asset.USDTMarginedFutures,
+			currency.Pairs{testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair, bnbUSDT},
+			currency.Pairs{testUSDTMarginedFuturesPair, bnbUSDT}, (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@aggTrade"},
+			listedStream{testUSDTMarginedFuturesPair, "btcusdt@aggTrade"}, listedStream{btcUSDC, "btcusdc@aggTrade"}),
+		trades("COIN-M with a subset of enabled pairs listed", asset.CoinMarginedFutures, asset.CoinMarginedFutures,
+			currency.Pairs{testCoinMarginedFuturesPair, testCoinMarginedFuturesDisabledPair, dotPerpetual},
+			currency.Pairs{testCoinMarginedFuturesPair, testCoinMarginedFuturesDisabledPair, dotPerpetual}, (*Exchange).generateCoinMarginedFuturesSubscriptions,
+			listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@aggTrade"}, listedStream{testCoinMarginedFuturesPair, "btcusd_perp@aggTrade"}),
+		trades("options without an enabled pair listed", asset.Options, asset.Options,
+			currency.Pairs{testOptionsPair, testOptionsDisabledPair}, currency.Pairs{testOptionsPair}, (*Exchange).generateOptionsPublicSubscriptions,
+			listedStream{testOptionsDisabledPair, "eth-261009-2700-c@optionTrade"}, listedStream{ethPut, "eth-261009-2700-p@optionTrade"}),
+		trades("all-assets list with a dated USDⓈ-M contract", asset.USDTMarginedFutures, asset.All,
+			currency.Pairs{testUSDTMarginedFuturesPair, bnbUSDT}, currency.Pairs{testUSDTMarginedFuturesPair, bnbUSDT}, (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			listedStream{testUSDTMarginedFuturesPair, "btcusdt@aggTrade"},
+			listedStream{currency.NewPairWithDelimiter("BTCUSDT", "261225", currency.UnderscoreDelimiter), "btcusdt_261225@aggTrade"}),
+		trades("COIN-M perpetual and quarterly contracts", asset.CoinMarginedFutures, asset.All,
+			currency.Pairs{testCoinMarginedFuturesPair, testCoinMarginedFuturesDisabledPair, dotPerpetual}, currency.Pairs{testCoinMarginedFuturesPair, dotPerpetual}, (*Exchange).generateCoinMarginedFuturesSubscriptions,
+			listedStream{currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.DashDelimiter), "ethusd_perp@aggTrade"},
+			listedStream{testCoinMarginedFuturesPair, "btcusd_perp@aggTrade"}, listedStream{testCoinMarginedFuturesUnlistedPair, "btcusd_261225@aggTrade"}),
+		trades("all-assets list of 51 options contracts", asset.Options, asset.All,
+			currency.Pairs{firstStrike}, currency.Pairs{firstStrike}, (*Exchange).generateOptionsPublicSubscriptions, strikes...),
+		{
+			name:     explicitPairs + "pairs listed on two trades subscriptions and a ticker",
+			generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			exp: subscription.List{
+				{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@aggTrade"},
+				{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesDisabledPair}, QualifiedChannel: "ethusdt@aggTrade"},
+				{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
+			},
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				return setup(t, subscription.List{
+					{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}},
+					{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{testUSDTMarginedFuturesDisabledPair}},
+					{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}},
+				})
+			},
+		},
+		{
+			name:     explicitPairs + "trades subscriptions listing overlapping pairs, one of them twice",
+			generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			exp: expand(usdtMarginedTrades, listedStream{testUSDTMarginedFuturesPair, "btcusdt@aggTrade"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@aggTrade"},
+				listedStream{xrpUSDT, "xrpusdt@aggTrade"}, listedStream{ethfiUSDT, "ethfiusdt@aggTrade"}, listedStream{bnbUSDTSlash, "bnbusdt@aggTrade"}),
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				return setup(t, subscription.List{
+					withPairs(usdtMarginedTrades, testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair, testUSDTMarginedFuturesPair, xrpUSDT),
+					withPairs(usdtMarginedTrades, testUSDTMarginedFuturesDisabledPair, ethfiUSDT, bnbUSDTSlash),
+				})
+			},
+		},
+		{
+			name: everyChannelOn + "USDⓈ-M /public", generate: (*Exchange).generateUSDTMarginedFuturesPublicSubscriptions, setup: everyChannel,
+			exp: expand(usdtMarginedBook, listedStream{testUSDTMarginedFuturesPair, "btcusdt@depth5@100ms"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@depth5@100ms"}),
+		},
+		{
+			name: everyChannelOn + "USDⓈ-M /market", generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions, setup: everyChannel,
+			exp: slices.Concat(
+				expand(usdtMarginedTicker, listedStream{testUSDTMarginedFuturesPair, "btcusdt@ticker"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@ticker"}),
+				expand(usdtMarginedCandles, listedStream{testUSDTMarginedFuturesPair, "btcusdt@kline_1m"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@kline_1m"}),
+				expand(usdtMarginedMonthlyCandles, listedStream{testUSDTMarginedFuturesPair, "btcusdt@kline_1M"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@kline_1M"}),
+			),
+		},
+		{
+			name: everyChannelOn + "COIN-M", generate: (*Exchange).generateCoinMarginedFuturesSubscriptions, setup: everyChannel,
+			exp: slices.Concat(
+				expand(coinMarginedTicker, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@ticker"}, listedStream{dotPerpetual, "dotusd_perp@ticker"}),
+				expand(coinMarginedCandles, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@kline_1m"}, listedStream{dotPerpetual, "dotusd_perp@kline_1m"}),
+				expand(coinMarginedBook, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@depth"}, listedStream{dotPerpetual, "dotusd_perp@depth"}),
+			),
+		},
+		{
+			name: everyChannelOn + "options /public", generate: (*Exchange).generateOptionsPublicSubscriptions, setup: everyChannel,
+			exp: slices.Concat(
+				expand(optionsTicker, listedStream{testOptionsPair, "btc-261030-85000-c@optionTicker"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@optionTicker"}),
+				expand(optionsBook, listedStream{testOptionsPair, "btc-261030-85000-c@depth10@100ms"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@depth10@100ms"}),
+			),
+		},
+		{
+			name: everyChannelOn + "options /market", generate: (*Exchange).generateOptionsMarketSubscriptions, setup: everyChannel,
+			exp: expand(optionsCandles, listedStream{testOptionsPair, "btc-261030-85000-c@kline_1m"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@kline_1m"}),
+		},
+		trades("all-assets list of USDⓈ-M pairs none of them available, dated contracts written with a dash and a slash", asset.USDTMarginedFutures, asset.All,
+			currency.Pairs{testUSDTMarginedFuturesPair}, currency.Pairs{testUSDTMarginedFuturesPair}, (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@aggTrade"},
+			listedStream{currency.NewPairWithDelimiter("ETHUSDT", "260327", currency.DashDelimiter), "ethusdt_260327@aggTrade"},
+			listedStream{currency.NewPairWithDelimiter("BTCUSDT", "260626", currency.ForwardSlashDelimiter), "btcusdt_260626@aggTrade"}),
+		trades("all-assets list of COIN-M quarterly contracts", asset.CoinMarginedFutures, asset.All,
+			currency.Pairs{testCoinMarginedFuturesPair}, currency.Pairs{testCoinMarginedFuturesPair}, (*Exchange).generateCoinMarginedFuturesSubscriptions,
+			listedStream{testCoinMarginedFuturesUnlistedPair, "btcusd_261225@aggTrade"},
+			listedStream{currency.NewPairWithDelimiter("ETHUSD", "260327", currency.DashDelimiter), "ethusd_260327@aggTrade"},
+			listedStream{currency.NewPairWithDelimiter("XRPUSD", "260626", currency.ForwardSlashDelimiter), "xrpusd_260626@aggTrade"}),
+		trades("all-assets list of options puts differing only in expiry", asset.Options, asset.All,
+			currency.Pairs{testOptionsPair}, currency.Pairs{testOptionsPair}, (*Exchange).generateOptionsPublicSubscriptions,
+			listedStream{currency.NewPairWithDelimiter("ETH", "261225-2700-P", currency.DashDelimiter), "eth-261225-2700-p@optionTrade"},
+			listedStream{currency.NewPairWithDelimiter("ETH", "260327-2700-P", currency.DashDelimiter), "eth-260327-2700-p@optionTrade"}),
+		{
+			name:     explicitPairs + "USDⓈ-M trades listing exactly its enabled pairs beside a ticker of every enabled pair",
+			generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			exp: slices.Concat(
+				expand(usdtMarginedTrades, listedStream{testUSDTMarginedFuturesPair, "btcusdt@aggTrade"}, listedStream{bnbUSDT, "bnbusdt@aggTrade"}),
+				expand(usdtMarginedTicker, listedStream{testUSDTMarginedFuturesPair, "btcusdt@ticker"}, listedStream{bnbUSDT, "bnbusdt@ticker"}),
+			),
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				rowExchange := setup(t, subscription.List{withPairs(usdtMarginedTrades, testUSDTMarginedFuturesPair, bnbUSDT), usdtMarginedTicker.Clone()})
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair, bnbUSDT}, false), "StorePairs must set the available pairs")
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{testUSDTMarginedFuturesPair, bnbUSDT}, true), "StorePairs must set the enabled pairs")
+				return rowExchange
+			},
+		},
+		mixedAssets("USDⓈ-M /market", asset.USDTMarginedFutures, (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions, testUSDTMarginedFuturesPair,
+			listedStream{dotPerpetual, "dotusdperp@aggTrade"}, listedStream{testOptionsPair, "btc261030-85000-c@aggTrade"}, listedStream{testUSDTMarginedFuturesPair, "btcusdt@aggTrade"}),
+		mixedAssets("COIN-M", asset.CoinMarginedFutures, (*Exchange).generateCoinMarginedFuturesSubscriptions, dotPerpetual,
+			listedStream{testUSDTMarginedFuturesPair, "btc_usdt@aggTrade"}, listedStream{testOptionsPair, "btc_261030-85000-c@aggTrade"}, listedStream{dotPerpetual, "dotusd_perp@aggTrade"}),
+		mixedAssets("options /public", asset.Options, (*Exchange).generateOptionsPublicSubscriptions, testOptionsPair,
+			listedStream{testUSDTMarginedFuturesPair, "btc-usdt@optionTrade"}, listedStream{dotPerpetual, "dotusd-perp@optionTrade"}, listedStream{testOptionsPair, "btc-261030-85000-c@optionTrade"}),
+		trades("USDⓈ-M list of 51 pairs", asset.USDTMarginedFutures, asset.USDTMarginedFutures,
+			currency.Pairs{testUSDTMarginedFuturesPair}, currency.Pairs{testUSDTMarginedFuturesPair}, (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions, usdtMarginedPerpetuals...),
+		trades("COIN-M list of 51 contracts", asset.CoinMarginedFutures, asset.CoinMarginedFutures,
+			currency.Pairs{testCoinMarginedFuturesPair}, currency.Pairs{testCoinMarginedFuturesPair}, (*Exchange).generateCoinMarginedFuturesSubscriptions, coinMarginedPerpetuals...),
+		trades("all-assets list of 202 options contracts, 201 of them on one underlying", asset.Options, asset.All,
+			currency.Pairs{firstStrike}, currency.Pairs{firstStrike}, (*Exchange).generateOptionsPublicSubscriptions, moreStrikes...),
+		listing("all-assets candles listing options contracts", asset.Options, &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			currency.Pairs{testOptionsPair}, currency.Pairs{testOptionsPair}, (*Exchange).generateOptionsMarketSubscriptions,
+			listedStream{testOptionsPair, "btc-261030-85000-c@kline_1m"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@kline_1m"}),
+		listing("all-assets order books listing USDⓈ-M pairs", asset.USDTMarginedFutures, &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+			currency.Pairs{testUSDTMarginedFuturesPair}, currency.Pairs{testUSDTMarginedFuturesPair}, (*Exchange).generateUSDTMarginedFuturesPublicSubscriptions,
+			listedStream{testUSDTMarginedFuturesPair, "btcusdt@depth@100ms"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@depth@100ms"}),
+		{
+			name: everyAllAssetsChannelOn + "USDⓈ-M /market", generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			setup: everyAllAssetsChannel(withPairs(usdtMarginedTicker, usdtMarginedPairs...), withPairs(usdtMarginedCandles, usdtMarginedPairs...)),
+			exp: asAsset(asset.USDTMarginedFutures, slices.Concat(
+				expand(usdtMarginedTicker, listedStream{testUSDTMarginedFuturesPair, "btcusdt@ticker"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@ticker"}),
+				expand(usdtMarginedCandles, listedStream{testUSDTMarginedFuturesPair, "btcusdt@kline_1m"}, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@kline_1m"}),
+			)),
+		},
+		{
+			name: everyAllAssetsChannelOn + "COIN-M", generate: (*Exchange).generateCoinMarginedFuturesSubscriptions,
+			setup: everyAllAssetsChannel(withPairs(coinMarginedTicker, coinMarginedPairs...), withPairs(coinMarginedCandles, coinMarginedPairs...), withPairs(coinMarginedBook, coinMarginedPairs...)),
+			exp: asAsset(asset.CoinMarginedFutures, slices.Concat(
+				expand(coinMarginedTicker, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@ticker"}, listedStream{dotPerpetual, "dotusd_perp@ticker"}),
+				expand(coinMarginedCandles, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@kline_1m"}, listedStream{dotPerpetual, "dotusd_perp@kline_1m"}),
+				expand(coinMarginedBook, listedStream{testCoinMarginedFuturesDisabledPair, "ethusd_perp@depth"}, listedStream{dotPerpetual, "dotusd_perp@depth"}),
+			)),
+		},
+		{
+			name: everyAllAssetsChannelOn + "options /public", generate: (*Exchange).generateOptionsPublicSubscriptions,
+			setup: everyAllAssetsChannel(withPairs(optionsTicker, optionsPairs...), withPairs(optionsBook, optionsPairs...)),
+			exp: asAsset(asset.Options, slices.Concat(
+				expand(optionsTicker, listedStream{testOptionsPair, "btc-261030-85000-c@optionTicker"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@optionTicker"}),
+				expand(optionsBook, listedStream{testOptionsPair, "btc-261030-85000-c@depth10@100ms"}, listedStream{testOptionsDisabledPair, "eth-261009-2700-c@depth10@100ms"}),
+			)),
+		},
+		{
+			name:     explicitPairs + "USDⓈ-M trades listing pairs beside a ticker of other enabled pairs",
+			generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			exp: slices.Concat(
+				expand(usdtMarginedTrades, listedStream{testUSDTMarginedFuturesDisabledPair, "ethusdt@aggTrade"}, listedStream{bnbUSDT, "bnbusdt@aggTrade"}),
+				expand(usdtMarginedTicker, listedStream{testUSDTMarginedFuturesPair, "btcusdt@ticker"}, listedStream{xrpUSDT, "xrpusdt@ticker"}),
+			),
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				rowExchange := setup(t, subscription.List{withPairs(usdtMarginedTrades, testUSDTMarginedFuturesDisabledPair, bnbUSDT), usdtMarginedTicker.Clone()})
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair, bnbUSDT, xrpUSDT}, false), "StorePairs must set the available pairs")
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{testUSDTMarginedFuturesPair, xrpUSDT}, true), "StorePairs must set the enabled pairs")
+				return rowExchange
+			},
+		},
+		{
+			name:     explicitPairs + "USDⓈ-M ticker of 51 enabled pairs",
+			generate: (*Exchange).generateUSDTMarginedFuturesMarketSubscriptions,
+			exp: expand(usdtMarginedTicker, func() []listedStream {
+				tickers := make([]listedStream, 0, len(usdtMarginedPerpetuals))
+				for _, stream := range usdtMarginedPerpetuals {
+					tickers = append(tickers, listedStream{stream.pair, strings.TrimSuffix(stream.topic, "@aggTrade") + "@ticker"})
+				}
+				return tickers
+			}()...),
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				rowExchange := setup(t, subscription.List{usdtMarginedTicker.Clone()})
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, usdtMarginedPerpetualsEnabled, false), "StorePairs must set the available pairs")
+				require.NoError(t, rowExchange.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, usdtMarginedPerpetualsEnabled, true), "StorePairs must set the enabled pairs")
+				return rowExchange
+			},
+		},
+		{
+			name:     explicitPairs + "options trades of 200 contracts beside a ticker",
+			generate: (*Exchange).generateOptionsPublicSubscriptions,
+			exp: slices.Concat(
+				expand(optionsTrades, moreStrikes[:200]...),
+				expand(optionsTicker, listedStream{testOptionsPair, "btc-261030-85000-c@optionTicker"}),
+			),
+			setup: func(t *testing.T) *Exchange {
+				t.Helper()
+				contracts := make(currency.Pairs, 0, 200)
+				for _, stream := range moreStrikes[:200] {
+					contracts = append(contracts, stream.pair)
+				}
+				return setup(t, subscription.List{withPairs(optionsTrades, contracts...), withPairs(optionsTicker, testOptionsPair)})
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			subs, err := tc.generate()
+			rowExchange := ex
+			if tc.setup != nil {
+				rowExchange = tc.setup(t)
+			}
+			configured := rowExchange.Features.Subscriptions.Clone()
+			saved, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
+			require.NoError(t, err, "Marshal must not error")
+			subs, err := tc.generate(rowExchange)
 			if tc.partial {
 				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
 			} else {
 				assert.NoErrorf(t, err, "%s generation should not error", tc.name)
 			}
+			assert.Len(t, subs, len(tc.exp), "each expected stream should be generated once")
 			testsubs.EqualLists(t, tc.exp, subs)
+			assert.Equal(t, configured, rowExchange.Features.Subscriptions.Clone(), "generation should leave the configured subscriptions as they are")
+			savedAfter, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, string(saved), string(savedAfter), "generation should leave the saved subscriptions as they are")
 		})
 	}
+	t.Run("generation leaves the nested parameters of the configured subscriptions as they are", func(t *testing.T) {
+		t.Parallel()
+		book := withPairs(usdtMarginedBook, usdtMarginedPairs...)
+		require.NoError(t, json.Unmarshal([]byte(`{"depth":{"levels":10}}`), &book.Params), "Unmarshal must decode the parameters as the loader does")
+		rowExchange := setup(t, subscription.List{book})
+		configured, err := json.Marshal(rowExchange.Features.Subscriptions)
+		require.NoError(t, err, "Marshal must not error")
+		saved, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
+		require.NoError(t, err, "Marshal must not error")
+		for _, generate := range []func() (subscription.List, error){
+			rowExchange.generateUSDTMarginedFuturesPublicSubscriptions, rowExchange.generateUSDTMarginedFuturesMarketSubscriptions, rowExchange.generateCoinMarginedFuturesSubscriptions,
+			rowExchange.generateOptionsPublicSubscriptions, rowExchange.generateOptionsMarketSubscriptions,
+		} {
+			_, err := generate()
+			require.NoError(t, err, "generating subscriptions must not error")
+		}
+		generated, err := json.Marshal(rowExchange.Features.Subscriptions)
+		require.NoError(t, err, "Marshal must not error")
+		assert.JSONEq(t, string(configured), string(generated), "generation should leave the configured subscriptions' nested parameters as they are")
+		savedAfter, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
+		require.NoError(t, err, "Marshal must not error")
+		assert.JSONEq(t, string(saved), string(savedAfter), "generation should leave the saved subscriptions' nested parameters as they are")
+	})
 
 	// An asset the configuration has no subscription of, enabled or not, streams its defaults
 	for _, tc := range []struct {
@@ -604,6 +978,33 @@ func TestDerivativesStreamName(t *testing.T) {
 			require.NoErrorf(t, err, "derivativesStreamName must not error for %s %s", tc.a, tc.sub.Channel)
 			assert.Equalf(t, tc.exp, got, "derivativesStreamName should name %s %s", tc.a, tc.sub.Channel)
 		})
+	}
+	futuresCandles := map[kline.Interval]string{
+		kline.OneMin: "kline_1m", kline.ThreeMin: "kline_3m", kline.FiveMin: "kline_5m", kline.FifteenMin: "kline_15m", kline.ThirtyMin: "kline_30m",
+		kline.OneHour: "kline_1h", kline.TwoHour: "kline_2h", kline.FourHour: "kline_4h", kline.SixHour: "kline_6h", kline.EightHour: "kline_8h",
+		kline.TwelveHour: "kline_12h", kline.OneDay: "kline_1d", kline.ThreeDay: "kline_3d", kline.OneWeek: "kline_1w", kline.OneMonth: "kline_1M",
+	}
+	for _, tc := range []struct {
+		name  string
+		a     asset.Item
+		names map[kline.Interval]string
+	}{
+		{"USDⓈ-M", asset.USDTMarginedFutures, futuresCandles},
+		{"COIN-M", asset.CoinMarginedFutures, futuresCandles},
+		{"options", asset.Options, map[kline.Interval]string{
+			kline.OneMin: "kline_1m", kline.ThreeMin: "kline_3m", kline.FiveMin: "kline_5m", kline.FifteenMin: "kline_15m", kline.ThirtyMin: "kline_30m",
+			kline.OneHour: "kline_1h", kline.TwoHour: "kline_2h", kline.FourHour: "kline_4h", kline.SixHour: "kline_6h", kline.TwelveHour: "kline_12h",
+			kline.OneDay: "kline_1d", kline.ThreeDay: "kline_3d", kline.OneWeek: "kline_1w",
+		}},
+	} {
+		for interval, exp := range tc.names {
+			t.Run(tc.name+" candles at "+interval.Short(), func(t *testing.T) {
+				t.Parallel()
+				got, err := e.derivativesStreamName(tc.a, &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: interval})
+				require.NoErrorf(t, err, "derivativesStreamName must not error for %s candles at %s", tc.a, interval)
+				assert.Equalf(t, exp, got, "derivativesStreamName should name %s candles at %s", tc.a, interval)
+			})
+		}
 	}
 }
 

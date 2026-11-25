@@ -1788,6 +1788,7 @@ func TestSetup(t *testing.T) {
 			ex := new(Exchange)
 			ex.SetDefaults()
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			ex.Accounts = accounts.MustNewAccounts(ex)
 			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 			return ex
 		}
@@ -1950,6 +1951,7 @@ func TestSetup(t *testing.T) {
 				ex := new(Exchange)
 				ex.SetDefaults()
 				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				ex.Accounts = accounts.MustNewAccounts(ex)
 				err = ex.Setup(exchCfg)
 				require.ErrorIsf(t, err, tc.err, "Setup must return the expected error for %s", tc.name)
 				if tc.err != nil {
@@ -2106,6 +2108,7 @@ func TestSetup(t *testing.T) {
 				ex := new(Exchange)
 				ex.SetDefaults()
 				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				ex.Accounts = accounts.MustNewAccounts(ex)
 				require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 				taken := tc.exp.Enabled()
 				for _, s := range defaultSubscriptions {
@@ -2206,6 +2209,7 @@ func TestSetup(t *testing.T) {
 			ex := new(Exchange)
 			ex.SetDefaults()
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			ex.Accounts = accounts.MustNewAccounts(ex)
 			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 			t.Cleanup(func() {
 				// Disabled first, as the connection monitor would otherwise redial the closed mock servers
@@ -2258,8 +2262,9 @@ func TestSetup(t *testing.T) {
 		ex := new(Exchange)
 		ex.SetDefaults()
 		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		ex.Accounts = accounts.MustNewAccounts(ex)
 		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
-		assert.Equal(t, defaultSubscriptions, ex.Features.Subscriptions, "Setup should take the exchange's own subscriptions once each")
+		assert.Equal(t, defaultSubscriptions.Clone(), ex.Features.Subscriptions, "Setup should take the exchange's own subscriptions once each")
 	})
 	t.Run("adds the derivatives defaults a saved list leaves out with the websocket and every asset disabled", func(t *testing.T) {
 		t.Parallel()
@@ -2278,6 +2283,7 @@ func TestSetup(t *testing.T) {
 		ex := new(Exchange)
 		ex.SetDefaults()
 		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		ex.Accounts = accounts.MustNewAccounts(ex)
 		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 		exp := subscription.List{spotTicker}
 		for _, s := range defaultSubscriptions {
