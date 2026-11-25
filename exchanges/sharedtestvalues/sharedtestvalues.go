@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -49,9 +48,7 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *websocket.Manager {
-	w := websocket.NewManager()
-	w.DataHandler = stream.NewRelay(WebsocketChannelOverrideCapacity)
-	return w
+	return websocket.NewManager(websocket.WithDataHandlerCapacity(WebsocketChannelOverrideCapacity))
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
