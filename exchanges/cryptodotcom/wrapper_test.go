@@ -1928,20 +1928,186 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAvailableTransferChains must refuse an empty currency")
-	skipLiveWithoutCredentials(t)
-	c := currency.NewCode("MATIC")
-	if !mockTests {
-		c = currency.BTC
+	for _, tc := range []struct {
+		name   string
+		wallet string
+		exp    []string
+	}{
+		{
+			name: "leaves out the networks disabled for deposits and withdrawals alike",
+			wallet: `"default_network":"SOL","network_list":[{"network_id":"SOL","withdraw_enabled":false,"deposit_enabled":false},` +
+				`{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true},{"network_id":"POLY","withdraw_enabled":false,"deposit_enabled":false},` +
+				`{"network_id":"ARB","withdraw_enabled":true,"deposit_enabled":false},{"network_id":"BASE","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"TRON","withdraw_enabled":false,"deposit_enabled":false}]`,
+			exp: []string{"ETH", "ARB", "BASE"},
+		},
+		{
+			name: "returns no network when every one is disabled",
+			wallet: `"default_network":"SOL","network_list":[{"network_id":"SOL","withdraw_enabled":false,"deposit_enabled":false},` +
+				`{"network_id":"POLY","withdraw_enabled":false,"deposit_enabled":false},{"network_id":"TRON","withdraw_enabled":false,"deposit_enabled":false}]`,
+		},
+		{
+			name:   "returns no network when the only one is disabled",
+			wallet: `"default_network":"SOL","network_list":[{"network_id":"SOL","withdraw_enabled":false,"deposit_enabled":false}]`,
+		},
+		{
+			name:   "keeps the only network when it is enabled",
+			wallet: `"default_network":null,"network_list":[{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp:    []string{"ETH"},
+		},
+		{
+			name: "keeps each network enabled either way in Crypto.com's order, whatever its fee, minimum or confirmations",
+			wallet: `"full_name":"USD Coin","default_network":"ETH","network_list":[` +
+				`{"network_id":"BNB","withdrawal_fee":"0.80000000","withdraw_enabled":true,"min_withdrawal_amount":"1.6","deposit_enabled":false,"confirmation_required":"12"},` +
+				`{"network_id":"ARB","withdrawal_fee":"0.00000000","withdraw_enabled":true,"min_withdrawal_amount":"0.2","deposit_enabled":false,"confirmation_required":"0"},` +
+				`{"network_id":"POLY","withdrawal_fee":"0.50000000","withdraw_enabled":false,"min_withdrawal_amount":"1.0","deposit_enabled":false,"confirmation_required":"30"},` +
+				`{"network_id":"TRON","withdrawal_fee":"1.00000000","withdraw_enabled":false,"min_withdrawal_amount":"2.0","deposit_enabled":false,"confirmation_required":"20"},` +
+				`{"network_id":"SUI","withdrawal_fee":null,"withdraw_enabled":false,"min_withdrawal_amount":"0.5","deposit_enabled":false,"confirmation_required":"3"},` +
+				`{"network_id":"ETH","withdrawal_fee":"20.00000000","withdraw_enabled":true,"min_withdrawal_amount":"40.0","deposit_enabled":false,"confirmation_required":"12"},` +
+				`{"network_id":"SOL","withdrawal_fee":"0.01000000","withdraw_enabled":false,"min_withdrawal_amount":"0.02","deposit_enabled":false,"confirmation_required":"1"},` +
+				`{"network_id":"BASE","withdrawal_fee":"0.20000000","withdraw_enabled":false,"min_withdrawal_amount":"0.5","deposit_enabled":true,"confirmation_required":"6"},` +
+				`{"network_id":"AVAX","withdrawal_fee":"0.30000000","withdraw_enabled":false,"min_withdrawal_amount":"0.6","deposit_enabled":true,"confirmation_required":"4"},` +
+				`{"network_id":"OP","withdrawal_fee":"0.50000000","withdraw_enabled":true,"min_withdrawal_amount":"0.3","deposit_enabled":true,"confirmation_required":"3"},` +
+				`{"network_id":"ZK","withdrawal_fee":"0.10000000","withdraw_enabled":true,"min_withdrawal_amount":"0.2","deposit_enabled":true,"confirmation_required":"5"},` +
+				`{"network_id":"STRK","withdrawal_fee":"0.40000000","withdraw_enabled":true,"min_withdrawal_amount":"0.8","deposit_enabled":false,"confirmation_required":"2"}]`,
+			exp: []string{"BNB", "ARB", "ETH", "BASE", "AVAX", "OP", "ZK", "STRK"},
+		},
+		{
+			name: "keeps a default network listed first and enabled for withdrawals alone, in Crypto.com's order",
+			wallet: `"default_network":"SOL","network_list":[{"network_id":"SOL","withdraw_enabled":true,"deposit_enabled":false},` +
+				`{"network_id":"TRON","withdraw_enabled":false,"deposit_enabled":true},{"network_id":"ARB","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp: []string{"SOL", "TRON", "ARB"},
+		},
+		{
+			name: "keeps a default network enabled for deposits alone",
+			wallet: `"default_network":"BASE","network_list":[{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true},` +
+				`{"network_id":"BASE","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"ETH", "BASE"},
+		},
+		{
+			name: "keeps every network when each takes deposits alone",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":true},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"BNB", "ETH", "MATIC"},
+		},
+		{
+			name: "keeps the default network when every other one is disabled",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":false,"deposit_enabled":false},` +
+				`{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":false}]`,
+			exp: []string{"ETH"},
+		},
+		{
+			name: "leaves out a disabled default network listed between enabled ones",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":true},` +
+				`{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":false},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"BNB", "MATIC"},
+		},
+		{
+			name: "keeps the only network when it takes withdrawals alone",
+			wallet: `"full_name":"USD Coin","default_network":null,"network_list":[{"network_id":"ETH","withdrawal_fee":null,"withdraw_enabled":true,` +
+				`"min_withdrawal_amount":"10.0","deposit_enabled":false,"confirmation_required":"12"}]`,
+			exp: []string{"ETH"},
+		},
+		{
+			name:   "keeps the only network when it takes deposits alone",
+			wallet: `"default_network":null,"network_list":[{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp:    []string{"ETH"},
+		},
+		{
+			name:   "returns no network when the only one is disabled and no default is named",
+			wallet: `"default_network":null,"network_list":[{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":false}]`,
+		},
+		{
+			name:   "keeps the only network when it is also named the default",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp:    []string{"ETH"},
+		},
+		{
+			name: "keeps networks taking withdrawals alone or deposits alone when none takes both and no default is named",
+			wallet: `"default_network":null,"network_list":[{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":false},` +
+				`{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":true},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"BNB", "ETH", "MATIC"},
+		},
+		{
+			name: "keeps every network when each takes withdrawals alone",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":false},` +
+				`{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":false},{"network_id":"MATIC","withdraw_enabled":true,"deposit_enabled":false}]`,
+			exp: []string{"BNB", "ETH", "MATIC"},
+		},
+		{
+			name: "keeps networks taking deposits alone in Crypto.com's order when none takes withdrawals",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":false},{"network_id":"BNB","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"MATIC", "BNB"},
+		},
+		{
+			name: "keeps a default network listed first and enabled for deposits alone",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":true},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true}]`,
+			exp: []string{"ETH", "BNB", "MATIC"},
+		},
+		{
+			name: "keeps the networks after a default listed first and enabled both ways, past a disabled one",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true},` +
+				`{"network_id":"BNB","withdraw_enabled":false,"deposit_enabled":false},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"SOL","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp: []string{"ETH", "MATIC", "SOL"},
+		},
+		{
+			name: "keeps the networks around a default enabled both ways in Crypto.com's order",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true},{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp: []string{"MATIC", "ETH", "BNB"},
+		},
+		{
+			name: "keeps a default network enabled both ways once when it is listed last",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":true},{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true}]`,
+			exp: []string{"MATIC", "BNB", "ETH"},
+		},
+		{
+			name: "keeps a default network enabled both ways between disabled networks and before an enabled one",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":false,"deposit_enabled":false},` +
+				`{"network_id":"ETH","withdraw_enabled":true,"deposit_enabled":true},{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":true},` +
+				`{"network_id":"SOL","withdraw_enabled":false,"deposit_enabled":false}]`,
+			exp: []string{"ETH", "MATIC"},
+		},
+		{
+			name: "keeps the only enabled network when the default, listed last, is disabled",
+			wallet: `"default_network":"ETH","network_list":[{"network_id":"BNB","withdraw_enabled":true,"deposit_enabled":true},` +
+				`{"network_id":"MATIC","withdraw_enabled":false,"deposit_enabled":false},{"network_id":"ETH","withdraw_enabled":false,"deposit_enabled":false}]`,
+			exp: []string{"BNB"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/get-currency-networks": testResult(`{"currency_map":{"USDC":{` + tc.wallet + `}}}`)})
+			got, err := ex.GetAvailableTransferChains(t.Context(), currency.USDC)
+			require.NoError(t, err, "GetAvailableTransferChains must not error")
+			if tc.exp == nil {
+				assert.Empty(t, got, "GetAvailableTransferChains should return no network when every one is disabled")
+				return
+			}
+			assert.Equal(t, tc.exp, got, "GetAvailableTransferChains should return the networks deposits or withdrawals are enabled on, in Crypto.com's order")
+		})
 	}
-	got, err := e.GetAvailableTransferChains(t.Context(), c)
-	require.NoError(t, err, "GetAvailableTransferChains must not error")
-	if !mockTests {
-		assert.NotEmpty(t, got, "GetAvailableTransferChains should return BTC's networks")
-		return
-	}
-	assert.Equal(t, []string{"BNB", "ETH", "MATIC"}, got, "GetAvailableTransferChains should return the currency's networks")
-	_, err = e.GetAvailableTransferChains(t.Context(), currency.NewCode("NOPE"))
-	assert.ErrorIs(t, err, currency.ErrCurrencyNotFound, "GetAvailableTransferChains should refuse a currency without networks")
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		skipLiveWithoutCredentials(t)
+		c := currency.NewCode("MATIC")
+		if !mockTests {
+			c = currency.BTC
+		}
+		got, err := e.GetAvailableTransferChains(t.Context(), c)
+		require.NoError(t, err, "GetAvailableTransferChains must not error")
+		if !mockTests {
+			assert.NotEmpty(t, got, "GetAvailableTransferChains should return BTC's networks")
+			return
+		}
+		assert.Equal(t, []string{"BNB", "ETH", "MATIC"}, got, "GetAvailableTransferChains should return the currency's networks")
+		_, err = e.GetAvailableTransferChains(t.Context(), currency.NewCode("NOPE"))
+		assert.ErrorIs(t, err, currency.ErrCurrencyNotFound, "GetAvailableTransferChains should refuse a currency without networks")
+	})
 }
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) { //nolint:tparallel // the withdrawal runs on e in order, before the later call of the same method

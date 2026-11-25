@@ -1093,7 +1093,8 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, ch
 	return &deposit.Address{Address: address, Tag: tag, Chain: found.Network}, nil
 }
 
-// GetAvailableTransferChains returns the networks a currency is deposited and withdrawn on
+// GetAvailableTransferChains returns the networks a currency is deposited or withdrawn on, leaving out those Crypto.com
+// has disabled for both
 func (e *Exchange) GetAvailableTransferChains(ctx context.Context, c currency.Code) ([]string, error) {
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1102,9 +1103,11 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, c currency.Co
 	if err != nil {
 		return nil, err
 	}
-	chains := make([]string, len(wc.Networks))
+	chains := make([]string, 0, len(wc.Networks))
 	for i := range wc.Networks {
-		chains[i] = wc.Networks[i].NetworkID
+		if wc.Networks[i].DepositEnabled || wc.Networks[i].WithdrawalEnabled {
+			chains = append(chains, wc.Networks[i].NetworkID)
+		}
 	}
 	return chains, nil
 }
