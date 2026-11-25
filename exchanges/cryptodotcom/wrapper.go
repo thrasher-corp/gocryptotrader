@@ -2741,10 +2741,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 }
 
 // GetFuturesPositionSummary returns a derivative's position, its cross margin position if it has one, with the
-// account's margin, which every cross margin position shares, or else its isolated position, with that position's.
+// account's USD margin, which every cross margin position shares, or else its isolated position, with that position's.
 // get-positions leaves out a position's margins, prices and leverage, so the mark price is the instrument's, the
 // leverage the isolated position's or else the lower of the account's and the instrument's maximum, and the margin
-// requirements an isolated position's own
+// requirements an isolated position's own. A cross margin position is returned without the account's margin when
+// user-balance reports no USD balance
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if r == nil {
 		return nil, common.ErrNilPointer
@@ -2805,8 +2806,8 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		summary.InitialMarginRequirement = iso.TotalInitialMargin.Decimal()
 		summary.MaintenanceMarginRequirement = iso.TotalMaintenanceMargin.Decimal()
 	} else {
-		if len(balances) > 0 {
-			account = &balances[0].BalanceSummary
+		if usd := slices.IndexFunc(balances, func(b UserBalanceResponse) bool { return currency.NewCode(b.InstrumentName).Equal(currency.USD) }); usd >= 0 {
+			account = &balances[usd].BalanceSummary
 		}
 		leverage, err := e.crossMarginLeverage(ctx, name)
 		if err != nil {

@@ -3467,6 +3467,7 @@ func riskManagementFieldSettings() map[string]order.RiskManagementModes {
 func TestNewOrderAmendment(t *testing.T) {
 	t.Parallel()
 	cro := currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)
+	croBTC := currency.NewPairWithDelimiter("CRO", "BTC", currency.UnderscoreDelimiter)
 	notFound := func(string) (string, *APIError) { return "", &APIError{Code: 40401, Message: "NOT_FOUND"} }
 	const limitOrder = `{"order_id":"1","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","exec_inst":["POST_ONLY"],"side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE","instrument_name":"BTC_USD"}`
 	const stopLossOrder = `{"order_id":"1","order_type":"STOP_LOSS","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","ref_price_type":"MARK_PRICE","status":"ACTIVE","instrument_name":"CRO_USD"}`
@@ -3539,6 +3540,40 @@ func TestNewOrderAmendment(t *testing.T) {
 			requests: orderLookup,
 		},
 		{
+			name:     "a partly filled limit order given its type alone, its quantity and limit price restated",
+			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","quantity":"0.01234","limit_price":"78000.0","avg_price":"77990.5","cumulative_quantity":"0.0040","status":"ACTIVE","instrument_name":"BTC_USD"}`)},
+			exp:      &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 78000, NewQuantity: 0.01234}, price: 78000, amount: 0.01234, timeInForce: order.GoodTillCancel},
+			requests: orderLookup,
+		},
+		{
+			name:     "a partly filled limit order given its price, its quantity restated",
+			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","side":"BUY","quantity":"0.01234","limit_price":"78000.0","avg_price":"77990.5","cumulative_quantity":"0.0040","status":"ACTIVE","instrument_name":"BTC_USD"}`)},
+			exp:      &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 77000, NewQuantity: 0.01234}, price: 77000, amount: 0.01234, timeInForce: order.GoodTillCancel},
+			requests: orderLookup,
+		},
+		{
+			name: "a partly filled order list leg only the advanced order methods hold given its type alone, its quantity and limit price restated",
+			m:    order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: croBTC},
+			routes: map[string]testRoute{
+				"private/get-order-detail":          notFound,
+				"private/advanced/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","side":"BUY","quantity":"12000","limit_price":"0.0000012345","avg_price":"0.0000012340","cumulative_quantity":"4000","status":"ACTIVE","instrument_name":"CRO_BTC","list_id":"9","leg_id":"2"}`),
+			},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 12000, NewPrice: new(types.Number(0.0000012345))}, price: 0.0000012345, amount: 12000},
+			requests: advancedLookup,
+		},
+		{
+			name: "a partly filled order list leg only the advanced order methods hold given its price, its quantity restated",
+			m:    order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: croBTC, Price: 0.0000012347},
+			routes: map[string]testRoute{
+				"private/get-order-detail":          notFound,
+				"private/advanced/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","side":"BUY","quantity":"12000","limit_price":"0.0000012345","avg_price":"0.0000012340","cumulative_quantity":"4000","status":"ACTIVE","instrument_name":"CRO_BTC","list_id":"9","leg_id":"2"}`),
+			},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 12000, NewPrice: new(types.Number(0.0000012347))}, price: 0.0000012347, amount: 12000},
+			requests: advancedLookup,
+		},
+		{
 			name:     "a limit order given its price, quantity and own time in force",
 			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.02, TimeInForce: order.PostOnly},
 			routes:   map[string]testRoute{"private/get-order-detail": testResult(limitOrder)},
@@ -3574,6 +3609,34 @@ func TestNewOrderAmendment(t *testing.T) {
 			m:        order.Modify{OrderID: "1", Type: order.Stop, AssetType: asset.Spot, Pair: cro, TriggerPrice: 0.0279},
 			routes:   map[string]testRoute{"private/get-order-detail": testResult(stopLimitOrder)},
 			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0279}, amount: 10},
+			requests: orderLookup,
+		},
+		{
+			name:     "a stop loss order given a new trigger price and a price without its type, which keeps it a stop loss order",
+			m:        order.Modify{OrderID: "1", AssetType: asset.Spot, Pair: cro, Price: 0.0279, TriggerPrice: 0.0281},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(stopLossOrder)},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0281}, amount: 10, orderType: order.Stop},
+			requests: orderLookup,
+		},
+		{
+			name:     "a take profit order given a new trigger price and a price without its type, which keeps it a take profit order",
+			m:        order.Modify{OrderID: "1", AssetType: asset.Spot, Pair: cro, Price: 0.0279, TriggerPrice: 0.0281},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"TAKE_PROFIT","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","ref_price_type":"MARK_PRICE","status":"ACTIVE","instrument_name":"CRO_USD"}`)},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0281}, amount: 10, orderType: order.TakeProfit},
+			requests: orderLookup,
+		},
+		{
+			name:     "a stop limit order given a new trigger price without its type, which keeps its limit price",
+			m:        order.Modify{OrderID: "1", AssetType: asset.Spot, Pair: cro, TriggerPrice: 0.0281},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(stopLimitOrder)},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0.0278)), NewReferencePrice: 0.0281}, price: 0.0278, amount: 10, orderType: order.StopLimit},
+			requests: orderLookup,
+		},
+		{
+			name:     "a stop limit order priced at its reference price moved to its stop form by its type alone",
+			m:        order.Modify{OrderID: "1", Type: order.Stop, AssetType: asset.Spot, Pair: cro},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"STOP_LIMIT","side":"SELL","quantity":"10","limit_price":"0.028","ref_price":"0.028","status":"ACTIVE","instrument_name":"CRO_USD"}`)},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0))}, amount: 10},
 			requests: orderLookup,
 		},
 		{
@@ -3723,8 +3786,9 @@ func TestNewOrderAmendment(t *testing.T) {
 		}
 		// Amendments that have the order looked up: leaving its quantity to it; leaving its price to it, unless the type
 		// is a trigger order's market form, sent without one; giving the price, quantity and time in force, as the order
-		// manager does from the order it stores; a new trigger price, for a trigger order's type; and the trigger price
-		// type of a trigger order
+		// manager does from the order it stores; a new trigger price, for a trigger order's type, alone, with a price or, for
+		// a limit form, with a quantity; the trigger price type of a trigger order; and a trigger order's type alone,
+		// restating its quantity and sending the price for the form it names
 		shapes := []struct {
 			name         string
 			price        float64
@@ -3739,7 +3803,10 @@ func TestNewOrderAmendment(t *testing.T) {
 			{name: "the price left to the order", amount: 5, limitOnly: true},
 			{name: "the price, quantity and time in force given", price: 0.0279, amount: 5, timeInForce: order.GoodTillCancel},
 			{name: "a new trigger price, the price and quantity left to the order", triggerPrice: 0.0281, triggerOnly: true},
+			{name: "a new trigger price and the price given, the quantity left to the order", price: 0.0279, triggerPrice: 0.0281, triggerOnly: true},
+			{name: "a new trigger price and the quantity given, the price left to the order", amount: 5, triggerPrice: 0.0281, triggerOnly: true, limitOnly: true},
 			{name: "the mark price as the trigger price type", price: 0.0279, priceType: order.MarkPrice},
+			{name: "the type alone", triggerOnly: true},
 		}
 		for _, h := range holders {
 			for _, s := range stored {
@@ -3775,7 +3842,9 @@ func TestNewOrderAmendment(t *testing.T) {
 										m := named[i]
 										m.Type, m.Price, m.Amount, m.TriggerPrice, m.TimeInForce, m.TriggerPriceType = a.orderType, sh.price, sh.amount, sh.triggerPrice, sh.timeInForce, sh.priceType
 										sent := len(received())
-										got, err := ex.newOrderAmendment(t.Context(), &m)
+										// A copy is amended, so the expected amendment follows the modification as given
+										given := m
+										got, err := ex.newOrderAmendment(t.Context(), &given)
 										params := `{"client_oid":"client42"}`
 										if m.OrderID != "" {
 											params = `{"order_id":"1"}`
@@ -6116,6 +6185,51 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	}
 	assert.Equal(t, exp, got, "GetFuturesPositionSummary should summarise the cross margin position with the account's margin, the lower of the account's and the instrument's maximum leverage, valued at the mark price")
 
+	crossSummary := *exp
+	withoutAccountMargin := crossSummary
+	withoutAccountMargin.AvailableEquity, withoutAccountMargin.CashBalance, withoutAccountMargin.MarginBalance = decimal.Decimal{}, decimal.Decimal{}, decimal.Decimal{}
+	withoutAccountMargin.NotionalLeverage, withoutAccountMargin.TotalCollateral, withoutAccountMargin.FreeCollateral = decimal.Decimal{}, decimal.Decimal{}, decimal.Decimal{}
+	nothingAvailable := crossSummary
+	nothingAvailable.AvailableEquity, nothingAvailable.FreeCollateral = decimal.MustFromString("0"), decimal.MustFromString("0")
+	// The USD balance's collateral is other currencies', so the row is found by its own instrument alone
+	usdBalance := func(instrument, available string) string {
+		return `{"instrument_name":"` + instrument + `","total_available_balance":"` + available + `","total_margin_balance":"7595.42571782","total_cash_balance":"7890.00320721","total_collateral_value":"7651.18811483","total_effective_leverage":"1.90401230","position_balances":[{"instrument_name":"CRO","quantity":"100"},{"instrument_name":"BTC","quantity":"0.1"}]}`
+	}
+	otherBalance := func(instrument string) string {
+		return `{"instrument_name":"` + instrument + `","total_available_balance":"3","total_margin_balance":"11","total_cash_balance":"12","total_collateral_value":"10","total_effective_leverage":"0.5",` +
+			`"position_balances":[{"instrument_name":"USD","quantity":"12","collateral_amount":"12","collateral_eligible":true}],` +
+			`"isolated_positions":[{"instrument_name":"USD","isolation_id":"19848530","isolation_type":"ISOLATED_MARGIN","leverage":"2","total_available_balance":"0.4","total_margin_balance":"5.397","total_cash_balance":"5.4","total_collateral_value":"5.4","total_effective_leverage":"0.4"}]}`
+	}
+	// Stablecoins named after USD, a fiat currency and rows holding USD collateral or an isolated USD position are other
+	// instruments' balances too
+	others := []string{otherBalance("BTC"), otherBalance("USDT"), otherBalance("USDC"), otherBalance("FDUSD"), otherBalance("EUR")}
+	usd := usdBalance("USD", "4721.05898582")
+	for _, tc := range []struct {
+		name     string
+		balances []string
+		exp      futures.PositionSummary
+	}{
+		{name: "the USD balance listed before other instruments'", balances: slices.Concat([]string{usd}, others), exp: crossSummary},
+		{name: "the USD balance listed among other instruments'", balances: slices.Concat(others[:2], []string{usd}, others[2:]), exp: crossSummary},
+		{name: "the USD balance listed after other instruments'", balances: slices.Concat(others, []string{usd}), exp: crossSummary},
+		{name: "a lower case USD balance listed before other instruments'", balances: slices.Concat([]string{usdBalance("usd", "4721.05898582")}, others), exp: crossSummary},
+		{name: "a lower case USD balance listed after other instruments'", balances: slices.Concat(others, []string{usdBalance("usd", "4721.05898582")}), exp: crossSummary},
+		{name: "a USD balance with nothing available", balances: []string{usdBalance("USD", "0")}, exp: nothingAvailable},
+		{name: "only other instruments' balances", balances: others, exp: withoutAccountMargin},
+		{name: "another instrument's balance alone", balances: []string{`{"instrument_name":"BTC","total_available_balance":"3","total_margin_balance":"11","total_cash_balance":"12","total_collateral_value":"10","total_effective_leverage":"0.5"}`}, exp: withoutAccountMargin},
+		{name: "no balance", exp: withoutAccountMargin},
+	} {
+		t.Run("a cross margin position with "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			routes := maps.Clone(cross)
+			routes["private/user-balance"] = testResult(`{"data":[` + strings.Join(tc.balances, ",") + `]}`)
+			balanceEx, _ := newRoutesServerExchange(t, routes)
+			summary, err := balanceEx.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair})
+			require.NoError(t, err, "GetFuturesPositionSummary must not error")
+			assert.Equal(t, &tc.exp, summary, "GetFuturesPositionSummary should take the account's margin from its USD balance alone")
+		})
+	}
+
 	isolated := maps.Clone(testPositionRoutes)
 	isolated["private/get-positions"] = testResult(`{"data":[{"quantity":"0.0002","open_pos_cost":"10.959000","open_position_pnl":"-0.003000","instrument_name":"BTCUSD-PERP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}]}`)
 	ex, _ = newRoutesServerExchange(t, isolated)
@@ -6649,6 +6763,25 @@ func TestGetLeverage(t *testing.T) {
 		require.NoError(t, err, "GetLeverage must not error under the contract cap")
 		assert.Equal(t, 5.0, got, "the account's lower leverage should apply")
 	})
+	for name, mt := range map[string]margin.Type{"an unset": margin.Unset, "a cross": margin.Multi} {
+		for a, p := range map[asset.Item]currency.Pair{asset.PerpetualSwap: testPerpetualPair, asset.Futures: testFuturesPair} {
+			// The least and the most account leverage Crypto.com takes, one between and one above 50, each no higher than the cap
+			for _, leverage := range []uint64{1, 5, 75, 100} {
+				t.Run(fmt.Sprintf("%s reads an account leverage of %d no higher than its contract cap on %s margin type", a, leverage, name), func(t *testing.T) {
+					t.Parallel()
+					// Instruments with lower caps than the one read are listed before and after it, a spot pair and another expiry
+					// among them
+					exch, _ := newRoutesServerExchange(t, map[string]testRoute{
+						"private/get-account-settings": testResult(`[{"leverage":"` + strconv.FormatUint(leverage, 10) + `"}]`),
+						"public/get-instruments":       testResult(`{"data":[{"symbol":"ETHUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"2","tradable":true},{"symbol":"BTC_USD","inst_type":"CCY_PAIR","max_leverage":"3","tradable":true},{"symbol":"BTCUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"100","tradable":true},{"symbol":"BTCUSD-260925","inst_type":"FUTURE","max_leverage":"20","tradable":true,"underlying_symbol":"BTCUSD-INDEX"},{"symbol":"BTCUSD-261030","inst_type":"FUTURE","max_leverage":"100","tradable":true,"underlying_symbol":"BTCUSD-INDEX"},{"symbol":"SOLUSD-PERP","inst_type":"PERPETUAL_SWAP","max_leverage":"4","tradable":true}]}`),
+					})
+					got, err := exch.GetLeverage(t.Context(), a, p, mt, order.UnknownSide)
+					require.NoErrorf(t, err, "GetLeverage must not error for a %s pair on %s margin type", a, name)
+					assert.Equalf(t, float64(leverage), got, "GetLeverage should return the account's leverage for a %s pair on %s margin type", a, name)
+				})
+			}
+		}
+	}
 	for _, tc := range []struct {
 		name        string
 		instruments string
@@ -6679,8 +6812,8 @@ func TestGetLeverage(t *testing.T) {
 		require.ErrorAs(t, err, &apiErr, "GetLeverage must return the catalogue's failure")
 		assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "GetLeverage should return the catalogue's error")
 	})
-	for _, mt := range []margin.Type{margin.Unset, margin.Multi, margin.Isolated} {
-		t.Run("refuses an empty pair on margin type "+mt.String()+" before any request", func(t *testing.T) {
+	for name, mt := range map[string]margin.Type{"an unset": margin.Unset, "a cross": margin.Multi, "an isolated": margin.Isolated} {
+		t.Run("refuses an empty pair on "+name+" margin type before any request", func(t *testing.T) {
 			t.Parallel()
 			refuser, refused := newRoutesServerExchange(t, nil)
 			got, err := refuser.GetLeverage(t.Context(), asset.PerpetualSwap, currency.EMPTYPAIR, mt, order.UnknownSide)

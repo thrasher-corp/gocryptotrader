@@ -2122,13 +2122,18 @@ func TestResubscribeBook(t *testing.T) {
 		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
 		require.NoError(t, err, "GetConnection must not error")
 		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-		// The mock holds back the unsubscription until both resubscriptions have started
+		// The mock holds back its answer to the unsubscription until resubscribeBook has been called twice
 		started := make(chan struct{})
 		release := sync.OnceFunc(func() { close(started) })
 		t.Cleanup(release)
 		venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-started })
 
 		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
+		// The resubscription runs apart from the caller, so resubscribeBook is called again once the first resubscription
+		// holds the channel, as a delta arriving while the books await a snapshot would call it
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+		require.Eventually(t, func() bool { return s.State() != subscription.SubscribedState }, 10*time.Second, time.Millisecond, "resubscribeBook must start resubscribing the book channel")
 		ex.resubscribeBook(t.Context(), conn, recordedBookChannel)
 		release()
 		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
