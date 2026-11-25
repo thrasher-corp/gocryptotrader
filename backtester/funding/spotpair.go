@@ -144,7 +144,7 @@ func (p *SpotPair) GetPairReader() (IPairReader, error) {
 	return p, nil
 }
 
-// GetCollateralReader returns an error because its not collateral
+// GetCollateralReader returns an error because it's not collateral
 func (p *SpotPair) GetCollateralReader() (ICollateralReader, error) {
 	return nil, ErrNotCollateral
 }
