@@ -113,11 +113,7 @@ func configureTestExchange(ex *Exchange) error {
 	ex.API.AuthenticatedWebsocketSupport = true
 	// Kraken secrets are base64 encoded
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "bW9jay1hcGktc2VjcmV0"})
-	if err := testexch.MockHTTPInstance(ex); err != nil {
-		return err
-	}
-	// Mock responses are served locally, so throttling protects nothing
-	return ex.DisableRateLimiter()
+	return testexch.MockHTTPInstance(ex)
 }
 
 // newTestExchange returns an exchange set up from the test configuration under the test's name, so the stores it

@@ -1,14 +1,10 @@
 package v21
 
 import (
-	"cmp"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
-	"slices"
-	"strings"
+	"encoding/json" //nolint:depguard // Matches the encoding/json the migration uses
 	"testing"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,164 +12,203 @@ import (
 func TestParseInterval(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		raw string
-		exp time.Duration
-		ok  bool
+		name string
+		raw  json.RawMessage
+		exp  time.Duration
+		ok   bool
 	}{
-		{raw: "", ok: true},
-		{raw: `0`, ok: true},
-		{raw: `60000000000`, exp: time.Minute, ok: true},
-		{raw: `"1m"`, exp: time.Minute, ok: true},
-		{raw: `"60s"`, exp: time.Minute, ok: true},
-		{raw: `"1m0s"`, exp: time.Minute, ok: true},
-		{raw: `"1MIN"`, exp: time.Minute, ok: true},
-		{raw: `"60S"`, exp: time.Minute, ok: true},
-		{raw: `"1minute"`, exp: time.Minute, ok: true},
-		{raw: `"2w"`, exp: 14 * 24 * time.Hour, ok: true},
-		{raw: `"1M"`, exp: 30 * 24 * time.Hour, ok: true},
-		{raw: `"1mo"`, exp: 30 * 24 * time.Hour, ok: true},
-		{raw: `"0d"`, ok: true},
-		{raw: `"raw"`},
-		{raw: `null`},
-		{raw: `"1 minute"`},
-		{raw: `"m"`},
-		{raw: `"5x"`},
-		{raw: `"99999999999999999999m"`},
-		{raw: `"9007199254740993m"`},
+		{name: "absent", raw: nil, ok: true},
+		{name: "null", raw: json.RawMessage(`null`)},
+		{name: "nanoseconds", raw: json.RawMessage(`100000000`), exp: 100 * time.Millisecond, ok: true},
+		{name: "milliseconds duration", raw: json.RawMessage(`"100ms"`), exp: 100 * time.Millisecond, ok: true},
+		{name: "fractional seconds duration", raw: json.RawMessage(`"0.1s"`), exp: 100 * time.Millisecond, ok: true},
+		{name: "zero duration", raw: json.RawMessage(`"0s"`), ok: true},
+		{name: "quoted nanoseconds", raw: json.RawMessage(`"100000000"`)},
+		{name: "unparsable duration", raw: json.RawMessage(`"wibble"`)},
+		{name: "boolean", raw: json.RawMessage(`true`)},
 	} {
-		t.Run(cmp.Or(tc.raw, "omitted"), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			interval, ok := parseInterval(json.RawMessage(tc.raw))
-			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %q has a duration", tc.raw)
-			assert.Equalf(t, tc.exp, interval, "parseInterval should parse %q as the runtime does", tc.raw)
+			got, ok := parseInterval(tc.raw)
+			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %s parses", tc.raw)
+			assert.Equalf(t, tc.exp, got, "parseInterval should return the duration of %s", tc.raw)
 		})
 	}
 }
 
-func TestSubscriptionMatches(t *testing.T) {
+func TestDisableUnsupportedChannels(t *testing.T) {
 	t.Parallel()
-	candles := subscription{channel: "candles", asset: "spot", interval: time.Minute}
-	minute := json.RawMessage(`"1m"`)
 	for _, tc := range []struct {
-		name  string
-		saved savedSubscription
-		exp   bool
+		name, input, exp string
 	}{
-		{name: "as saved", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute}, exp: true},
-		{name: "with the asset in upper case", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "SPOT", Interval: minute}, exp: true},
-		{name: "with the interval in seconds", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"60s"`)}, exp: true},
-		{name: "with empty parameters", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Params: map[string]any{}}, exp: true},
-		{name: "disabled", saved: savedSubscription{Channel: "candles", Asset: "spot", Interval: minute}},
-		{name: "with a capitalised channel", saved: savedSubscription{Enabled: true, Channel: "Candles", Asset: "spot", Interval: minute}},
-		{name: "for another asset", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "futures", Interval: minute}},
-		{name: "with pairs", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Pairs: "XBT/USD"}},
-		{name: "with parameters", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Params: map[string]any{"snapshot": false}}},
-		{name: "with levels", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Levels: 10}},
-		{name: "authenticated", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: minute, Authenticated: true}},
-		{name: "with another interval", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"5m"`)}},
-		{name: "with an interval without a duration", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"raw"`)}},
+		{name: "no subscriptions", input: `{"name":"Bitstamp"}`, exp: `{"name":"Bitstamp"}`},
+		{name: "subscriptions object", input: `{"features":{"subscriptions":{}}}`, exp: `{"features":{"subscriptions":{}}}`},
+		{
+			name:  "previous channels",
+			input: `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook","asset":"all"},{"enabled":true,"channel":"allTrades"},{"enabled":true,"channel":"myOrders","asset":"spot"},{"enabled":true,"channel":"myTrades"}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook","asset":"all"},{"enabled":true,"channel":"allTrades"},{"enabled":true,"channel":"myOrders","asset":"spot"},{"enabled":true,"channel":"myTrades"}]}}`,
+		},
+		{
+			name:  "perpetual contract assets",
+			input: `{"features":{"subscriptions":[{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"},{"enabled":true,"channel":"funding_rate","asset":"PerpetualContract"}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"},{"enabled":true,"channel":"funding_rate","asset":"PerpetualContract"}]}}`,
+		},
+		{
+			name:  "unsupported channels",
+			input: `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook"},{"enabled":true,"channel":"funding_rate","asset":"all"},{"enabled":true,"channel":"announcements"}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook"},{"enabled":false,"channel":"funding_rate","asset":"all"},{"enabled":false,"channel":"announcements"}]}}`,
+		},
+		{
+			name:  "unsupported channels not enabled",
+			input: `{"features":{"subscriptions":[{"enabled":false,"channel":"announcements"},{"channel":"announcements"},{"enabled":null,"channel":"announcements"}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":false,"channel":"announcements"},{"channel":"announcements"},{"enabled":null,"channel":"announcements"}]}}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tc.exp, candles.matches(&tc.saved), "matches should report whether the subscription %s is the default", tc.name)
+			got, err := disableUnsupportedChannels([]byte(tc.input))
+			require.NoError(t, err, "disableUnsupportedChannels must not error")
+			assert.JSONEq(t, tc.exp, string(got), "disableUnsupportedChannels should disable only the enabled channels the previous version cannot subscribe to")
+		})
+	}
+}
+
+func TestClientIDRequirementKeys(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, input, errContains string
+		exp                      []string
+	}{
+		{name: "no validator", input: `{"name":"Bitstamp","api":{}}`},
+		{name: "null validator", input: `{"api":{"credentialsValidator":null}}`},
+		{name: "without the requirement", input: `{"api":{"credentialsValidator":{"requiresKey":true}}}`},
+		{name: "requirement", input: `{"api":{"credentialsValidator":{"requiresKey":true,"requiresClientID":false}}}`, exp: []string{"requiresClientID"}},
+		{name: "any case", input: `{"api":{"credentialsValidator":{"RequiresClientID":true,"requiresclientid":false}}}`, exp: []string{"RequiresClientID", "requiresclientid"}},
+		{name: "repeated key", input: `{"api":{"credentialsValidator":{"requiresClientID":false,"requiresClientID":true}}}`, exp: []string{"requiresClientID", "requiresClientID"}},
+		{name: "malformed validator", input: `{"api":{"credentialsValidator":}}`, errContains: "error getting Bitstamp credentials validator"},
+		{name: "malformed requirement", input: `{"api":{"credentialsValidator":{"requiresClientID":}}}`, errContains: "error decoding Bitstamp credentials validator"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			keys, err := clientIDRequirementKeys([]byte(tc.input))
+			if tc.errContains != "" {
+				assert.ErrorContains(t, err, tc.errContains, "clientIDRequirementKeys should report the malformed validator")
+				return
+			}
+			require.NoError(t, err, "clientIDRequirementKeys must not error")
+			assert.Equal(t, tc.exp, keys, "clientIDRequirementKeys should return each key the config loader reads as the requirement")
+		})
+	}
+}
+
+func TestReplaceSubscriptions(t *testing.T) {
+	t.Parallel()
+	from := []defaultSubscription{{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond}, {channel: "myOrders", asset: "spot", authenticated: true}}
+	to := []defaultSubscription{{channel: "allTrades", asset: "all", interval: time.Second, authenticated: true}, {channel: "funding_rate", asset: "perpetualcontract"}}
+	for _, tc := range []struct {
+		name, input, exp, errContains string
+	}{
+		{name: "no subscriptions", input: `{"name":"Bitstamp"}`, exp: `{"name":"Bitstamp"}`},
+		{name: "null subscriptions", input: `{"features":{"subscriptions":null}}`, exp: `{"features":{"subscriptions":null}}`},
+		{
+			name:  "matching subscriptions",
+			input: `{"features":{"subscriptions":[{"enabled":true,"channel":"myOrders","asset":"SPOT","authenticated":true},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":true,"channel":"allTrades","asset":"all","interval":"1s","authenticated":true},{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"}]}}`,
+		},
+		{
+			name:  "customised subscriptions",
+			input: `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook","asset":"spot","interval":"10ms"},{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}]}}`,
+			exp:   `{"features":{"subscriptions":[{"enabled":true,"channel":"orderbook","asset":"spot","interval":"10ms"},{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}]}}`,
+		},
+		{name: "malformed subscriptions", input: `{"features":{"subscriptions":}}`, errContains: "error getting Bitstamp subscriptions"},
+		{name: "subscriptions object", input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Bitstamp subscriptions"},
+		{name: "malformed entry", input: `{"features":{"subscriptions":["orderbook"]}}`, errContains: "error decoding Bitstamp subscriptions"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := replaceSubscriptions([]byte(tc.input), from, to)
+			if tc.errContains != "" {
+				require.ErrorContains(t, err, tc.errContains, "replaceSubscriptions must report the failing operation")
+				assert.Equal(t, tc.input, string(got), "replaceSubscriptions should leave a malformed config unchanged")
+				return
+			}
+			require.NoError(t, err, "replaceSubscriptions must not error")
+			assert.JSONEq(t, tc.exp, string(got), "replaceSubscriptions should replace only subscriptions matching the defaults")
 		})
 	}
 }
 
 func TestMatchDefaults(t *testing.T) {
 	t.Parallel()
-	saved := func(defaults ...subscription) []savedSubscription {
-		subs := make([]savedSubscription, len(defaults))
-		for i, d := range defaults {
-			subs[i] = savedSubscription{Enabled: true, Channel: d.channel, Asset: d.asset, Levels: d.levels, Authenticated: d.authenticated}
-			if d.interval != 0 {
-				subs[i].Interval = json.RawMessage(`"` + d.interval.String() + `"`)
-			}
-		}
-		return subs
-	}
-	previous := previousSubscriptions
-	matched, ok := matchDefaults(saved(previous[5], previous[4], previous[3], previous[2], previous[1], previous[0]), previous)
-	require.True(t, ok, "matchDefaults must match the defaults in another order")
-	assert.Equal(t, []int{5, 4, 3, 2, 1, 0}, matched, "matchDefaults should return the index of each saved subscription's default")
-
-	current := slices.Concat(previousSubscriptions, futuresSubscriptions)
-	matched, ok = matchDefaults(saved(current...), current)
-	require.True(t, ok, "matchDefaults must match the current defaults")
-	assert.Equal(t, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, matched, "matchDefaults should tell the futures defaults from the spot ones")
-
-	for name, subs := range map[string][]savedSubscription{
-		"a default missing":    saved(previous[1:]...),
-		"a default duplicated": saved(previous[0], previous[0], previous[2], previous[3], previous[4], previous[5]),
-		"another subscription": saved(slices.Concat(previous, futuresSubscriptions[:1])...),
-		"no subscriptions":     nil,
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			_, ok := matchDefaults(subs, previous)
-			assert.Falsef(t, ok, "matchDefaults should not match %s", name)
-		})
-	}
-}
-
-func TestMigrateEndpoints(t *testing.T) {
-	t.Parallel()
-	var offered []string
-	migrate := func(endpoint string) (string, bool) {
-		offered = append(offered, endpoint)
-		return endpoint + "/next", endpoint == "wss://a"
-	}
-	got, err := migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a","WebsocketSpotSupplementaryURL":"wss://b","RestSpotURL":"wss://a"}}}`), migrate)
-	require.NoError(t, err, "migrateEndpoints must not error")
-	assert.JSONEq(t, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a/next","WebsocketSpotSupplementaryURL":"wss://b","RestSpotURL":"wss://a"}}}`, string(got), "migrateEndpoints should replace only the websocket endpoints migrate replaces")
-	assert.Equal(t, []string{"wss://a", "wss://b"}, offered, "migrateEndpoints should offer migrate each websocket endpoint")
-
-	offered = nil
-	got, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":5}}}`), migrate)
-	require.NoError(t, err, "migrateEndpoints must not error for an endpoint that is not a string")
-	assert.JSONEq(t, `{"api":{"urlEndpoints":{"WebsocketSpotURL":5}}}`, string(got), "migrateEndpoints should keep an endpoint that is not a string")
-	assert.Empty(t, offered, "migrateEndpoints should not offer migrate an endpoint that is not a string")
-
-	_, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://a`), migrate)
-	assert.ErrorIs(t, err, jsonparser.MalformedStringError, "migrateEndpoints should reject an unterminated endpoint")
-	_, err = migrateEndpoints([]byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\q"}}}`), migrate)
-	assert.ErrorIs(t, err, jsonparser.MalformedValueError, "migrateEndpoints should reject an endpoint with an invalid escape")
-}
-
-func TestMigrateSubscriptions(t *testing.T) {
-	t.Parallel()
-	previous := `{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},` +
-		`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"orderbook","asset":"spot","levels":1000},` +
-		`{"enabled":true,"channel":"myOrders","authenticated":true},{"enabled":true,"channel":"myTrades","authenticated":true}`
-	futures := `{"enabled":true,"channel":"ticker","asset":"futures"},{"enabled":true,"channel":"allTrades","asset":"futures"},` +
-		`{"enabled":true,"channel":"orderbook","asset":"futures"},{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},` +
-		`{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true},{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
-	features := func(subs ...string) string {
-		return `{"features":{"subscriptions":[` + strings.Join(subs, ",") + `]}}`
-	}
+	defaults := []defaultSubscription{{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond}, {channel: "myOrders", asset: "spot", authenticated: true}}
+	const (
+		orderbook = `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}`
+		orders    = `{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}`
+	)
 	for _, tc := range []struct {
-		name, in, exp string
-		upgrade       bool
+		name    string
+		entries []string
+		exp     bool
+		err     bool
 	}{
-		{name: "upgrading the previous defaults", in: features(previous), exp: features(previous, futures), upgrade: true},
-		{name: "upgrading the current defaults", in: features(previous, futures), exp: features(previous, futures), upgrade: true},
-		{name: "downgrading the current defaults", in: features(previous, futures), exp: features(previous)},
-		{name: "downgrading the previous defaults", in: features(previous), exp: features(previous)},
-		{name: "upgrading without subscriptions", in: `{"features":{}}`, exp: `{"features":{}}`, upgrade: true},
+		{name: "in order", entries: []string{orderbook, orders}, exp: true},
+		{name: "any order", entries: []string{orders, orderbook}, exp: true},
+		{name: "fewer entries", entries: []string{orderbook}},
+		{name: "more entries", entries: []string{orderbook, orders, orders}},
+		{name: "repeated channel", entries: []string{orderbook, orderbook}},
+		{name: "other channel", entries: []string{orderbook, `{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`}},
+		{name: "different setting", entries: []string{orderbook, `{"enabled":true,"channel":"myOrders","asset":"spot"}`}},
+		{name: "other field", entries: []string{orderbook, `{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true,"pairs":"BTC/USD"}`}},
+		{name: "entry not an object", entries: []string{orderbook, `"myOrders"`}, err: true},
+		{name: "mistyped field", entries: []string{orderbook, `{"enabled":"true","channel":"myOrders","asset":"spot","authenticated":true}`}, err: true},
+		{name: "mistyped field after another field", entries: []string{`{"enabled":true,"channel":"orderbook","levels":10}`, `{"enabled":"true","channel":"myOrders"}`}, err: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := migrateSubscriptions([]byte(tc.in), tc.upgrade)
-			require.NoErrorf(t, err, "migrateSubscriptions must not error %s", tc.name)
-			assert.JSONEqf(t, tc.exp, string(got), "migrateSubscriptions should give the expected subscriptions %s", tc.name)
+			entries := make([]json.RawMessage, len(tc.entries))
+			for i := range tc.entries {
+				entries[i] = json.RawMessage(tc.entries[i])
+			}
+			matched, err := matchDefaults(entries, defaults)
+			if tc.err {
+				assert.Error(t, err, "matchDefaults should report a malformed entry")
+				return
+			}
+			require.NoError(t, err, "matchDefaults must not error")
+			assert.Equal(t, tc.exp, matched, "matchDefaults should report whether each entry resolves to a different default")
 		})
 	}
+}
 
-	_, err := migrateSubscriptions([]byte(`{"features":{"subscriptions":[}}`), true)
-	assert.ErrorIs(t, err, jsonparser.MalformedArrayError, "migrateSubscriptions should reject unterminated subscriptions")
-	var typeErr *json.UnmarshalTypeError
-	_, err = migrateSubscriptions([]byte(`{"features":{"subscriptions":{}}}`), true)
-	assert.ErrorAs(t, err, &typeErr, "migrateSubscriptions should reject subscriptions that are not an array")
-	_, err = migrateSubscriptions([]byte(`{"features":{"subscriptions":[1]}}`), false)
-	assert.ErrorAs(t, err, &typeErr, "migrateSubscriptions should reject a subscription that is not an object")
+func TestDefaultSubscriptionMatches(t *testing.T) {
+	t.Parallel()
+	public := &defaultSubscription{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond}
+	private := &defaultSubscription{channel: "myOrders", asset: "spot", authenticated: true}
+	for _, tc := range []struct {
+		name  string
+		d     *defaultSubscription
+		saved savedSubscription
+		exp   bool
+	}{
+		{name: "public", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`"100ms"`)}, exp: true},
+		{name: "asset in another case", d: public, saved: savedSubscription{Enabled: new(true), Asset: "SPOT", Interval: json.RawMessage(`"100ms"`)}, exp: true},
+		{name: "interval in nanoseconds", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`100000000`)}, exp: true},
+		{name: "explicitly unauthenticated", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`"100ms"`), Authenticated: new(false)}, exp: true},
+		{name: "enabled absent", d: public, saved: savedSubscription{Asset: "spot", Interval: json.RawMessage(`"100ms"`)}},
+		{name: "disabled", d: public, saved: savedSubscription{Enabled: new(false), Asset: "spot", Interval: json.RawMessage(`"100ms"`)}},
+		{name: "other asset", d: public, saved: savedSubscription{Enabled: new(true), Asset: "margin", Interval: json.RawMessage(`"100ms"`)}},
+		{name: "other interval", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`"10ms"`)}},
+		{name: "interval absent", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot"}},
+		{name: "null interval", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`null`)}},
+		{name: "authenticated public", d: public, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`"100ms"`), Authenticated: new(true)}},
+		{name: "private", d: private, saved: savedSubscription{Enabled: new(true), Asset: "spot", Authenticated: new(true)}, exp: true},
+		{name: "private without authentication", d: private, saved: savedSubscription{Enabled: new(true), Asset: "spot"}},
+		{name: "private explicitly unauthenticated", d: private, saved: savedSubscription{Enabled: new(true), Asset: "spot", Authenticated: new(false)}},
+		{name: "private with an interval", d: private, saved: savedSubscription{Enabled: new(true), Asset: "spot", Interval: json.RawMessage(`"1s"`), Authenticated: new(true)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.d.matches(&tc.saved), "matches should report whether the saved subscription resolves to the default")
+		})
+	}
 }

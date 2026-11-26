@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // Public errors
@@ -314,6 +315,21 @@ func (c Code) MarshalJSON() ([]byte, error) {
 		return json.Marshal("")
 	}
 	return json.Marshal(c.String())
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the code as its string and keeping its case
+func (c Code) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(c.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler.
+func (c *Code) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("currency.Code: %w", err)
+	}
+	*c = NewCode(str)
+	return nil
 }
 
 // MarshalText implements encoding.TextMarshaler. sonic ignores MarshalJSON for map keys and

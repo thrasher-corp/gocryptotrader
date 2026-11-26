@@ -20,8 +20,12 @@ import (
 const (
 	saltRandomLength  = 12
 	encryptionVersion = 1
-	versionSize       = 2 // 2 bytes as uint16, allows for 65535 versions (at our current rate of 1 version per decade, should last a few generations)
+	versionSize       = 2     // 2 bytes as uint16, allows for 65535 versions (at our current rate of 1 version per decade, should last a few generations)
+	defaultScryptCost = 32768 // scrypt's CPU and memory cost parameter; data encrypted with one cost only decrypts with the same cost
 )
+
+// scryptCost is lowered by tests, as key derivation at defaultScryptCost dominates the package's test time
+var scryptCost = defaultScryptCost
 
 // Public errors
 var (
@@ -258,7 +262,7 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, errKeyIsEmpty
 	}
-	return scrypt.Key(key, salt, 32768, 8, 1, 32)
+	return scrypt.Key(key, salt, scryptCost, 8, 1, 32)
 }
 
 func makeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {

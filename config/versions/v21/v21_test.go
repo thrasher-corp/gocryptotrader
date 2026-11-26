@@ -1,182 +1,211 @@
 package v21_test
 
 import (
-	"bytes"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"strings"
 	"testing"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v21 "github.com/thrasher-corp/gocryptotrader/config/versions/v21"
 )
 
-// Kraken's default subscriptions as configs save them
+// The v20 and v21 default subscriptions as the config saves them
 const (
-	ticker         = `{"enabled":true,"channel":"ticker","asset":"spot"}`
-	allTrades      = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
-	candles        = `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"}`
-	orderbook      = `{"enabled":true,"channel":"orderbook","asset":"spot","levels":1000}`
-	myOrders       = `{"enabled":true,"channel":"myOrders","authenticated":true}`
-	myTrades       = `{"enabled":true,"channel":"myTrades","authenticated":true}`
-	futuresTicker  = `{"enabled":true,"channel":"ticker","asset":"futures"}`
-	futuresTrades  = `{"enabled":true,"channel":"allTrades","asset":"futures"}`
-	futuresBook    = `{"enabled":true,"channel":"orderbook","asset":"futures"}`
-	futuresOrders  = `{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true}`
-	futuresFills   = `{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true}`
-	futuresWallet  = `{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
-	futuresDefault = futuresTicker + "," + futuresTrades + "," + futuresBook + "," + futuresOrders + "," + futuresFills + "," + futuresWallet
+	previousOrderbook = `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}`
+	previousTrades    = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
+	previousOrders    = `{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}`
+	previousMyTrades  = `{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
+	currentOrderbook  = `{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"}`
+	currentTrades     = `{"enabled":true,"channel":"allTrades","asset":"all"}`
+	currentFunding    = `{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"}`
+	currentOrders     = `{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`
+	currentMyTrades   = `{"enabled":true,"channel":"myTrades","asset":"all","authenticated":true}`
 )
 
-// previousDefaults are Kraken's default subscriptions before futures websocket support
-var previousDefaults = []string{ticker, allTrades, candles, orderbook, myOrders, myTrades}
+var (
+	previousDefaults = []string{previousOrderbook, previousTrades, previousOrders, previousMyTrades}
+	currentDefaults  = []string{currentOrderbook, currentTrades, currentFunding, currentOrders, currentMyTrades}
+)
 
-// kraken returns a Kraken exchange config with the websocket endpoints given, keeping its other endpoints, and the
-// subscriptions given, if any
-func kraken(public, private string, subs ...string) string {
-	features := ""
-	if len(subs) != 0 {
-		features = `"features":{"enabled":{"websocketAPI":true},"subscriptions":[` + strings.Join(subs, ",") + `]},`
+// subscriptions returns a Bitstamp config holding the subscription entries
+func subscriptions(entries ...string) string {
+	return `{"name":"Bitstamp","features":{"subscriptions":[` + strings.Join(entries, ",") + `]}}`
+}
+
+// with returns entries with the entry at index i replaced
+func with(entries []string, i int, entry string) []string {
+	out := append([]string(nil), entries...)
+	out[i] = entry
+	return out
+}
+
+// field returns an entry with a field added before its closing brace
+func field(entry, f string) string {
+	return strings.TrimSuffix(entry, "}") + "," + f + "}"
+}
+
+// replaced returns entries with each pair of old and new strings replaced
+func replaced(entries []string, oldnew ...string) []string {
+	r := strings.NewReplacer(oldnew...)
+	out := make([]string, len(entries))
+	for i := range entries {
+		out[i] = r.Replace(entries[i])
 	}
-	return `{"name":"Kraken",` + features + `"api":{"urlEndpoints":{"RestFuturesSupplementaryURL":"https://futures.kraken.com/api/","RestFuturesURL":"https://futures.kraken.com/derivatives","RestSpotURL":"https://api.kraken.com","WebsocketSpotSupplementaryURL":"` + private + `","WebsocketSpotURL":"` + public + `"}},"custom":"retained"}`
-}
-
-// subscriptions returns a Kraken exchange config with the current websocket endpoints and the subscriptions given
-func subscriptions(subs ...string) string {
-	return kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", subs...)
-}
-
-// downgraded returns a Kraken exchange config with the previous websocket endpoints and the subscriptions given
-func downgraded(subs ...string) string {
-	return kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", subs...)
-}
-
-// replaced returns the previous default subscriptions with the subscription at i replaced by sub
-func replaced(i int, sub string) []string {
-	subs := append([]string(nil), previousDefaults...)
-	subs[i] = sub
-	return subs
+	return out
 }
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Kraken"}, new(v21.Version).Exchanges(), "Exchanges should return just Kraken")
+	assert.Equal(t, []string{"Bitstamp"}, new(v21.Version).Exchanges(), "Exchanges should only list Bitstamp")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name, in, exp string
-	}{
-		{"previous defaults", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"beta endpoints", kraken("wss://beta-ws.kraken.com", "wss://beta-ws-auth.kraken.com"), kraken("wss://beta-ws.kraken.com/v2", "wss://beta-ws-auth.kraken.com/v2")},
-		{"trailing slashes", kraken("wss://ws.kraken.com/", "wss://ws-auth.kraken.com/"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"current endpoints", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"custom endpoints", kraken("wss://proxy.example.com", "wss://ws-auth.example.com"), kraken("wss://proxy.example.com", "wss://ws-auth.example.com")},
-		{"one custom endpoint", kraken("wss://ws.kraken.com", "wss://proxy.example.com"), kraken("wss://ws.kraken.com/v2", "wss://proxy.example.com")},
-		{"public endpoint only", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2"}}}`},
-		{"private endpoint only", `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":"wss://ws-auth.kraken.com"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":"wss://ws-auth.kraken.com/v2"}}}`},
-		{"empty endpoint", kraken("", ""), kraken("", "")},
-		{"null endpoint", `{"api":{"urlEndpoints":{"WebsocketSpotURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":null}}}`},
-		{"v1 endpoint under another key", `{"api":{"urlEndpoints":{"RestSpotURL":"wss://ws.kraken.com"}}}`, `{"api":{"urlEndpoints":{"RestSpotURL":"wss://ws.kraken.com"}}}`},
-		{"no endpoints", `{"name":"Kraken","api":{}}`, `{"name":"Kraken","api":{}}`},
-		{"no api", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-		{"endpoints and subscriptions", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(tc.in))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, tc.exp, string(got), "UpgradeExchange should move only Kraken's websocket v1 endpoints")
-			again, err := new(v21.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
-			require.NoError(t, err, "repeated UpgradeExchange must not error")
-			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
-		})
-	}
-
-	t.Run("previous default subscriptions", func(t *testing.T) {
+	t.Run("previous defaults", func(t *testing.T) {
 		t.Parallel()
-		explicitZeros := `{"enabled":true,"channel":"ticker","pairs":"","asset":"spot","params":{},"interval":0,"levels":0,"authenticated":false,"qualifiedChannel":"ignored"}`
-		for _, tc := range []struct {
-			name string
-			subs []string
-		}{
-			{"previous defaults", previousDefaults},
-			{"another order", []string{myTrades, orderbook, ticker, candles, myOrders, allTrades}},
-			{"capitalised asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"Spot"}`)},
-			{"upper case asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"SPOT"}`)},
-			{"capitalised field names", replaced(0, `{"Enabled":true,"Channel":"ticker","Asset":"spot"}`)},
-			{"explicit zero values", replaced(0, explicitZeros)},
-			{"interval in seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60s"}`)},
-			{"interval in minutes and seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m0s"}`)},
-			{"interval in nanoseconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":60000000000}`)},
-			{"interval unit spelt out", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1minute"}`)},
-			{"interval unit in upper case", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1MIN"}`)},
-			{"interval in upper case seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60S"}`)},
+		for name, entries := range map[string][]string{
+			"previous defaults":         previousDefaults,
+			"reordered":                 {previousMyTrades, previousOrderbook, previousOrders, previousTrades},
+			"upper case assets":         replaced(previousDefaults, `"spot"`, `"SPOT"`),
+			"title case assets":         replaced(previousDefaults, `"spot"`, `"Spot"`),
+			"nanosecond interval":       with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `100000000`, 1)),
+			"seconds interval":          with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"0.1s"`, 1)),
+			"zero trades interval":      with(previousDefaults, 1, field(previousTrades, `"interval":"0s"`)),
+			"explicit unauthenticated":  with(with(previousDefaults, 0, field(previousOrderbook, `"authenticated":false`)), 1, field(previousTrades, `"authenticated":false`)),
+			"null authenticated":        with(previousDefaults, 1, field(previousTrades, `"authenticated":null`)),
+			"repeated key last applies": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"asset":"spot"`, `"asset":"margin","asset":"spot"`, 1)),
 		} {
-			t.Run(tc.name, func(t *testing.T) {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(subscriptions(tc.subs...)))
+				version := new(v21.Version)
+				got, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(entries...)))
 				require.NoError(t, err, "UpgradeExchange must not error")
-				exp := subscriptions(append(tc.subs, futuresDefault)...)
-				assert.JSONEq(t, exp, string(got), "UpgradeExchange should add the futures subscriptions, keeping the saved ones")
-				again, err := new(v21.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
+				assert.JSONEq(t, subscriptions(currentDefaults...), string(got), "UpgradeExchange should replace the previous defaults with the current defaults")
+				again, err := version.UpgradeExchange(t.Context(), got)
 				require.NoError(t, err, "repeated UpgradeExchange must not error")
 				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
 			})
 		}
 	})
-
-	t.Run("custom subscriptions", func(t *testing.T) {
+	t.Run("customised subscriptions", func(t *testing.T) {
 		t.Parallel()
-		for _, tc := range []struct {
-			name, in string
-		}{
-			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...)},
-			{"futures ticker added", subscriptions(append(previousDefaults, futuresTicker)...)},
-			{"level 3 book added", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`)...)},
-			{"default removed", subscriptions(previousDefaults[1:]...)},
-			{"default duplicated", subscriptions(replaced(1, ticker)...)},
-			{"disabled", subscriptions(replaced(0, `{"enabled":false,"channel":"ticker","asset":"spot"}`)...)},
-			{"enabled omitted", subscriptions(replaced(0, `{"channel":"ticker","asset":"spot"}`)...)},
-			{"capitalised channel", subscriptions(replaced(0, `{"enabled":true,"channel":"Ticker","asset":"spot"}`)...)},
-			{"another asset", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"all"}`)...)},
-			{"pairs", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","pairs":"XBT/USD"}`)...)},
-			{"params", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","params":{"event_trigger":"bbo"}}`)...)},
-			{"another depth", subscriptions(replaced(3, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":10}`)...)},
-			{"another interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)...)},
-			{"monthly interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1M"}`)...)},
-			{"invalid interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1 minute"}`)...)},
-			{"raw interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"raw"}`)...)},
-			// Scaling 2^53+1 minutes wraps to one minute, but the runtime rejects intervals that overflow
-			{"overflowing interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"9007199254740993m"}`)...)},
-			{"unauthenticated", subscriptions(replaced(4, `{"enabled":true,"channel":"myOrders"}`)...)},
-			{"no subscriptions", subscriptions()},
-			{"empty subscriptions", `{"name":"Kraken","features":{"subscriptions":[]}}`},
-			{"null subscriptions", `{"name":"Kraken","features":{"subscriptions":null}}`},
-			{"no features", `{"name":"Kraken"}`},
+		for name, entries := range map[string][]string{
+			"empty":                      {},
+			"missing entry":              previousDefaults[:3],
+			"extra entry":                append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"detail_order_book","asset":"spot"}`),
+			"repeated entry":             with(previousDefaults, 3, previousOrders),
+			"exchange specific channel":  with(previousDefaults, 0, strings.Replace(previousOrderbook, `"orderbook"`, `"order_book"`, 1)),
+			"disabled":                   with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":false`, 1)),
+			"enabled omitted":            with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled":true,`, ``, 1)),
+			"enabled null":               with(previousDefaults, 2, strings.Replace(previousOrders, `"enabled":true`, `"enabled":null`, 1)),
+			"custom interval":            with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"10ms"`, 1)),
+			"null interval":              with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `null`, 1)),
+			"interval omitted":           with(previousDefaults, 0, strings.Replace(previousOrderbook, `,"interval":"100ms"`, ``, 1)),
+			"trades interval":            with(previousDefaults, 1, field(previousTrades, `"interval":"100ms"`)),
+			"quoted nanosecond interval": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"100000000"`, 1)),
+			"wildcard asset":             with(previousDefaults, 0, strings.Replace(previousOrderbook, `"spot"`, `"all"`, 1)),
+			"other asset":                with(previousDefaults, 1, strings.Replace(previousTrades, `"spot"`, `"margin"`, 1)),
+			"authenticated public":       with(previousDefaults, 0, field(previousOrderbook, `"authenticated":true`)),
+			"unauthenticated private":    with(previousDefaults, 2, strings.Replace(previousOrders, `,"authenticated":true`, ``, 1)),
+			"private explicitly public":  with(previousDefaults, 3, strings.Replace(previousMyTrades, `"authenticated":true`, `"authenticated":false`, 1)),
+			"pairs":                      with(previousDefaults, 0, field(previousOrderbook, `"pairs":"BTC/USD"`)),
+			"empty pairs":                with(previousDefaults, 1, field(previousTrades, `"pairs":""`)),
+			"levels":                     with(previousDefaults, 0, field(previousOrderbook, `"levels":10`)),
+			"params":                     with(previousDefaults, 2, field(previousOrders, `"params":{}`)),
+			"unknown field":              with(previousDefaults, 3, field(previousMyTrades, `"custom":"retained"`)),
+			"capitalised field":          with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled"`, `"Enabled"`, 1)),
+			"current defaults":           currentDefaults,
 		} {
-			t.Run(tc.name, func(t *testing.T) {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(tc.in))
-				require.NoError(t, err, "UpgradeExchange must not error")
-				assert.JSONEq(t, tc.in, string(got), "UpgradeExchange should keep subscriptions other than the previous defaults")
+				input := subscriptions(entries...)
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "UpgradeExchange must accept customised subscriptions")
+				assert.Equal(t, input, string(got), "UpgradeExchange should preserve customised subscriptions byte-for-byte")
 			})
 		}
 	})
-
-	t.Run("malformed configs", func(t *testing.T) {
+	t.Run("without subscriptions", func(t *testing.T) {
 		t.Parallel()
-		_, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com`))
-		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "UpgradeExchange should reject a malformed exchange config")
-		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
-			t.Run(subs, func(t *testing.T) {
+		for _, input := range withoutSubscriptions {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
+			})
+		}
+	})
+	t.Run("client ID requirement", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ input, exp string }{
+			"required": {
+				input: `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
+			},
+			"not required": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresClientID":false}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
+			},
+			"only requirement": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{}}}`,
+			},
+			"capitalised key": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"RequiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
+			},
+			"repeated key": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false,"requiresKey":true,"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				var typeErr *json.UnmarshalTypeError
-				_, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-				assert.ErrorAsf(t, err, &typeErr, "UpgradeExchange should reject subscriptions %s", subs)
+				version := new(v21.Version)
+				got, err := version.UpgradeExchange(t.Context(), []byte(tc.input))
+				require.NoError(t, err, "UpgradeExchange must not error")
+				assert.JSONEq(t, tc.exp, string(got), "UpgradeExchange should remove the client ID requirement and keep the other settings")
+				again, err := version.UpgradeExchange(t.Context(), got)
+				require.NoError(t, err, "repeated UpgradeExchange must not error")
+				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+			})
+		}
+	})
+	t.Run("without a client ID requirement", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range []string{
+			`{"name":"Bitstamp","api":{}}`,
+			`{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+			`{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
+		} {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
+			})
+		}
+	})
+	t.Run("malformed subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range malformedSubscriptions {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
+				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
+			})
+		}
+	})
+	t.Run("malformed validator", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range []string{`{"api":{"credentialsValidator":}}`, `{"api":{"credentialsValidator":{"requiresClientID":}}}`} {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				_, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				assert.ErrorContainsf(t, err, "Bitstamp credentials validator", "UpgradeExchange should report a malformed validator in %s", input)
 			})
 		}
 	})
@@ -184,77 +213,166 @@ func TestUpgradeExchange(t *testing.T) {
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name, in, exp string
-	}{
-		{"current defaults", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"beta endpoints", kraken("wss://beta-ws.kraken.com/v2", "wss://beta-ws-auth.kraken.com/v2"), kraken("wss://beta-ws.kraken.com", "wss://beta-ws-auth.kraken.com")},
-		{"trailing slashes", kraken("wss://ws.kraken.com/v2/", "wss://ws-auth.kraken.com/v2/"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"previous endpoints", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"custom endpoints", kraken("wss://proxy.example.com/v2", "wss://ws-auth.example.com/v2"), kraken("wss://proxy.example.com/v2", "wss://ws-auth.example.com/v2")},
-		{"null endpoint", `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":null}}}`},
-		{"no api", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-		{"endpoints and subscriptions", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(tc.in))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should move only Kraken's websocket v2 endpoints")
-		})
-	}
-
-	t.Run("subscriptions", func(t *testing.T) {
+	t.Run("current defaults", func(t *testing.T) {
 		t.Parallel()
-		disabledTicker := `{"enabled":false,"channel":"ticker","asset":"futures"}`
-		level3 := `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`
-		for _, tc := range []struct {
-			name, in, exp string
-		}{
-			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...), downgraded(previousDefaults...)},
-			{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, futuresWallet, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
-			{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(previousDefaults...)},
-			{"previous defaults", subscriptions(previousDefaults...), downgraded(previousDefaults...)},
-			{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...)},
-			{"futures subscriptions removed", subscriptions(append(previousDefaults, futuresTicker)...), downgraded(append(previousDefaults, futuresTicker)...)},
-			{"futures balances removed", subscriptions(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
-			{"level 3 book added", subscriptions(append(previousDefaults, futuresDefault, level3)...), downgraded(append(previousDefaults, futuresDefault, level3)...)},
-			{"no features", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
+		for name, entries := range map[string][]string{
+			"current defaults":  currentDefaults,
+			"reordered":         {currentFunding, currentMyTrades, currentOrderbook, currentOrders, currentTrades},
+			"upper case assets": replaced(currentDefaults, `"all"`, `"ALL"`, `"perpetualcontract"`, `"PERPETUALCONTRACT"`),
+			"mixed case assets": replaced(currentDefaults, `"all"`, `"All"`, `"perpetualcontract"`, `"PerpetualContract"`),
 		} {
-			t.Run(tc.name, func(t *testing.T) {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(tc.in))
+				version := new(v21.Version)
+				got, err := version.DowngradeExchange(t.Context(), []byte(subscriptions(entries...)))
 				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should remove the futures subscriptions only from the current defaults")
+				assert.JSONEq(t, subscriptions(previousDefaults...), string(got), "DowngradeExchange should replace the current defaults with the previous defaults")
+				again, err := version.DowngradeExchange(t.Context(), got)
+				require.NoError(t, err, "repeated DowngradeExchange must not error")
+				assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
 			})
 		}
 	})
-
-	t.Run("malformed configs", func(t *testing.T) {
+	t.Run("customised subscriptions", func(t *testing.T) {
 		t.Parallel()
-		_, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2`))
-		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "DowngradeExchange should reject a malformed exchange config")
-		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
-			t.Run(subs, func(t *testing.T) {
+		for name, entries := range map[string][]string{
+			"missing funding rate":    with(currentDefaults, 2, currentOrders),
+			"disabled funding rate":   with(currentDefaults, 2, strings.Replace(currentFunding, `"enabled":true`, `"enabled":false`, 1)),
+			"spot orderbook":          with(currentDefaults, 0, strings.Replace(currentOrderbook, `"all"`, `"spot"`, 1)),
+			"funding rate pairs":      with(currentDefaults, 2, field(currentFunding, `"pairs":"BTC/USD-PERP"`)),
+			"custom current interval": with(currentDefaults, 0, strings.Replace(currentOrderbook, `"100ms"`, `"1s"`, 1)),
+			"previous defaults":       previousDefaults,
+		} {
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				var typeErr *json.UnmarshalTypeError
-				_, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-				assert.ErrorAsf(t, err, &typeErr, "DowngradeExchange should reject subscriptions %s", subs)
+				input := subscriptions(entries...)
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
+				assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
 			})
 		}
 	})
+	t.Run("unsupported channels", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ entries, exp []string }{
+			"wildcard funding rate": {
+				entries: with(currentDefaults, 2, strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1)),
+				exp:     with(currentDefaults, 2, strings.Replace(strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1), `"enabled":true`, `"enabled":false`, 1)),
+			},
+			"extra current entry": {
+				entries: append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"announcements"}`),
+				exp:     append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"announcements"}`),
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
+				require.NoError(t, err, "DowngradeExchange must not error")
+				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the channels the previous version cannot subscribe to")
+			})
+		}
+	})
+	t.Run("without subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range withoutSubscriptions {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "DowngradeExchange should leave %s unchanged", input)
+			})
+		}
+	})
+	t.Run("client ID requirement", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ input, exp string }{
+			"absent": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
+			},
+			"not required": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
+			},
+			"no validator": {
+				input: `{"name":"Bitstamp","api":{}}`,
+				exp:   `{"name":"Bitstamp","api":{}}`,
+			},
+			"null validator": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				version := new(v21.Version)
+				got, err := version.DowngradeExchange(t.Context(), []byte(tc.input))
+				require.NoError(t, err, "DowngradeExchange must not error")
+				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should restore the client ID requirement of a saved validator")
+				again, err := version.DowngradeExchange(t.Context(), got)
+				require.NoError(t, err, "repeated DowngradeExchange must not error")
+				assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
+			})
+		}
+	})
+	t.Run("malformed subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range malformedSubscriptions {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				input := tc.input
+				if name == "enabled string" {
+					input = subscriptions(with(currentDefaults, 0, strings.Replace(currentOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...)
+				}
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
+				assert.Equal(t, input, string(got), "failed migration should preserve the input")
+			})
+		}
+	})
+	t.Run("malformed validator", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"credentialsValidator":}}`))
+		assert.ErrorContains(t, err, "Bitstamp credentials validator", "DowngradeExchange should report a malformed validator")
+	})
+}
+
+// withoutSubscriptions are configurations which hold no subscriptions to migrate
+var withoutSubscriptions = []string{
+	`{"name":"Bitstamp"}`,
+	`{"name":"Bitstamp","features":{}}`,
+	`{"name":"Bitstamp","features":{"subscriptions":null}}`,
+}
+
+// malformedSubscriptions are configurations whose subscriptions cannot be migrated, with the error each reports
+var malformedSubscriptions = map[string]struct{ input, errContains string }{
+	"subscriptions object":  {input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Bitstamp subscriptions"},
+	"subscription string":   {input: `{"features":{"subscriptions":["orderbook","allTrades","myOrders","myTrades"]}}`, errContains: "error decoding Bitstamp subscriptions"},
+	"enabled string":        {input: subscriptions(with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...), errContains: "error decoding Bitstamp subscriptions"},
+	"subscriptions missing": {input: `{"features":{"subscriptions":}}`, errContains: "error getting Bitstamp subscriptions"},
 }
 
 func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	binance := `{"name":"Binance","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com"}},"features":{"subscriptions":[` + strings.Join(previousDefaults, ",") + `]}}`
-	v20 := `{"version":20,"exchanges":[` + binance + `,` + kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...) + `]}`
-	upgraded := `{"version":21,"exchanges":[` + binance + `,` + kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...) + `]}`
-	got, err := versions.Manager.Deploy(t.Context(), []byte(v20), 21)
-	require.NoError(t, err, "Deploy must apply the registered v21 upgrade")
-	assert.JSONEq(t, upgraded, string(got), "Deploy should migrate only Kraken's websocket endpoints and subscriptions")
+	previous := `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true},{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
+	current := strings.Join(currentDefaults, ",")
+	validator := `{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}`
+	// Other exchanges with the same settings are not migrated
+	input := []byte(`{"version":20,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`)
+	unchanged, err := versions.Manager.Deploy(t.Context(), input, 20)
+	require.NoError(t, err, "Deploy must leave an existing v20 configuration valid")
+	assert.Equal(t, input, unchanged, "Deploy should retain v20 Bitstamp settings until the v21 upgrade")
 
-	got, err = versions.Manager.Deploy(t.Context(), got, 20)
-	require.NoError(t, err, "Deploy must downgrade v21 to v20")
-	assert.JSONEq(t, v20, string(got), "Deploy should restore the websocket v1 endpoints and the previous subscriptions")
+	out, err := versions.Manager.Deploy(t.Context(), input, 21)
+	require.NoError(t, err, "Deploy must apply the registered v21 upgrade")
+	expected := `{"version":21,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}},"features":{"subscriptions":[` + current + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`
+	assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitstamp and advance to v21")
+
+	downgraded, err := versions.Manager.Deploy(t.Context(), out, 20)
+	require.NoError(t, err, "Deploy must downgrade from v21")
+	assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v20 Bitstamp settings")
+
+	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 21)
+	require.NoError(t, err, "Deploy must reapply v21")
+	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v21 should reproduce the upgraded configuration")
 }
