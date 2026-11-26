@@ -229,6 +229,7 @@ func TestRateLimit(t *testing.T) {
 				select {
 				case err := <-errs:
 					require.ErrorIs(t, err, context.Canceled, "cancelled call must report cancellation")
+					assert.Equal(t, tc.cancelAt, time.Since(start), "call should return when cancelled")
 				case <-time.After(time.Minute):
 					require.FailNow(t, "cancelled call must return within a minute")
 				}
