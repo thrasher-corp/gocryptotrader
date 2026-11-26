@@ -301,32 +301,12 @@ func TestIsOnline(t *testing.T) {
 	e := CreateTestBot(t)
 	var err error
 	e.connectionManager, err = setupConnectionManager(&e.Config.ConnectionMonitor)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r := e.IsOnline(); r {
-		t.Fatal("Unexpected result")
-	}
+	require.NoError(t, err, "setupConnectionManager must not error")
+	require.False(t, e.IsOnline(), "IsOnline must be false before the connection manager starts")
 
-	if err = e.connectionManager.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	tick := time.NewTicker(time.Second * 5)
-	defer tick.Stop()
-	for {
-		select {
-		case <-tick.C:
-			t.Fatal("Test timeout")
-		default:
-			if e.IsOnline() {
-				if err := e.connectionManager.Stop(); err != nil {
-					t.Fatal("unable to shutdown connection manager")
-				}
-				return
-			}
-		}
-	}
+	require.NoError(t, e.connectionManager.Start(), "connection manager Start must not error")
+	t.Cleanup(func() { assert.NoError(t, e.connectionManager.Stop(), "connection manager Stop should not error") })
+	assert.Eventually(t, e.IsOnline, 5*time.Second, 10*time.Millisecond, "IsOnline should become true once the connection manager is running")
 }
 
 func TestGetSpecificAvailablePairs(t *testing.T) {
@@ -1015,24 +995,20 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewExchangeByNameWithDefaults(t.Context(), "moarunlikelymeow")
-	assert.ErrorIs(t, err, ErrExchangeNotFound, "Invalid exchange name should error")
-	for x := range exchange.Exchanges {
-		name := exchange.Exchanges[x]
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			if isCITest() && slices.Contains(blockedCIExchanges, name) {
-				t.Skipf("skipping %s due to CI test restrictions", name)
-			}
-			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
-				t.Skipf("skipping %s unsupported", name)
-			}
-			exch, err := NewExchangeByNameWithDefaults(t.Context(), name)
-			if assert.NoError(t, err, "NewExchangeByNameWithDefaults should not error") {
-				assert.Equal(t, name, strings.ToLower(exch.GetName()), "Should get correct exchange name")
-			}
-		})
-	}
+	t.Run("unknown exchange name", func(t *testing.T) {
+		t.Parallel()
+		_, err := NewExchangeByNameWithDefaults(t.Context(), "moarunlikelymeow")
+		assert.ErrorIs(t, err, ErrExchangeNotFound, "NewExchangeByNameWithDefaults should error for an unknown exchange name")
+	})
+
+	// TestGetDefaultConfigurations builds every exchange's default config live, so one exchange covers this helper
+	t.Run("live default config", func(t *testing.T) {
+		t.Parallel()
+		exch, err := NewExchangeByNameWithDefaults(t.Context(), "bitstamp")
+		require.NoError(t, err, "NewExchangeByNameWithDefaults must not error")
+		assert.Equal(t, "bitstamp", strings.ToLower(exch.GetName()), "NewExchangeByNameWithDefaults should return the named exchange")
+		assert.True(t, exch.IsEnabled(), "NewExchangeByNameWithDefaults should set up the exchange from its enabled default config")
+	})
 }
 
 func TestResolvePPROFListenAddress(t *testing.T) {

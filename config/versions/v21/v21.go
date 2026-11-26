@@ -1,5 +1,5 @@
-// Package v21 migrates MEXC configurations saved with the spot-only default websocket subscriptions to the defaults
-// which also cover its perpetual futures contracts.
+// Package v21 migrates Bitstamp configurations to its v2 API, whose authentication needs no client ID and whose default
+// websocket subscriptions cover perpetual contracts.
 package v21
 
 import (
@@ -9,76 +9,50 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/buger/jsonparser"
 )
 
-// The assets the default subscriptions name, as the config saves them
-const (
-	spotAsset    = "spot"
-	futuresAsset = "futures"
-)
+const clientIDRequirement = "requiresClientID"
 
 // subscriptionKeys are the saved subscription fields the defaults use; an entry with any other field is customised
-var subscriptionKeys = []string{"enabled", "channel", "asset", "interval", "levels", "authenticated"}
+var subscriptionKeys = []string{"enabled", "channel", "asset", "interval", "authenticated"}
 
 // defaultSubscription is an enabled default subscription
 type defaultSubscription struct {
 	channel       string
 	asset         string
 	interval      time.Duration
-	levels        int64
 	authenticated bool
 }
 
 // previousDefaults are the v20 default subscriptions, which only cover spot
 var previousDefaults = []defaultSubscription{
-	{channel: "orderbook", asset: spotAsset, levels: 20},
-	{channel: "candles", asset: spotAsset, interval: 15 * time.Minute},
-	{channel: "ticker", asset: spotAsset, interval: 100 * time.Millisecond},
-	{channel: "public.miniTicker.v3.api.pb", asset: spotAsset},
-	{channel: "allTrades", asset: spotAsset, interval: 100 * time.Millisecond},
-	{channel: "myTrades", asset: spotAsset, authenticated: true},
-	{channel: "myOrders", asset: spotAsset, authenticated: true},
-	{channel: "myAccount", asset: spotAsset, authenticated: true},
+	{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond},
+	{channel: "allTrades", asset: "spot"},
+	{channel: "myOrders", asset: "spot", authenticated: true},
+	{channel: "myTrades", asset: "spot", authenticated: true},
 }
 
-// currentDefaults are the v21 default subscriptions, the previous defaults followed by those of the futures contracts
-var currentDefaults = slices.Concat(previousDefaults, []defaultSubscription{
-	{channel: "ticker", asset: futuresAsset},
-	{channel: "orderbook", asset: futuresAsset, levels: 20},
-	{channel: "allTrades", asset: futuresAsset},
-	{channel: "candles", asset: futuresAsset, interval: 15 * time.Minute},
-	{channel: "myOrders", asset: futuresAsset, authenticated: true},
-	{channel: "myTrades", asset: futuresAsset, authenticated: true},
-	{channel: "myAccount", asset: futuresAsset, authenticated: true},
-	{channel: "position", asset: futuresAsset, authenticated: true},
-})
+// currentDefaults are the v21 default subscriptions, which cover every enabled asset and perpetual funding rates
+var currentDefaults = []defaultSubscription{
+	{channel: "orderbook", asset: "all", interval: 100 * time.Millisecond},
+	{channel: "allTrades", asset: "all"},
+	{channel: "funding_rate", asset: "perpetualcontract"},
+	{channel: "myOrders", asset: "all", authenticated: true},
+	{channel: "myTrades", asset: "all", authenticated: true},
+}
 
-// savedSubscription holds the saved subscription fields the config loader decodes, as values of the kinds it decodes
-// them into, so that an absent field, a null and a repeated key resolve as they do when the config is loaded
+// savedSubscription holds the saved subscription fields the config loader decodes
 type savedSubscription struct {
-	Enabled       bool            `json:"enabled"`
+	Enabled       *bool           `json:"enabled"`
 	Channel       string          `json:"channel"`
-	Asset         savedAsset      `json:"asset"`
+	Asset         string          `json:"asset"`
 	Interval      json.RawMessage `json:"interval"`
-	Levels        int64           `json:"levels"`
-	Authenticated bool            `json:"authenticated"`
-}
-
-// savedAsset is a saved asset decoded as the loader decodes it, where a null clears the asset rather than leaving it
-type savedAsset string
-
-// UnmarshalJSON decodes a saved asset, clearing it for a null
-func (a *savedAsset) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	*a = savedAsset(s)
-	return nil
+	Authenticated *bool           `json:"authenticated"`
 }
 
 // savedDefault is a default subscription in the form the config saves it
@@ -87,27 +61,102 @@ type savedDefault struct {
 	Channel       string `json:"channel"`
 	Asset         string `json:"asset"`
 	Interval      string `json:"interval,omitempty"`
-	Levels        int64  `json:"levels,omitempty"`
 	Authenticated bool   `json:"authenticated,omitempty"`
 }
 
-// Version implements ExchangeVersion for MEXC's futures support
+// Version implements ExchangeVersion for Bitstamp's v2 API update
 type Version struct{}
 
-// Exchanges returns just MEXC
-func (*Version) Exchanges() []string { return []string{"MEXC"} }
+// Exchanges returns just Bitstamp
+func (*Version) Exchanges() []string { return []string{"Bitstamp"} }
 
-// UpgradeExchange replaces the previous default subscriptions with the current defaults; subscriptions which differ
-// from the previous defaults are the user's choice and are left unchanged. The futures subscriptions take effect once
-// the futures asset is enabled
+// UpgradeExchange removes the client ID requirement and replaces the previous default subscriptions with the current
+// defaults; subscriptions which differ from the previous defaults are the user's choice and are left unchanged
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	// The exchange overwrites the saved credentials validator during setup, but the config loader checks the saved
+	// validator first, so a client ID requirement would disable authentication for credentials without a client ID
+	keys, err := clientIDRequirementKeys(exchange)
+	if err != nil {
+		return exchange, err
+	}
+	for _, key := range keys {
+		exchange = jsonparser.Delete(exchange, "api", "credentialsValidator", key)
+	}
 	return replaceSubscriptions(exchange, previousDefaults, currentDefaults)
 }
 
-// DowngradeExchange replaces the current default subscriptions with the previous defaults. The previous version
-// supports no futures, so it expands no subscription for them and other futures entries are left unchanged
+// DowngradeExchange restores the client ID requirement and replaces the current default subscriptions with the
+// previous defaults
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	return replaceSubscriptions(exchange, currentDefaults, previousDefaults)
+	_, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+	case err != nil:
+		return exchange, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
+	case valueType == jsonparser.Object:
+		if exchange, err = jsonparser.Set(exchange, []byte("true"), "api", "credentialsValidator", clientIDRequirement); err != nil {
+			return exchange, fmt.Errorf("error setting Bitstamp client ID requirement: %w", err)
+		}
+	}
+	if exchange, err = replaceSubscriptions(exchange, currentDefaults, previousDefaults); err != nil {
+		return exchange, err
+	}
+	return disableUnsupportedChannels(exchange)
+}
+
+// previousChannels are the only channels the previous version can subscribe to; it fails to generate any subscription
+// when an enabled entry names another channel
+var previousChannels = []string{"orderbook", "allTrades", "myOrders", "myTrades"}
+
+// disableUnsupportedChannels disables the subscriptions to channels the previous version does not support
+func disableUnsupportedChannels(exchange []byte) ([]byte, error) {
+	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
+	if err != nil || valueType != jsonparser.Array {
+		return exchange, nil //nolint:nilerr // replaceSubscriptions has already reported malformed subscriptions
+	}
+	var i int
+	var errs error
+	// Set returns a new document, so the entries are read from a copy of the original
+	if _, err := jsonparser.ArrayEach(bytes.Clone(raw), func(entry []byte, _ jsonparser.ValueType, _ int, _ error) {
+		defer func() { i++ }()
+		channel, _ := jsonparser.GetString(entry, "channel")
+		a, _ := jsonparser.GetString(entry, "asset")
+		// The previous version has no perpetual contracts, so it never expands a subscription for them
+		if enabled, err := jsonparser.GetBoolean(entry, "enabled"); err != nil || !enabled || slices.Contains(previousChannels, channel) || strings.EqualFold(a, "perpetualcontract") {
+			return
+		}
+		var setErr error
+		if exchange, setErr = jsonparser.Set(exchange, []byte("false"), "features", "subscriptions", "["+strconv.Itoa(i)+"]", "enabled"); setErr != nil {
+			errs = setErr
+		}
+	}); err != nil {
+		return exchange, err
+	}
+	return exchange, errs
+}
+
+// clientIDRequirementKeys returns each credentials validator key the config loader decodes as the client ID
+// requirement, since it matches keys case insensitively; a key repeated in the validator is returned for each repeat
+func clientIDRequirementKeys(exchange []byte) ([]string, error) {
+	validator, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
+	case valueType != jsonparser.Object:
+		return nil, nil
+	}
+	var keys []string
+	if err := jsonparser.ObjectEach(validator, func(key, _ []byte, _ jsonparser.ValueType, _ int) error {
+		if strings.EqualFold(string(key), clientIDRequirement) {
+			keys = append(keys, string(key))
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("error decoding Bitstamp credentials validator: %w", err)
+	}
+	return keys, nil
 }
 
 // replaceSubscriptions replaces saved subscriptions which match one set of defaults, in any order, with another
@@ -117,136 +166,82 @@ func replaceSubscriptions(exchange []byte, from, to []defaultSubscription) ([]by
 	case errors.Is(err, jsonparser.KeyPathNotFoundError), err == nil && valueType == jsonparser.Null:
 		return exchange, nil
 	case err != nil:
-		return exchange, fmt.Errorf("error getting MEXC subscriptions: %w", err)
+		return exchange, fmt.Errorf("error getting Bitstamp subscriptions: %w", err)
 	}
 	var entries []json.RawMessage
 	if err := json.Unmarshal(raw, &entries); err != nil {
-		return exchange, fmt.Errorf("error decoding MEXC subscriptions: %w", err)
+		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
 	}
-	matched, carried, err := matchDefaults(entries, from)
+	matched, err := matchDefaults(entries, from)
 	if err != nil {
-		return exchange, fmt.Errorf("error decoding MEXC subscriptions: %w", err)
+		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
 	}
 	if !matched {
 		return exchange, nil
 	}
-	saved := make([]any, 0, len(to)+len(carried))
+	saved := make([]savedDefault, len(to))
 	for i := range to {
-		s := savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Levels: to[i].levels, Authenticated: to[i].authenticated}
+		saved[i] = savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Authenticated: to[i].authenticated}
 		if to[i].interval != 0 {
-			s.Interval = shortInterval(to[i].interval)
+			saved[i].Interval = to[i].interval.String()
 		}
-		saved = append(saved, s)
-	}
-	for _, entry := range carried {
-		saved = append(saved, entry)
 	}
 	updated, err := json.Marshal(saved)
 	if err != nil {
-		return exchange, fmt.Errorf("error encoding MEXC subscriptions: %w", err)
+		return exchange, fmt.Errorf("error encoding Bitstamp subscriptions: %w", err)
 	}
 	if exchange, err = jsonparser.Set(exchange, updated, "features", "subscriptions"); err != nil {
-		return exchange, fmt.Errorf("error setting MEXC subscriptions: %w", err)
+		return exchange, fmt.Errorf("error setting Bitstamp subscriptions: %w", err)
 	}
 	return exchange, nil
 }
 
-// shortInterval returns an interval as the config saves it, without the zero units time.Duration adds, such as "15m"
-func shortInterval(d time.Duration) string {
-	s := d.String()
-	for _, zeros := range []string{"m0s", "h0m"} {
-		if strings.HasSuffix(s, zeros) {
-			s = s[:len(s)-2]
-		}
-	}
-	return s
-}
-
-// matchDefaults reports whether each saved subscription resolves to a different one of the defaults, leaving out the
-// disabled entries which name none of the previous or current defaults: they subscribe to nothing, so they are returned
-// to be carried over unchanged. Every entry is decoded first, so that a malformed entry is reported whichever defaults
-// are matched
-func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (matched bool, carried []json.RawMessage, err error) {
-	saved := make([]savedSubscription, 0, len(entries))
+// matchDefaults reports whether each saved subscription resolves to a different one of the defaults
+// Every entry is decoded first, so that a malformed entry is reported whichever defaults are matched
+func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (bool, error) {
+	saved := make([]savedSubscription, len(entries))
 	var customised bool
-	for _, entry := range entries {
+	for i, entry := range entries {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(entry, &fields); err != nil {
-			return false, nil, err
-		}
-		var s savedSubscription
-		if err := json.Unmarshal(entry, &s); err != nil {
-			return false, nil, err
-		}
-		if fields != nil && !s.Enabled && !namesDefault(&s) {
-			carried = append(carried, entry)
-			continue
+			return false, err
 		}
 		for key := range fields {
 			if !slices.Contains(subscriptionKeys, key) {
 				customised = true
 			}
 		}
-		saved = append(saved, s)
+		if err := json.Unmarshal(entry, &saved[i]); err != nil {
+			return false, err
+		}
 	}
 	if customised || len(saved) != len(defaults) {
-		return false, nil, nil
+		return false, nil
 	}
-	used := make([]bool, len(defaults))
+	matched := make([]bool, len(defaults))
 	for i := range saved {
-		// A channel and asset name one default at most, so an entry can match no other
-		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool {
-			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, string(saved[i].Asset))
-		})
-		if j == -1 || used[j] || !defaults[j].matches(&saved[i]) {
-			return false, nil, nil
+		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool { return d.channel == saved[i].Channel })
+		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
+			return false, nil
 		}
-		used[j] = true
+		matched[j] = true
 	}
-	return true, carried, nil
+	return true, nil
 }
 
-// spotVenueChannels are the venue channels the generic spot default channels resolve to
-var spotVenueChannels = map[string]string{
-	"ticker":    "public.aggre.bookTicker.v3.api.pb",
-	"orderbook": "public.limit.depth.v3.api.pb",
-	"allTrades": "public.aggre.deals.v3.api.pb",
-	"candles":   "public.kline.v3.api.pb",
-	"myTrades":  "private.deals.v3.api.pb",
-	"myOrders":  "private.orders.v3.api.pb",
-	"myAccount": "private.account.v3.api.pb",
-}
-
-// namesDefault reports whether a saved subscription names one of the current defaults, which hold the previous ones;
-// a disabled entry which does reads as that default switched off, a customisation. Asset all covers every asset, while
-// an entry without an asset reaches neither of MEXC's connections, and a spot default is named by its generic channel or
-// the venue channel it resolves to
-func namesDefault(s *savedSubscription) bool {
-	return slices.ContainsFunc(currentDefaults, func(d defaultSubscription) bool {
-		if !strings.EqualFold(string(s.Asset), "all") && !strings.EqualFold(string(s.Asset), d.asset) {
-			return false
-		}
-		if s.Channel == d.channel {
-			return true
-		}
-		venueChannel, ok := spotVenueChannels[d.channel]
-		return ok && d.asset == spotAsset && s.Channel == venueChannel
-	})
-}
-
-// matches reports whether a saved subscription resolves to the default; an absent, false or null authenticated field
-// is unauthenticated, and absent levels are none
+// matches reports whether a saved subscription resolves to the default; assets match case insensitively as the loader
+// parses them, and an absent, false or null authenticated field are all unauthenticated
 func (d *defaultSubscription) matches(s *savedSubscription) bool {
 	interval, ok := parseInterval(s.Interval)
 	return ok &&
-		s.Enabled &&
+		s.Enabled != nil && *s.Enabled &&
+		strings.EqualFold(s.Asset, d.asset) &&
 		interval == d.interval &&
-		s.Levels == d.levels &&
-		s.Authenticated == d.authenticated
+		(s.Authenticated != nil && *s.Authenticated) == d.authenticated
 }
 
 // parseInterval returns a saved interval as the config loader parses it, either as nanoseconds or as a duration such
-// as "15m"; an absent interval is zero, and null is rejected as the loader rejects it
+// as "100ms"; an absent interval is zero, and null is rejected as the loader rejects it
 func parseInterval(raw json.RawMessage) (time.Duration, bool) {
 	if raw == nil {
 		return 0, true
