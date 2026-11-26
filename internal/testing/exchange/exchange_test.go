@@ -396,6 +396,7 @@ func TestMockHTTPInstance(t *testing.T) {
 		b := new(binance.Exchange)
 		require.NoError(t, Setup(b), "Test exchange Setup must not error")
 		require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+		assert.ErrorIs(t, b.DisableRateLimiter(), request.ErrRateLimiterAlreadyDisabled, "MockHTTPInstance should disable the rate limiter")
 		require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
 	})
 
@@ -413,7 +414,7 @@ func TestMockHTTPInstance(t *testing.T) {
 	})
 
 	t.Run("exchange without a requester", func(t *testing.T) {
-		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance should return the error setting the client")
+		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance should error without a requester")
 	})
 
 	t.Run("invalid recording", func(t *testing.T) {

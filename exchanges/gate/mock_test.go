@@ -35,11 +35,6 @@ func setupMockExchange(ex *Exchange) error {
 	if err := testexch.MockHTTPInstance(ex, ""); err != nil {
 		return err
 	}
-	// Mock responses are served locally, so throttling protects nothing and long windows such as the
-	// 100-per-day CrossEx limits would otherwise stall any endpoint exercised more than once per run
-	if err := ex.DisableRateLimiter(); err != nil {
-		return err
-	}
 	enabledAssetPair = mockTestPairs()
 	return storeTestPairs(ex)
 }

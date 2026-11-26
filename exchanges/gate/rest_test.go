@@ -529,7 +529,6 @@ func newIsolatedExchange(t *testing.T) *Exchange {
 		ex.API.AuthenticatedSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 		require.NoError(t, testexch.MockHTTPInstance(ex), "MockHTTPInstance must not error")
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 		require.NoError(t, storeTestPairs(ex), "storeTestPairs must not error")
 	} else {
 		ensureTestPairs(t)
