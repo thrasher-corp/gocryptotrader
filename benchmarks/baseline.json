@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 42599,
-    "bytes": 10783904,
+    "allocs": 42651,
+    "bytes": 10787800,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Binance's options pairs in testdata/configtest.json, gave medians from 42599 to 42613. 0.4% is about 170 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts, Bitstamp's perpetual contracts and Binance's options pairs in testdata/configtest.json, gave medians from 42651 to 42665. 0.4% is about 171 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -116,6 +116,18 @@
   "currency.BenchmarkGetCrypto": {
     "allocs": 1,
     "bytes": 48
+  },
+  "currency.BenchmarkMatch/delimited": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/lower": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/upper": {
+    "allocs": 0,
+    "bytes": 0
   },
   "currency.BenchmarkNewCode": {
     "allocs": 1,
@@ -136,6 +148,10 @@
   "currency.BenchmarkRemovePairsByFilter": {
     "allocs": 0,
     "bytes": 0
+  },
+  "currency.BenchmarkStorePairs": {
+    "allocs": 7103,
+    "bytes": 739666
   },
   "dispatch.BenchmarkSubscribe": {
     "allocs": 0,
@@ -190,20 +206,20 @@
     "bytes": 176
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/Depth": {
-    "allocs": 11,
-    "bytes": 640
+    "allocs": 10,
+    "bytes": 632
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/ExecutionReport": {
-    "allocs": 25,
+    "allocs": 24,
     "bytes": 1672
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/Kline": {
-    "allocs": 6,
-    "bytes": 600
+    "allocs": 5,
+    "bytes": 592
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/ListStatus": {
-    "allocs": 9,
-    "bytes": 896
+    "allocs": 8,
+    "bytes": 880
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/OutboundAccountPosition": {
     "allocs": 16,
@@ -214,12 +230,12 @@
     "bytes": 816
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/Ticker": {
-    "allocs": 7,
-    "bytes": 696
+    "allocs": 6,
+    "bytes": 688
   },
   "exchanges/binance.BenchmarkWebsocketHandleData/Trade": {
-    "allocs": 7,
-    "bytes": 368
+    "allocs": 6,
+    "bytes": 360
   },
   "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
     "allocs": 2,
@@ -566,11 +582,10 @@
     "bytes": 13552
   },
   "internal/testing/exchange.BenchmarkSetup": {
-    "allocs": 18538,
-    "bytes": 4028237,
-    "allocs_tolerance": 0.12,
-    "bytes_tolerance": 0.08,
-    "reason": "Base.SetConfigPairs walks the config's assets in map order, and each store of an asset's available pairs rebuilds the matcher for every available pair stored so far, so a call's allocations depend on that order. Binance's setup on this branch configures more websocket connections and assets than master's, so the budget is this branch's own: BENCH_FLAGS runs in November 2026 gave 10 medians from 18538 to 19660 allocs/op and from 4028237 to 4178225 B/op. The budget is the lowest median; 12% and 8% put the limits 1102 allocs/op and 172270 B/op above the highest medians measured"
+    "allocs": 10159,
+    "bytes": 1595694,
+    "allocs_tolerance": 0.0005,
+    "reason": "Binance's setup on this branch configures more websocket connections and assets than master's, so the budget is this branch's own. The median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians from 10159 to 10160 allocs/op, with single samples from 10157 to 10162. 0.05% is five allocations above the budget, which covers that range"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,

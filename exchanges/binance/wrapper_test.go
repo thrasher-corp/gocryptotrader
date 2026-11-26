@@ -93,10 +93,6 @@ func newMarketTestExchange(t *testing.T) *Exchange {
 	t.Helper()
 	pairs := marketTestPairs(t)
 	ex := newTestExchange(t)
-	if mockTests {
-		// Mock responses are served locally, so throttling protects nothing
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
-	}
 	ex.CurrencyPairs.Load(&e.CurrencyPairs)
 	for a, p := range pairs {
 		if mockTests {

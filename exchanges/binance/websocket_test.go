@@ -1076,7 +1076,10 @@ func (s *spotDepthServer) use(t *testing.T, ex *Exchange, maxSubscriptions int) 
 	rest := httptest.NewTestServer(t, http.HandlerFunc(s.serveSnapshot))
 	rest.Start()
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), rest.URL), "SetRunningURL must not error")
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	if !mockTests {
+		// MockHTTPInstance has already disabled the limiter in mock tests
+		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	}
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}}
 
 	streams := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, s.handleRequest))
@@ -2095,8 +2098,8 @@ func TestSetup(t *testing.T) {
 		require.NoError(t, err, "RootPathFromCWD must not error")
 		saved, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
 		require.NoError(t, err, "ReadFile must read the test configuration")
-		// Version 20 is the last before Binance had derivatives streams
-		saved, err = jsonparser.Set(saved, []byte("20"), "version")
+		// Version 21 is the last before Binance had derivatives streams
+		saved, err = jsonparser.Set(saved, []byte("21"), "version")
 		require.NoError(t, err, "Set must replace the configuration's version")
 		binanceIndex, i := -1, 0
 		_, err = jsonparser.ArrayEach(saved, func(exch []byte, _ jsonparser.ValueType, _ int, _ error) {

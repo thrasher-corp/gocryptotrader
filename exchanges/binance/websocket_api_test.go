@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"golang.org/x/time/rate"
@@ -265,7 +266,10 @@ func orderPlacedMock(tb testing.TB, msg []byte, w *gws.Conn) error {
 
 func TestSendSignedWebsocketAPIRequestSignsAfterRateLimit(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
+	// MockHTTPInstance would disable the rate limiter whose queue this test measures
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
 	// The order pool admits ten orders a second, so the queue of orders outlasts a one second recvWindow. Orders signed
 	// after their wait carry timestamps spread across the queue, while orders signed before it would all carry the
 	// time they were made, and Binance would reject the later ones with -1021. The queue and the timestamps are

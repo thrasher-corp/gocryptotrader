@@ -75,6 +75,10 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// MaxSubscriptions is the most subscriptions each connection made from this setup can hold, for endpoints whose
+	// limit differs from the manager's. Zero uses the manager's MaxSubscriptionsPerConnection. Multi-connection
+	// management only; SetupNewConnection rejects a positive value otherwise.
+	MaxSubscriptions int
 	// Optional lets the websocket connect without this connection when it cannot be established, so that a request-only
 	// connection such as an order API cannot take the market data connections down with it. While the websocket is
 	// connected, the connection monitor tries it again, and replaces it on its own when it is lost, once the lost
