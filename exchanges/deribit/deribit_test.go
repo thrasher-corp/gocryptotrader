@@ -132,9 +132,12 @@ func instantiateTradablePairs() {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	requester := e.Requester
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.Name = t.Name()
+	// Deribit limits ticker requests per IP address, so this instance shares the package instance's rate limits
+	require.NoError(t, e.SetRequester(requester), "SetRequester must not error")
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 

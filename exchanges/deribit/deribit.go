@@ -677,7 +677,14 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}{
 		Data: result,
 	}
-	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
+	limits := attemptRateLimits(epl)
+	return e.SendPayload(ctx, limits[0], func() (*request.Item, error) {
+		// The requester waits on the first limit before each attempt, and sends without limits when it has none
+		if e.Requester.GetRateLimiterDefinitions() != nil {
+			if err := e.initiateRateLimits(ctx, limits[1:]); err != nil {
+				return nil, fmt.Errorf("failed to rate limit HTTP request: %w", err)
+			}
+		}
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   endpoint + deribitAPIVersion + "/" + path,

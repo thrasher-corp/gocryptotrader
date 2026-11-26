@@ -2728,8 +2728,8 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 		}
 	}()
 	for attempt := 1; ; attempt++ {
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := e.Requester.InitiateRateLimit(ctx, ep)
+		// Initiate a rate limit reservation and sleep on each of the requested endpoint's limits
+		err := e.initiateRateLimits(ctx, attemptRateLimits(ep))
 		if err != nil {
 			return fmt.Errorf("failed to rate limit Websocket request: %w", err)
 		}

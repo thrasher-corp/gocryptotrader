@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -42,4 +43,24 @@ func GetRateLimits() request.RateLimitDefinitions {
 		blockRFQWriteEPL:          request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
 		tickerOrderBookEPL:        request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, tickerOrderBookRate), standardWeight),
 	}
+}
+
+// attemptRateLimits returns the endpoint limits each attempt of a request waits on, in turn. Deribit charges a ticker or
+// order book request to the non-matching engine limit as well as their shared limit, which comes last so it paces the
+// attempts Deribit receives
+func attemptRateLimits(epl request.EndpointLimit) []request.EndpointLimit {
+	if epl == tickerOrderBookEPL {
+		return []request.EndpointLimit{nonMatchingEPL, tickerOrderBookEPL}
+	}
+	return []request.EndpointLimit{epl}
+}
+
+// initiateRateLimits waits on each endpoint limit in turn
+func (e *Exchange) initiateRateLimits(ctx context.Context, limits []request.EndpointLimit) error {
+	for _, epl := range limits {
+		if err := e.Requester.InitiateRateLimit(ctx, epl); err != nil {
+			return err
+		}
+	}
+	return nil
 }
