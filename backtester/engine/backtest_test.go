@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -64,15 +65,15 @@ func TestSetupFromConfig(t *testing.T) {
 	bt, err := NewBacktester()
 	require.NoError(t, err)
 
-	err = bt.SetupFromConfig(nil, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), nil, "", "", false)
 	assert.ErrorIs(t, err, errNilConfig)
 
 	cfg := &config.Config{}
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, gctkline.ErrInvalidInterval)
 
 	cfg.DataSettings.Interval = gctkline.OneMonth
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
 	const testExchange = "okx"
@@ -86,7 +87,7 @@ func TestSetupFromConfig(t *testing.T) {
 			Asset:        asset.Spot,
 		},
 	}
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, base.ErrStrategyNotFound)
 
 	cfg.StrategySettings = config.StrategySettings{
@@ -97,24 +98,24 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	cfg.DataSettings.APIData = &config.APIData{}
 
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
 		t.Error(err)
 	}
 	cfg.DataSettings.DataType = common.CandleStr
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 
 	cfg.DataSettings.Interval = gctkline.OneMin
 	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
 	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 
 	cfg.DataSettings.APIData.StartDate = time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
 	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration() * 5)
 	cfg.DataSettings.APIData.InclusiveEndDate = true
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, holdings.ErrInitialFundsZero)
 
 	cfg.FundingSettings.UseExchangeLevelFunding = true
@@ -127,7 +128,7 @@ func TestSetupFromConfig(t *testing.T) {
 			TransferFee:  leet,
 		},
 	}
-	err = bt.SetupFromConfig(cfg, "", "", false)
+	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.NoError(t, err)
 
 	// newCSVTask returns a backtester holding its own mock OKX exchange and a strategy config for one pair whose
@@ -167,7 +168,7 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Parallel()
 		cp := currency.NewPair(currency.NewCode("GCTTEST"), currency.USDT)
 		task, cfg := newCSVTask(t, asset.Spot, cp)
-		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		require.NoError(t, task.SetupFromConfig(t.Context(), cfg, "", "", false), "SetupFromConfig must not error")
 		exch, err := task.exchangeManager.GetExchangeByName(testExchange)
 		require.NoError(t, err, "GetExchangeByName must not error")
 		enabled, err := exch.GetEnabledPairs(asset.Spot)
@@ -189,7 +190,7 @@ func TestSetupFromConfig(t *testing.T) {
 		pm := &exch.GetBase().CurrencyPairs
 		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{ethusdt, btcusdt}, false), "StorePairs must not error for available pairs")
 		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{btcusdt}, true), "StorePairs must not error for enabled pairs")
-		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		require.NoError(t, task.SetupFromConfig(t.Context(), cfg, "", "", false), "SetupFromConfig must not error")
 		enabled, err := exch.GetEnabledPairs(asset.Spot)
 		require.NoError(t, err, "GetEnabledPairs must not error")
 		for _, cp := range []currency.Pair{ethusdt, btcusdt} {
@@ -200,7 +201,7 @@ func TestSetupFromConfig(t *testing.T) {
 	t.Run("a strategy asset the exchange doesn't support", func(t *testing.T) {
 		t.Parallel()
 		task, cfg := newCSVTask(t, asset.Binary, currency.NewBTCUSDT())
-		assert.ErrorIs(t, task.SetupFromConfig(cfg, "", "", false), asset.ErrNotSupported, "SetupFromConfig should refuse an asset the exchange doesn't support")
+		assert.ErrorIs(t, task.SetupFromConfig(t.Context(), cfg, "", "", false), asset.ErrNotSupported, "SetupFromConfig should refuse an asset the exchange doesn't support")
 	})
 
 	t.Run("a PostgreSQL task's setup does not switch the driver under a SQLite load", func(t *testing.T) {
@@ -237,7 +238,7 @@ func TestSetupFromConfig(t *testing.T) {
 					return
 				}
 				// The task stops for want of a strategy, after setting up its database manager and starting its order manager
-				assert.ErrorIs(t, task.SetupFromConfig(postgresTask, "", "", false), base.ErrStrategyNotFound, "SetupFromConfig should fail for want of a strategy")
+				assert.ErrorIs(t, task.SetupFromConfig(t.Context(), postgresTask, "", "", false), base.ErrStrategyNotFound, "SetupFromConfig should fail for want of a strategy")
 				assert.NotNil(t, task.databaseManager, "SetupFromConfig should set up the task's database manager")
 				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
 			}
@@ -258,7 +259,7 @@ func TestSetupFromConfig(t *testing.T) {
 				loader := &BackTest{Reports: &report.Data{}, shutdown: make(chan struct{})}
 				var err error
 				if loader.databaseManager, err = engine.SetupDatabaseConnectionManager(&dbConfig); err == nil {
-					_, err = loader.loadData(&config.Config{DataSettings: config.DataSettings{
+					_, err = loader.loadData(t.Context(), &config.Config{DataSettings: config.DataSettings{
 						DataType: common.CandleStr,
 						Interval: gctkline.OneHour,
 						DatabaseData: &config.DatabaseData{
@@ -365,7 +366,7 @@ func TestLoadDataAPI(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -420,7 +421,7 @@ func TestLoadDataCSV(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 	if err != nil &&
 		!strings.Contains(err.Error(), "The system cannot find the file specified.") &&
 		!strings.Contains(err.Error(), "no such file or directory") {
@@ -491,7 +492,7 @@ func TestLoadDataDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
@@ -536,7 +537,7 @@ func TestLoadDataDatabaseConcurrently(t *testing.T) {
 					},
 				},
 			}
-			_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+			_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 			loads <- err
 		})
 	}
@@ -662,11 +663,11 @@ func TestLoadDataLive(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 	assert.ErrorIs(t, err, gctkline.ErrCannotConstructInterval)
 
 	cfg.DataSettings.Interval = gctkline.OneMin
-	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+	_, err = bt.loadData(t.Context(), cfg, exch, cp, asset.Spot, false)
 	assert.NoError(t, err)
 
 	err = bt.Stop()
@@ -1658,33 +1659,33 @@ func TestLiveCheckStopsDataCheckerWhenRunFails(t *testing.T) {
 
 func TestSetExchangeCredentials(t *testing.T) {
 	t.Parallel()
-	err := setExchangeCredentials(nil, nil)
+	err := setExchangeCredentials(t.Context(), nil, nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	cfg := &config.Config{}
 	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	b := f.GetBase()
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	ld := &config.LiveData{}
 	cfg.DataSettings = config.DataSettings{
 		LiveData: ld,
 	}
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.NoError(t, err)
 
 	ld.RealOrders = true
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.ErrorIs(t, err, errIntervalUnset)
 
 	cfg.DataSettings.Interval = gctkline.OneMin
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.ErrorIs(t, err, errNoCredsNoLive)
 
 	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{}}
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.ErrorIs(t, err, gctexchange.ErrCredentialsAreEmpty)
 
 	// requires valid credentials here to get complete coverage
@@ -1696,7 +1697,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 			Secret: "test",
 		},
 	}}
-	err = setExchangeCredentials(cfg, b)
+	err = setExchangeCredentials(t.Context(), cfg, b)
 	assert.NoError(t, err)
 }
 
@@ -1962,7 +1963,7 @@ func TestExecuteStrategy(t *testing.T) {
 
 func TestNewBacktesterFromConfigs(t *testing.T) {
 	t.Parallel()
-	_, err := NewBacktesterFromConfigs(nil, nil)
+	_, err := NewBacktesterFromConfigs(t.Context(), nil, nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil for both configs")
 
 	cfg, err := config.ReadStrategyConfigFromFile(filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat"))
@@ -1971,16 +1972,98 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 	dc, err := config.GenerateDefaultConfig()
 	assert.NoError(t, err, "GenerateDefaultConfig should not error")
 
-	_, err = NewBacktesterFromConfigs(cfg, nil)
+	_, err = NewBacktesterFromConfigs(t.Context(), cfg, nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil default config")
 
-	_, err = NewBacktesterFromConfigs(nil, dc)
+	_, err = NewBacktesterFromConfigs(t.Context(), nil, dc)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil config")
 
-	bt, err := NewBacktesterFromConfigs(cfg, dc)
+	bt, err := NewBacktesterFromConfigs(t.Context(), cfg, dc)
 	if assert.NoError(t, err, "NewBacktesterFromConfigs should not error") {
 		assert.False(t, bt.MetaData.DateLoaded.IsZero(), "DateLoaded should have a non-zero date")
 	}
+}
+
+type cancelFeeExchange struct {
+	*okx.Exchange
+}
+
+func (c *cancelFeeExchange) GetFeeByType(ctx context.Context, _ *gctexchange.FeeBuilder) (float64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	return 0, nil
+}
+
+func TestSetupFromConfigContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("cancelled context stops API data loading", func(t *testing.T) {
+		t.Parallel()
+		bt := BackTest{Reports: &report.Data{}}
+		exch := newMockOKX(t)
+		cp := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+		b := exch.GetBase()
+		b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				Available:     currency.Pairs{cp},
+				Enabled:       currency.Pairs{cp},
+				AssetEnabled:  true,
+				ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+				RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+			},
+		}
+		start := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
+		cfg := &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				APIData: &config.APIData{
+					StartDate: start,
+					EndDate:   start.Add(gctkline.OneMin.Duration() * 5),
+				},
+			},
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := bt.loadData(ctx, cfg, exch, cp, asset.Spot, false)
+		assert.ErrorIs(t, err, context.Canceled, "loadData should propagate cancelled context from API data loading")
+	})
+
+	t.Run("cancelled context stops fee lookup", func(t *testing.T) {
+		t.Parallel()
+		task, err := NewBacktester()
+		require.NoError(t, err, "NewBacktester must not error")
+		exch := &cancelFeeExchange{Exchange: newMockOKX(t)}
+		require.NoError(t, task.exchangeManager.Add(exch), "adding the mock OKX exchange must not error")
+		t.Cleanup(func() {
+			if task.orderManager != nil && task.orderManager.IsRunning() {
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		})
+		csvPath := filepath.Join(t.TempDir(), "candles.csv")
+		require.NoError(t, os.WriteFile(csvPath, []byte("1609459200,1,10,10,10,10\n1609459260,1,10,10,10,10\n"), 0o600), "writing candles must not error")
+
+		cfg := &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				CSVData:  &config.CSVData{FullPath: csvPath},
+			},
+			StrategySettings: config.StrategySettings{Name: dollarcostaverage.Name, DisableUSDTracking: true},
+			CurrencySettings: []config.CurrencySettings{{
+				ExchangeName: exch.GetName(),
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails:  &config.SpotDetails{InitialQuoteFunds: &leet},
+			}},
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		err = task.SetupFromConfig(ctx, cfg, "", "", false)
+		assert.ErrorIs(t, err, context.Canceled, "SetupFromConfig should propagate cancelled context from fee retrieval")
+	})
 }
 
 func TestProcessSingleDataEvent(t *testing.T) {

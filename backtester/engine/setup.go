@@ -67,7 +67,7 @@ func NewBacktester() (*BackTest, error) {
 }
 
 // SetupFromConfig takes a strategy config and configures a backtester variable to run
-func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+func (bt *BackTest) SetupFromConfig(ctx context.Context, cfg *config.Config, templatePath, output string, verbose bool) error {
 	var err error
 	defer func() {
 		if err != nil {
@@ -155,7 +155,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				var dc *gctconfig.Exchange
 				// GetDefaultConfig also updates the tradable pairs that Setup loads from dc, for exchanges supporting
 				// auto pair updates
-				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
+				dc, err = gctexchange.GetDefaultConfig(ctx, exch)
 				if err != nil {
 					return err
 				}
@@ -171,7 +171,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
 				if cfg.CurrencySettings[i].CanUseExchangeLimits || (cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
-					err = exch.UpdateOrderExecutionLimits(context.TODO(), cfg.CurrencySettings[i].Asset)
+					err = exch.UpdateOrderExecutionLimits(ctx, cfg.CurrencySettings[i].Asset)
 					if err != nil && !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 						return err
 					}
@@ -251,7 +251,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 		if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 			exchBase := exch.GetBase()
-			err = setExchangeCredentials(cfg, exchBase)
+			err = setExchangeCredentials(ctx, cfg, exchBase)
 			if err != nil {
 				return err
 			}
@@ -450,7 +450,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 	}
 
-	e, err := bt.setupExchangeSettings(cfg)
+	e, err := bt.setupExchangeSettings(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -504,7 +504,7 @@ func enableStrategyPair(pm *currency.PairsManager, a asset.Item, pair currency.P
 	return pm.Store(a, ps)
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(ctx context.Context, cfg *config.Config) (*exchange.Exchange, error) {
 	log.Infoln(common.Setup, "Setting exchange settings...")
 
 	resp := &exchange.Exchange{}
@@ -520,7 +520,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		}
 
 		exchangeName := strings.ToLower(exch.GetName())
-		klineData, err := bt.loadData(cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
+		klineData, err := bt.loadData(ctx, cfg, exch, pair, a, cfg.CurrencySettings[i].USDTrackingPair)
 		if err != nil {
 			return nil, err
 		}
@@ -550,8 +550,11 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		}
 		if cfg.CurrencySettings[i].TakerFee == nil || cfg.CurrencySettings[i].MakerFee == nil {
 			var apiMakerFee, apiTakerFee decimal.Decimal
-			apiMakerFee, apiTakerFee, err = getFees(context.TODO(), exch, pair)
+			apiMakerFee, apiTakerFee, err = getFees(ctx, exch, pair)
 			if err != nil {
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil, err
+				}
 				log.Errorf(common.Setup, "Could not retrieve fees for %v. %v", exch.GetName(), err)
 			}
 			if cfg.CurrencySettings[i].MakerFee == nil {
@@ -713,7 +716,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(ctx context.Context, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -851,7 +854,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, err
 		}
 
-		resp, err = loadAPIData(cfg, exch, fPair, a, limit, dataType)
+		resp, err = loadAPIData(ctx, cfg, exch, fPair, a, limit, dataType)
 		if err != nil {
 			return resp, err
 		}
@@ -914,7 +917,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 	)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint64, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(ctx context.Context, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint64, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -929,7 +932,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		return nil, err
 	}
 
-	candles, err := api.LoadData(context.TODO(),
+	candles, err := api.LoadData(ctx,
 		dataType,
 		dates.Start.Time,
 		dates.End.Time,
@@ -938,7 +941,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		fPair,
 		a)
 	if err != nil {
-		return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
+		return nil, fmt.Errorf("%w. Please check your GoCryptoTrader configuration", err)
 	}
 
 	err = dates.SetHasDataFromCandles(candles.Candles)
@@ -957,7 +960,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}, nil
 }
 
-func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
+func setExchangeCredentials(ctx context.Context, cfg *config.Config, exch *gctexchange.Base) error {
 	if cfg == nil || exch == nil || cfg.DataSettings.LiveData == nil {
 		return gctcommon.ErrNilPointer
 	}
@@ -980,7 +983,7 @@ func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
 		exch.API.AuthenticatedSupport = true
 		exch.API.AuthenticatedWebsocketSupport = true
 		exch.SetCredentials(&creds.Keys)
-		_, err := exch.GetCredentials(context.TODO())
+		_, err := exch.GetCredentials(ctx)
 		return err
 	}
 
@@ -988,7 +991,7 @@ func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
 }
 
 // NewBacktesterFromConfigs creates a new backtester based on config settings
-func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
+func NewBacktesterFromConfigs(ctx context.Context, strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
 	if strategyCfg == nil {
 		return nil, fmt.Errorf("%w strategy config", gctcommon.ErrNilPointer)
 	}
@@ -1002,7 +1005,7 @@ func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.
 	if err != nil {
 		return nil, err
 	}
-	err = bt.SetupFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	err = bt.SetupFromConfig(ctx, strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
 	if err != nil {
 		return nil, err
 	}
