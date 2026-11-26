@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -345,4 +346,162 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	// trades match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
 	require.NoError(t, err)
+}
+
+type blockingBatchExchange struct {
+	exchange.IBotExchange
+	started     chan struct{}
+	release     chan struct{}
+	startOnce   sync.Once
+	updateCount atomic.Int32
+}
+
+func (b *blockingBatchExchange) SupportsRESTTickerBatchUpdates() bool { return true }
+
+func (b *blockingBatchExchange) UpdateTickers(ctx context.Context, _ asset.Item) error {
+	b.updateCount.Add(1)
+	b.startOnce.Do(func() { close(b.started) })
+	select {
+	case <-b.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (b *blockingBatchExchange) GetCachedTicker(currency.Pair, asset.Item) (*ticker.Price, error) {
+	return &ticker.Price{}, nil
+}
+
+func TestSyncTickerBatchDoesNotBlockOtherExchanges(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	batching := &blockingBatchExchange{
+		IBotExchange: exch,
+		started:      make(chan struct{}),
+		release:      make(chan struct{}),
+	}
+
+	m, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:   true,
+		FiatDisplayCurrency: currency.USD,
+		PairFormatDisplay:   &currency.EMPTYFORMAT,
+		TimeoutREST:         time.Millisecond,
+		TimeoutWebsocket:    time.Second,
+	}, em, &config.RemoteControlConfig{}, false)
+	require.NoError(t, err, "SetupSyncManager must not error")
+	m.started.Store(true)
+	m.initSyncCompleted.Store(true)
+
+	pair := currency.NewBTCUSDT()
+	agent := newCurrencyPairSyncAgent(key.NewExchangeAssetPair(batching.GetName(), asset.Spot, pair))
+	agent.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+
+	done := make(chan struct{})
+	go func() {
+		m.syncTicker(t.Context(), agent, batching)
+		close(done)
+	}()
+	<-batching.started
+
+	looked := make(chan struct{})
+	go func() {
+		m.get(key.NewExchangeAssetPair("Kraken", asset.Spot, pair))
+		close(looked)
+	}()
+	select {
+	case <-looked:
+	case <-time.After(time.Second):
+		t.Error("another exchange's sync lookup should not wait for this exchange's batch request")
+	}
+	close(batching.release)
+	<-looked
+	<-done
+}
+
+func TestSyncTickerBatchReChecksAfterLock(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	batching := &blockingBatchExchange{
+		IBotExchange: exch,
+		started:      make(chan struct{}),
+		release:      make(chan struct{}),
+	}
+
+	m, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:   true,
+		FiatDisplayCurrency: currency.USD,
+		PairFormatDisplay:   &currency.EMPTYFORMAT,
+		TimeoutREST:         time.Minute,
+		TimeoutWebsocket:    time.Second,
+	}, em, &config.RemoteControlConfig{}, false)
+	require.NoError(t, err, "SetupSyncManager must not error")
+	m.started.Store(true)
+	m.initSyncCompleted.Store(true)
+
+	pair1 := currency.NewBTCUSDT()
+	agent1 := newCurrencyPairSyncAgent(key.NewExchangeAssetPair(batching.GetName(), asset.Spot, pair1))
+	agent1.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+
+	pair2 := currency.NewPair(currency.ETH, currency.USDT)
+	agent2 := newCurrencyPairSyncAgent(key.NewExchangeAssetPair(batching.GetName(), asset.Spot, pair2))
+	agent2.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+
+	done1 := make(chan struct{})
+	go func() {
+		m.syncTicker(t.Context(), agent1, batching)
+		close(done1)
+	}()
+	<-batching.started
+
+	done2 := make(chan struct{})
+	go func() {
+		m.syncTicker(t.Context(), agent2, batching)
+		close(done2)
+	}()
+
+	close(batching.release)
+	<-done1
+	<-done2
+
+	require.Equal(t, int32(1), batching.updateCount.Load(), "concurrent workers for the same exchange and asset must only send one batch request")
+}
+
+func TestSyncManagerWebsocketUpdateConcurrentAdd(t *testing.T) {
+	t.Parallel()
+	m, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:   true,
+		FiatDisplayCurrency: currency.USD,
+		PairFormatDisplay:   &currency.EMPTYFORMAT,
+		TimeoutREST:         time.Second,
+		TimeoutWebsocket:    time.Second,
+	}, &ExchangeManager{}, &config.RemoteControlConfig{}, false)
+	require.NoError(t, err, "SetupSyncManager must not error")
+	m.started.Store(true)
+	m.initSyncStarted.Store(true)
+	m.initSyncCompleted.Store(true)
+
+	pair := currency.NewBTCUSDT()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := range 200 {
+			p := currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USD"+string(rune('A'+i%26))))
+			m.add(key.NewExchangeAssetPair("Binance", asset.Spot, p), syncBase{IsUsingWebsocket: true})
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 200 {
+			_ = m.WebsocketUpdate("Binance", pair, asset.Spot, SyncItemTicker, nil)
+		}
+	}()
+	wg.Wait()
 }
