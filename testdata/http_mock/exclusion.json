@@ -6,7 +6,8 @@
   "Apiauth-Key",
   "X-Gemini-Apikey",
   "X-Bapi-Api-Key",
-  "Bfx-Apikey"
+  "Bfx-Apikey",
+  "X-Auth"
  ],
  "variables": [
   "bsb",

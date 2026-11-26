@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // Public errors related to assets
@@ -262,6 +263,30 @@ func (a *Item) UnmarshalJSON(d []byte) error {
 // MarshalJSON conforms type to the marshaller interface
 func (a Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Item as its string
+func (a Item) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(a.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. An Item without a string of its own is stored as an empty
+// string, and reads back as Empty.
+func (a *Item) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNotSupported, err)
+	}
+	if str == "" {
+		*a = Empty
+		return nil
+	}
+	i, err := New(str)
+	if err != nil {
+		return err
+	}
+	*a = i
+	return nil
 }
 
 // New takes an input matches to relevant package assets

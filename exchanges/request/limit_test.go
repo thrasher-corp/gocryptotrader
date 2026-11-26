@@ -803,4 +803,17 @@ func TestInitiateRateLimit(t *testing.T) {
 	r.limiter = NewBasicRateLimit(time.Second, 10, 1)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.NoError(t, err, "should not error on valid rate limit initiation")
+
+	t.Run("disabled limiter refuses an endpoint without a limiter", func(t *testing.T) {
+		t.Parallel()
+		r := &Requester{limiter: RateLimitDefinitions{Unset: NewRateLimitWithWeight(time.Second, 10, 1), Auth: nil}}
+		r.disableRateLimiter.Store(true)
+		require.NoError(t, r.InitiateRateLimit(t.Context(), Unset), "InitiateRateLimit must not error for an endpoint with a limiter")
+		assert.ErrorIs(t, r.InitiateRateLimit(t.Context(), Auth), common.ErrNilPointer, "InitiateRateLimit should refuse an endpoint whose limiter is nil")
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		contexts, err := NewRateLimitBarrierContexts(ctx, 2)
+		require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+		assert.ErrorIs(t, r.InitiateRateLimit(contexts[0], EndpointLimit(99)), common.ErrNilPointer, "InitiateRateLimit should refuse an endpoint without a limiter before joining its barrier")
+	})
 }

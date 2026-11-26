@@ -1,5 +1,5 @@
-// Package v21 migrates Bitfinex configurations to its perpetual contracts, whose default websocket subscriptions add
-// their candles and status channels.
+// Package v21 migrates Bitstamp configurations to its v2 API, whose authentication needs no client ID and whose default
+// websocket subscriptions cover perpetual contracts.
 package v21
 
 import (
@@ -8,8 +8,6 @@ import (
 	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"errors"
 	"fmt"
-	"math"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,125 +16,100 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// allAssets and candlesChannel are the asset and channel several defaults share
-const (
-	allAssets      = "all"
-	candlesChannel = "candles"
-)
+const clientIDRequirement = "requiresClientID"
 
 // subscriptionKeys are the saved subscription fields the defaults use; an entry with any other field is customised
-var subscriptionKeys = []string{"enabled", "channel", "asset", "params", "interval", "levels", "authenticated"}
+var subscriptionKeys = []string{"enabled", "channel", "asset", "interval", "authenticated"}
 
-// defaultSubscription is an enabled, unauthenticated default subscription
+// defaultSubscription is an enabled default subscription
 type defaultSubscription struct {
-	channel  string
-	asset    string
-	params   map[string]any
-	interval time.Duration
-	levels   int
+	channel       string
+	asset         string
+	interval      time.Duration
+	authenticated bool
 }
 
-// previousDefaults are the v20 default subscriptions
+// previousDefaults are the v20 default subscriptions, which only cover spot
 var previousDefaults = []defaultSubscription{
-	{channel: "ticker", asset: allAssets},
-	{channel: "allTrades", asset: allAssets},
-	{channel: candlesChannel, asset: "spot", interval: time.Minute},
-	{channel: candlesChannel, asset: "margin", interval: time.Minute},
-	{channel: candlesChannel, asset: "marginfunding", interval: time.Minute, params: map[string]any{"_period": "p30"}},
-	{channel: "orderbook", asset: allAssets, levels: 100, params: map[string]any{"prec": "R0"}},
+	{channel: "orderbook", asset: "spot", interval: 100 * time.Millisecond},
+	{channel: "allTrades", asset: "spot"},
+	{channel: "myOrders", asset: "spot", authenticated: true},
+	{channel: "myTrades", asset: "spot", authenticated: true},
 }
 
-// currentDefaults are the v21 default subscriptions, which add the perpetual contracts' candles and status channels
+// currentDefaults are the v21 default subscriptions, which cover every enabled asset and perpetual funding rates
 var currentDefaults = []defaultSubscription{
-	{channel: "ticker", asset: allAssets},
-	{channel: "allTrades", asset: allAssets},
-	{channel: candlesChannel, asset: "spot", interval: time.Minute},
-	{channel: candlesChannel, asset: "margin", interval: time.Minute},
-	{channel: candlesChannel, asset: "marginfunding", interval: time.Minute, params: map[string]any{"_period": "p30"}},
-	{channel: candlesChannel, asset: "usdtmarginedfutures", interval: time.Minute},
-	{channel: candlesChannel, asset: "coinmarginedfutures", interval: time.Minute},
-	{channel: "orderbook", asset: allAssets, levels: 100, params: map[string]any{"prec": "R0"}},
-	{channel: "status", asset: "usdtmarginedfutures"},
-	{channel: "status", asset: "coinmarginedfutures"},
+	{channel: "orderbook", asset: "all", interval: 100 * time.Millisecond},
+	{channel: "allTrades", asset: "all"},
+	{channel: "funding_rate", asset: "perpetualcontract"},
+	{channel: "myOrders", asset: "all", authenticated: true},
+	{channel: "myTrades", asset: "all", authenticated: true},
 }
-
-// perpetualAssets are the assets of the perpetual contracts, which the previous version does not trade
-var perpetualAssets = []string{"usdtmarginedfutures", "coinmarginedfutures"}
 
 // savedSubscription holds the saved subscription fields the config loader decodes
 type savedSubscription struct {
 	Enabled       *bool           `json:"enabled"`
 	Channel       string          `json:"channel"`
 	Asset         string          `json:"asset"`
-	Params        map[string]any  `json:"params"`
 	Interval      json.RawMessage `json:"interval"`
-	Levels        json.RawMessage `json:"levels"`
 	Authenticated *bool           `json:"authenticated"`
 }
 
 // savedDefault is a default subscription in the form the config saves it
 type savedDefault struct {
-	Enabled  bool           `json:"enabled"`
-	Channel  string         `json:"channel"`
-	Asset    string         `json:"asset"`
-	Params   map[string]any `json:"params,omitempty"`
-	Interval string         `json:"interval,omitempty"`
-	Levels   int            `json:"levels,omitempty"`
+	Enabled       bool   `json:"enabled"`
+	Channel       string `json:"channel"`
+	Asset         string `json:"asset"`
+	Interval      string `json:"interval,omitempty"`
+	Authenticated bool   `json:"authenticated,omitempty"`
 }
 
-// savedExchange holds the saved exchange field the config loader identifies an exchange by
-type savedExchange struct {
-	Name string `json:"name"`
-}
-
-// exchangeName is the name of the exchange this version migrates, which the config loader matches in any case
-const exchangeName = "Bitfinex"
-
-// Version implements ExchangeVersion for Bitfinex's perpetual contracts
+// Version implements ExchangeVersion for Bitstamp's v2 API update
 type Version struct{}
 
-// Exchanges returns every exchange: the version manager matches the first name an exchange holds to the names a
-// version lists exactly, but the config loader finds Bitfinex's configuration by its name in any case, so
-// UpgradeExchange and DowngradeExchange pick Bitfinex out themselves
-func (*Version) Exchanges() []string { return []string{"*"} }
+// Exchanges returns just Bitstamp
+func (*Version) Exchanges() []string { return []string{"Bitstamp"} }
 
-// UpgradeExchange replaces Bitfinex's previous default subscriptions with the current defaults, which cover the
-// perpetual contracts; subscriptions which differ from the previous defaults are the user's choice and are left
-// unchanged, as are other exchanges
+// UpgradeExchange removes the client ID requirement and replaces the previous default subscriptions with the current
+// defaults; subscriptions which differ from the previous defaults are the user's choice and are left unchanged
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if bitfinex, err := isBitfinex(exchange); err != nil || !bitfinex {
+	// The exchange overwrites the saved credentials validator during setup, but the config loader checks the saved
+	// validator first, so a client ID requirement would disable authentication for credentials without a client ID
+	keys, err := clientIDRequirementKeys(exchange)
+	if err != nil {
 		return exchange, err
+	}
+	for _, key := range keys {
+		exchange = jsonparser.Delete(exchange, "api", "credentialsValidator", key)
 	}
 	return replaceSubscriptions(exchange, previousDefaults, currentDefaults)
 }
 
-// DowngradeExchange replaces Bitfinex's current default subscriptions with the previous defaults, and disables
-// subscriptions to the status channel the previous version cannot subscribe to; other exchanges are left unchanged
+// DowngradeExchange restores the client ID requirement and replaces the current default subscriptions with the
+// previous defaults
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	if bitfinex, err := isBitfinex(exchange); err != nil || !bitfinex {
+	_, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+	case err != nil:
+		return exchange, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
+	case valueType == jsonparser.Object:
+		if exchange, err = jsonparser.Set(exchange, []byte("true"), "api", "credentialsValidator", clientIDRequirement); err != nil {
+			return exchange, fmt.Errorf("error setting Bitstamp client ID requirement: %w", err)
+		}
+	}
+	if exchange, err = replaceSubscriptions(exchange, currentDefaults, previousDefaults); err != nil {
 		return exchange, err
 	}
-	exchange, err := replaceSubscriptions(exchange, currentDefaults, previousDefaults)
-	if err != nil {
-		return exchange, err
-	}
-	return disableStatusSubscriptions(exchange)
+	return disableUnsupportedChannels(exchange)
 }
 
-// isBitfinex reports whether a saved exchange is Bitfinex as the config loader reads it: the loader matches the name
-// key in any case and takes the last of a repeated key, then matches the name itself in any case
-func isBitfinex(exchange []byte) (bool, error) {
-	var saved savedExchange
-	if err := json.Unmarshal(exchange, &saved); err != nil {
-		return false, fmt.Errorf("error decoding exchange name: %w", err)
-	}
-	return strings.EqualFold(saved.Name, exchangeName), nil
-}
+// previousChannels are the only channels the previous version can subscribe to; it fails to generate any subscription
+// when an enabled entry names another channel
+var previousChannels = []string{"orderbook", "allTrades", "myOrders", "myTrades"}
 
-// disableStatusSubscriptions disables the enabled subscriptions to the status channel, which the previous version sends
-// as a channel needing a symbol, failing to subscribe. It never expands one for a perpetual contract asset, which it
-// does not trade, so those are left as they are
-func disableStatusSubscriptions(exchange []byte) ([]byte, error) {
+// disableUnsupportedChannels disables the subscriptions to channels the previous version does not support
+func disableUnsupportedChannels(exchange []byte) ([]byte, error) {
 	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
 	if err != nil || valueType != jsonparser.Array {
 		return exchange, nil //nolint:nilerr // replaceSubscriptions has already reported malformed subscriptions
@@ -148,7 +121,8 @@ func disableStatusSubscriptions(exchange []byte) ([]byte, error) {
 		defer func() { i++ }()
 		channel, _ := jsonparser.GetString(entry, "channel")
 		a, _ := jsonparser.GetString(entry, "asset")
-		if enabled, err := jsonparser.GetBoolean(entry, "enabled"); err != nil || !enabled || channel != "status" || slices.ContainsFunc(perpetualAssets, func(p string) bool { return strings.EqualFold(p, a) }) {
+		// The previous version has no perpetual contracts, so it never expands a subscription for them
+		if enabled, err := jsonparser.GetBoolean(entry, "enabled"); err != nil || !enabled || slices.Contains(previousChannels, channel) || strings.EqualFold(a, "perpetualcontract") {
 			return
 		}
 		var setErr error
@@ -161,6 +135,30 @@ func disableStatusSubscriptions(exchange []byte) ([]byte, error) {
 	return exchange, errs
 }
 
+// clientIDRequirementKeys returns each credentials validator key the config loader decodes as the client ID
+// requirement, since it matches keys case insensitively; a key repeated in the validator is returned for each repeat
+func clientIDRequirementKeys(exchange []byte) ([]string, error) {
+	validator, valueType, _, err := jsonparser.Get(exchange, "api", "credentialsValidator")
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("error getting Bitstamp credentials validator: %w", err)
+	case valueType != jsonparser.Object:
+		return nil, nil
+	}
+	var keys []string
+	if err := jsonparser.ObjectEach(validator, func(key, _ []byte, _ jsonparser.ValueType, _ int) error {
+		if strings.EqualFold(string(key), clientIDRequirement) {
+			keys = append(keys, string(key))
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("error decoding Bitstamp credentials validator: %w", err)
+	}
+	return keys, nil
+}
+
 // replaceSubscriptions replaces saved subscriptions which match one set of defaults, in any order, with another
 func replaceSubscriptions(exchange []byte, from, to []defaultSubscription) ([]byte, error) {
 	raw, valueType, _, err := jsonparser.Get(exchange, "features", "subscriptions")
@@ -168,45 +166,38 @@ func replaceSubscriptions(exchange []byte, from, to []defaultSubscription) ([]by
 	case errors.Is(err, jsonparser.KeyPathNotFoundError), err == nil && valueType == jsonparser.Null:
 		return exchange, nil
 	case err != nil:
-		return exchange, fmt.Errorf("error getting Bitfinex subscriptions: %w", err)
+		return exchange, fmt.Errorf("error getting Bitstamp subscriptions: %w", err)
 	}
 	var entries []json.RawMessage
 	if err := json.Unmarshal(raw, &entries); err != nil {
-		return exchange, fmt.Errorf("error decoding Bitfinex subscriptions: %w", err)
+		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
 	}
 	matched, err := matchDefaults(entries, from)
 	if err != nil {
-		return exchange, fmt.Errorf("error decoding Bitfinex subscriptions: %w", err)
+		return exchange, fmt.Errorf("error decoding Bitstamp subscriptions: %w", err)
 	}
 	if !matched {
 		return exchange, nil
 	}
 	saved := make([]savedDefault, len(to))
 	for i := range to {
-		saved[i] = savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Params: to[i].params, Levels: to[i].levels}
+		saved[i] = savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Authenticated: to[i].authenticated}
 		if to[i].interval != 0 {
-			saved[i].Interval = shortInterval(to[i].interval)
+			saved[i].Interval = to[i].interval.String()
 		}
 	}
 	updated, err := json.Marshal(saved)
 	if err != nil {
-		return exchange, fmt.Errorf("error encoding Bitfinex subscriptions: %w", err)
+		return exchange, fmt.Errorf("error encoding Bitstamp subscriptions: %w", err)
 	}
 	if exchange, err = jsonparser.Set(exchange, updated, "features", "subscriptions"); err != nil {
-		return exchange, fmt.Errorf("error setting Bitfinex subscriptions: %w", err)
+		return exchange, fmt.Errorf("error setting Bitstamp subscriptions: %w", err)
 	}
 	return exchange, nil
 }
 
-// shortInterval returns an interval as the config saves it, such as 1m
-func shortInterval(d time.Duration) string {
-	s := d.String()
-	s = strings.TrimSuffix(s, "0s")
-	return strings.TrimSuffix(s, "0m")
-}
-
-// matchDefaults reports whether each saved subscription resolves to a different one of the defaults. Every entry is
-// decoded first, so that a malformed entry is reported whichever defaults are matched
+// matchDefaults reports whether each saved subscription resolves to a different one of the defaults
+// Every entry is decoded first, so that a malformed entry is reported whichever defaults are matched
 func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (bool, error) {
 	saved := make([]savedSubscription, len(entries))
 	var customised bool
@@ -229,9 +220,7 @@ func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (b
 	}
 	matched := make([]bool, len(defaults))
 	for i := range saved {
-		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool {
-			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, saved[i].Asset)
-		})
+		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool { return d.channel == saved[i].Channel })
 		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
 			return false, nil
 		}
@@ -240,34 +229,19 @@ func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (b
 	return true, nil
 }
 
-// matches reports whether a saved subscription resolves to the default: enabled and unauthenticated, an absent, false
-// or null authenticated field all being unauthenticated, with the default's parameters, an absent, null or empty
-// parameters object all being none, and its interval and levels as the config loader parses them
+// matches reports whether a saved subscription resolves to the default; assets match case insensitively as the loader
+// parses them, and an absent, false or null authenticated field are all unauthenticated
 func (d *defaultSubscription) matches(s *savedSubscription) bool {
 	interval, ok := parseInterval(s.Interval)
-	if !ok {
-		return false
-	}
-	levels, ok := parseLevels(s.Levels)
 	return ok &&
 		s.Enabled != nil && *s.Enabled &&
-		(s.Authenticated == nil || !*s.Authenticated) &&
+		strings.EqualFold(s.Asset, d.asset) &&
 		interval == d.interval &&
-		levels == d.levels &&
-		(len(s.Params) == 0 && len(d.params) == 0 || reflect.DeepEqual(s.Params, d.params))
+		(s.Authenticated != nil && *s.Authenticated) == d.authenticated
 }
 
-// parseLevels returns saved levels as the config loader decodes them, an absent or null field being zero
-func parseLevels(raw json.RawMessage) (int, bool) {
-	var levels int
-	if raw != nil && json.Unmarshal(raw, &levels) != nil {
-		return 0, false
-	}
-	return levels, true
-}
-
-// parseInterval returns a saved interval as the config loader parses it: nanoseconds, a duration such as 1m0s, or a
-// count of units such as 1min; an absent interval is zero, and null is rejected as the loader rejects it
+// parseInterval returns a saved interval as the config loader parses it, either as nanoseconds or as a duration such
+// as "100ms"; an absent interval is zero, and null is rejected as the loader rejects it
 func parseInterval(raw json.RawMessage) (time.Duration, bool) {
 	if raw == nil {
 		return 0, true
@@ -283,41 +257,6 @@ func parseInterval(raw json.RawMessage) (time.Duration, bool) {
 	if err := json.Unmarshal(raw, &text); err != nil {
 		return 0, false
 	}
-	if d, err := time.ParseDuration(text); err == nil {
-		return d, true
-	}
-	split := strings.IndexFunc(text, func(r rune) bool { return r < '0' || r > '9' })
-	if split <= 0 {
-		return 0, false
-	}
-	n, err := strconv.ParseInt(text[:split], 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	unit := text[split:]
-	if unit == "M" {
-		// A month, before folding case would make it a minute
-		unit = "month"
-	}
-	var scale time.Duration
-	switch strings.ToLower(unit) {
-	case "s", "sec", "secs", "second", "seconds":
-		scale = time.Second
-	case "m", "min", "mins", "minute", "minutes":
-		scale = time.Minute
-	case "h", "hr", "hrs", "hour", "hours":
-		scale = time.Hour
-	case "d", "day", "days":
-		scale = 24 * time.Hour
-	case "w", "wk", "wks", "week", "weeks":
-		scale = 7 * 24 * time.Hour
-	case "mo", "month", "months":
-		scale = 30 * 24 * time.Hour
-	default:
-		return 0, false
-	}
-	if n > math.MaxInt64/int64(scale) {
-		return 0, false
-	}
-	return time.Duration(n) * scale, true
+	d, err := time.ParseDuration(text)
+	return d, err == nil
 }
