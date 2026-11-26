@@ -183,6 +183,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case map[string]any:
 		return e.handleWSEvent(ctx, respRaw)
 	case []any:
+		if len(d) < 2 {
+			return fmt.Errorf("%s: websocket message too short: %s", e.Name, respRaw)
+		}
 		chanIDFloat, ok := d[0].(float64)
 		if !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
@@ -206,6 +209,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 		if !hasEventType {
 			return errors.New("WS message without eventType")
+		}
+
+		// Every other authenticated channel event carries its data in d[2]
+		if eventType != wsHeartbeat && eventType != pong && len(d) < 3 {
+			return fmt.Errorf("%s: websocket %q message has no data: %s", e.Name, eventType, respRaw)
 		}
 
 		switch eventType {
@@ -966,6 +974,9 @@ func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []
 	notification, ok := d[2].([]any)
 	if !ok {
 		return errors.New("unable to type assert notification data")
+	}
+	if len(notification) < 7 {
+		return fmt.Errorf("%s: websocket notification too short: %s", e.Name, respRaw)
 	}
 	if data, ok := notification[4].([]any); ok {
 		channelName, ok := notification[1].(string)
