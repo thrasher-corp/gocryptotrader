@@ -1010,7 +1010,7 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		assert.ErrorIs(t, err, ErrExchangeNotFound, "NewExchangeByNameWithDefaults should error for an unknown exchange name")
 	})
 
-	// TestGetDefaultConfigurations builds every exchange's default config live, so one exchange covers this helper
+	// TestGetDefaultConfigurations builds every exchange's default config in mock runs, so one live exchange covers this helper
 	t.Run("live default config", func(t *testing.T) {
 		t.Parallel()
 		if livetest.Mock {

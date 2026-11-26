@@ -88,6 +88,8 @@ func TestGetCryptoIDAddressBalance(t *testing.T) {
 	b.Providers[0].APIKey = "bob"
 	ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(time.Nanosecond))
 	defer cancel()
+	// On Windows two clock reads can fall within one tick and leave the one-nanosecond deadline pending, so wait for it
+	<-ctx.Done()
 	_, err = b.GetCryptoIDAddressBalance(ctx, testLTCAddress, currency.LTC)
 	assert.True(t, errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "rate limiter wait error"),
 		"GetCryptoIDAddressBalance should return DeadlineExceeded or rate limiter wait error")

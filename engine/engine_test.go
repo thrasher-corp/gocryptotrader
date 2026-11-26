@@ -738,18 +738,15 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			exch, err := em.NewExchangeByName(name)
 			require.NoError(t, err, "NewExchangeByName must not error")
 
-			if isCITest() && slices.Contains(blockedCIExchanges, name) {
-				t.Skipf("skipping %s due to CI test restrictions", name)
-			}
-
-			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
-				t.Skipf("skipping %s unsupported", name)
-			}
-
-			if livetest.Mock {
-				// Only a live run can download the exchange's pairs
+			switch {
+			case livetest.Mock:
+				// Only a live run can download the exchange's pairs, and only that download needs the restrictions below
 				exch.SetDefaults()
 				exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
+			case isCITest() && slices.Contains(blockedCIExchanges, name):
+				t.Skipf("skipping %s due to CI test restrictions", name)
+			case slices.Contains(unsupportedDefaultConfigExchanges, name):
+				t.Skipf("skipping %s unsupported", name)
 			}
 			defaultCfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err, "GetDefaultConfig must not error")
