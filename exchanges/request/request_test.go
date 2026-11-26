@@ -1383,7 +1383,7 @@ func TestEnableDisableRateLimit(t *testing.T) {
 			return r.SendPayload(t.Context(), Auth, func() (*Item, error) {
 				return &Item{
 					Method: http.MethodGet,
-					Path:   testURL,
+					Path:   "stub://request.test/",
 					Result: new(any),
 				}, nil
 			}, AuthenticatedRequest)
