@@ -37,10 +37,6 @@ func setupMockExchange(ex *Exchange) error {
 	if err := testexch.MockHTTPInstance(ex); err != nil {
 		return err
 	}
-	// Mock responses are served locally, so throttling protects nothing
-	if err := ex.DisableRateLimiter(); err != nil {
-		return err
-	}
 	spotTradablePair = currency.NewBTCUSDT()
 	if err := ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTradablePair}, false); err != nil {
 		return err
