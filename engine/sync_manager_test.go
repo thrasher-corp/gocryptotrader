@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -345,4 +346,127 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	// trades match
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemTrade, errors.New("test"))
 	require.NoError(t, err)
+}
+
+type isolatedRESTSyncExchange struct {
+	exchange.IBotExchange
+	name              string
+	pairs             currency.Pairs
+	updateTickerFn    func(context.Context, currency.Pair, asset.Item) (*ticker.Price, error)
+	updateOrderbookFn func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error)
+}
+
+func (e isolatedRESTSyncExchange) GetName() string                           { return e.name }
+func (e isolatedRESTSyncExchange) SupportsWebsocket() bool                   { return false }
+func (e isolatedRESTSyncExchange) SupportsREST() bool                        { return true }
+func (e isolatedRESTSyncExchange) SupportsRESTTickerBatchUpdates() bool      { return false }
+func (e isolatedRESTSyncExchange) IsAssetWebsocketSupported(asset.Item) bool { return false }
+
+func (e isolatedRESTSyncExchange) GetAssetTypes(bool) asset.Items {
+	return asset.Items{asset.Spot}
+}
+
+func (e isolatedRESTSyncExchange) GetEnabledPairs(asset.Item) (currency.Pairs, error) {
+	return e.pairs, nil
+}
+
+func (e isolatedRESTSyncExchange) UpdateTicker(ctx context.Context, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+	return e.updateTickerFn(ctx, pair, item)
+}
+
+func (e isolatedRESTSyncExchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, item asset.Item) (*orderbook.Book, error) {
+	return e.updateOrderbookFn(ctx, pair, item)
+}
+
+func TestSyncManagerSlowExchangeDoesNotStarveOtherExchanges(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+
+	baseSlow, err := em.NewExchangeByName("Bitstamp")
+	require.NoError(t, err)
+	baseSlow.SetDefaults()
+
+	baseFast, err := em.NewExchangeByName("Bitstamp")
+	require.NoError(t, err)
+	baseFast.SetDefaults()
+
+	slowPairs := currency.Pairs{
+		currency.NewBTCUSD(),
+		currency.NewPair(currency.ETH, currency.USD),
+		currency.NewPair(currency.LTC, currency.USD),
+		currency.NewPair(currency.XRP, currency.USD),
+	}
+	fastPairs := currency.Pairs{currency.NewBTCUSD()}
+
+	var slowInFlight, slowMaxInFlight atomic.Int32
+	var fastTickers, fastOrderbooks atomic.Int32
+	blockCh := make(chan struct{})
+	defer close(blockCh)
+
+	recordSlow := func(ctx context.Context) error {
+		cur := slowInFlight.Add(1)
+		defer slowInFlight.Add(-1)
+		for {
+			prev := slowMaxInFlight.Load()
+			if cur <= prev || slowMaxInFlight.CompareAndSwap(prev, cur) {
+				break
+			}
+		}
+		select {
+		case <-blockCh:
+		case <-ctx.Done():
+		}
+		return ctx.Err()
+	}
+
+	require.NoError(t, em.Add(isolatedRESTSyncExchange{
+		IBotExchange: baseSlow,
+		name:         "SlowExchange",
+		pairs:        slowPairs,
+		updateTickerFn: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+			return nil, recordSlow(ctx)
+		},
+		updateOrderbookFn: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Book, error) {
+			return nil, recordSlow(ctx)
+		},
+	}))
+	require.NoError(t, em.Add(isolatedRESTSyncExchange{
+		IBotExchange: baseFast,
+		name:         "FastExchange",
+		pairs:        fastPairs,
+		updateTickerFn: func(_ context.Context, p currency.Pair, _ asset.Item) (*ticker.Price, error) {
+			fastTickers.Add(1)
+			return &ticker.Price{Pair: p}, nil
+		},
+		updateOrderbookFn: func(_ context.Context, p currency.Pair, _ asset.Item) (*orderbook.Book, error) {
+			fastOrderbooks.Add(1)
+			return &orderbook.Book{Pair: p}, nil
+		},
+	}))
+
+	m, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeContinuously: true,
+		SynchronizeTicker:       true,
+		SynchronizeOrderbook:    true,
+		NumWorkers:              3,
+		TimeoutREST:             40 * time.Millisecond,
+		TimeoutWebsocket:        40 * time.Millisecond,
+		FiatDisplayCurrency:     currency.USD,
+		PairFormatDisplay:       &currency.EMPTYFORMAT,
+	}, em, &config.RemoteControlConfig{}, false)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	require.NoError(t, m.Start(ctx))
+	defer func() {
+		cancel()
+		_ = m.Stop()
+	}()
+
+	require.Eventually(t, func() bool {
+		return fastTickers.Load() >= 3 && fastOrderbooks.Load() >= 3
+	}, 2*time.Second, 20*time.Millisecond, "expected fast exchange ticker and orderbook to keep refreshing despite blocked slow exchange")
+
+	assert.LessOrEqual(t, slowMaxInFlight.Load(), int32(1), "slow exchange should hold at most NumWorkers/numExchanges concurrent REST workers")
 }

@@ -89,6 +89,7 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
 		tickerBatchLastRequested:       make(map[key.ExchangeAsset]time.Time),
+		restInFlight:                   make(map[string]*atomic.Int64),
 		currencyPairs:                  make(map[key.ExchangeAssetPair]*currencyPairSyncAgent),
 	}
 
@@ -129,6 +130,7 @@ func (m *SyncManager) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.exchangeCount.Store(int64(len(exchanges)))
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
@@ -455,6 +457,7 @@ func (m *SyncManager) worker(ctx context.Context) {
 				log.Errorf(log.SyncMgr, "Sync manager cannot get exchanges: %v", err)
 				continue
 			}
+			m.exchangeCount.Store(int64(len(exchanges)))
 			for _, e := range exchanges {
 				exchangeName := e.GetName()
 				supportsREST := e.SupportsREST()
@@ -550,6 +553,14 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
+		restCounter, ok := m.tryAcquireExchangeREST(exchangeName)
+		if !ok {
+			return
+		}
+		if restCounter != nil {
+			defer restCounter.Add(-1)
+		}
+
 		var result *ticker.Price
 		var err error
 
@@ -633,6 +644,14 @@ func (m *SyncManager) syncOrderbook(ctx context.Context, c *currencyPairSyncAgen
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
+		restCounter, ok := m.tryAcquireExchangeREST(e.GetName())
+		if !ok {
+			return
+		}
+		if restCounter != nil {
+			defer restCounter.Add(-1)
+		}
+
 		result, err := e.UpdateOrderbook(ctx,
 			c.Pair,
 			c.Key.Asset)
@@ -640,6 +659,38 @@ func (m *SyncManager) syncOrderbook(ctx context.Context, c *currencyPairSyncAgen
 		updateErr := m.update(c, SyncItemOrderbook, err)
 		if updateErr != nil {
 			log.Errorln(log.SyncMgr, updateErr)
+		}
+	}
+}
+
+func (m *SyncManager) getExchangeRESTCounter(exchangeName string) *atomic.Int64 {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	if m.restInFlight == nil {
+		m.restInFlight = make(map[string]*atomic.Int64)
+	}
+	counter, ok := m.restInFlight[exchangeName]
+	if !ok {
+		counter = &atomic.Int64{}
+		m.restInFlight[exchangeName] = counter
+	}
+	return counter
+}
+
+func (m *SyncManager) tryAcquireExchangeREST(exchangeName string) (*atomic.Int64, bool) {
+	numExchanges := int(m.exchangeCount.Load())
+	if numExchanges <= 1 || m.config.NumWorkers <= 1 {
+		return nil, true
+	}
+	limit := int64(max(1, m.config.NumWorkers/numExchanges))
+	counter := m.getExchangeRESTCounter(exchangeName)
+	for {
+		cur := counter.Load()
+		if cur >= limit {
+			return nil, false
+		}
+		if counter.CompareAndSwap(cur, cur+1) {
+			return counter, true
 		}
 	}
 }
