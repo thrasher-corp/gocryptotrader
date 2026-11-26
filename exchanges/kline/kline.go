@@ -739,16 +739,20 @@ func (h *IntervalRangeHolder) SetHasDataFromCandles(incoming []Candle) error {
 	return nil
 }
 
-// SetHasDataByCandleTime sets HasData for each interval of the ranges given that a candle starts, from whether a candle
-// starting there has data, and leaves the intervals no candle starts as they were. Unlike SetHasDataFromCandles, which
-// matches candles in order from a holder's first interval, it accepts gaps, candles away from an interval's start and
-// any subset of a holder's ranges.
-func SetHasDataByCandleTime(ranges []IntervalRange, candles []Candle) {
+// SetHasDataByCandleTime sets HasData for each interval of the ranges given that a candle starts, from whether that
+// candle has data, and leaves the intervals no candle starts as they were. Unlike SetHasDataFromCandles, which matches
+// candles in order from a holder's first interval, it accepts gaps, candles away from an interval's start and any
+// subset of a holder's ranges. It returns ErrDuplicateCandleTime, and changes no interval, when two candles start at
+// the same time.
+func SetHasDataByCandleTime(ranges []IntervalRange, candles []Candle) error {
 	// UTC time keys match wall clock instants in any location and ignore monotonic clock readings
 	starts := make(map[time.Time]bool, len(candles))
 	for i := range candles {
 		start := candles[i].Time.UTC()
-		starts[start] = starts[start] || candles[i].HasData()
+		if _, ok := starts[start]; ok {
+			return fmt.Errorf("%w '%v'", ErrDuplicateCandleTime, start)
+		}
+		starts[start] = candles[i].HasData()
 	}
 	for x := range ranges {
 		for y := range ranges[x].Intervals {
@@ -757,6 +761,7 @@ func SetHasDataByCandleTime(ranges []IntervalRange, candles []Candle) {
 			}
 		}
 	}
+	return nil
 }
 
 // IntervalsWithoutData returns how many intervals of the holder have no data, and how many intervals it holds

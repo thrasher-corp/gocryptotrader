@@ -294,6 +294,12 @@ func (j *DataHistoryJob) markRangeIssuesFound(start, end time.Time) {
 	}
 }
 
+// candlesBefore returns the candles starting before end. The candle store's reads include the end of the dates asked for,
+// and a candle starting there belongs to the next range.
+func candlesBefore(candles []kline.Candle, end time.Time) []kline.Candle {
+	return slices.DeleteFunc(candles, func(c kline.Candle) bool { return !c.Time.Before(end) })
+}
+
 func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
@@ -318,7 +324,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
+				if err = kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candlesBefore(candles.Candles, jobs[i].rangeHolder.End.Time)); err != nil {
+					return fmt.Errorf("%s could not match stored candles to intervals: %w", jobs[i].Nickname, err)
+				}
 			}
 		case dataHistoryTradeDataType:
 			for x := range jobs[i].rangeHolder.Ranges {
@@ -336,7 +344,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			if candles != nil {
-				kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candles.Candles)
+				if err = kline.SetHasDataByCandleTime(jobs[i].rangeHolder.Ranges, candlesBefore(candles.Candles, jobs[i].rangeHolder.End.Time)); err != nil {
+					return fmt.Errorf("%s could not match stored candles to intervals: %w", jobs[i].Nickname, err)
+				}
 			}
 			jobs[i].dropStaleResults()
 		default:
@@ -819,7 +829,11 @@ func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHis
 		r.Status = dataHistoryStatusFailed
 		return r, nil
 	}
-	kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
+	if err := kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles); err != nil {
+		r.Result += "could not match candles to intervals: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+		return r, nil //nolint:nilerr // error is returned in the job result
+	}
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -873,12 +887,14 @@ func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHist
 		return t.Timestamp.Before(startRange) || !t.Timestamp.Before(endRange)
 	})
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
+	if err == nil {
+		err = kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
+	}
 	if err != nil {
-		r.Result += "could not convert candles to trades: " + err.Error() + ". "
+		r.Result += "could not convert trades to candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
 		return r, nil //nolint:nilerr // error is returned in the job result
 	}
-	kline.SetHasDataByCandleTime(job.rangeHolder.Ranges[intervalIndex:intervalIndex+1], candles.Candles)
 	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
 		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
 			r.Status = dataHistoryStatusFailed
@@ -1012,7 +1028,9 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		return nil, fmt.Errorf("%s could not load saved candles: %w", job.Nickname, err)
 	}
 	if saved != nil {
-		kline.SetHasDataByCandleTime(intervals.Ranges, saved.Candles)
+		if err := kline.SetHasDataByCandleTime(intervals.Ranges, candlesBefore(saved.Candles, intervals.End.Time)); err != nil {
+			return nil, fmt.Errorf("%s could not match saved candles to intervals: %w", job.Nickname, err)
+		}
 	}
 	if missing, total := intervals.IntervalsWithoutData(); missing > 0 {
 		r.Result = fmt.Sprintf("missing %d of %d converted candles from %v - %v. ", missing, total,

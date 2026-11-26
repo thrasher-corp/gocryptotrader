@@ -18,9 +18,9 @@ import (
 
 // Basic auth validation errors
 var (
-	ErrMissingAuthHeader  = errors.New("authorization header missing")
-	ErrNotBasicAuth       = errors.New("basic scheme not found in authorization header")
-	ErrMalformedBasicAuth = errors.New("malformed basic authorization credentials")
+	ErrMissingAuthHeader  = errors.New(`"authorization" header missing`)
+	ErrNotBasicAuth       = errors.New(`basic scheme not found in "authorization" header`)
+	ErrMalformedBasicAuth = errors.New("malformed basic authorisation credentials")
 	ErrBasicAuthMismatch  = errors.New("username/password mismatch")
 )
 
@@ -44,7 +44,7 @@ func (BasicAuth) RequireTransportSecurity() bool {
 	return true
 }
 
-// CheckBasicAuth validates the first authorization metadata value against the expected username and password
+// CheckBasicAuth validates the first "authorization" metadata value against the expected username and password
 func CheckBasicAuth(md metadata.MD, username, password string) error {
 	values := md.Get("authorization")
 	if len(values) == 0 {

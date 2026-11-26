@@ -109,7 +109,8 @@ func (o *OHLC) GetBollingerBands(period int64, nbDevUp, nbDevDown float64, m ind
 	if len(o.Close) == 0 {
 		return nil, fmt.Errorf("get bollinger bands close %w", errNoData)
 	}
-	if period > int64(len(o.Close)) { // TODO: Investigate the panic when this protection is removed.
+	// BBANDS needs at least period closes for its first standard deviation
+	if period > int64(len(o.Close)) {
 		return nil, fmt.Errorf("get bollinger bands %w '%v' should not exceed close data length '%v'",
 			ErrInvalidPeriod, period, len(o.Close))
 	}
@@ -141,7 +142,6 @@ func (o *OHLC) GetCorrelationCoefficient(other *OHLC, period int64) ([]float64, 
 		return nil, fmt.Errorf("get correlation coefficient %w", ErrInvalidPeriod)
 	}
 	if period == 1 {
-		// TODO: Check correlation calculation.
 		return nil, fmt.Errorf("get correlation coefficient %w using period 1 results in NaN return",
 			ErrInvalidPeriod)
 	}

@@ -22,18 +22,19 @@ func TestCheckBasicAuth(t *testing.T) {
 		values      []string
 		credentials *BasicAuth
 		wantErr     error
+		wantText    string
 	}{
-		{name: "missing metadata", wantErr: ErrMissingAuthHeader},
+		{name: "missing metadata", wantErr: ErrMissingAuthHeader, wantText: `"authorization" header missing`},
 		{name: "empty value slice", values: []string{}, wantErr: ErrMissingAuthHeader},
 		{name: "empty first value", values: []string{""}, wantErr: ErrNotBasicAuth},
 		{name: "scheme without space", values: []string{"Basic"}, wantErr: ErrNotBasicAuth},
-		{name: "wrong scheme", values: []string{"Bearer token"}, wantErr: ErrNotBasicAuth},
+		{name: "wrong scheme", values: []string{"Bearer token"}, wantErr: ErrNotBasicAuth, wantText: `basic scheme not found in "authorization" header`},
 		{name: "scheme substring", values: []string{"NotBasic " + encode("test-user:test-password")}, wantErr: ErrNotBasicAuth},
 		{name: "tab separator", values: []string{"Basic\t" + encode("test-user:test-password")}, wantErr: ErrNotBasicAuth},
 		{name: "two spaces", values: []string{"Basic  " + encode("test-user:test-password")}, wantErr: ErrMalformedBasicAuth},
 		{name: "empty token", values: []string{"Basic "}, wantErr: ErrMalformedBasicAuth},
 		{name: "invalid base64", values: []string{"Basic !!!"}, wantErr: ErrMalformedBasicAuth},
-		{name: "missing colon", values: []string{"Basic " + encode("test-user")}, wantErr: ErrMalformedBasicAuth},
+		{name: "missing colon", values: []string{"Basic " + encode("test-user")}, wantErr: ErrMalformedBasicAuth, wantText: "malformed basic authorisation credentials"},
 		{name: "valid credentials", values: []string{valid}},
 		{name: "lower case scheme", values: []string{"basic " + encode("test-user:test-password")}},
 		{name: "wrong username", values: []string{"Basic " + encode("other-user:test-password")}, wantErr: ErrBasicAuthMismatch},
@@ -58,6 +59,9 @@ func TestCheckBasicAuth(t *testing.T) {
 			err := CheckBasicAuth(md, username, password)
 			if tc.wantErr != nil {
 				assert.ErrorIs(t, err, tc.wantErr, "CheckBasicAuth should return the expected error")
+				if tc.wantText != "" {
+					assert.ErrorContains(t, err, tc.wantText, "CheckBasicAuth should say what is wrong with the credentials it was given")
+				}
 			} else {
 				assert.NoError(t, err, "CheckBasicAuth should accept matching credentials")
 			}

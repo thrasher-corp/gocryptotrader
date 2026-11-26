@@ -951,6 +951,34 @@ func TestCandleRuns(t *testing.T) {
 	}
 }
 
+func TestCandlesBefore(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	zone := time.FixedZone("UTC+10", 10*60*60)
+	at := func(offset time.Duration) kline.Candle { return kline.Candle{Time: start.Add(offset)} }
+	for _, tc := range []struct {
+		name    string
+		candles []kline.Candle
+		want    []kline.Candle
+	}{
+		{name: "no candles"},
+		{name: "every candle before the end", candles: []kline.Candle{at(0), at(30 * time.Minute)}, want: []kline.Candle{at(0), at(30 * time.Minute)}},
+		{name: "candle a nanosecond before the end", candles: []kline.Candle{at(time.Hour - time.Nanosecond)}, want: []kline.Candle{at(time.Hour - time.Nanosecond)}},
+		{name: "candles at the end", candles: []kline.Candle{at(0), at(time.Hour), at(time.Hour)}, want: []kline.Candle{at(0)}},
+		{name: "candle at the end in another time zone", candles: []kline.Candle{{Time: end.In(zone)}, at(0)}, want: []kline.Candle{at(0)}},
+		{name: "candle before the end in another time zone", candles: []kline.Candle{{Time: start.Add(30 * time.Minute).In(zone)}}, want: []kline.Candle{{Time: start.Add(30 * time.Minute).In(zone)}}},
+		{name: "candles after the end", candles: []kline.Candle{at(2 * time.Hour), at(0), at(90 * time.Minute)}, want: []kline.Candle{at(0)}},
+		{name: "candle half a second after the end", candles: []kline.Candle{at(0), at(time.Hour + 500*time.Millisecond)}, want: []kline.Candle{at(0)}},
+		{name: "candle centuries before the end", candles: []kline.Candle{{Time: time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC)}}, want: []kline.Candle{{Time: time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, candlesBefore(slices.Clone(tc.candles), end), "candlesBefore should keep the candles starting before the end, in order")
+		})
+	}
+}
+
 func TestRangeResult(t *testing.T) {
 	t.Parallel()
 	result := func(status dataHistoryStatus) DataHistoryJobResult { return DataHistoryJobResult{Status: status} }
@@ -1251,25 +1279,27 @@ func TestCompareJobsToData(t *testing.T) {
 			},
 		}
 		source := generateCandles(25, start, kline.OneMin)
-		saved := generateCandles(1, start, kline.FiveMin)
-		mgr.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+		store := &candleStore{}
+		_, err := store.save(&kline.Item{Interval: kline.FiveMin, Candles: generateCandles(1, start, kline.FiveMin)}, false)
+		require.NoError(t, err, "storing the converted candle of the shorter batch must not error")
+		store.saves = nil
+		mgr.candleLoader = func(exchangeName string, pair currency.Pair, a asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
 			if interval == job.ConversionInterval {
-				return loadSavedCandles(saved, interval, from, until)
+				return store.load(exchangeName, pair, a, interval, from, until)
 			}
 			return loadSavedCandles(source, interval, from, until)
 		}
-		mgr.candleSaver = func(item *kline.Item, _ bool) (uint64, error) {
-			saved = append(saved, item.Candles...)
-			return uint64(len(item.Candles)), nil
+		var converted []int64
+		mgr.candleSaver = func(item *kline.Item, overwrite bool) (uint64, error) {
+			for i := range item.Candles {
+				converted = append(converted, item.Candles[i].Time.UnixNano())
+			}
+			return store.save(item, overwrite)
 		}
 		require.NoError(t, mgr.compareJobsToData(job), "compareJobsToData must prepare the job")
 		assert.Empty(t, job.Results, "compareJobsToData should set aside the result of the shorter batch")
 		require.NoError(t, mgr.runDataJob(t.Context(), job, nil), "runDataJob must not error")
-		converted := make([]int64, 0, len(saved)-1)
-		for _, c := range saved[1:] {
-			converted = append(converted, c.Time.Unix())
-		}
-		assert.Equal(t, []int64{start.Unix(), start.Add(5 * time.Minute).Unix(), start.Add(10 * time.Minute).Unix(), start.Add(15 * time.Minute).Unix(), start.Add(20 * time.Minute).Unix()}, converted, "runDataJob should convert the whole batch")
+		assert.Equal(t, []int64{start.UnixNano(), start.Add(5 * time.Minute).UnixNano(), start.Add(10 * time.Minute).UnixNano(), start.Add(15 * time.Minute).UnixNano(), start.Add(20 * time.Minute).UnixNano()}, converted, "runDataJob should convert the whole batch")
 		assert.Equal(t, dataHistoryStatusComplete, job.Status, "runDataJob should complete the job once its batch converts")
 	})
 
@@ -1410,6 +1440,140 @@ func TestCompareJobsToData(t *testing.T) {
 			require.NoError(t, mgr.compareJobsToData(btcusd, btcusdt), "compareJobsToData must not error")
 			assert.Equal(t, [][]bool{{false}, {true}}, rangesHasData(btcusd.rangeHolder), "compareJobsToData should mark the first job's own stored candles")
 			assert.Equal(t, [][]bool{{true}, {false}}, rangesHasData(btcusdt.rangeHolder), "compareJobsToData should mark the second job's own stored candles")
+		})
+
+		for _, overwrite := range []bool{false, true} {
+			name := "stored candles sharing a start for " + dataType.String() + "/keep existing data"
+			if overwrite {
+				name = "stored candles sharing a start for " + dataType.String() + "/overwrite existing data"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				mgr, _ := createDHM(t)
+				start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+				// BTC/USDT's stored candles are distinct and BTC/USD's share a start
+				mgr.candleLoader = func(_ string, pair currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+					candles := generateCandles(2, start, interval)
+					if pair.Equal(currency.NewBTCUSD()) {
+						candles = slices.Concat(generateCandles(1, start, interval), candles)
+					}
+					return loadSavedCandles(candles, interval, from, until)
+				}
+				newJob := func(nickname string, pair currency.Pair) *DataHistoryJob {
+					job := &DataHistoryJob{
+						Nickname: nickname, Exchange: testExchange, Asset: asset.Spot, Pair: pair, StartDate: start, EndDate: start.Add(2 * time.Hour),
+						Interval: kline.OneHour, DataType: dataType, RequestSizeLimit: 1, OverwriteExistingData: overwrite,
+					}
+					switch dataType {
+					case dataHistoryConvertCandlesDataType:
+						job.Interval, job.ConversionInterval = kline.OneMin, kline.OneHour
+					case dataHistoryCandleValidationSecondarySourceType:
+						job.SecondaryExchangeSource = "binance"
+					}
+					return job
+				}
+				after := newJob("after", currency.NewBTCUSDT())
+				err := mgr.compareJobsToData(newJob("before", currency.NewBTCUSDT()), newJob("shared start", currency.NewBTCUSD()), after)
+				assert.ErrorIs(t, err, kline.ErrDuplicateCandleTime, "compareJobsToData should return ErrDuplicateCandleTime for stored candles sharing a start time")
+				assert.ErrorContains(t, err, "shared start could not match stored candles to intervals", "compareJobsToData should name the job whose stored candles share a start")
+				assert.Nil(t, after.rangeHolder, "compareJobsToData should stop at the job whose stored candles share a start")
+			})
+		}
+
+		for _, overwrite := range []bool{false, true} {
+			name := "stored candles sharing the start after the job's dates for " + dataType.String() + "/keep existing data"
+			if overwrite {
+				name = "stored candles sharing the start after the job's dates for " + dataType.String() + "/overwrite existing data"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				mgr, _ := createDHM(t)
+				start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+				end := start.Add(2 * time.Hour)
+				mgr.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+					return loadSavedCandles(slices.Concat(generateCandles(2, start, interval), generateCandles(1, end, interval), generateCandles(1, end, interval)), interval, from, until)
+				}
+				job := &DataHistoryJob{
+					Nickname: "shared end", Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: end,
+					Interval: kline.OneHour, DataType: dataType, RequestSizeLimit: 1, SecondaryExchangeSource: "binance", OverwriteExistingData: overwrite,
+				}
+				if dataType == dataHistoryConvertCandlesDataType {
+					job.Interval, job.ConversionInterval = kline.OneMin, kline.OneHour
+				}
+				require.NoError(t, mgr.compareJobsToData(job), "compareJobsToData must not refuse stored candles sharing the start after the job's dates")
+				assert.Equal(t, [][]bool{{true}, {true}}, rangesHasData(job.rangeHolder), "compareJobsToData should mark each interval a stored candle starts")
+			})
+		}
+
+		t.Run("stored candles sharing a start in the last second of the job's dates for "+dataType.String(), func(t *testing.T) {
+			t.Parallel()
+			mgr, _ := createDHM(t)
+			start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+			end := start.Add(2 * time.Hour)
+			shared := kline.Candle{Time: end.Add(-500 * time.Millisecond), Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}
+			mgr.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+				return loadSavedCandles(slices.Concat(generateCandles(2, start, interval), []kline.Candle{shared, shared}), interval, from, until)
+			}
+			job := &DataHistoryJob{
+				Nickname: "last second", Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: end,
+				Interval: kline.OneHour, DataType: dataType, RequestSizeLimit: 1, SecondaryExchangeSource: "binance",
+			}
+			if dataType == dataHistoryConvertCandlesDataType {
+				job.Interval, job.ConversionInterval = kline.OneMin, kline.OneHour
+			}
+			err := mgr.compareJobsToData(job)
+			assert.ErrorIs(t, err, kline.ErrDuplicateCandleTime, "compareJobsToData should return ErrDuplicateCandleTime for stored candles sharing a start before the end of the job's dates")
+			assert.ErrorContains(t, err, "last second could not match stored candles to intervals", "compareJobsToData should name the job whose stored candles share a start")
+		})
+	}
+
+	t.Run("stored candles sharing the start after a monthly job's last range", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		april := time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC)
+		mgr.candleLoader = func(_ string, _ currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+			var candles []kline.Candle
+			for month := start; !month.After(april); month = month.AddDate(0, 1, 0) {
+				candles = append(candles, generateCandles(1, month, interval)...)
+			}
+			return loadSavedCandles(slices.Concat(candles, generateCandles(1, april, interval)), interval, from, until)
+		}
+		// The job's dates run past 1 April, where its last monthly range ends
+		job := &DataHistoryJob{
+			Nickname: "monthly", Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: april.AddDate(0, 0, 9),
+			Interval: kline.OneMonth, DataType: dataHistoryCandleDataType, RequestSizeLimit: 1,
+		}
+		require.NoError(t, mgr.compareJobsToData(job), "compareJobsToData must not refuse stored candles sharing the start after the job's last range")
+		assert.Equal(t, [][]bool{{true}, {true}, {true}}, rangesHasData(job.rangeHolder), "compareJobsToData should mark each monthly interval a stored candle starts")
+	})
+
+	for _, dataType := range []dataHistoryDataType{dataHistoryCandleDataType, dataHistoryConvertCandlesDataType} {
+		t.Run("stored candles sharing a start after an earlier job's dates for "+dataType.String(), func(t *testing.T) {
+			t.Parallel()
+			mgr, _ := createDHM(t)
+			start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+			// BTC/USD's stored candles share the start of its third hour, after BTC/USDT's job ends
+			mgr.candleLoader = func(_ string, pair currency.Pair, _ asset.Item, interval kline.Interval, from, until time.Time) (*kline.Item, error) {
+				candles := generateCandles(3, start, interval)
+				if pair.Equal(currency.NewBTCUSD()) {
+					candles = append(candles, generateCandles(1, start.Add(2*time.Hour), interval)...)
+				}
+				return loadSavedCandles(candles, interval, from, until)
+			}
+			newJob := func(nickname string, pair currency.Pair, hours int) *DataHistoryJob {
+				job := &DataHistoryJob{
+					Nickname: nickname, Exchange: testExchange, Asset: asset.Spot, Pair: pair, StartDate: start, EndDate: start.Add(time.Duration(hours) * time.Hour),
+					Interval: kline.OneHour, DataType: dataType, RequestSizeLimit: 1,
+				}
+				if dataType == dataHistoryConvertCandlesDataType {
+					job.Interval, job.ConversionInterval = kline.OneMin, kline.OneHour
+				}
+				return job
+			}
+			err := mgr.compareJobsToData(newJob("short", currency.NewBTCUSDT(), 1), newJob("long", currency.NewBTCUSD(), 3))
+			assert.ErrorIs(t, err, kline.ErrDuplicateCandleTime, "compareJobsToData should return ErrDuplicateCandleTime for stored candles sharing a start within the job's own dates")
+			assert.ErrorContains(t, err, "long could not match stored candles to intervals", "compareJobsToData should name the job whose stored candles share a start")
 		})
 	}
 
@@ -1899,19 +2063,28 @@ func TestProcessCandleData(t *testing.T) {
 		wantStatus  dataHistoryStatus
 		wantResult  string
 		wantHasData [][]bool
+		wantSaves   int
+		overwrite   bool
 	}{
-		{name: "range after the job's first", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2), withData(3)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
-		{name: "reply with candles beyond the range", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(0), withData(2), withData(3), withData(4)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
-		{name: "interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}},
-		{name: "first interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(3)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 02:00:00 UTC - 2025-01-01 03:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}},
-		{name: "stored interval the reply leaves out", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}},
-		{name: "stored interval the reply has without data", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), {Time: start.Add(3 * time.Hour)}}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}},
+		{name: "range after the job's first", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2), withData(3)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}, wantSaves: 1},
+		{name: "reply with candles beyond the range", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(0), withData(2), withData(3), withData(4)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}, wantSaves: 1},
+		{name: "interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}, wantSaves: 1},
+		{name: "first interval the reply leaves out", stored: [][]bool{{false, false}, {false, false}, {false, false}}, reply: []kline.Candle{withData(3)}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 02:00:00 UTC - 2025-01-01 03:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}, wantSaves: 1},
+		{name: "stored interval the reply leaves out", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2)}, wantStatus: dataHistoryStatusComplete, wantHasData: [][]bool{{false, false}, {true, true}, {false, false}}, wantSaves: 1},
+		{name: "stored interval the reply has without data", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), {Time: start.Add(3 * time.Hour)}}, wantStatus: dataHistoryStatusFailed, wantResult: "missing data from 2025-01-01 03:00:00 UTC - 2025-01-01 04:00:00 UTC. ", wantHasData: [][]bool{{false, false}, {true, false}, {false, false}}, wantSaves: 1},
+		{name: "reply with candles sharing a start", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), withData(2), withData(3)}, wantStatus: dataHistoryStatusFailed, wantResult: "could not match candles to intervals: duplicate candle start time '2025-01-01 02:00:00 +0000 UTC'. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}, wantSaves: 0},
+		{name: "reply with candles sharing a start, overwriting existing data", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), withData(2), withData(3)}, wantStatus: dataHistoryStatusFailed, wantResult: "could not match candles to intervals: duplicate candle start time '2025-01-01 02:00:00 +0000 UTC'. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}, wantSaves: 0, overwrite: true},
+		{name: "reply with a candle for each interval, two sharing a start", stored: [][]bool{{false, false}, {false, true}, {false, false}}, reply: []kline.Candle{withData(2), withData(2)}, wantStatus: dataHistoryStatusFailed, wantResult: "could not match candles to intervals: duplicate candle start time '2025-01-01 02:00:00 +0000 UTC'. ", wantHasData: [][]bool{{false, false}, {false, true}, {false, false}}, wantSaves: 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m, _ := createDHM(t)
-			m.candleSaver = dataHistoryCandleSaver
-			job := &DataHistoryJob{Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: start.Add(6 * time.Hour), Interval: kline.OneHour}
+			var saves int
+			m.candleSaver = func(*kline.Item, bool) (uint64, error) {
+				saves++
+				return 0, nil
+			}
+			job := &DataHistoryJob{ID: uuid.NewV4(), Exchange: testExchange, Asset: asset.Spot, Pair: currency.NewBTCUSD(), StartDate: start, EndDate: start.Add(6 * time.Hour), Interval: kline.OneHour, OverwriteExistingData: tc.overwrite}
 			var err error
 			job.rangeHolder, err = kline.CalculateCandleDateRanges(job.StartDate, job.EndDate, job.Interval, 2)
 			require.NoError(t, err, "CalculateCandleDateRanges must not error")
@@ -1929,8 +2102,13 @@ func TestProcessCandleData(t *testing.T) {
 			require.NoError(t, err, "processCandleData must not error for a range after the job's first")
 			assert.Equal(t, []time.Time{start.Add(2 * time.Hour)}, requested, "processCandleData should request the range given")
 			assert.Equal(t, tc.wantStatus, r.Status, "processCandleData should judge the range by its own intervals")
-			assert.Equal(t, tc.wantResult, r.Result, "processCandleData should name each of the range's intervals without data")
+			assert.Equal(t, tc.wantResult, r.Result, "processCandleData should name each of the range's intervals without data, or why its candles could not be matched to them")
 			assert.Equal(t, tc.wantHasData, rangesHasData(job.rangeHolder), "processCandleData should set its own range's intervals from the candles starting them and leave the rest as they were")
+			assert.Equal(t, tc.wantSaves, saves, "processCandleData should save the reply's candles unless they could not be matched to the range's intervals")
+			assert.Equal(t, job.ID, r.JobID, "processCandleData should record the result for its job")
+			assert.True(t, r.IntervalStartDate.Equal(start.Add(2*time.Hour)) && r.IntervalEndDate.Equal(start.Add(4*time.Hour)), "processCandleData should record the result for the range given")
+			assert.NotEqual(t, uuid.Nil(), r.ID, "processCandleData should give the result its own ID")
+			assert.False(t, r.Date.IsZero(), "processCandleData should date the result")
 		})
 	}
 }
@@ -2016,7 +2194,7 @@ func TestProcessTradeData(t *testing.T) {
 				return []time.Time{requestStart.Add(-time.Minute), requestEnd}
 			},
 			wantStatus:  dataHistoryStatusFailed,
-			wantResult:  "could not convert candles to trades: no trades supplied. ",
+			wantResult:  "could not convert trades to candles: no trades supplied. ",
 			wantHasData: [][]bool{{false}, {false}, {false}, {false}},
 		},
 	} {
@@ -2135,6 +2313,11 @@ func TestConvertCandleData(t *testing.T) {
 		}
 		return candles
 	}
+	repeatFirst := func(saved []kline.Candle, _ time.Time) []kline.Candle { return append(saved, saved[0]) }
+	// The store's reads include the end of the dates asked for, which starts the next batch
+	shareEnd := func(saved []kline.Candle, until time.Time) []kline.Candle {
+		return append(saved, kline.Candle{Time: until, Open: 1, Close: 1}, kline.Candle{Time: until, Open: 1, Close: 1})
+	}
 	type ohlcv [5]float64
 	for _, tc := range []struct {
 		name        string
@@ -2149,10 +2332,12 @@ func TestConvertCandleData(t *testing.T) {
 		wantTargets map[time.Duration]ohlcv
 		conversion  kline.Interval
 		loadFails   bool
+		editSaved   func(saved []kline.Candle, until time.Time) []kline.Candle
 		sourceFails bool
 		saveFails   bool
 		stopOnRead  bool
 		wantErr     error
+		wantErrText string
 	}{
 		{
 			name:        "source candles cover the batch",
@@ -2281,6 +2466,68 @@ func TestConvertCandleData(t *testing.T) {
 			wantSaves: [][]time.Time{{start, start.Add(5 * time.Minute)}},
 		},
 		{
+			name:        "saved candles sharing a start",
+			source:      minutes(0, 10*time.Minute, 1337, 1337),
+			end:         10 * time.Minute,
+			editSaved:   repeatFirst,
+			wantErr:     kline.ErrDuplicateCandleTime,
+			wantErrText: "monthly rebuild could not match saved candles to intervals",
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+		},
+		{
+			name:        "saved candles sharing the start after the batch",
+			source:      rising(0, 10*time.Minute),
+			end:         10 * time.Minute,
+			editSaved:   shareEnd,
+			wantStatus:  dataHistoryStatusComplete,
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+			wantTargets: map[time.Duration]ohlcv{0: {10, 24, 5, 19, 15}, 5 * time.Minute: {15, 29, 10, 24, 40}},
+		},
+		{
+			name:        "saved candles sharing a start, overwriting existing data",
+			source:      minutes(0, 10*time.Minute, 1337, 1337),
+			end:         10 * time.Minute,
+			overwrite:   true,
+			editSaved:   repeatFirst,
+			wantErr:     kline.ErrDuplicateCandleTime,
+			wantErrText: "monthly rebuild could not match saved candles to intervals",
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+		},
+		{
+			name:        "saved candles sharing the start after the batch, overwriting existing data",
+			source:      rising(0, 10*time.Minute),
+			end:         10 * time.Minute,
+			overwrite:   true,
+			editSaved:   shareEnd,
+			wantStatus:  dataHistoryStatusComplete,
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+			wantTargets: map[time.Duration]ohlcv{0: {10, 24, 5, 19, 15}, 5 * time.Minute: {15, 29, 10, 24, 40}},
+		},
+		{
+			name:   "saved candles sharing a start in the batch's last second",
+			source: minutes(0, 10*time.Minute, 1337, 1337),
+			end:    10 * time.Minute,
+			editSaved: func(saved []kline.Candle, until time.Time) []kline.Candle {
+				shared := kline.Candle{Time: until.Add(-500 * time.Millisecond), Open: 1, Close: 1}
+				return append(saved, shared, shared)
+			},
+			wantErr:     kline.ErrDuplicateCandleTime,
+			wantErrText: "monthly rebuild could not match saved candles to intervals",
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+		},
+		{
+			name:   "saved candle for each interval, two sharing a start",
+			source: minutes(0, 10*time.Minute, 1337, 1337),
+			end:    10 * time.Minute,
+			editSaved: func(saved []kline.Candle, _ time.Time) []kline.Candle {
+				saved[1] = saved[0]
+				return saved
+			},
+			wantErr:     kline.ErrDuplicateCandleTime,
+			wantErrText: "monthly rebuild could not match saved candles to intervals",
+			wantSaves:   [][]time.Time{{start, start.Add(5 * time.Minute)}},
+		},
+		{
 			name:        "source candles cannot be read",
 			source:      minutes(0, 10*time.Minute, 1337, 1337),
 			end:         10 * time.Minute,
@@ -2347,7 +2594,11 @@ func TestConvertCandleData(t *testing.T) {
 				if tc.loadFails {
 					return nil, errExpectedTestError
 				}
-				return store.load(exchangeName, pair, a, interval, from, until)
+				saved, err := store.load(exchangeName, pair, a, interval, from, until)
+				if tc.editSaved != nil && err == nil {
+					saved.Candles = tc.editSaved(saved.Candles, until)
+				}
+				return saved, err
 			}
 			m.candleSaver = func(item *kline.Item, overwrite bool) (uint64, error) {
 				if tc.saveFails {
@@ -2356,6 +2607,7 @@ func TestConvertCandleData(t *testing.T) {
 				return store.save(item, overwrite)
 			}
 			job := DataHistoryJob{
+				Nickname:              "monthly rebuild",
 				Exchange:              testExchange,
 				Asset:                 asset.Spot,
 				Pair:                  currency.NewBTCUSDT(),
@@ -2369,6 +2621,9 @@ func TestConvertCandleData(t *testing.T) {
 			r, err := m.convertCandleData(&job, start.Add(tc.begin), start.Add(tc.end))
 			if tc.wantErr != nil {
 				assert.ErrorIs(t, err, tc.wantErr, "convertCandleData should return the error")
+				if tc.wantErrText != "" {
+					assert.ErrorContains(t, err, tc.wantErrText, "convertCandleData should name the job and what failed")
+				}
 				assert.Nil(t, r, "convertCandleData should return no result with the error")
 				assert.Equal(t, tc.wantSaves, store.saves, "convertCandleData should save only before the error")
 				return

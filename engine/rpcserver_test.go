@@ -4978,7 +4978,7 @@ func TestAuthenticateClient(t *testing.T) {
 		wantVerbose bool
 	}{
 		{name: "no metadata", wantCode: codes.Unauthenticated},
-		{name: "malformed authorization", md: metadata.Pairs("authorization", "Basic"), wantCode: codes.Unauthenticated},
+		{name: "malformed authorisation", md: metadata.Pairs("authorization", "Basic"), wantCode: codes.Unauthenticated},
 		{name: "wrong password", md: metadata.Pairs("authorization", encode("bobmarley:wrong")), wantCode: codes.Unauthenticated},
 		{name: "valid credentials", md: metadata.Pairs("authorization", valid)},
 		{name: "credential override", md: metadata.Pairs("authorization", valid, string(accounts.ContextCredentialsFlag), "key:altkey,secret:altsecret"), wantCreds: true},
