@@ -79,7 +79,7 @@ var (
 	errStakeAmountInvalid          = errors.New("stake amount in wei must be greater than zero")
 	errSubAccountUnsupported       = errors.New("action supports the main account only, not a configured subaccount or vault")
 	errTargetLeverageInvalid       = errors.New("target leverage must be greater than zero")
-	errTransferAmountInvalid       = errors.New("transfer amount must be greater than zero")
+	errTransferAmountInvalid       = errors.New("invalid transfer amount")
 	errTransferDEXInvalid          = errors.New("invalid transfer DEX")
 	errTransferTokenInvalid        = errors.New("invalid transfer token")
 	errTriggerPriceRequired        = errors.New("trigger price must be set")
@@ -573,7 +573,7 @@ func (e *Exchange) TransferVaultUSDC(ctx context.Context, arg *VaultTransferRequ
 		return err
 	}
 	if arg.AmountInMicroUSDC == 0 {
-		return errTransferAmountInvalid
+		return fmt.Errorf("%w: must be greater than zero", errTransferAmountInvalid)
 	}
 	action := VaultTransferAction{Type: "vaultTransfer", VaultAddress: vault, IsDeposit: arg.IsDeposit, AmountInMicroUSDC: arg.AmountInMicroUSDC}
 	_, err = e.SendSignedAction(ctx, action, &L1ActionOptionsRequest{BatchLength: 1, ExpiresAfter: arg.ExpiresAfter})
@@ -1219,10 +1219,10 @@ func (e *Exchange) getBridgeChain() string {
 	return "Arbitrum Sepolia"
 }
 
-// validateTransferAmount checks a transfer amount is positive, before the requests that resolve its token
+// validateTransferAmount checks a transfer amount is positive and finite, before the requests that resolve its token
 func validateTransferAmount(amount float64) error {
 	if amount <= 0 || math.IsNaN(amount) || math.IsInf(amount, 0) {
-		return errTransferAmountInvalid
+		return fmt.Errorf("%w: %v is not positive and finite", errTransferAmountInvalid, amount)
 	}
 	return nil
 }
@@ -1236,11 +1236,11 @@ func formatTokenTransferAmount(amount float64, token *SpotTokenMetadata) (string
 	decimals := 8
 	if token.WeiDecimals > 8 {
 		decimals = int(min(token.WeiDecimals, maximumTokenWeiDecimals))
-		// The shortest text that reads back as the amount is the amount as written, so it is sent when it fits the token's
-		// decimals; formatting to more decimals than it has would add the float's binary residue as digits never written
-		if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= decimals {
-			return shortest, nil
-		}
+	}
+	// The shortest text that reads back as the amount is sent when it fits the places allowed, as formatting to more places
+	// than it needs can add the float's binary residue as digits
+	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= decimals {
+		return shortest, nil
 	}
 	formatted, err := floatToDecimals(amount, decimals)
 	if err != nil {
@@ -1257,9 +1257,15 @@ func decimalPlaces(text string) int {
 	return 0
 }
 
+// formatTransferAmount formats a positive, finite USDC transfer amount as the shortest text that reads back as it when
+// that has at most eight decimals, as formatTokenTransferAmount does a token's; one with more is rounded to eight when
+// that changes it by less than 1e-12 and leaves it above zero, as for a sum's binary residue, and refused otherwise
 func formatTransferAmount(amount float64) (string, error) {
-	if amount <= 0 {
-		return "", errTransferAmountInvalid
+	if err := validateTransferAmount(amount); err != nil {
+		return "", err
+	}
+	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= 8 {
+		return shortest, nil
 	}
 	formatted, err := floatToWire(amount)
 	if err != nil {

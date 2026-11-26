@@ -355,7 +355,6 @@ func TestSetup(t *testing.T) {
 	require.Error(t, ex.Setup(cfg), "Setup must error when the websocket connection cannot be set up")
 }
 
-//nolint:tparallel // The subtests share failed in order
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := e.FetchTradablePairs(t.Context(), asset.Options)
@@ -410,6 +409,45 @@ func TestFetchTradablePairs(t *testing.T) {
 	require.True(t, ok, "FetchTradablePairs must map an unambiguous spot pair")
 	assert.Equal(t, pairMapping{pair: pairs[0], coin: "@109", assetID: 10109}, mapping, "FetchTradablePairs should map the unambiguous spot market")
 
+	relisted := newInfoServerExchange(t, map[string]string{
+		"meta": `{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"isDelisted":true},{"name":"MATIC","szDecimals":1,"maxLeverage":20},{"name":"FTM","szDecimals":0,"isDelisted":true}]}`,
+	}, nil)
+	relisted.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+	relisted.delistedPairMappings = []pairMapping{testDelistedMapping}
+	pairs, err = relisted.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+	require.NoError(t, err, "FetchTradablePairs must not error for a relisted perpetual market")
+	assert.Equal(t, currency.Pairs{perpetualPair, currency.NewPair(currency.MATIC, currency.USDC)}, pairs, "FetchTradablePairs should list a relisted perpetual market")
+	_, a, err := relisted.lookupPairMappingByCoin("MATIC")
+	require.NoError(t, err, "lookupPairMappingByCoin must find a relisted perpetual market")
+	assert.Equal(t, asset.PerpetualContract, a, "FetchTradablePairs should map a relisted perpetual market")
+	assert.False(t, relisted.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "FetchTradablePairs should drop the delisting a relisted market replaces")
+	assert.True(t, relisted.isDelistedPair(currency.NewPair(currency.NewCode("FTM"), currency.USDC), asset.PerpetualContract), "FetchTradablePairs should cache the delisted perpetual markets it fetched")
+
+	t.Run("spot market listed since the markets were cached", func(t *testing.T) {
+		t.Parallel()
+		listed := newInfoServerExchange(t, map[string]string{
+			"spotMeta": `{"universe":[{"tokens":[150,0],"name":"@107","index":107},{"tokens":[360,0],"name":"@230","index":230}],"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2},{"name":"USDH","index":360,"szDecimals":2}]}`,
+		}, nil)
+		listed.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+		_, err := listed.FetchTradablePairs(t.Context(), asset.Spot)
+		require.NoError(t, err, "FetchTradablePairs must not error for a spot market listed since the markets were cached")
+		_, _, err = listed.lookupPairMappingByCoin("@230")
+		assert.NoError(t, err, "FetchTradablePairs should cache a spot market listed since the markets were cached")
+	})
+	t.Run("every perpetual market delisted", func(t *testing.T) {
+		t.Parallel()
+		delisted := newInfoServerExchange(t, map[string]string{
+			"meta": `{"universe":[{"name":"BTC","szDecimals":5,"isDelisted":true},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+		}, nil)
+		delisted.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testDelistedMapping})
+		pairs, err := delisted.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+		require.NoError(t, err, "FetchTradablePairs must not error when every perpetual market is delisted")
+		assert.Empty(t, pairs, "FetchTradablePairs should list no perpetual market when every one is delisted")
+		_, active := delisted.lookupPairMapping(testDelistedMapping.pair, asset.PerpetualContract)
+		assert.False(t, active, "FetchTradablePairs should replace the cached markets with a fetch that finds none active")
+		assert.True(t, delisted.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "FetchTradablePairs should cache the delistings of a fetch that finds no market active")
+	})
+
 	failed := newUnavailableServerExchange(t)
 	// The cases share failed in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.PerpetualContract} {
@@ -420,19 +458,75 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
+func TestFetchMarkets(t *testing.T) {
+	t.Parallel()
+	configured := newTestExchange(t)
+	require.NoError(t, configured.SetAssetPairStore(asset.Options, currency.PairStore{AssetEnabled: true, RequestFormat: &dashFormat, ConfigFormat: &dashFormat}), "SetAssetPairStore must register the extra asset")
+	for _, tc := range []struct {
+		name string
+		ex   *Exchange
+		a    asset.Item
+		err  error
+	}{
+		{name: "unsupported asset", ex: e, a: asset.Options, err: asset.ErrNotSupported},
+		{name: "asset without pair storage", ex: new(Exchange), a: asset.Spot, err: asset.ErrNotSupported},
+		{name: "configured asset without a market implementation", ex: configured, a: asset.Options, err: asset.ErrNotSupported},
+		{name: "metadata failure", ex: newUnavailableServerExchange(t), a: asset.Spot, err: request.ErrBadStatus},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.ex.fetchMarkets(t.Context(), tc.a)
+			assert.ErrorIsf(t, err, tc.err, "fetchMarkets should return the expected error for a %s", tc.name)
+		})
+	}
+
+	ex := newInfoServerExchange(t, map[string]string{
+		"meta":     `{"universe":[{"name":"BTC","szDecimals":5,"maxLeverage":40},{"name":"ETH","szDecimals":4},{"name":"ETH","szDecimals":4},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+		"spotMeta": `{"universe":[{"tokens":[150,0],"name":"@107","index":107}],"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2}]}`,
+	}, nil)
+	markets, err := ex.fetchMarkets(t.Context(), asset.PerpetualContract)
+	require.NoError(t, err, "fetchMarkets must not error for perpetual contracts")
+	assert.Equal(t, currency.Pairs{perpetualPair}, markets.pairs, "fetchMarkets should list the unambiguous active perpetual markets")
+	assert.Equal(t, []pairMapping{testPerpetualMapping}, markets.mappings, "fetchMarkets should map the unambiguous active perpetual markets")
+	assert.Equal(t, []pairMapping{{pair: testDelistedMapping.pair, coin: "MATIC", assetID: 3, sizeDecimals: 1, maxLeverage: 20}}, markets.delisted, "fetchMarkets should return the delisted perpetual markets")
+	markets, err = ex.fetchMarkets(t.Context(), asset.Spot)
+	require.NoError(t, err, "fetchMarkets must not error for spot")
+	assert.Equal(t, currency.Pairs{spotPair}, markets.pairs, "fetchMarkets should list the spot markets")
+	assert.Equal(t, []pairMapping{testSpotMapping}, markets.mappings, "fetchMarkets should map the spot markets")
+	assert.Nil(t, markets.delisted, "fetchMarkets should return no delisted spot markets")
+	assert.Empty(t, ex.pairMappings, "fetchMarkets should cache no active market")
+	assert.Empty(t, ex.delistedPairMappings, "fetchMarkets should cache no delisted market")
+}
+
+func TestCacheMarketsLocked(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.cacheMarketsLocked(asset.PerpetualContract, &fetchedMarkets{mappings: []pairMapping{testPerpetualMapping}, delisted: []pairMapping{testDelistedMapping}})
+	_, ok := ex.lookupPairMapping(perpetualPair, asset.PerpetualContract)
+	assert.True(t, ok, "cacheMarketsLocked should cache the active perpetual markets on an exchange without a cache")
+	assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "cacheMarketsLocked should cache the delisted perpetual markets")
+	ex.cacheMarketsLocked(asset.Spot, &fetchedMarkets{mappings: []pairMapping{testSpotMapping}})
+	_, ok = ex.lookupPairMapping(spotPair, asset.Spot)
+	assert.True(t, ok, "cacheMarketsLocked should cache the spot markets")
+	assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "cacheMarketsLocked should keep the delisted perpetual markets when it caches spot")
+	ex.cacheMarketsLocked(asset.PerpetualContract, &fetchedMarkets{mappings: []pairMapping{testPerpetualMapping}})
+	assert.False(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "cacheMarketsLocked should replace the delisted perpetual markets with the fetch's")
+	_, ok = ex.lookupPairMapping(spotPair, asset.Spot)
+	assert.True(t, ok, "cacheMarketsLocked should keep the spot markets when it caches perpetual contracts")
+	ex.cacheMarketsLocked(asset.PerpetualContract, &fetchedMarkets{})
+	assert.Equal(t, map[asset.Item]uint64{asset.PerpetualContract: 3, asset.Spot: 1}, ex.pairMappingCaches, "cacheMarketsLocked should count each asset's caches, those with no market included")
+}
+
 func TestFetchPerpetualPairMappings(t *testing.T) {
 	t.Parallel()
-	mappings, err := e.fetchPerpetualPairMappings(t.Context())
+	mappings, delisted, err := e.fetchPerpetualPairMappings(t.Context())
 	require.NoError(t, err, "fetchPerpetualPairMappings must not error")
-	e.pairMappingsMu.RLock()
-	delisted := slices.Clone(e.delistedPairMappings)
-	e.pairMappingsMu.RUnlock()
 	if mockTests {
 		assert.Equal(t, testPerpetualMappings, mappings, "fetchPerpetualPairMappings should map every active market with its DEX's asset ID offset and fees")
-		assert.Equal(t, []pairMapping{testDelistedMapping}, delisted, "fetchPerpetualPairMappings should keep the delisted market")
+		assert.Equal(t, []pairMapping{testDelistedMapping}, delisted, "fetchPerpetualPairMappings should return the delisted market")
 	} else {
 		assert.True(t, listsMarket(mappings, &testPerpetualMapping), "fetchPerpetualPairMappings should map BTC")
-		assert.True(t, slices.ContainsFunc(delisted, func(m pairMapping) bool { return m.coin == "MATIC" }), "fetchPerpetualPairMappings should keep delisted MATIC")
+		assert.True(t, slices.ContainsFunc(delisted, func(m pairMapping) bool { return m.coin == "MATIC" }), "fetchPerpetualPairMappings should return delisted MATIC")
 	}
 
 	ex := newInfoServerExchange(t, map[string]string{
@@ -441,7 +535,7 @@ func TestFetchPerpetualPairMappings(t *testing.T) {
 		"meta:xyz": `{"universe":[{"name":"xyz:XYZ100","szDecimals":4,"maxLeverage":30,"deployerFeeScale":"0.5"},{"name":"xyz:OLD","isDelisted":true}],"collateralToken":150}`,
 		"spotMeta": `{"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150}]}`,
 	}, nil)
-	mappings, err = ex.fetchPerpetualPairMappings(t.Context())
+	mappings, delisted, err = ex.fetchPerpetualPairMappings(t.Context())
 	require.NoError(t, err, "fetchPerpetualPairMappings must not error for a builder DEX with spot collateral")
 	exp := []pairMapping{
 		{pair: currency.NewPair(currency.ETH, currency.USDC), coin: "ETH", assetID: 1, sizeDecimals: 4, maxLeverage: 25},
@@ -452,7 +546,9 @@ func TestFetchPerpetualPairMappings(t *testing.T) {
 		{pair: currency.NewPair(currency.MATIC, currency.USDC), coin: "MATIC", assetID: 3, sizeDecimals: 1, maxLeverage: 20},
 		{pair: currency.NewPair(currency.NewCode("xyz:OLD"), currency.HYPE), coin: "xyz:OLD", dex: "xyz", assetID: 110001},
 	}
-	assert.Equal(t, exp, ex.delistedPairMappings, "fetchPerpetualPairMappings should keep each delisted market whose coin no live market reuses")
+	assert.Equal(t, exp, delisted, "fetchPerpetualPairMappings should return each delisted market whose coin no live market reuses")
+	assert.Empty(t, ex.pairMappings, "fetchPerpetualPairMappings should cache no active market")
+	assert.Empty(t, ex.delistedPairMappings, "fetchPerpetualPairMappings should cache no delisted market")
 
 	for _, tc := range []struct {
 		name      string
@@ -484,7 +580,7 @@ func TestFetchPerpetualPairMappings(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := newInfoServerExchange(t, tc.responses, nil).fetchPerpetualPairMappings(t.Context())
+			_, _, err := newInfoServerExchange(t, tc.responses, nil).fetchPerpetualPairMappings(t.Context())
 			if tc.err == nil {
 				assert.Error(t, err, "fetchPerpetualPairMappings should return a malformed response error")
 				return
@@ -784,6 +880,214 @@ func TestFetchPairMapping(t *testing.T) {
 
 	_, err = newUnavailableServerExchange(t).fetchPairMapping(t.Context(), perpetualPair, asset.PerpetualContract)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "fetchPairMapping should return a metadata failure")
+}
+
+func TestLoadPairMappings(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, new(Exchange).loadPairMappings(t.Context()), "loadPairMappings should load nothing for an exchange without supported assets")
+	assert.ErrorIs(t, newUnavailableServerExchange(t).loadPairMappings(t.Context()), request.ErrBadStatus, "loadPairMappings should return a market fetch failure")
+	markets := map[string]string{
+		"meta:":    `{"universe":[{"name":"BTC","szDecimals":5}]}`,
+		"spotMeta": `{"universe":[{"tokens":[150,0],"name":"@107","index":107}],"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2}]}`,
+	}
+	for _, tc := range []struct {
+		name          string
+		cached, empty []asset.Item
+		disabled      []asset.Item
+		requests      map[string]int
+		loaded        []string
+	}{
+		{name: "nothing cached", requests: map[string]int{"perpDexs:": 1, "meta:": 1, "spotMeta:": 1}, loaded: []string{"BTC", "@107"}},
+		{name: "spot cached", cached: []asset.Item{asset.Spot}, requests: map[string]int{"perpDexs:": 1, "meta:": 1}, loaded: []string{"BTC"}},
+		{name: "perpetual contracts cached", cached: []asset.Item{asset.PerpetualContract}, requests: map[string]int{"spotMeta:": 1}, loaded: []string{"@107"}},
+		{name: "everything cached", cached: []asset.Item{asset.Spot, asset.PerpetualContract}, requests: map[string]int{}},
+		{name: "spot cached and an empty perpetual list", cached: []asset.Item{asset.Spot}, empty: []asset.Item{asset.PerpetualContract}, requests: map[string]int{"perpDexs:": 1, "meta:": 1}, loaded: []string{"BTC"}},
+		{name: "perpetual contracts disabled", disabled: []asset.Item{asset.PerpetualContract}, requests: map[string]int{"perpDexs:": 1, "meta:": 1, "spotMeta:": 1}, loaded: []string{"BTC", "@107"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, requests := newCountingServerExchange(t, markets)
+			// Cached as every fetch caches, so the load finds each cache counted
+			ex.pairMappingsMu.Lock()
+			for _, a := range tc.cached {
+				ex.cacheMarketsLocked(a, &fetchedMarkets{mappings: []pairMapping{{pair: currency.NewPair(currency.ETH, currency.USDC), coin: "cached " + a.String()}}})
+			}
+			for _, a := range tc.empty {
+				ex.cacheMarketsLocked(a, &fetchedMarkets{})
+			}
+			ex.pairMappingsMu.Unlock()
+			for _, a := range tc.disabled {
+				require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+			}
+			require.NoErrorf(t, ex.loadPairMappings(t.Context()), "loadPairMappings must not error with %s", tc.name)
+			assert.Equalf(t, tc.requests, requests(), "loadPairMappings should load only the markets of the assets with none cached with %s", tc.name)
+			for _, coin := range []string{"BTC", "@107"} {
+				_, _, err := ex.lookupPairMappingByCoin(coin)
+				assert.Equalf(t, slices.Contains(tc.loaded, coin), err == nil, "loadPairMappings should cache %s only when it loads its asset's markets with %s", coin, tc.name)
+			}
+		})
+	}
+	t.Run("spot markets failing to load", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := newCountingServerExchange(t, map[string]string{"meta:": markets["meta:"]})
+		err := ex.loadPairMappings(t.Context())
+		require.ErrorIs(t, err, request.ErrBadStatus, "loadPairMappings must return the spot markets' failure")
+		assert.ErrorContains(t, err, asset.Spot.String()+" markets", "loadPairMappings should name the asset whose markets failed to load")
+		assert.Equal(t, map[string]int{"spotMeta:": 1}, requests(), "loadPairMappings should stop at the first asset whose markets fail to load")
+	})
+	t.Run("perpetual markets failing to load", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newCountingServerExchange(t, map[string]string{"spotMeta": markets["spotMeta"]})
+		err := ex.loadPairMappings(t.Context())
+		require.ErrorIs(t, err, request.ErrBadStatus, "loadPairMappings must return the perpetual markets' failure")
+		assert.ErrorContains(t, err, asset.PerpetualContract.String()+" markets", "loadPairMappings should name the asset whose markets failed to load")
+		_, _, err = ex.lookupPairMappingByCoin("@107")
+		assert.NoError(t, err, "loadPairMappings should keep the spot markets it loaded before the failure")
+	})
+	t.Run("delisted perpetual markets", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newCountingServerExchange(t, map[string]string{
+			"meta:":    `{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+			"spotMeta": markets["spotMeta"],
+		})
+		require.NoError(t, ex.loadPairMappings(t.Context()), "loadPairMappings must not error")
+		assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "loadPairMappings should cache the delisted perpetual markets with the active ones")
+	})
+	t.Run("spot markets a pair update caches while they load", func(t *testing.T) {
+		t.Parallel()
+		tokens := `"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2},{"name":"USDH","index":360,"szDecimals":2}]`
+		// The held reply lacks the USDH market, as a reply sent before its listing would
+		ex, held, release := newHeldReplyServerExchange(t, "spotMeta",
+			`{"universe":[{"tokens":[150,0],"name":"@107","index":107}],`+tokens+`}`,
+			`{"universe":[{"tokens":[150,0],"name":"@107","index":107},{"tokens":[360,0],"name":"@230","index":230}],`+tokens+`}`,
+			map[string]string{"meta": markets["meta:"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
+				return err
+			})
+		require.NoError(t, loadErr, "loadPairMappings must not error")
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		_, _, err := ex.lookupPairMappingByCoin("@230")
+		assert.NoError(t, err, "loadPairMappings should keep the spot markets a later reply cached while its own was held")
+		_, _, err = ex.lookupPairMappingByCoin("BTC")
+		assert.NoError(t, err, "loadPairMappings should load the perpetual markets after the spot markets")
+	})
+	t.Run("perpetual markets a pair update caches while they load", func(t *testing.T) {
+		t.Parallel()
+		// The held reply lists MATIC as active, as a reply sent before its delisting would
+		ex, held, release := newHeldReplyServerExchange(t, "meta",
+			`{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"maxLeverage":20}]}`,
+			`{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+			map[string]string{"spotMeta": markets["spotMeta"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+				return err
+			})
+		require.NoError(t, loadErr, "loadPairMappings must not error")
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		_, active := ex.lookupPairMapping(testDelistedMapping.pair, asset.PerpetualContract)
+		assert.False(t, active, "loadPairMappings should not restore a market a later reply found delisted")
+		assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "loadPairMappings should keep the delisting a later reply cached while its own was held")
+	})
+	t.Run("perpetual markets a pair update delists entirely while they load", func(t *testing.T) {
+		t.Parallel()
+		// The later reply leaves no active market, so the markets it caches hold no active mapping
+		ex, held, release := newHeldReplyServerExchange(t, "meta",
+			`{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"maxLeverage":20}]}`,
+			`{"universe":[{"name":"BTC","szDecimals":5,"isDelisted":true},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+			map[string]string{"spotMeta": markets["spotMeta"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+				return err
+			})
+		require.NoError(t, loadErr, "loadPairMappings must not error")
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		_, active := ex.lookupPairMapping(testDelistedMapping.pair, asset.PerpetualContract)
+		assert.False(t, active, "loadPairMappings should not restore a market a later reply left with no active market found delisted")
+		assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "loadPairMappings should keep every delisting a later reply cached while its own was held")
+	})
+	t.Run("spot markets a pair update caches while their load fails", func(t *testing.T) {
+		t.Parallel()
+		// The held reply fails, as a request the venue refuses would
+		ex, held, release := newHeldReplyServerExchange(t, "spotMeta", "", markets["spotMeta"], map[string]string{"meta": markets["meta:"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
+				return err
+			})
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		assert.NoError(t, loadErr, "loadPairMappings should not fail for spot markets a pair update cached while its own fetch failed")
+		_, _, err := ex.lookupPairMappingByCoin("@107")
+		assert.NoError(t, err, "loadPairMappings should keep the spot markets the pair update cached")
+		_, _, err = ex.lookupPairMappingByCoin("BTC")
+		assert.NoError(t, err, "loadPairMappings should go on to load the perpetual markets")
+	})
+	t.Run("spot markets loading while a fetch caches the perpetual contracts", func(t *testing.T) {
+		t.Parallel()
+		ex, held, release := newHeldReplyServerExchange(t, "spotMeta", markets["spotMeta"], markets["spotMeta"], map[string]string{"meta": markets["meta:"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+				return err
+			})
+		require.NoError(t, loadErr, "loadPairMappings must not error")
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		_, _, err := ex.lookupPairMappingByCoin("@107")
+		assert.NoError(t, err, "loadPairMappings should cache its spot markets when another fetch cached only the perpetual contracts")
+		_, _, err = ex.lookupPairMappingByCoin("BTC")
+		assert.NoError(t, err, "loadPairMappings should keep the perpetual contracts the fetch cached")
+	})
+	t.Run("spot markets failing to load while a fetch caches the perpetual contracts", func(t *testing.T) {
+		t.Parallel()
+		ex, held, release := newHeldReplyServerExchange(t, "spotMeta", "", markets["spotMeta"], map[string]string{"meta": markets["meta:"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+				return err
+			})
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		require.ErrorIs(t, loadErr, request.ErrBadStatus, "loadPairMappings must return the spot markets' failure when another fetch cached only the perpetual contracts")
+		assert.ErrorContains(t, loadErr, asset.Spot.String()+" markets", "loadPairMappings should name the asset whose markets failed to load")
+	})
+	t.Run("spot markets a pair update empties while they load", func(t *testing.T) {
+		t.Parallel()
+		// The later reply lists no spot market, so the markets it caches hold no mapping at all
+		ex, held, release := newHeldReplyServerExchange(t, "spotMeta", markets["spotMeta"], `{"universe":[],"tokens":[{"name":"USDC","index":0}]}`, map[string]string{"meta": markets["meta:"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.Spot)
+				return err
+			})
+		require.NoError(t, loadErr, "loadPairMappings must not error")
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		_, _, err := ex.lookupPairMappingByCoin("@107")
+		assert.ErrorIs(t, err, errPairMappingNotFound, "loadPairMappings should not restore a spot market a later reply no longer lists")
+	})
+	t.Run("perpetual markets a pair update delists entirely while their load fails", func(t *testing.T) {
+		t.Parallel()
+		ex, held, release := newHeldReplyServerExchange(t, "meta", "",
+			`{"universe":[{"name":"BTC","szDecimals":5,"isDelisted":true},{"name":"MATIC","szDecimals":1,"maxLeverage":20,"isDelisted":true}]}`,
+			map[string]string{"spotMeta": markets["spotMeta"]})
+		loadErr, fetchErr := raceHeldReply(t, held, release,
+			func() error { return ex.loadPairMappings(t.Context()) },
+			func() error {
+				_, err := ex.FetchTradablePairs(t.Context(), asset.PerpetualContract)
+				return err
+			})
+		require.NoError(t, fetchErr, "FetchTradablePairs must not error")
+		assert.NoError(t, loadErr, "loadPairMappings should not fail for perpetual markets a pair update cached while its own fetch failed, none of them active")
+		assert.True(t, ex.isDelistedPair(testDelistedMapping.pair, asset.PerpetualContract), "loadPairMappings should keep the delistings the pair update cached")
+	})
 }
 
 func TestGetPairMappingByCoin(t *testing.T) {
@@ -2514,6 +2818,76 @@ func newTradingServerExchange(t *testing.T, responses map[string]string, actions
 	return ex
 }
 
+// newHeldReplyServerExchange returns an exchange whose first info request of heldType waits until release is closed and
+// then receives earlier, or fails when earlier is empty, while later requests of that type receive later, as a reply sent
+// before a market was listed or delisted can arrive after one sent once it was; held is closed once the first request
+// waits. Other info requests receive their response from responses, keyed by type, with the perpetual DEX registry
+// defaulting to only the default DEX, and fail otherwise
+func newHeldReplyServerExchange(t *testing.T, heldType, earlier, later string, responses map[string]string) (ex *Exchange, held, release chan struct{}) {
+	t.Helper()
+	held, release = make(chan struct{}), make(chan struct{})
+	var requests atomic.Int32
+	ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body InfoRequest
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
+			return
+		}
+		response, ok := responses[body.Type]
+		switch {
+		case body.Type == heldType && requests.Add(1) == 1:
+			close(held)
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
+			response, ok = earlier, earlier != ""
+		case body.Type == heldType:
+			response, ok = later, true
+		case !ok && body.Type == "perpDexs":
+			response, ok = `[null]`, true
+		}
+		if !ok {
+			http.Error(w, "unexpected info request "+body.Type, http.StatusBadRequest)
+			return
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	ex.Name = t.Name()
+	return ex, held, release
+}
+
+// raceHeldReply runs first until the server holds its reply, then second, which must return without waiting for the
+// held reply, and only then releases the held reply, so the second call always finishes first; it returns each call's
+// error
+func raceHeldReply(t *testing.T, held, release chan struct{}, first, second func() error) (firstErr, secondErr error) {
+	t.Helper()
+	firstDone, secondDone := make(chan error, 1), make(chan error, 1)
+	go func() { firstDone <- first() }()
+	select {
+	case <-held:
+	case err := <-firstDone:
+		require.FailNowf(t, "the first call must wait for its held reply", "it returned %v", err)
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the first call must send the held request within five seconds")
+	}
+	go func() { secondDone <- second() }()
+	select {
+	case secondErr = <-secondDone:
+	case <-time.After(5 * time.Second):
+		close(release)
+		require.FailNow(t, "the second call must return within five seconds while the first call's reply is held")
+	}
+	close(release)
+	select {
+	case firstErr = <-firstDone:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the first call must return within five seconds of its reply")
+	}
+	return firstErr, secondErr
+}
+
 // newCountingServerExchange returns an exchange watching the mock signing account whose info requests receive the
 // response keyed by their type and DEX as "type:dex", else by their type, with the perpetual DEX registry defaulting to
 // only the default DEX, and fail otherwise; requests returns how many info requests of each key it has received
@@ -2672,7 +3046,6 @@ func placeRestingOrder(t *testing.T) (*order.Submit, *order.SubmitResponse) {
 	return submit, result
 }
 
-//nolint:tparallel // The subtests share unavailable or the test's submissions in order
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.SubmitOrder(t.Context(), nil)
@@ -2725,12 +3098,68 @@ func TestSubmitOrder(t *testing.T) {
 		{name: "immediate or cancel trigger order", mutate: func(s *order.Submit) {
 			s.Type, s.TimeInForce, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, order.ImmediateOrCancel, 90000, order.MarkPrice
 		}, err: order.ErrUnsupportedTimeInForce},
+		{name: "stop that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.Stop, order.Sell, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop limit that shorts on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopLimit, order.Short, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop market that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopMarket, order.Sell, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "take profit that buys on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.TakeProfit, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "take profit market that longs on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.TakeProfitMarket, order.Long, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "reduce-only stop market that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection, s.ReduceOnly = order.StopMarket, order.Sell, 90000, order.MarkPrice, order.StopUp, true
+		}, err: errStopDirectionUnsupported},
+		{name: "reduce-only take profit that buys on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.TriggerPrice, s.TriggerPriceType, s.StopDirection, s.ReduceOnly = order.TakeProfit, 90000, order.MarkPrice, order.StopUp, true
+		}, err: errStopDirectionUnsupported},
+		{name: "stop market without a price that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopMarket, order.Sell, 0, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop market that asks on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopMarket, order.Ask, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "take profit that bids on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.TakeProfit, order.Bid, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop market that buys and sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopMarket, order.Buy|order.Sell, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop market without a time in force that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TimeInForce, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopMarket, order.Sell, order.UnknownTIF, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop limit priced at its trigger that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopLimit, order.Sell, 90000, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop limit priced above its trigger that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopLimit, order.Sell, 95000, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "take profit that buys and bids on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.TakeProfit, order.Buy|order.Bid, 90000, order.MarkPrice, order.StopUp
+		}, err: errStopDirectionUnsupported},
+		{name: "stop limit with a take profit child that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopLimit, order.Sell, 90000, order.MarkPrice, order.StopUp
+			s.RiskManagementModes.TakeProfit = order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 80000}
+		}, err: errStopDirectionUnsupported},
+		{name: "stop limit with a stop loss child that sells on a rise", mutate: func(s *order.Submit) {
+			s.Type, s.Side, s.TriggerPrice, s.TriggerPriceType, s.StopDirection = order.StopLimit, order.Sell, 90000, order.MarkPrice, order.StopUp
+			s.RiskManagementModes.StopLoss = order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 95000}
+		}, err: errStopDirectionUnsupported},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			invalid := *limit
 			tc.mutate(&invalid)
 			_, err = unavailable.SubmitOrder(t.Context(), &invalid)
 			assert.ErrorIsf(t, err, tc.err, "SubmitOrder should reject a %s before any request", tc.name)
+			if tc.err == errStopDirectionUnsupported {
+				assert.ErrorContainsf(t, err, "a "+invalid.Side.String()+" "+invalid.Type.String()+" order triggers as the price falls", "SubmitOrder should name the %s whose stop direction it refuses", tc.name)
+			}
 		})
 	}
 	invalid := *limit
@@ -2780,6 +3209,92 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err, "SubmitOrder must not error for a trigger order that may open a position")
 	assert.JSONEq(t, `{"type":"order","orders":[{"a":0,"b":false,"p":"80","s":"0.1","r":false,"t":{"trigger":{"isMarket":true,"triggerPx":"90","tpsl":"sl"}}}],"grouping":"na"}`, action, "SubmitOrder should send a trigger order that is not reduce-only")
 	assert.False(t, result.ReduceOnly, "SubmitOrder should return a trigger order that is not reduce-only")
+
+	t.Run("stop direction the trigger follows", func(t *testing.T) {
+		t.Parallel()
+		for _, trigger := range []struct {
+			orderType order.Type
+			isMarket  bool
+		}{{order.Stop, true}, {order.StopLimit, false}, {order.StopMarket, true}, {order.TakeProfit, false}, {order.TakeProfitMarket, true}} {
+			orderType := trigger.orderType
+			for _, side := range []struct {
+				name  string
+				side  order.Side
+				isBuy bool
+			}{{"buy", order.Buy, true}, {"sell", order.Sell, false}, {"long", order.Long, true}, {"short", order.Short, false}, {"bid", order.Bid, true}, {"ask", order.Ask, false}, {"buy and sell", order.Buy | order.Sell, false}} {
+				for _, direction := range []order.StopDirection{order.StopDown, order.StopUp} {
+					for _, reduceOnly := range []bool{true, false} {
+						// Hyperliquid triggers a stop that sells, and a take profit that buys, as the price falls; an order
+						// with both sides is sent as a sell
+						takeProfit := orderType == order.TakeProfit || orderType == order.TakeProfitMarket
+						if direction == order.StopUp && takeProfit == side.isBuy {
+							continue
+						}
+						name := side.name + " " + orderType.String() + " without a direction"
+						if direction == order.StopUp {
+							name = side.name + " " + orderType.String() + " set to rise"
+						}
+						if !reduceOnly {
+							name += " that may open a position"
+						}
+						t.Run(name, func(t *testing.T) {
+							t.Parallel()
+							var sent string
+							ex := newTradingServerExchange(t, nil, captureAction(t, &sent, statusesResponse("order", `{"resting":{"oid":9}}`)))
+							submit := *stopMarket
+							submit.Type, submit.Side, submit.StopDirection, submit.ReduceOnly = orderType, side.side, direction, reduceOnly
+							_, err := ex.SubmitOrder(t.Context(), &submit)
+							require.NoErrorf(t, err, "SubmitOrder must not error for a %s %s order", side.name, orderType)
+							kind := TriggerStopLoss
+							if takeProfit {
+								kind = TriggerTakeProfit
+							}
+							exp := fmt.Sprintf(`{"type":"order","orders":[{"a":0,"b":%t,"p":"80","s":"0.1","r":%t,"t":{"trigger":{"isMarket":%t,"triggerPx":"90","tpsl":%q}}}],"grouping":"na"}`,
+								side.isBuy, reduceOnly, trigger.isMarket, kind)
+							assert.JSONEqf(t, exp, sent, "SubmitOrder should send a %s %s order as its type and side trigger it", side.name, orderType)
+						})
+					}
+				}
+			}
+		}
+		// Orders without a trigger, and a bracket's children, which take their trigger's direction from their kind and side,
+		// are sent with a direction as they are without one
+		market := order.Submit{Exchange: e.Name, Type: order.Market, Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 0.001, SlippageTolerance: 0.01}
+		withChildren := *limit
+		withChildren.RiskManagementModes = order.RiskManagementModes{
+			TakeProfit: order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 90000},
+			StopLoss:   order.RiskManagement{Enabled: true, TriggerPriceType: order.MarkPrice, Price: 80000},
+		}
+		filled := `{"filled":{"oid":9,"totalSz":"0.001","avgPx":"85000"}}`
+		for _, tc := range []struct {
+			name     string
+			submit   order.Submit
+			side     order.Side
+			statuses []string
+		}{
+			{name: "buy limit", submit: *limit, side: order.Buy, statuses: []string{`{"resting":{"oid":9}}`}},
+			{name: "sell limit", submit: *limit, side: order.Sell, statuses: []string{`{"resting":{"oid":9}}`}},
+			{name: "buy market", submit: market, side: order.Buy, statuses: []string{filled}},
+			{name: "sell market", submit: market, side: order.Sell, statuses: []string{filled}},
+			{name: "buy limit with a take profit and stop loss", submit: withChildren, side: order.Buy, statuses: []string{`{"resting":{"oid":9}}`, `"waitingForFill"`, `"waitingForFill"`}},
+		} {
+			t.Run(tc.name+" set to rise", func(t *testing.T) {
+				t.Parallel()
+				send := func(direction order.StopDirection) string {
+					var sent string
+					ex := newTradingServerExchange(t, map[string]string{"allMids": `{"BTC":"85000"}`}, captureAction(t, &sent, statusesResponse("order", tc.statuses...)))
+					submit := tc.submit
+					submit.Side, submit.StopDirection = tc.side, direction
+					_, err := ex.SubmitOrder(t.Context(), &submit)
+					require.NoErrorf(t, err, "SubmitOrder must not error for a %s", tc.name)
+					return sent
+				}
+				without := send(order.StopDown)
+				require.NotEmptyf(t, without, "SubmitOrder must send a %s", tc.name)
+				assert.JSONEqf(t, without, send(order.StopUp), "SubmitOrder should send a %s set to rise as it does without a direction", tc.name)
+			})
+		}
+	})
 
 	bracket := *limit
 	bracket.Exchange = trigger.Name
@@ -2968,6 +3483,36 @@ func TestModifyOrder(t *testing.T) {
 	triggerOrder := newTradingServerExchange(t, map[string]string{"orderStatus": triggerOrderStatus, "frontendOpenOrders": listedOpenOrder(triggerOrderStatus)}, nil)
 	_, err = triggerOrder.ModifyOrder(t.Context(), &order.Modify{OrderID: "12", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errModifyOrderTypeUnsupported, "ModifyOrder should reject a trigger order, which only always-place modifies replace")
+	for _, orderType := range []string{"Stop Market", "Stop Limit", "Take Profit Market", "Take Profit Limit", "Trailing Stop Market"} {
+		t.Run(orderType+" asked to become a limit order", func(t *testing.T) {
+			t.Parallel()
+			status := strings.Replace(triggerOrderStatus, `"orderType":"Stop Market"`, `"orderType":"`+orderType+`"`, 1)
+			ex := newTradingServerExchange(t, map[string]string{"orderStatus": status, "frontendOpenOrders": listedOpenOrder(status)}, func(map[string]any) string {
+				assert.Failf(t, "ModifyOrder should send nothing", "a replacement request should not be sent for a %s order", orderType)
+				return ""
+			})
+			_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "12", Pair: perpetualPair, AssetType: asset.PerpetualContract, Type: order.Limit, Price: 85})
+			assert.ErrorIsf(t, err, errModifyOrderTypeUnsupported, "ModifyOrder should reject a %s order asked to become a limit order", orderType)
+		})
+	}
+	t.Run("order only openOrders lists asked to become a limit order", func(t *testing.T) {
+		t.Parallel()
+		// frontendOpenOrders lists at most 100 orders
+		listed := make([]string, 100)
+		for i := range listed {
+			listed[i] = `{"coin":"BTC","side":"B","limitPx":"90","sz":"1","origSz":"1","oid":` + strconv.Itoa(1000+i) + `,"timestamp":1791275926947,"orderType":"Limit","tif":"Gtc"}`
+		}
+		ex := newTradingServerExchange(t, map[string]string{
+			"orderStatus":        `{"status":"unknownOid"}`,
+			"frontendOpenOrders": "[" + strings.Join(listed, ",") + "]",
+			"openOrders":         `[{"coin":"BTC","side":"A","limitPx":"80","sz":"1","origSz":"1","oid":12,"timestamp":1791275926947,"reduceOnly":true}]`,
+		}, func(map[string]any) string {
+			assert.Fail(t, "ModifyOrder should send no replacement for an order whose type it cannot read")
+			return ""
+		})
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "12", Pair: perpetualPair, AssetType: asset.PerpetualContract, Type: order.Limit, Price: 85})
+		assert.ErrorIs(t, err, errModifyOrderTypeUnsupported, "ModifyOrder should reject an order only openOrders lists, whose type it cannot read")
+	})
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders": `[]`}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an unknown order")
 	filledOrder := strings.Replace(strings.Replace(openOrderStatus, `"sz":"1"`, `"sz":"0"`, 1), `"status":"open"`, `"status":"filled"`, 1)
@@ -3340,6 +3885,7 @@ func TestRecordCancelStatuses(t *testing.T) {
 	assert.Equal(t, map[string]string{"1": "success", "2": "Order was never placed, already canceled, or filled."}, statuses, "recordCancelStatuses should record each cancel's outcome")
 }
 
+//nolint:tparallel // Live, the test is serial while its filter subtests run in parallel
 func TestCancelAllOrders(t *testing.T) {
 	// Live, CancelAllOrders cancels every open order of the test pair, so the test runs before the parallel tests place
 	// their own orders on it
@@ -3398,6 +3944,95 @@ func TestCancelAllOrders(t *testing.T) {
 	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"2": "success"}}, result, "CancelAllOrders should cancel only the requested side of the requested pair")
 	_, err = newUnavailableServerExchange(t).CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: order.ClosePosition})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders should reject a side no order has before any request")
+
+	t.Run("filters openOrders cannot apply", func(t *testing.T) {
+		t.Parallel()
+		// An unavailable server fails every request, so these errors tell a refused filter from a failed request
+		unavailable := newUnavailableServerExchange(t)
+		type refusal struct {
+			name   string
+			cancel order.Cancel
+			err    error
+		}
+		var refusals []refusal
+		for orderType := order.Type(1); orderType != 0; orderType <<= 1 {
+			if orderType == order.AnyType {
+				continue
+			}
+			for _, side := range []order.Side{order.UnknownSide, order.AnySide, order.Buy, order.Sell} {
+				refusals = append(refusals, refusal{
+					name:   fmt.Sprintf("order type %d %s with side %s", uint64(orderType), orderType, side),
+					cancel: order.Cancel{AssetType: asset.PerpetualContract, Pair: perpetualPair, Side: side, Type: orderType},
+					err:    order.ErrUnsupportedOrderType,
+				})
+			}
+		}
+		for _, orderType := range []order.Type{order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TrailingStopLimit} {
+			refusals = append(refusals, refusal{name: "spot order type " + orderType.String(), cancel: order.Cancel{AssetType: asset.Spot, Type: orderType}, err: order.ErrUnsupportedOrderType})
+		}
+		refusals = append(refusals, refusal{name: "spot order type of any type and limit", cancel: order.Cancel{AssetType: asset.Spot, Type: order.AnyType | order.Limit}, err: order.ErrUnsupportedOrderType})
+		for timeInForce := order.TimeInForce(1); timeInForce != 0; timeInForce <<= 1 {
+			refusals = append(refusals, refusal{
+				name:   fmt.Sprintf("time in force %d %s", uint16(timeInForce), timeInForce),
+				cancel: order.Cancel{AssetType: asset.PerpetualContract, Type: order.AnyType, TimeInForce: timeInForce},
+				err:    order.ErrUnsupportedTimeInForce,
+			})
+		}
+		refusals = append(refusals,
+			refusal{name: "combined time in force", cancel: order.Cancel{AssetType: asset.Spot, TimeInForce: order.GoodTillCancel | order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+			refusal{name: "time in force for one side", cancel: order.Cancel{AssetType: asset.PerpetualContract, Pair: perpetualPair, Side: order.Sell, TimeInForce: order.PostOnly}, err: order.ErrUnsupportedTimeInForce},
+		)
+		for marginType := margin.Type(1); marginType != 0; marginType <<= 1 {
+			refusals = append(refusals, refusal{
+				name:   fmt.Sprintf("margin type %d %s", uint8(marginType), marginType),
+				cancel: order.Cancel{AssetType: asset.PerpetualContract, Side: order.AnySide, MarginType: marginType},
+				err:    margin.ErrMarginTypeUnsupported,
+			})
+		}
+		refusals = append(refusals,
+			refusal{name: "spot margin type for one side", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Buy, MarginType: margin.SpotIsolated}, err: margin.ErrMarginTypeUnsupported},
+			refusal{name: "spot margin type of cash", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotPair, MarginType: margin.NoMargin}, err: margin.ErrMarginTypeUnsupported},
+			refusal{name: "combined margin type", cancel: order.Cancel{AssetType: asset.PerpetualContract, MarginType: margin.Isolated | margin.Multi}, err: margin.ErrMarginTypeUnsupported},
+		)
+		for _, tc := range refusals {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				_, err := unavailable.CancelAllOrders(t.Context(), &tc.cancel)
+				assert.ErrorIsf(t, err, tc.err, "CancelAllOrders should refuse a %s before any request", tc.name)
+				refused := tc.cancel.Type.String()
+				switch tc.err {
+				case order.ErrUnsupportedTimeInForce:
+					refused = tc.cancel.TimeInForce.String()
+				case margin.ErrMarginTypeUnsupported:
+					refused = tc.cancel.MarginType.String()
+				}
+				assert.ErrorContainsf(t, err, ": "+refused, "CancelAllOrders should name the filter value it refuses for a %s", tc.name)
+			})
+		}
+
+		// A limit and a stop of the same market and side, which openOrders lists alike
+		listed := `[{"coin":"BTC","side":"B","oid":11},{"coin":"BTC","side":"B","oid":12},{"coin":"BTC","side":"A","oid":13}]`
+		for _, tc := range []struct {
+			name   string
+			cancel order.Cancel
+			exp    map[string]string
+		}{
+			{name: "any type", cancel: order.Cancel{AssetType: asset.PerpetualContract, Type: order.AnyType}, exp: map[string]string{"11": "success", "12": "success", "13": "success"}},
+			{name: "any type of one side", cancel: order.Cancel{AssetType: asset.PerpetualContract, Side: order.Buy, Type: order.AnyType}, exp: map[string]string{"11": "success", "12": "success"}},
+			{name: "no type of one side", cancel: order.Cancel{AssetType: asset.PerpetualContract, Side: order.Sell}, exp: map[string]string{"13": "success"}},
+			{name: "every other field set", cancel: order.Cancel{
+				Exchange: "Hyperliquid", OrderID: "11", ClientOrderID: testClientOrderID, AccountID: testAccountAddress, ClientID: "client",
+				AssetType: asset.PerpetualContract, Pair: perpetualPair, Side: order.AnySide, Type: order.AnyType,
+			}, exp: map[string]string{"11": "success", "12": "success", "13": "success"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				cancelled, err := newTradingServerExchange(t, map[string]string{"openOrders": listed}, successes).CancelAllOrders(t.Context(), &tc.cancel)
+				require.NoErrorf(t, err, "CancelAllOrders must not error for %s", tc.name)
+				assert.Equalf(t, order.CancelAllResponse{Status: tc.exp}, cancelled, "CancelAllOrders should cancel the orders of %s", tc.name)
+			})
+		}
+	})
 	unknownSide := newTradingServerExchange(t, map[string]string{"openOrders": `[{"coin":"BTC","side":"X","oid":1},{"coin":"BTC","side":"B","oid":2}]`}, successes)
 	result, err = unknownSide.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: order.Buy})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders should report an order whose side it cannot read")
@@ -4029,13 +4664,13 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.Equal(t, expRequests, requests(), "GetActiveOrders should not read positions for spot orders")
 	cappedPosition := newTradingServerExchange(t, map[string]string{
 		"frontendOpenOrders": `[` + strings.Join(frontendOrders, ",") + `]`,
-		"openOrders":         `[` + strings.Join(basicOrders[:maximumFrontendOpenOrders], ",") + `,{"coin":"BTC","side":"B","limitPx":"99000.0","sz":"0.0","origSz":"0.0","oid":117,"timestamp":1791275926947}]`,
+		"openOrders":         `[` + strings.Join(basicOrders[:maximumFrontendOpenOrders], ",") + `,{"coin":"BTC","side":"B","limitPx":"99000.0","sz":"0.0","origSz":"0.0","oid":117,"timestamp":1791275926947,"reduceOnly":true}]`,
 		"clearinghouseState": btcShortPositions,
 	}, nil)
 	orders, err = cappedPosition.GetActiveOrders(t.Context(), perpetualRequest)
 	require.NoError(t, err, "GetActiveOrders must not error for a position TP/SL order beyond the frontendOpenOrders limit")
 	require.Len(t, orders, maximumFrontendOpenOrders+1, "GetActiveOrders must add the position TP/SL order beyond the frontendOpenOrders limit")
-	exp = order.Detail{Price: 99000, Amount: 0.25, RemainingAmount: 0.25, Exchange: cappedPosition.Name, OrderID: "117", Side: order.Buy, Status: order.Open, AssetType: asset.PerpetualContract, Date: placed, LastUpdated: placed, Pair: perpetualPair}
+	exp = order.Detail{ReduceOnly: true, Price: 99000, Amount: 0.25, RemainingAmount: 0.25, Exchange: cappedPosition.Name, OrderID: "117", Side: order.Buy, Status: order.Open, AssetType: asset.PerpetualContract, Date: placed, LastUpdated: placed, Pair: perpetualPair}
 	assert.Equal(t, exp, orders[maximumFrontendOpenOrders], "GetActiveOrders should size an openOrders order without a size from its position")
 	orders, err = newTradingServerExchange(t, map[string]string{"frontendOpenOrders": `[` + positionOrder + `]`}, nil).GetActiveOrders(t.Context(), perpetualRequest)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetActiveOrders should return a positions failure")
@@ -6158,6 +6793,34 @@ func TestExecutionStatus(t *testing.T) {
 	}
 }
 
+func TestTriggersOnFall(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType order.Type
+		isBuy     bool
+		exp       bool
+	}{
+		{orderType: order.Stop, exp: true},
+		{orderType: order.StopLimit, exp: true},
+		{orderType: order.StopMarket, exp: true},
+		{orderType: order.Stop, isBuy: true},
+		{orderType: order.StopLimit, isBuy: true},
+		{orderType: order.StopMarket, isBuy: true},
+		{orderType: order.TakeProfit, isBuy: true, exp: true},
+		{orderType: order.TakeProfitMarket, isBuy: true, exp: true},
+		{orderType: order.TakeProfit},
+		{orderType: order.TakeProfitMarket},
+		{orderType: order.Limit},
+		{orderType: order.Limit, isBuy: true},
+		{orderType: order.Market, isBuy: true},
+	} {
+		t.Run(fmt.Sprintf("%s buy %t", tc.orderType, tc.isBuy), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, triggersOnFall(tc.orderType, tc.isBuy), "triggersOnFall should report whether a %s order sent with buy %t triggers as the price falls", tc.orderType, tc.isBuy)
+		})
+	}
+}
+
 func TestParseOrderType(t *testing.T) {
 	t.Parallel()
 	for orderType, exp := range map[string]order.Type{
@@ -6170,6 +6833,8 @@ func TestParseOrderType(t *testing.T) {
 		"Take Profit Market": order.TakeProfitMarket,
 		"Take Limit":         order.TakeProfit,
 		"Take Market":        order.TakeProfitMarket,
+		// The type of the orders PlaceTrailingStopOrder places
+		"Trailing Stop Market": order.TrailingStop,
 	} {
 		t.Run(subtestName(orderType), func(t *testing.T) {
 			t.Parallel()

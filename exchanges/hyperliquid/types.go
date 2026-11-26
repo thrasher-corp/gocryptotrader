@@ -38,6 +38,9 @@ type Exchange struct {
 	pairMappingMisses   map[string]time.Time
 	// delistedPairMappings holds delisted perpetual markets, resolved only by coin; pairMappingsMu guards it
 	delistedPairMappings []pairMapping
+	// pairMappingCaches counts the times each asset's markets were cached, so the account connection's load can tell
+	// whether another fetch cached an asset's markets while it fetched them; pairMappingsMu guards it
+	pairMappingCaches map[asset.Item]uint64
 	// pairMappingsRefreshed is when a coin lookup miss last refetched every market; pairMappingsFetchMu guards it
 	pairMappingsRefreshed time.Time
 	authorityValidationMu sync.Mutex

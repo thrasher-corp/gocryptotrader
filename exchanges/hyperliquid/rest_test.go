@@ -984,7 +984,7 @@ func TestGetSubAccounts(t *testing.T) {
 				}},
 				Time: milli(1791278778100),
 			},
-			SpotState: SpotClearinghouseStateResponse{Balances: []SpotBalance{{Coin: currency.HYPE, Token: 150, Total: 367.68703816, Hold: 120, EntryNotional: 34398.42600243}}},
+			SpotState: SpotClearinghouseStateResponse{Balances: []SpotBalance{{Coin: currency.HYPE, Token: new(uint64(150)), Total: 367.68703816, Hold: 120, EntryNotional: 34398.42600243}}},
 		}}
 		assert.Equal(t, exp, result, "GetSubAccounts should decode every subaccount field")
 	}

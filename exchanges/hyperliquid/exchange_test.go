@@ -1555,14 +1555,19 @@ func TestTransferVaultUSDC(t *testing.T) {
 		name string
 		arg  *VaultTransferRequest
 		err  error
+		text string
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
 		{name: "an invalid vault", arg: &VaultTransferRequest{VaultAddress: "invalid", AmountInMicroUSDC: 1}, err: errInvalidAddress},
 		{name: "the zero address as vault", arg: &VaultTransferRequest{VaultAddress: testZeroAddress, AmountInMicroUSDC: 1}, err: errInvalidAddress},
-		{name: "no amount", arg: &VaultTransferRequest{VaultAddress: testVaultAddress}, err: errTransferAmountInvalid},
+		{name: "no amount", arg: &VaultTransferRequest{VaultAddress: testVaultAddress}, err: errTransferAmountInvalid, text: "invalid transfer amount: must be greater than zero"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.ErrorIsf(t, e.TransferVaultUSDC(t.Context(), tc.arg), tc.err, "TransferVaultUSDC should reject a request with %s", tc.name)
+			err := e.TransferVaultUSDC(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "TransferVaultUSDC should reject a request with %s", tc.name)
+			if tc.text != "" {
+				assert.EqualErrorf(t, err, tc.text, "TransferVaultUSDC should say why it rejects a request with %s", tc.name)
+			}
 		})
 	}
 
@@ -2961,11 +2966,43 @@ func TestFormatTransferAmount(t *testing.T) {
 	amount, err := formatTransferAmount(1.23)
 	require.NoError(t, err, "formatTransferAmount must not error")
 	assert.Equal(t, "1.23", amount, "formatTransferAmount should format the amount")
-	for _, value := range []float64{0, -1, math.NaN(), 0.000000001, 1e-13} {
-		t.Run(strconv.FormatFloat(value, 'g', -1, 64), func(t *testing.T) {
+	t.Run("amount with its binary residue in eight places", func(t *testing.T) {
+		t.Parallel()
+		// Eight places of this amount would end in its binary residue, 0.00000001 short of the amount written
+		amount, err := formatTransferAmount(100000000.1)
+		require.NoError(t, err, "formatTransferAmount must not error for an amount with its binary residue in eight places")
+		assert.Equal(t, "100000000.1", amount, "formatTransferAmount should format the amount as written")
+	})
+	t.Run("sum with more than eight decimals", func(t *testing.T) {
+		t.Parallel()
+		// Summed at run time, as constants would sum exactly, so the amount carries more than eight decimals
+		tenth, fifth := 0.1, 0.2
+		amount, err := formatTransferAmount(tenth + fifth)
+		require.NoError(t, err, "formatTransferAmount must not error for a sum with more than eight decimals")
+		assert.Equal(t, "0.3", amount, "formatTransferAmount should round a sum with more than eight decimals to eight")
+	})
+	t.Run("amount a float below its eighth decimal", func(t *testing.T) {
+		t.Parallel()
+		amount, err := formatTransferAmount(math.Nextafter(0.00000001, 0))
+		require.NoError(t, err, "formatTransferAmount must not error for an amount a float below its eighth decimal")
+		assert.Equal(t, "0.00000001", amount, "formatTransferAmount should round an amount a float below its eighth decimal up to it")
+	})
+	for _, tc := range []struct {
+		amount float64
+		reason string
+	}{
+		{amount: 0, reason: "0 is not positive and finite"},
+		{amount: -1, reason: "-1 is not positive and finite"},
+		{amount: math.NaN(), reason: "NaN is not positive and finite"},
+		{amount: math.Inf(1), reason: "+Inf is not positive and finite"},
+		{amount: 0.000000001, reason: "number cannot be represented with the decimal places allowed: 1e-09 to 8 places"},
+		{amount: 1e-13, reason: "number cannot be represented with the decimal places allowed: 1e-13 to 8 places"},
+	} {
+		t.Run(strconv.FormatFloat(tc.amount, 'g', -1, 64), func(t *testing.T) {
 			t.Parallel()
-			_, err := formatTransferAmount(value)
-			assert.ErrorIsf(t, err, errTransferAmountInvalid, "formatTransferAmount should reject %v", value)
+			_, err := formatTransferAmount(tc.amount)
+			assert.ErrorIsf(t, err, errTransferAmountInvalid, "formatTransferAmount should reject %v", tc.amount)
+			assert.EqualErrorf(t, err, "invalid transfer amount: "+tc.reason, "formatTransferAmount should say why it rejects %v", tc.amount)
 		})
 	}
 }
@@ -3103,7 +3140,11 @@ func TestValidateTransferAmount(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.ErrorIsf(t, validateTransferAmount(tc.amount), tc.err, "validateTransferAmount should return the expected error for %v", tc.amount)
+			err := validateTransferAmount(tc.amount)
+			assert.ErrorIsf(t, err, tc.err, "validateTransferAmount should return the expected error for %v", tc.amount)
+			if tc.err != nil {
+				assert.EqualErrorf(t, err, "invalid transfer amount: "+strconv.FormatFloat(tc.amount, 'g', -1, 64)+" is not positive and finite", "validateTransferAmount should name the refused amount %v and why", tc.amount)
+			}
 		})
 	}
 }
@@ -3114,6 +3155,7 @@ func TestFormatTokenTransferAmount(t *testing.T) {
 	ueth := &SpotTokenMetadata{Name: currency.NewCode("UETH"), WeiDecimals: 9}
 	purr := &SpotTokenMetadata{Name: currency.NewCode("PURR"), WeiDecimals: 5}
 	udoge := &SpotTokenMetadata{Name: currency.NewCode("UDOGE"), WeiDecimals: 9}
+	usdc := &SpotTokenMetadata{Name: currency.USDC, WeiDecimals: 8}
 	// Summed at run time, as constants would sum exactly, so the amount carries more decimals than the token has
 	tenth, fifth := 0.1, 0.2
 	for _, tc := range []struct {
@@ -3128,7 +3170,13 @@ func TestFormatTokenTransferAmount(t *testing.T) {
 		{name: "PURR to eight decimals", token: purr, amount: 1.12345678, exp: "1.12345678"},
 		// Nine places of this amount would end in its binary residue, one wei short of the amount written
 		{name: "UDOGE as written", token: udoge, amount: 10000000.12345679, exp: "10000000.12345679"},
+		// Eight places of these amounts would end in their binary residue, 0.00000001 short of the amount written
+		{name: "USDC as written", token: usdc, amount: 100000000.1, exp: "100000000.1"},
+		{name: "PURR as written", token: purr, amount: 100000000.1, exp: "100000000.1"},
+		// Ten places of this amount would end in its binary residue, one wei over the amount written
+		{name: "UBTC as written to nine places", token: ubtc, amount: 1000000.000000006, exp: "1000000.000000006"},
 		{name: "UBTC sum with more decimals than the token", token: ubtc, amount: tenth + fifth, exp: "0.3"},
+		{name: "USDC sum with more decimals than the token", token: usdc, amount: tenth + fifth, exp: "0.3"},
 		{name: "UBTC beyond ten decimals", token: ubtc, amount: 0.00000000001, err: errWireNumberRounding},
 		{name: "UETH beyond nine decimals", token: ueth, amount: 0.0000000001, err: errWireNumberRounding},
 		{name: "no amount", token: ubtc, err: errTransferAmountInvalid},

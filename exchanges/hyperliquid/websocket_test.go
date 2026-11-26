@@ -447,6 +447,20 @@ func deflateBase64(t *testing.T, data []byte) string {
 type websocketVenueRequests struct {
 	mu       sync.Mutex
 	requests []string
+	// sockets holds the connection each request arrived on
+	sockets []*gws.Conn
+	// pushes holds the messages the mock sends once it acknowledges a subscription of each feed type
+	pushes map[string][]string
+}
+
+// pushAfterSubscribe has the mock send messages once it acknowledges a subscription of a feed type
+func (v *websocketVenueRequests) pushAfterSubscribe(feedType string, frames ...string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.pushes == nil {
+		v.pushes = make(map[string][]string)
+	}
+	v.pushes[feedType] = append(v.pushes[feedType], frames...)
 }
 
 // received returns the recorded requests in arrival order
@@ -456,10 +470,23 @@ func (v *websocketVenueRequests) received() []string {
 	return slices.Clone(v.requests)
 }
 
-// record keeps a request the mock received, without the newline the connection's JSON encoder ends it with
-func (v *websocketVenueRequests) record(msg []byte) {
+// receivedOn returns the recorded requests by the connection they arrived on, each in arrival order
+func (v *websocketVenueRequests) receivedOn() map[*gws.Conn][]string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	bySocket := make(map[*gws.Conn][]string)
+	for i, request := range v.requests {
+		bySocket[v.sockets[i]] = append(bySocket[v.sockets[i]], request)
+	}
+	return bySocket
+}
+
+// record keeps a request the mock received on a connection, without the newline the connection's JSON encoder ends it
+// with
+func (v *websocketVenueRequests) record(conn *gws.Conn, msg []byte) {
 	v.mu.Lock()
 	v.requests = append(v.requests, strings.TrimSpace(string(msg)))
+	v.sockets = append(v.sockets, conn)
 	v.mu.Unlock()
 }
 
@@ -473,10 +500,15 @@ func (v *websocketVenueRequests) acknowledgeSubscriptions(_ testing.TB, msg []by
 	if req.Method == "ping" {
 		return conn.WriteMessage(gws.TextMessage, []byte(`{"channel":"pong"}`))
 	}
-	v.record(msg)
+	v.record(conn, msg)
 	frames := acknowledge(msg)
 	if len(frames) == 0 {
 		return fmt.Errorf("%w: unanswered request %s", errWebsocketFixture, msg)
+	}
+	if req.Method == wsMethodSubscribe {
+		v.mu.Lock()
+		frames = append(frames, v.pushes[req.Subscription.Type]...)
+		v.mu.Unlock()
 	}
 	for _, frame := range frames {
 		if err := conn.WriteMessage(gws.TextMessage, []byte(frame)); err != nil {
@@ -492,10 +524,18 @@ func (v *websocketVenueRequests) acknowledgeSubscriptions(_ testing.TB, msg []by
 // modes, as they would disturb the connection the live tests share
 func newLocalWebsocketTestExchange(t *testing.T, configured subscription.List) (*Exchange, *websocketVenueRequests) {
 	t.Helper()
+	ex := newTestExchange(t)
+	return ex, serveLocalWebsocket(t, ex, configured)
+}
+
+// serveLocalWebsocket has an exchange watch the test account, with its websocket pointed at a new local server
+// acknowledging each subscription request as Hyperliquid does, and returns the requests the server receives; it
+// subscribes the configured subscriptions when enabled, and is disabled and shut down when the test ends
+func serveLocalWebsocket(t *testing.T, ex *Exchange, configured subscription.List) *websocketVenueRequests {
+	t.Helper()
 	venue := new(websocketVenueRequests)
 	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, venue.acknowledgeSubscriptions))
 	server.Start()
-	ex := newTestExchange(t)
 	ex.API.AuthenticatedWebsocketSupport = true
 	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
@@ -510,7 +550,7 @@ func newLocalWebsocketTestExchange(t *testing.T, configured subscription.List) (
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})
-	return ex, venue
+	return venue
 }
 
 // shutdownWebsocketWithin shuts the websocket down, failing the test once Shutdown has not returned within five seconds:
@@ -540,9 +580,10 @@ func websocketCallWithin(t *testing.T, name string, call func() error) error {
 
 // websocketVenueRequest is a request as Hyperliquid's websocket receives it: a ping, a subscription request or a post
 type websocketVenueRequest struct {
-	Method  string                 `json:"method"`
-	ID      uint64                 `json:"id"`
-	Request websocketVenuePostBody `json:"request"`
+	Method       string                 `json:"method"`
+	ID           uint64                 `json:"id"`
+	Request      websocketVenuePostBody `json:"request"`
+	Subscription WebsocketSubscription  `json:"subscription"`
 }
 
 // websocketVenuePostBody is a post's request type and its payload, kept as JSON
@@ -601,6 +642,7 @@ func TestConnectWebsocket(t *testing.T) {
 	assert.Zero(t, disabled.dialCalls.Load(), "connectWebsocket should not dial for a disabled exchange")
 	ex.SetEnabled(true)
 	require.ErrorIs(t, ex.connectWebsocket(t.Context(), nil), common.ErrNilPointer, "connectWebsocket must reject a nil connection")
+	require.ErrorIs(t, ex.connectWebsocket(t.Context(), (*websocketConnectionFixture)(nil)), common.ErrNilPointer, "connectWebsocket must reject a nil connection of a concrete type")
 
 	failed := &websocketConnectionFixture{dialErr: errWebsocketFixture}
 	err := ex.connectWebsocket(t.Context(), failed)
@@ -641,6 +683,9 @@ func TestConnectAccountWebsocket(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
+	// Cached markets need no request, which the default endpoint would send to Hyperliquid
+	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+	ex.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
 	failed := &websocketConnectionFixture{exchange: ex, dialErr: errWebsocketFixture}
 	require.ErrorIs(t, ex.connectAccountWebsocket(t.Context(), failed), errWebsocketFixture, "connectAccountWebsocket must return the dial error")
 	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "connectAccountWebsocket should not make account feeds usable without a connection")
@@ -651,6 +696,108 @@ func TestConnectAccountWebsocket(t *testing.T) {
 	assert.Equal(t, int32(1), connection.pingCalls.Load(), "connectAccountWebsocket should send application pings")
 	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "connectAccountWebsocket should make account feeds usable")
 	assert.Equal(t, websocket.Connection(connection), ex.websocketAccountConnection, "connectAccountWebsocket should hold the connection it dialled")
+
+	markets := map[string]string{
+		"meta:":    `{"universe":[{"name":"BTC","szDecimals":5}]}`,
+		"spotMeta": `{"universe":[{"tokens":[150,0],"name":"@107","index":107}],"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2}]}`,
+	}
+	t.Run("markets not cached", func(t *testing.T) {
+		t.Parallel()
+		cold, requests := newCountingServerExchange(t, markets)
+		connection := &websocketConnectionFixture{exchange: cold}
+		require.NoError(t, cold.connectAccountWebsocket(t.Context(), connection), "connectAccountWebsocket must not error")
+		assert.Equal(t, map[string]int{"perpDexs:": 1, "meta:": 1, "spotMeta:": 1}, requests(), "connectAccountWebsocket should load each supported asset's markets")
+		assert.Equal(t, int32(1), connection.dialCalls.Load(), "connectAccountWebsocket should dial once the markets are loaded")
+	})
+	t.Run("markets failing to load", func(t *testing.T) {
+		t.Parallel()
+		unavailable := newUnavailableServerExchange(t)
+		connection := &websocketConnectionFixture{exchange: unavailable}
+		err := unavailable.connectAccountWebsocket(t.Context(), connection)
+		require.ErrorIs(t, err, request.ErrBadStatus, "connectAccountWebsocket must return the markets' failure")
+		assert.ErrorContains(t, err, "loading the markets of the account connection's orders and fills: ", "connectAccountWebsocket should say the account connection's markets failed to load")
+		assert.Zero(t, connection.dialCalls.Load(), "connectAccountWebsocket should not dial without the markets")
+		assert.False(t, unavailable.Websocket.CanUseAuthenticatedEndpoints(), "connectAccountWebsocket should not make account feeds usable without the markets")
+		assert.Nil(t, unavailable.websocketAccountConnection, "connectAccountWebsocket should not hold a connection without the markets")
+	})
+	t.Run("account feeds after a start without a pair update", func(t *testing.T) {
+		t.Parallel()
+		// The account feeds convert rows and fills from the cached markets alone, which nothing else loads
+		cold, requests := newCountingServerExchange(t, markets)
+		cold.SetFillsFeedStatus(false)
+		cold.Features.Enabled.AutoPairUpdates = false
+		require.NoError(t, exchange.Bootstrap(t.Context(), cold), "Bootstrap must not error")
+		assert.Empty(t, requests(), "Bootstrap should load no markets without a pair update")
+		venue := serveLocalWebsocket(t, cold, subscription.List{{Channel: subscription.MyOrdersChannel, Authenticated: true}, {Channel: subscription.MyTradesChannel, Authenticated: true}})
+		venue.pushAfterSubscribe(wsSubscriptionUserEvents,
+			string(websocketOrderUpdatesFrame(websocketOrderRowJSON(1018, "open", "0.02", "0.02", websocketOrderPlaced))),
+			string(websocketUserFillsFrame(websocketOrderFillJSON(1018, 181, "84000", "0.005", websocketOrderPlaced+100, false))))
+		require.NoError(t, cold.Websocket.Enable(t.Context()), "Enable must connect to the local websocket")
+		assert.Equal(t, map[string]int{"perpDexs:": 1, "meta:": 1, "spotMeta:": 1}, requests(), "the account connection should load each supported asset's markets")
+		cold.websocketConnectionsMu.Lock()
+		account := cold.websocketAccountConnection
+		cold.websocketConnectionsMu.Unlock()
+		require.NotNil(t, account, "Enable must connect the account connection")
+		subscribed := make(map[*gws.Conn][]string)
+		for socket, requests := range venue.receivedOn() {
+			for _, received := range requests {
+				var req websocketVenueRequest
+				require.NoErrorf(t, json.Unmarshal([]byte(received), &req), "the request %s must decode", received)
+				if req.Method == wsMethodSubscribe && strings.EqualFold(req.Subscription.User, testAccountAddress) {
+					subscribed[socket] = append(subscribed[socket], req.Subscription.Type)
+				}
+			}
+		}
+		require.Len(t, subscribed, 1, "the account feeds must be subscribed on one connection")
+		for _, feeds := range subscribed {
+			assert.ElementsMatch(t, []string{wsChannelOrderUpdates, wsSubscriptionUserEvents}, feeds, "the account connection should subscribe the configured account feeds")
+		}
+		var updates []order.Detail
+		deadline := time.After(5 * time.Second)
+		for len(updates) < 2 {
+			select {
+			case payload := <-cold.Websocket.DataHandler.C:
+				batch, ok := payload.Data.([]order.Detail)
+				require.Truef(t, ok, "the account connection must relay order updates, not %T", payload.Data)
+				updates = append(updates, batch...)
+			case <-deadline:
+				require.FailNow(t, "the account connection must relay the order's row and fill within five seconds")
+			}
+		}
+		merged := mergeOrderUpdates(t, updates...)
+		assert.Equal(t, order.PartiallyFilled, merged.Status, "the account feeds should relay the order partly filled")
+		assert.InDelta(t, 0.005, merged.ExecutedAmount, 1e-12, "the account feeds should relay the order's executed size")
+		assert.InDelta(t, 420, merged.Cost, 1e-9, "the account feeds should relay the order's cost")
+		assert.Len(t, merged.Trades, 1, "the account feeds should relay the order's fill")
+	})
+	t.Run("pair update while the markets load", func(t *testing.T) {
+		t.Parallel()
+		tokens := `"tokens":[{"name":"USDC","index":0},{"name":"HYPE","index":150,"szDecimals":2},{"name":"USDH","index":360,"szDecimals":2}]`
+		// The held reply lacks the USDH market, as a reply sent before its listing would
+		cold, held, release := newHeldReplyServerExchange(t, "spotMeta",
+			`{"universe":[{"tokens":[150,0],"name":"@107","index":107}],`+tokens+`}`,
+			`{"universe":[{"tokens":[150,0],"name":"@107","index":107},{"tokens":[360,0],"name":"@230","index":230}],`+tokens+`}`,
+			map[string]string{"meta": markets["meta:"]})
+		connection := &websocketConnectionFixture{exchange: cold}
+		connectErr, updateErr := raceHeldReply(t, held, release,
+			func() error { return cold.connectAccountWebsocket(t.Context(), connection) },
+			func() error { return cold.UpdateTradablePairs(t.Context()) })
+		require.NoError(t, connectErr, "connectAccountWebsocket must not error")
+		require.NoError(t, updateErr, "UpdateTradablePairs must not error")
+		_, _, err := cold.lookupPairMappingByCoin("@230")
+		assert.NoError(t, err, "connectAccountWebsocket's market load should not replace the markets of a pair update sent after it")
+	})
+	t.Run("refused before the markets load", func(t *testing.T) {
+		t.Parallel()
+		cold, requests := newCountingServerExchange(t, markets)
+		assert.ErrorIs(t, cold.connectAccountWebsocket(t.Context(), nil), common.ErrNilPointer, "connectAccountWebsocket should refuse a nil connection")
+		assert.ErrorIs(t, cold.connectAccountWebsocket(t.Context(), (*websocketConnectionFixture)(nil)), common.ErrNilPointer, "connectAccountWebsocket should refuse a nil connection of a concrete type")
+		cold.SetEnabled(false)
+		connection := &websocketConnectionFixture{exchange: cold}
+		assert.ErrorIs(t, cold.connectAccountWebsocket(t.Context(), connection), websocket.ErrWebsocketNotEnabled, "connectAccountWebsocket should refuse a disabled exchange")
+		assert.Zero(t, connection.dialCalls.Load(), "connectAccountWebsocket should not dial for a disabled exchange")
+		assert.Empty(t, requests(), "connectAccountWebsocket should load no markets for a connection it refuses")
+	})
 }
 
 func TestPublicWebsocketDisconnected(t *testing.T) {
@@ -750,6 +897,9 @@ func newAccountRecoveryTestExchange(t *testing.T, refuse func(attempt int) bool,
 	cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
 	cfg.ConnectionMonitorDelay, cfg.WebsocketTrafficTimeout = monitorDelay, time.Hour
 	require.NoError(t, ex.Setup(cfg), "Setup must not error")
+	// Cached markets keep the account connection from loading them from the default endpoint, which is Hyperliquid's
+	ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+	ex.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
 	ex.API.AuthenticatedWebsocketSupport = true
 	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress})
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
@@ -1137,8 +1287,8 @@ func TestWebsocketRelay(t *testing.T) {
 				User: "0x0000000000000000000000000000000000000002",
 				SpotState: SpotClearinghouseStateResponse{
 					Balances: []SpotBalance{
-						{Coin: currency.USDC, Total: 100508.11272667, Hold: 49999.89, EntryNotional: 1},
-						{Coin: currency.NewCode("VAULT"), Token: 106, Total: 0.95437326, Hold: 0.5, EntryNotional: 0.00095437},
+						{Coin: currency.USDC, Token: new(uint64(0)), Total: 100508.11272667, Hold: 49999.89, EntryNotional: 1},
+						{Coin: currency.NewCode("VAULT"), Token: new(uint64(106)), Total: 0.95437326, Hold: 0.5, EntryNotional: 0.00095437},
 					},
 					TokenToAvailableAfterMaintenance: []TokenAmount{{Amount: 100508.11272667}},
 				},

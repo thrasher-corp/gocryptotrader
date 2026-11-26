@@ -90,11 +90,12 @@ func (t *TokenAmount) UnmarshalJSON(data []byte) error {
 
 // SpotBalance contains one spot token balance
 type SpotBalance struct {
-	Coin          currency.Code `json:"coin"`
-	Token         uint64        `json:"token"`
-	Total         types.Number  `json:"total"`
-	Hold          types.Number  `json:"hold"`
-	EntryNotional types.Number  `json:"entryNtl"`
+	Coin currency.Code `json:"coin"`
+	// Token is the token's index, which outcome balances leave out; 0 is USDC
+	Token         *uint64      `json:"token"`
+	Total         types.Number `json:"total"`
+	Hold          types.Number `json:"hold"`
+	EntryNotional types.Number `json:"entryNtl"`
 	// SpotHold is undocumented and sent only for portfolio margin accounts, whose Hold can be negative
 	SpotHold types.Number `json:"spotHold"`
 	// Borrowed is undocumented and sent only for a token a portfolio margin account has borrowed, which Total is net of

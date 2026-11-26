@@ -90,6 +90,7 @@ var (
 	errSizePrecision              = errors.New("size exceeds market precision")
 	errSlippageTolerance          = errors.New("market order slippage tolerance must be greater than 0 and less than 1")
 	errSpotTokenNotFound          = errors.New("spot token metadata not found")
+	errStopDirectionUnsupported   = errors.New("stop direction unsupported")
 	errTransferCurrencyInvalid    = errors.New("hyperliquid transfers only support USDC")
 	errTriggerOrderPerpetualOnly  = errors.New("trigger orders are only supported for perpetual markets")
 	errUnsupportedOrderStatus     = errors.New("unsupported order status")
@@ -109,6 +110,14 @@ type pairMapping struct {
 	// deployerFeeScale and growthMode set the fees of a builder-deployed perpetual market
 	deployerFeeScale float64
 	growthMode       bool
+}
+
+// fetchedMarkets holds an asset's markets as fetched, before they are cached
+type fetchedMarkets struct {
+	pairs    currency.Pairs
+	mappings []pairMapping
+	// delisted holds a perpetual fetch's delisted markets, which only lookups by coin resolve
+	delisted []pairMapping
 }
 
 func logDefaultError(err error) {
@@ -328,14 +337,26 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns the active spot markets, or the active perpetual markets of every perpetual DEX
 // A display pair listed by more than one market is ambiguous, so it is skipped rather than mapped to either
 func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	markets, err := e.fetchMarkets(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	e.pairMappingsMu.Lock()
+	e.cacheMarketsLocked(a, markets)
+	e.pairMappingsMu.Unlock()
+	return markets.pairs, nil
+}
+
+// fetchMarkets fetches an asset's markets without caching them
+func (e *Exchange) fetchMarkets(ctx context.Context, a asset.Item) (*fetchedMarkets, error) {
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
-	var candidates []pairMapping
+	var candidates, delisted []pairMapping
 	var err error
 	switch a {
 	case asset.PerpetualContract:
-		candidates, err = e.fetchPerpetualPairMappings(ctx)
+		candidates, delisted, err = e.fetchPerpetualPairMappings(ctx)
 	case asset.Spot:
 		candidates, err = e.fetchSpotPairMappings(ctx)
 	default:
@@ -362,35 +383,49 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		pairs = append(pairs, candidates[i].pair)
 		mappings = append(mappings, candidates[i])
 	}
-	e.setPairMappings(a, mappings)
-	return pairs, nil
+	return &fetchedMarkets{pairs: pairs, mappings: mappings, delisted: delisted}, nil
 }
 
-// fetchPerpetualPairMappings maps every active perpetual market, quoted in its DEX's collateral token, and keeps the
-// delisted markets, which only lookups by coin resolve, so the orders and fills of a delisted market still convert
-func (e *Exchange) fetchPerpetualPairMappings(ctx context.Context) ([]pairMapping, error) {
+// cacheMarketsLocked caches an asset's fetched markets, and a perpetual fetch's delisted markets in the same update, so
+// no lookup by coin runs between the two and finds a relisted coin in neither; callers hold pairMappingsMu
+func (e *Exchange) cacheMarketsLocked(a asset.Item, markets *fetchedMarkets) {
+	if e.pairMappings == nil {
+		e.pairMappings = make(map[asset.Item][]pairMapping)
+	}
+	e.pairMappings[a] = markets.mappings
+	if a == asset.PerpetualContract {
+		e.delistedPairMappings = markets.delisted
+	}
+	if e.pairMappingCaches == nil {
+		e.pairMappingCaches = make(map[asset.Item]uint64)
+	}
+	e.pairMappingCaches[a]++
+}
+
+// fetchPerpetualPairMappings maps every active perpetual market, quoted in its DEX's collateral token, and returns the
+// delisted markets apart, which only lookups by coin resolve, so the orders and fills of a delisted market still convert
+func (e *Exchange) fetchPerpetualPairMappings(ctx context.Context) (candidates, delisted []pairMapping, err error) {
 	dexes, err := e.getPerpetualDEXNames(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	collateralNames := map[uint64]currency.Code{0: currency.USDC}
-	var candidates, delisted []pairMapping
 	for dexIndex, dex := range dexes {
 		metadata, err := e.GetPerpetualMetadata(ctx, dex)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		collateralName, ok := collateralNames[metadata.CollateralToken]
 		if !ok {
 			if collateralNames, err = e.getSpotTokenNames(ctx); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if collateralName, ok = collateralNames[metadata.CollateralToken]; !ok {
-				return nil, fmt.Errorf("%w: collateral token index %d", errSpotTokenNotFound, metadata.CollateralToken)
+				return nil, nil, fmt.Errorf("%w: collateral token index %d", errSpotTokenNotFound, metadata.CollateralToken)
 			}
 		}
 		if dexIndex != 0 && len(metadata.Universe) > builderPerpetualDEXAssetStride {
-			return nil, fmt.Errorf("%w: DEX %q has %d markets, maximum %d", errInvalidPerpetualDEX, dex, len(metadata.Universe), builderPerpetualDEXAssetStride)
+			return nil, nil, fmt.Errorf("%w: DEX %q has %d markets, maximum %d", errInvalidPerpetualDEX, dex, len(metadata.Universe), builderPerpetualDEXAssetStride)
 		}
 		var offset uint64
 		if dexIndex != 0 {
@@ -401,7 +436,7 @@ func (e *Exchange) fetchPerpetualPairMappings(ctx context.Context) ([]pairMappin
 		for marketIndex := range metadata.Universe {
 			market := &metadata.Universe[marketIndex]
 			if dex != "" && !strings.HasPrefix(market.Name, dex+":") {
-				return nil, fmt.Errorf("%w: market %q is not scoped to DEX %q", errInvalidPerpetualDEX, market.Name, dex)
+				return nil, nil, fmt.Errorf("%w: market %q is not scoped to DEX %q", errInvalidPerpetualDEX, market.Name, dex)
 			}
 			pair, err := currency.NewPairFromStrings(market.Name, collateralName.String())
 			if err != nil {
@@ -433,10 +468,7 @@ func (e *Exchange) fetchPerpetualPairMappings(ctx context.Context) ([]pairMappin
 			}
 		}
 	}
-	e.pairMappingsMu.Lock()
-	e.delistedPairMappings = delisted
-	e.pairMappingsMu.Unlock()
-	return candidates, nil
+	return candidates, delisted, nil
 }
 
 // getSpotTokenNames maps spot token indices to names, which builder DEXs use for their collateral token
@@ -959,6 +991,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 	if submit.MarginType != margin.Unset {
 		return nil, fmt.Errorf("%w: %s", margin.ErrMarginTypeUnsupported, submit.MarginType)
 	}
+	// StopDown is the zero value, so only a rise can be told apart from a direction left unset
+	if submit.StopDirection == order.StopUp && triggersOnFall(submit.Type, submit.Side.IsLong()) {
+		return nil, fmt.Errorf("%w: a %s %s order triggers as the price falls", errStopDirectionUnsupported, submit.Side, submit.Type)
+	}
 	orders, mapping, grouping, err := e.buildOrderRequests(ctx, submit)
 	if err != nil {
 		return nil, err
@@ -1068,6 +1104,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*orde
 	if existing.IsInactive() || existing.RemainingAmount <= 0 {
 		return nil, fmt.Errorf("%w: %s", errOrderNotModifiable, identifier)
 	}
+	// Only a resting limit order can be replaced, whatever type the modification asks its replacement to take
+	if err := validateModifiableOrder(existing.Type, existing.TimeInForce); err != nil {
+		return nil, err
+	}
 	orderType := cmp.Or(modify.Type, existing.Type)
 	timeInForce := cmp.Or(modify.TimeInForce, existing.TimeInForce)
 	if err := validateModifiableOrder(orderType, timeInForce); err != nil {
@@ -1168,6 +1208,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 	oneSide := cancel.Side != order.UnknownSide && cancel.Side != order.AnySide
 	if oneSide && !cancel.Side.IsLong() && !cancel.Side.IsShort() {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, cancel.Side)
+	}
+	// openOrders lists no order type, time in force or margin mode, so a cancel narrowed by one would cancel others too
+	if cancel.Type != order.UnknownType && cancel.Type != order.AnyType {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, cancel.Type)
+	}
+	if cancel.TimeInForce != order.UnknownTIF {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, cancel.TimeInForce)
+	}
+	if cancel.MarginType != margin.Unset {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", margin.ErrMarginTypeUnsupported, cancel.MarginType)
 	}
 	address, err := e.getWatchAddress(ctx)
 	if err != nil {
@@ -2138,6 +2188,36 @@ func (e *Exchange) fetchPairMapping(ctx context.Context, p currency.Pair, a asse
 	return pairMapping{}, fmt.Errorf("%w: %s %s", errPairMappingNotFound, a, p)
 }
 
+// loadPairMappings fetches the markets of each supported asset with no active market cached, such as after a start
+// without a pair update; when another fetch caches an asset's markets while the load fetches them, it keeps those and
+// ignores its own fetch's reply or failure
+func (e *Exchange) loadPairMappings(ctx context.Context) error {
+	for _, a := range []asset.Item{asset.Spot, asset.PerpetualContract} {
+		if !e.SupportsAsset(a) {
+			continue
+		}
+		e.pairMappingsMu.RLock()
+		cached := len(e.pairMappings[a]) != 0
+		caches := e.pairMappingCaches[a]
+		e.pairMappingsMu.RUnlock()
+		if cached {
+			continue
+		}
+		markets, err := e.fetchMarkets(ctx, a)
+		e.pairMappingsMu.Lock()
+		// A pair update or lookup that cached the asset's markets meanwhile may have had a later reply than this one
+		cachedMeanwhile := e.pairMappingCaches[a] != caches
+		if err == nil && !cachedMeanwhile {
+			e.cacheMarketsLocked(a, markets)
+		}
+		e.pairMappingsMu.Unlock()
+		if err != nil && !cachedMeanwhile {
+			return fmt.Errorf("%s markets: %w", a, err)
+		}
+	}
+	return nil
+}
+
 // getPairMappingByCoin returns the mapping and asset type of a coin, fetching all markets when it is not cached
 func (e *Exchange) getPairMappingByCoin(ctx context.Context, coin string) (pairMapping, asset.Item, error) {
 	if strings.TrimSpace(coin) == "" {
@@ -2593,6 +2673,19 @@ func isOutcomeCoin(coin string) bool {
 	return strings.HasPrefix(coin, "#")
 }
 
+// triggersOnFall reports whether Hyperliquid triggers a stop or take profit of the type as the price falls, as it does a
+// stop that sells or a take profit that buys; isBuy is the side the order is sent with
+func triggersOnFall(orderType order.Type, isBuy bool) bool {
+	switch orderType {
+	case order.Stop, order.StopLimit, order.StopMarket:
+		return !isBuy
+	case order.TakeProfit, order.TakeProfitMarket:
+		return isBuy
+	default:
+		return false
+	}
+}
+
 // isMarketTriggerOrder reports whether a trigger order type executes as a market order once triggered
 func isMarketTriggerOrder(orderType order.Type) bool {
 	return orderType == order.Stop || orderType == order.StopMarket || orderType == order.TakeProfitMarket
@@ -3008,12 +3101,15 @@ func parseOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-// parseOrderType converts the order types the frontend displays, such as Limit, Stop Market or Take Profit Limit
+// parseOrderType converts the order types the frontend displays, such as Limit, Stop Market, Take Profit Limit or
+// Trailing Stop Market
 // A trigger order keeps its type once it has triggered, while Hyperliquid clears its trigger flag, so the type alone
 // classifies it
 func parseOrderType(orderType string) (order.Type, error) {
 	lowerOrderType := strings.ToLower(orderType)
 	switch {
+	case strings.Contains(lowerOrderType, "trailing"):
+		return order.TrailingStop, nil
 	case strings.Contains(lowerOrderType, "take") && strings.Contains(lowerOrderType, "market"):
 		return order.TakeProfitMarket, nil
 	case strings.Contains(lowerOrderType, "take"):

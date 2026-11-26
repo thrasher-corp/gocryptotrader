@@ -141,7 +141,7 @@ func (v *websocketVenueRequests) answer(_ testing.TB, msg []byte, conn *gws.Conn
 	if req.Method == "ping" {
 		return conn.WriteMessage(gws.TextMessage, []byte(`{"channel":"pong"}`))
 	}
-	v.record(msg)
+	v.record(conn, msg)
 	switch req.Method {
 	case wsMethodSubscribe, wsMethodUnsubscribe:
 		for _, frame := range acknowledge(msg) {

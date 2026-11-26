@@ -195,9 +195,19 @@ func (e *Exchange) connectPublicWebsocket(ctx context.Context, conn websocket.Co
 	return nil
 }
 
-// connectAccountWebsocket dials the account connection. Hyperliquid's account feeds are public and keyed by address, so
-// authenticated websocket use only means this connection is up
+// connectAccountWebsocket dials the account connection once the markets its feeds' rows and fills are converted from are
+// cached. Hyperliquid's account feeds are public and keyed by address, so authenticated websocket use only means this
+// connection is up
 func (e *Exchange) connectAccountWebsocket(ctx context.Context, conn websocket.Connection) error {
+	if !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
+	if err := e.loadPairMappings(ctx); err != nil {
+		return fmt.Errorf("loading the markets of the account connection's orders and fills: %w", err)
+	}
 	if err := e.connectWebsocket(ctx, conn); err != nil {
 		return err
 	}
@@ -212,8 +222,8 @@ func (e *Exchange) connectWebsocket(ctx context.Context, connection websocket.Co
 	if !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if connection == nil {
-		return common.ErrNilPointer
+	if err := common.NilGuard(connection); err != nil {
+		return err
 	}
 	if err := connection.Dial(ctx, &gws.Dialer{HandshakeTimeout: websocketHandshakeTimeout}, http.Header{}, nil); err != nil {
 		return fmt.Errorf("dialling %s: %w", connection.GetURL(), err)

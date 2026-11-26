@@ -89,8 +89,8 @@ func TestGetSpotClearinghouseState(t *testing.T) {
 	require.NoError(t, err, "GetSpotClearinghouseState must not error")
 	if mockTests {
 		exp := &SpotClearinghouseStateResponse{Balances: []SpotBalance{
-			{Coin: currency.USDC, Total: 14.625485},
-			{Coin: currency.HYPE, Token: 150, Total: 816.67225318, Hold: 2.5, EntryNotional: 19838.88581631},
+			{Coin: currency.USDC, Token: new(uint64(0)), Total: 14.625485},
+			{Coin: currency.HYPE, Token: new(uint64(150)), Total: 816.67225318, Hold: 2.5, EntryNotional: 19838.88581631},
 		}}
 		assert.Equal(t, exp, result, "GetSpotClearinghouseState should decode the trader's balances")
 	}
@@ -100,8 +100,8 @@ func TestGetSpotClearinghouseState(t *testing.T) {
 	if mockTests {
 		exp := &SpotClearinghouseStateResponse{
 			Balances: []SpotBalance{
-				{Coin: currency.USDC, Total: 100508.11272667, Hold: 49999.89, EntryNotional: 1},
-				{Coin: currency.NewCode("USDH"), Token: 360},
+				{Coin: currency.USDC, Token: new(uint64(0)), Total: 100508.11272667, Hold: 49999.89, EntryNotional: 1},
+				{Coin: currency.NewCode("USDH"), Token: new(uint64(360))},
 			},
 			TokenToAvailableAfterMaintenance: []TokenAmount{{Amount: 100508.11272667}, {Token: 360}},
 		}
@@ -113,9 +113,9 @@ func TestGetSpotClearinghouseState(t *testing.T) {
 	if mockTests {
 		exp := &SpotClearinghouseStateResponse{
 			Balances: []SpotBalance{
-				{Coin: currency.USDC, Total: 1784747.4809165401, Hold: -3204581.7878122497, SpotHold: 585798.4557817401},
-				{Coin: currency.HYPE, Token: 150, Total: 68072.40171969},
-				{Coin: currency.NewCode("USDT0"), Token: 268, Hold: -659983.31632743},
+				{Coin: currency.USDC, Token: new(uint64(0)), Total: 1784747.4809165401, Hold: -3204581.7878122497, SpotHold: 585798.4557817401},
+				{Coin: currency.HYPE, Token: new(uint64(150)), Total: 68072.40171969},
+				{Coin: currency.NewCode("USDT0"), Token: new(uint64(268)), Hold: -659983.31632743},
 			},
 			TokenToAvailableAfterMaintenance: []TokenAmount{{Amount: 6303976.4137682496}, {Token: 150, Amount: 68072.40171969}, {Token: 268, Amount: 769085.77021597}},
 		}
@@ -126,9 +126,9 @@ func TestGetSpotClearinghouseState(t *testing.T) {
 	require.NoError(t, err, "GetSpotClearinghouseState must not error for the zero address")
 	if mockTests {
 		exp := &SpotClearinghouseStateResponse{Balances: []SpotBalance{
-			{Coin: currency.USDC, Total: 1019.97983005},
-			{Coin: currency.NewCode("PURR"), Token: 1, Total: 6.52278, EntryNotional: 1.43548571},
-			{Coin: currency.NewCode("HFUN"), Token: 2, Total: 0.01074413, EntryNotional: 1.17424847},
+			{Coin: currency.USDC, Token: new(uint64(0)), Total: 1019.97983005},
+			{Coin: currency.NewCode("PURR"), Token: new(uint64(1)), Total: 6.52278, EntryNotional: 1.43548571},
+			{Coin: currency.NewCode("HFUN"), Token: new(uint64(2)), Total: 0.01074413, EntryNotional: 1.17424847},
 		}}
 		assert.Equal(t, exp, result, "GetSpotClearinghouseState should decode the zero address's balances")
 	} else {
@@ -139,6 +139,17 @@ func TestGetSpotClearinghouseState(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSpotClearinghouseState should return the request failure")
 	_, err = newResponseServerExchange(t, `null`).GetSpotClearinghouseState(t.Context(), testTraderAddress)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetSpotClearinghouseState should reject a null response")
+
+	t.Run("outcome balance without a token index", func(t *testing.T) {
+		t.Parallel()
+		// A USDC balance with token index zero and an outcome balance with the index omitted, as Hyperliquid sends it
+		outcome, err := newResponseServerExchange(t, `{"balances":[{"coin":"USDC","token":0,"total":"77447.112238","hold":"3876.0","entryNtl":"0.0"},{"coin":"+445920","total":"478.0","hold":"0.0","entryNtl":"338.8828"}]}`).GetSpotClearinghouseState(t.Context(), testTraderAddress)
+		require.NoError(t, err, "GetSpotClearinghouseState must not error for an outcome balance")
+		require.Len(t, outcome.Balances, 2, "GetSpotClearinghouseState must decode both balances")
+		require.NotNil(t, outcome.Balances[0].Token, "GetSpotClearinghouseState must decode USDC's token index")
+		assert.Zero(t, *outcome.Balances[0].Token, "GetSpotClearinghouseState should decode USDC's token index as 0")
+		assert.Nil(t, outcome.Balances[1].Token, "GetSpotClearinghouseState should leave an outcome balance's token index unset")
+	})
 }
 
 func TestGetSpotDeployState(t *testing.T) {
