@@ -184,6 +184,40 @@ func TestSetCapacity(t *testing.T) {
 		assert.True(t, c.Contains("c"), "the next Add should retain the new entry")
 		assert.Equal(t, uint64(2), c.Len(), "Len should not exceed the new capacity")
 	})
+	for _, tc := range []struct {
+		name        string
+		capacity    uint64
+		entries     uint64
+		newCapacity uint64
+	}{
+		{name: "disable an empty cache", capacity: 3, newCapacity: 0},
+		{name: "grow an empty cache", capacity: 3, newCapacity: 7},
+		{name: "shrink a partly filled cache", capacity: 8, entries: 5, newCapacity: 2},
+		{name: "shrink a partly filled cache by one entry", capacity: 8, entries: 5, newCapacity: 4},
+		{name: "disable a partly filled cache", capacity: 8, entries: 5, newCapacity: 0},
+		{name: "grow a partly filled cache", capacity: 8, entries: 5, newCapacity: 9},
+		{name: "grow a full cache", capacity: 3, entries: 3, newCapacity: 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := New(tc.capacity)
+			for i := range tc.entries {
+				c.Add(i, i)
+			}
+			c.SetCapacity(tc.newCapacity)
+			kept := min(tc.entries, tc.newCapacity)
+			assert.Equal(t, kept, c.Len(), "SetCapacity should keep the most recent entries that fit")
+			for i := range tc.entries {
+				assert.Equalf(t, i >= tc.entries-kept, c.Contains(i), "SetCapacity should keep only the most recent entries that fit, entry %d", i)
+			}
+			c.Clear()
+			for i := range tc.newCapacity + 1 {
+				c.Add(tc.entries+i, i)
+			}
+			assert.Equal(t, tc.newCapacity, c.Len(), "Add should fill the cleared cache to the new capacity")
+		})
+	}
+
 	t.Run("concurrent reads writes and capacity changes", func(t *testing.T) {
 		t.Parallel()
 		c := New(3)
@@ -208,7 +242,7 @@ func TestSetCapacity(t *testing.T) {
 		}()
 		select {
 		case n := <-finalLen:
-			assert.LessOrEqual(t, n, uint64(1), "final resize should honour the capacity")
+			assert.Equal(t, uint64(1), n, "the final resizes should keep exactly one entry")
 		case <-time.After(5 * time.Second):
 			require.FailNow(t, "workers and the final resize must release the cache lock within 5 seconds")
 		}
