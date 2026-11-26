@@ -62,7 +62,6 @@ func newTestInstance(t *testing.T) *Exchange {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = t.Name()
 	require.NoError(t, testexch.MockHTTPInstance(ex, "api"), "MockHTTPInstance must not error")
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	return ex
 }
 

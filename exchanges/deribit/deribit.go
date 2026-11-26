@@ -521,7 +521,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, instrument string, depth in
 		params.Set("depth", strconv.FormatInt(depth, 10))
 	}
 	var resp *Orderbook
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, tickerOrderBookEPL,
 		common.EncodeURLValues(getOrderbook, params), &resp)
 }
 
@@ -536,7 +536,7 @@ func (e *Exchange) GetOrderbookByInstrumentID(ctx context.Context, instrumentID 
 		params.Set("depth", strconv.FormatFloat(depth, 'f', -1, 64))
 	}
 	var resp *Orderbook
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getOrderbookByInstrumentID, params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, tickerOrderBookEPL, common.EncodeURLValues(getOrderbookByInstrumentID, params), &resp)
 }
 
 // GetSupportedIndexNames retrieves the identifiers of all supported Price Indexes
@@ -661,7 +661,7 @@ func (e *Exchange) GetPublicTicker(ctx context.Context, instrument string) (*Tic
 		return nil, err
 	}
 	var resp *TickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getTicker, params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, tickerOrderBookEPL, common.EncodeURLValues(getTicker, params), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -677,7 +677,14 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	}{
 		Data: result,
 	}
-	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
+	limits := attemptRateLimits(epl)
+	return e.SendPayload(ctx, limits[0], func() (*request.Item, error) {
+		// The requester waits on the first limit before each attempt, and sends without limits when it has none
+		if e.Requester.GetRateLimiterDefinitions() != nil {
+			if err := e.initiateRateLimits(ctx, limits[1:]); err != nil {
+				return nil, fmt.Errorf("failed to rate limit HTTP request: %w", err)
+			}
+		}
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   endpoint + deribitAPIVersion + "/" + path,
