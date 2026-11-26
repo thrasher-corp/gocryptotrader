@@ -448,7 +448,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["Accept"] = "application/json"
 		headers["SIGN"] = sig
 		headers[sizeDecimalHeader] = "1"
-		urlPath = ePoint + urlPath
+		urlPath = joinPath(ePoint, urlPath)
 		if param != nil {
 			urlPath = common.EncodeURLValues(urlPath, param)
 		}
@@ -536,6 +536,27 @@ func decodeReply(reply json.RawMessage, result any) error {
 	return err
 }
 
+// joinPath appends path to endpoint. An endpoint ending in a slash or with a path of its own, such as a proxy route or
+// one saved with the version prefix, is used as the root of the versioned REST API, the way configured endpoints were
+// used before config version 22, so a versioned path drops its prefix there; only a bare host, the way the defaults are
+// now written, takes the prefix
+func joinPath(endpoint, path string) string {
+	versioned, ok := strings.CutPrefix(path, gateAPIVersion)
+	if !ok || isBareHost(endpoint) {
+		return endpoint + path
+	}
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	return endpoint + versioned
+}
+
+// isBareHost reports whether an endpoint is a scheme and host, with no path or trailing slash
+func isBareHost(endpoint string) bool {
+	_, rest, hasScheme := strings.Cut(endpoint, "://")
+	return hasScheme && !strings.Contains(rest, "/")
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	return e.sendUnversionedHTTPRequest(ctx, ep, epl, gateAPIVersion+path, result)
@@ -555,7 +576,7 @@ func (e *Exchange) sendPublicPostRequest(ctx context.Context, epl request.Endpoi
 	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodPost,
-			Path:                   endpoint + gateAPIVersion + path,
+			Path:                   joinPath(endpoint, gateAPIVersion+path),
 			Headers:                map[string]string{"Content-Type": "application/json", sizeDecimalHeader: "1"},
 			Body:                   bytes.NewReader(payload),
 			Result:                 &intermediary,
@@ -577,7 +598,7 @@ func (e *Exchange) sendPublicPostRequest(ctx context.Context, epl request.Endpoi
 	return responseError(result)
 }
 
-// sendUnversionedHTTPRequest sends an unauthenticated HTTP request to path, which is appended to the endpoint verbatim.
+// sendUnversionedHTTPRequest sends an unauthenticated HTTP request to path, joined to the endpoint by joinPath.
 // Endpoints outside of the versioned REST API, such as the web front-end, carry their own version prefix.
 func (e *Exchange) sendUnversionedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
@@ -588,7 +609,7 @@ func (e *Exchange) sendUnversionedHTTPRequest(ctx context.Context, ep exchange.U
 	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
-			Path:                   endpoint + path,
+			Path:                   joinPath(endpoint, path),
 			Headers:                map[string]string{sizeDecimalHeader: "1"},
 			Result:                 &intermediary,
 			Verbose:                e.Verbose,

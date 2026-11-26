@@ -183,7 +183,7 @@ func TestUnixSeconds(t *testing.T) {
 	assert.Zero(t, unixSeconds(time.Time{}), "unixSeconds should return 0 for a zero time")
 }
 
-func TestSendUnversionedHTTPRequest(t *testing.T) { //nolint:tparallel // Coded error cases share ex's server and decode target and run in order
+func TestSendUnversionedHTTPRequest(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
@@ -251,6 +251,70 @@ func TestSendUnversionedHTTPRequest(t *testing.T) { //nolint:tparallel // Coded 
 
 	err = ex.sendUnversionedHTTPRequest(t.Context(), exchange.RestUSDCMargined, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/ok", &result)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendUnversionedHTTPRequest should error on an endpoint the exchange has no URL for")
+
+	for _, tc := range []struct {
+		name, path, served string
+	}{
+		{name: "versioned path under an endpoint with a path", path: gateAPIVersion + "spot/time", served: "/gateway/spot/time"},
+		{name: "unversioned path under an endpoint with a path", path: "apiw/v2/ok", served: "/gateway/apiw/v2/ok"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			routed := newRoutedExchange(t, map[string]string{tc.served: `{"value":"routed"}`})
+			routeEndpoint(t, routed, "/gateway/")
+			var reply struct {
+				Value string `json:"value"`
+			}
+			require.NoError(t, routed.sendUnversionedHTTPRequest(t.Context(), exchange.RestSpot, publicIsolatedMarginPoolLoansEPL, tc.path, &reply), "sendUnversionedHTTPRequest must reach the path under the endpoint")
+			assert.Equal(t, "routed", reply.Value, "sendUnversionedHTTPRequest should decode the reply to the path under the endpoint")
+		})
+	}
+}
+
+func TestJoinPath(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, endpoint, path, expected string
+	}{
+		{name: "bare host", endpoint: "https://api.gateio.ws", path: "/api/v4/spot/time", expected: "https://api.gateio.ws/api/v4/spot/time"},
+		{name: "bare host with a port", endpoint: "http://localhost:8080", path: "/api/v4/spot/time", expected: "http://localhost:8080/api/v4/spot/time"},
+		{name: "host ending in a slash", endpoint: "https://proxy.example/", path: "/api/v4/spot/time", expected: "https://proxy.example/spot/time"},
+		{name: "host ending in slashes", endpoint: "http://localhost:8080//", path: "/api/v4/spot/time", expected: "http://localhost:8080//spot/time"},
+		{name: "endpoint saved with the version prefix", endpoint: "https://api.gateio.ws/api/v4/", path: "/api/v4/spot/time", expected: "https://api.gateio.ws/api/v4/spot/time"},
+		{name: "versioned proxy route without a trailing slash", endpoint: "https://proxy.example/gate-fx/api/v4", path: "/api/v4/futures/usdt/contracts", expected: "https://proxy.example/gate-fx/api/v4/futures/usdt/contracts"},
+		{name: "proxy route", endpoint: "https://proxy.example/gateway/", path: "/api/v4/spot/time", expected: "https://proxy.example/gateway/spot/time"},
+		{name: "proxy route without a trailing slash", endpoint: "https://proxy.example/gateway", path: "/api/v4/spot/time", expected: "https://proxy.example/gateway/spot/time"},
+		{name: "proxy route with a query", endpoint: "https://proxy.example/gateway/", path: "/api/v4/futures/usdt/candlesticks?contract=BTC_USDT&interval=1m", expected: "https://proxy.example/gateway/futures/usdt/candlesticks?contract=BTC_USDT&interval=1m"},
+		{name: "unversioned path", endpoint: "https://www.gate.com/apiw/v2/", path: "spot_loan/margin/margin_loan_info", expected: "https://www.gate.com/apiw/v2/spot_loan/margin/margin_loan_info"},
+		{name: "unversioned path holding the version prefix further in", endpoint: "https://www.gate.com/apiw/v2/", path: "zone/api/v4/info", expected: "https://www.gate.com/apiw/v2/zone/api/v4/info"},
+		{name: "unversioned path on a bare host", endpoint: "https://proxy.example", path: "/apiw/v2/ok", expected: "https://proxy.example/apiw/v2/ok"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, joinPath(tc.endpoint, tc.path), "joinPath should join the path to the endpoint")
+		})
+	}
+}
+
+func TestIsBareHost(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		endpoint string
+		expected bool
+	}{
+		{endpoint: "https://api.gateio.ws", expected: true},
+		{endpoint: "http://localhost:8080", expected: true},
+		{endpoint: "https://proxy.example:8443/gateway/"},
+		{endpoint: "https://proxy.example/"},
+		{endpoint: "https://proxy.example/gateway"},
+		{endpoint: "https://api.gateio.ws/api/v4/"},
+		{endpoint: "api.gateio.ws"},
+	} {
+		t.Run(tc.endpoint, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isBareHost(tc.endpoint), "isBareHost should report whether the endpoint is a scheme and host alone")
+		})
+	}
 }
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -263,6 +327,17 @@ func TestSendHTTPRequest(t *testing.T) {
 		require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, publicGetServerTimeEPL, "spot/time", &resp), "SendHTTPRequest must not error")
 		assert.Equal(t, time.UnixMilli(1774386128160), resp.ServerTime.Time(), "SendHTTPRequest should decode the reply to the path under the API version")
 	})
+
+	for _, route := range []string{"/gateway/", "/api/v4/", "/"} {
+		t.Run("endpoint with the path "+route, func(t *testing.T) {
+			t.Parallel()
+			ex := newRoutedExchange(t, map[string]string{route + "spot/time": `{"server_time":1774386128160}`})
+			routeEndpoint(t, ex, route)
+			var resp serverTimeReply
+			require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpot, publicGetServerTimeEPL, "spot/time", &resp), "SendHTTPRequest must not error")
+			assert.Equal(t, time.UnixMilli(1774386128160), resp.ServerTime.Time(), "SendHTTPRequest should decode the reply to the path under the endpoint")
+		})
+	}
 
 	t.Run("endpoint without a URL", func(t *testing.T) {
 		t.Parallel()
@@ -347,6 +422,18 @@ func TestSendPublicPostRequest(t *testing.T) {
 	unset.API.Endpoints = unset.NewEndpoints()
 	err = unset.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "ok", body, &result)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendPublicPostRequest should error without a REST URL")
+
+	t.Run("endpoint with a path", func(t *testing.T) {
+		t.Parallel()
+		ex := newRoutedExchange(t, map[string]string{"/gateway/ok": `[{"contract":"BTC_USDT"}]`})
+		routeEndpoint(t, ex, "/gateway/")
+		var routed []struct {
+			Contract string `json:"contract"`
+		}
+		require.NoError(t, ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "ok", body, &routed), "sendPublicPostRequest must not error")
+		require.Len(t, routed, 1, "sendPublicPostRequest must decode the reply to the path under the endpoint")
+		assert.Equal(t, "BTC_USDT", routed[0].Contract, "sendPublicPostRequest should decode the reply to the path under the endpoint")
+	})
 }
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
@@ -410,6 +497,31 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should fail an empty reply when it expects a result")
 	err = noContent.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "stray-body", nil, nil, nil)
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should fail a reply marked empty that carries a body")
+
+	t.Run("endpoint with a path", func(t *testing.T) {
+		t.Parallel()
+		routed := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			// The route forwards to Gate's versioned API, so the signature covers Gate's path, not the route's
+			timestamp, err := strconv.ParseInt(r.Header.Get("TIMESTAMP"), 10, 64)
+			assert.NoError(t, err, "TIMESTAMP header should hold the signing time")
+			sig, err := new(Exchange).GenerateSignature("mock-api-secret", r.Method, "/api/v4/ok", r.URL.RawQuery, nil, time.Unix(timestamp, 0))
+			assert.NoError(t, err, "GenerateSignature should not error")
+			if r.URL.Path != "/gateway/ok" || r.URL.RawQuery != "currency=BTC" || r.Header.Get("SIGN") != sig {
+				w.WriteHeader(http.StatusNotFound)
+				_, err = fmt.Fprint(w, `{"label":"NOT_FOUND","message":""}`)
+				assert.NoError(t, err, "writing the response should not error")
+				return
+			}
+			_, err = fmt.Fprint(w, `{"value":"pool"}`)
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		routeEndpoint(t, routed, "/gateway/")
+		var reply struct {
+			Value string `json:"value"`
+		}
+		require.NoError(t, routed.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "ok", url.Values{"currency": {"BTC"}}, nil, &reply), "SendAuthenticatedHTTPRequest must reach the path under the endpoint, signed for Gate's path")
+		assert.Equal(t, "pool", reply.Value, "SendAuthenticatedHTTPRequest should decode the response")
+	})
 }
 
 func TestDecodeReply(t *testing.T) {
@@ -508,6 +620,15 @@ func newServedExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(u.String(), server.URL), "SetRunningURL must not error")
 	}
 	return ex
+}
+
+// routeEndpoint moves the exchange's spot REST endpoint to a path on its server, as a proxy route forwarding to Gate's
+// versioned API would be configured
+func routeEndpoint(t *testing.T, ex *Exchange, path string) {
+	t.Helper()
+	host, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), host+path), "SetRunningURL must not error")
 }
 
 // newTestExchange returns a new instance set up on the shared exchange's endpoints, as a live run against the testnet

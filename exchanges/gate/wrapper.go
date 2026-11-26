@@ -356,15 +356,17 @@ var testnetEndpoints = []struct {
 	{kind: exchange.WebsocketOptions, production: optionsWebsocketURL, testnet: optionsWebsocketTestnetURL},
 }
 
-// useTestnetEndpoints moves every endpoint still at its production default to Gate's testnet, so useSandbox needs no
-// endpoint configuration, while an endpoint the config sets to anything else is kept as configured
+// useTestnetEndpoints moves each endpoint in testnetEndpoints still at its production default, with or without trailing
+// slashes, or at the versioned API that default addresses, to Gate's testnet, so useSandbox needs no endpoint
+// configuration, while an endpoint the config sets to anything else is kept as configured
 func (e *Exchange) useTestnetEndpoints() error {
 	for _, endpoint := range testnetEndpoints {
 		running, err := e.API.Endpoints.GetURL(endpoint.kind)
 		if err != nil {
 			return err
 		}
-		if strings.TrimRight(running, "/") != strings.TrimRight(endpoint.production, "/") {
+		if strings.TrimRight(running, "/") != strings.TrimRight(endpoint.production, "/") &&
+			joinPath(running, gateAPIVersion) != joinPath(endpoint.production, gateAPIVersion) {
 			continue
 		}
 		if err := e.API.Endpoints.SetRunningURL(endpoint.kind.String(), endpoint.testnet); err != nil {

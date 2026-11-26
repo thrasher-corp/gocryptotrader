@@ -595,6 +595,46 @@ func TestAddIsolatedMarginAccountBalance(t *testing.T) {
 func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 	t.Parallel()
 
+	ex := setupFromVersion21Endpoints(t, map[string]any{
+		"RestSpotURL":              "https://api.gateio.ws/api/v4/",
+		"RestFuturesURL":           "https://fx-api.gateio.ws/api/v4/",
+		"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
+		"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
+	})
+	for ep, exp := range map[exchange.URL]string{
+		exchange.RestSpot:              gateTradeURL,
+		exchange.RestFutures:           gateFuturesLiveTradingAlternative,
+		exchange.RestSpotSupplementary: gateFuturesTestnetTrading,
+	} {
+		got, err := ex.API.Endpoints.GetURL(ep)
+		require.NoErrorf(t, err, "GetURL must not error for %s", ep)
+		assert.Equalf(t, exp, got, "%s should use the default endpoint after the upgrade", ep)
+	}
+
+	t.Run("custom endpoint with a path", func(t *testing.T) {
+		t.Parallel()
+		// A proxy route forwarding to Gate's versioned API, as version 21 endpoints address it
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/gateway/spot/time" {
+				http.NotFound(w, r)
+				return
+			}
+			_, err := fmt.Fprint(w, `{"server_time":1774386128160}`)
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		client := server.Client()
+		routed := setupFromVersion21Endpoints(t, map[string]any{"RestSpotURL": server.URL + "/gateway/"})
+		require.NoError(t, routed.SetHTTPClient(client), "SetHTTPClient must not error")
+		serverTime, err := routed.GetServerTime(t.Context(), asset.Spot)
+		require.NoError(t, err, "GetServerTime must reach the route a version 21 config sets")
+		assert.Equal(t, time.UnixMilli(1774386128160), serverTime, "GetServerTime should decode the route's reply")
+	})
+}
+
+// setupFromVersion21Endpoints loads a version 21 config whose GateIO exchange has the given endpoints through the config
+// loader, and sets up an exchange from the upgraded config
+func setupFromVersion21Endpoints(t *testing.T, endpoints map[string]any) *Exchange {
+	t.Helper()
 	root, err := testutils.RootPathFromCWD()
 	require.NoError(t, err, "RootPathFromCWD must not error")
 	raw, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
@@ -615,12 +655,7 @@ func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 		exch["name"] = "GateIO"
 		api, ok := exch["api"].(map[string]any)
 		require.True(t, ok, "Gate api config must be an object")
-		api["urlEndpoints"] = map[string]any{
-			"RestSpotURL":              "https://api.gateio.ws/api/v4/",
-			"RestFuturesURL":           "https://fx-api.gateio.ws/api/v4/",
-			"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
-			"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
-		}
+		api["urlEndpoints"] = endpoints
 		found = true
 	}
 	require.True(t, found, "config must hold a Gate exchange")
@@ -637,15 +672,7 @@ func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
-	for ep, exp := range map[exchange.URL]string{
-		exchange.RestSpot:              gateTradeURL,
-		exchange.RestFutures:           gateFuturesLiveTradingAlternative,
-		exchange.RestSpotSupplementary: gateFuturesTestnetTrading,
-	} {
-		got, err := ex.API.Endpoints.GetURL(ep)
-		require.NoErrorf(t, err, "GetURL must not error for %s", ep)
-		assert.Equalf(t, exp, got, "%s should use the default endpoint after the upgrade", ep)
-	}
+	return ex
 }
 
 func TestSpotOrderAsset(t *testing.T) {
@@ -1038,6 +1065,20 @@ func TestUseTestnetEndpoints(t *testing.T) {
 		{
 			name:       "a default differing only by a trailing slash moves",
 			configured: map[exchange.URL]string{exchange.RestSpot: gateTradeURL + "/", exchange.WebsocketSpot: "wss://api.gateio.ws/ws/v4"},
+		},
+		{
+			name:       "a default addressed through its versioned API moves",
+			configured: map[exchange.URL]string{exchange.RestSpot: "https://api.gateio.ws/api/v4", exchange.RestFutures: "https://fx-api.gateio.ws/api/v4/"},
+		},
+		{
+			name:       "a configured route is kept",
+			configured: map[exchange.URL]string{exchange.RestSpot: "https://gate-proxy.example.com/gateway/"},
+			kept:       map[exchange.URL]string{exchange.RestSpot: "https://gate-proxy.example.com/gateway/"},
+		},
+		{
+			name:       "a configured path on the production host is kept",
+			configured: map[exchange.URL]string{exchange.RestSpot: "https://api.gateio.ws/tenant/", exchange.RestFutures: "https://fx-api.gateio.ws/tenant"},
+			kept:       map[exchange.URL]string{exchange.RestSpot: "https://api.gateio.ws/tenant/", exchange.RestFutures: "https://fx-api.gateio.ws/tenant"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

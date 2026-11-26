@@ -53,9 +53,9 @@ func TestUpgradeExchange(t *testing.T) {
 			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 		{
-			name: "custom endpoints lose the version prefix",
+			name: "custom endpoints with the version prefix are kept",
 			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
 		},
 		{
 			name: "custom endpoints without the prefix are kept",
@@ -96,7 +96,7 @@ func TestDowngradeExchange(t *testing.T) {
 				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
 				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
 				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
 			})
 		}
 	})
@@ -125,9 +125,19 @@ func TestDowngradeExchange(t *testing.T) {
 			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 		{
-			name: "custom endpoints regain the version prefix",
+			name: "a custom bare host regains the version prefix and a custom path gains a final slash",
 			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
+		},
+		{
+			name: "custom paths over http or ending in the version prefix gain a final slash",
+			in:   `{"RestSpotURL":"http://localhost:8080/gateway","RestFuturesURL":"https://proxy.example/gate-fx/api/v4"}`,
+			exp:  `{"RestSpotURL":"http://localhost:8080/gateway/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/"}`,
+		},
+		{
+			name: "a custom bare host with a port regains the version prefix and a host ending in a slash is kept",
+			in:   `{"RestSpotURL":"https://proxy.example:8443","RestFuturesURL":"https://proxy.example/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example:8443/api/v4/","RestFuturesURL":"https://proxy.example/"}`,
 		},
 		{
 			name: "endpoints already carrying the prefix and placeholders are kept",
@@ -150,10 +160,15 @@ func TestDowngradeExchange(t *testing.T) {
 // TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
 func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`)
-	up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error")
-	down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+	for _, endpoint := range []string{"https://proxy.example/gate/api/v4/", "https://proxy.example/gateway/", "https://proxy.example/"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+			in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"` + endpoint + `"}}}`)
+			up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+		})
+	}
 }

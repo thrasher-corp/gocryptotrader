@@ -1,6 +1,7 @@
 package v22
 
 import (
+	"cmp"
 	"testing"
 
 	"github.com/buger/jsonparser"
@@ -27,6 +28,32 @@ func TestIsGateIO(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, tc.expected, isGateIO([]byte(tc.config)), "isGateIO should match only GateIO's name, in any case")
+		})
+	}
+}
+
+func TestIsBareHost(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		endpoint string
+		expected bool
+	}{
+		{endpoint: "https://proxy.example", expected: true},
+		{endpoint: "https://proxy.example:8443", expected: true},
+		{endpoint: "http://localhost:8080", expected: true},
+		{endpoint: "https://proxy.example:8443/gateway/"},
+		{endpoint: "https://proxy.example/"},
+		{endpoint: "https://proxy.example//"},
+		{endpoint: "https://proxy.example/gateway"},
+		{endpoint: "https://proxy.example/gateway/"},
+		{endpoint: "https://proxy.example/gate/api/v4/"},
+		{endpoint: "proxy.example"},
+		{endpoint: "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"},
+		{endpoint: ""},
+	} {
+		t.Run(cmp.Or(tc.endpoint, "empty endpoint"), func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isBareHost(tc.endpoint), "isBareHost should report whether the endpoint is a scheme and host alone")
 		})
 	}
 }

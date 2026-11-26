@@ -1647,10 +1647,10 @@ func TestReadVersion21GateIOEndpointsConfigFromFile(t *testing.T) {
 			require.NoError(t, err, "GetExchangeConfig must find GateIO under its new name, Gate")
 			assert.Equal(t, "Gate", exch.Name, "ReadConfigFromFile should rename GateIO to Gate whatever its case")
 			assert.Equal(t, map[string]string{
-				"RestFuturesURL":           "https://proxy.example/gate-fx",
+				"RestFuturesURL":           "https://proxy.example/gate-fx/api/v4/",
 				"RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
 				"WebsocketSpotURL":         "wss://api.gateio.ws/ws/v4/",
-			}, exch.API.Endpoints, "ReadConfigFromFile should drop the old spot default and strip the version prefix from the custom endpoint")
+			}, exch.API.Endpoints, "ReadConfigFromFile should drop the old spot default and keep the custom endpoint")
 		})
 	}
 }

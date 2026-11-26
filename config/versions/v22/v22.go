@@ -1,4 +1,5 @@
-// Package v22 moves GateIO's REST API version prefix out of its configured endpoints and into its request paths.
+// Package v22 replaces GateIO's old default REST endpoints, which carried the API version prefix that GateIO now adds
+// to a bare host.
 package v22
 
 import (
@@ -10,14 +11,10 @@ import (
 	"github.com/buger/jsonparser"
 )
 
-// Version is an ExchangeVersion for GateIO REST endpoints, which no longer carry the API version prefix
+// Version is an ExchangeVersion for GateIO's default REST endpoints, which no longer carry the API version prefix
 type Version struct{}
 
-const (
-	apiVersionPrefix = "/api/v4"
-	// nonDefaultPlaceholder marks an endpoint the user has not configured, which the exchange skips
-	nonDefaultPlaceholder = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-)
+const apiVersionPrefix = "/api/v4"
 
 // endpoint is a GateIO REST endpoint key with its default before and after this version
 type endpoint struct {
@@ -34,12 +31,13 @@ var endpoints = []endpoint{
 	{key: "RestSpotSupplementaryURL", oldDefault: "https://fx-api-testnet.gateio.ws", newDefault: "https://fx-api-testnet.gateio.ws"},
 }
 
-// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts GateIO's in
-// any case; UpgradeExchange and DowngradeExchange pick out GateIO themselves
+// Exchanges returns every exchange; UpgradeExchange and DowngradeExchange pick out GateIO themselves, matching its name
+// in any case as the engine does
 func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange removes the old default endpoints, so the new defaults apply, and strips the version prefix from
-// custom endpoints, since GateIO now adds it to every request path
+// UpgradeExchange removes the old default endpoints, so the new defaults apply. Custom endpoints are kept, as GateIO
+// still uses an endpoint ending in a slash or with a path as the root of the versioned API, as earlier versions use every
+// endpoint
 func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if !isGateIO(e) {
 		return e, nil
@@ -52,23 +50,16 @@ func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 		if err != nil {
 			return e, err
 		}
-		if url == ep.oldDefault {
-			if ep.oldDefault != ep.newDefault {
-				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
-			}
-			continue
-		}
-		if base := strings.TrimSuffix(url, "/"); strings.HasSuffix(base, apiVersionPrefix) {
-			if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(base, apiVersionPrefix)); err != nil {
-				return e, err
-			}
+		if url == ep.oldDefault && ep.oldDefault != ep.newDefault {
+			e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
 		}
 	}
 	return e, nil
 }
 
-// DowngradeExchange removes the new default endpoints, so the old defaults apply, and restores the version prefix to
-// custom endpoints, since earlier versions expect each endpoint to carry it
+// DowngradeExchange removes the new default endpoints, so the old defaults apply. It adds the version prefix to a custom
+// bare host and a final slash to a custom endpoint with a path, since earlier versions append each request's path to
+// the endpoint as written
 func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	if !isGateIO(e) {
 		return e, nil
@@ -87,14 +78,27 @@ func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 			}
 			continue
 		}
-		if url == "" || url == nonDefaultPlaceholder || strings.HasSuffix(strings.TrimSuffix(url, "/"), apiVersionPrefix) {
+		switch {
+		case isBareHost(url):
+			url += apiVersionPrefix + "/"
+		case strings.Contains(url, "://") && !strings.HasSuffix(url, "/"):
+			url += "/"
+		default:
 			continue
 		}
-		if e, err = setEndpoint(e, ep.key, strings.TrimSuffix(url, "/")+apiVersionPrefix+"/"); err != nil {
+		if e, err = setEndpoint(e, ep.key, url); err != nil {
 			return e, err
 		}
 	}
 	return e, nil
+}
+
+// isBareHost reports whether an endpoint is a scheme and host, with no path or trailing slash, which GateIO now prefixes
+// with the API version while earlier versions use any other endpoint as written. It is a local copy of Gate's check, so
+// a later change to Gate's leaves this migration as it is
+func isBareHost(endpoint string) bool {
+	_, rest, hasScheme := strings.Cut(endpoint, "://")
+	return hasScheme && !strings.Contains(rest, "/")
 }
 
 // isGateIO reports whether an exchange config is GateIO's, matching its name in any case
