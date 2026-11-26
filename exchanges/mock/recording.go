@@ -463,6 +463,7 @@ var defaultExcludedHeaders = []string{
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
 	"X-Bx-Apikey",
+	"X-Auth",
 }
 
 var defaultExcludedVariables = []string{

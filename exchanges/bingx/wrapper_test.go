@@ -58,8 +58,6 @@ func newWrapperTestExchange(t *testing.T) *Exchange {
 	ex.Name = t.Name()
 	if mockTests {
 		require.NoError(t, testexch.MockHTTPInstance(ex), "MockHTTPInstance must not error")
-		// Mock responses are served locally, so throttling protects nothing
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 		ex.API.AuthenticatedSupport = true
 		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	} else {
