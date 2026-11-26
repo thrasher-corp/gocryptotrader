@@ -263,6 +263,58 @@ func TestSkipLiveIfSecurityKeyChallenged(t *testing.T) {
 	}
 }
 
+// errorCodeMethodSwitchedOff is the code of method_switched_off_by_admin, with which Deribit answers every request for a
+// method it has switched off for a time
+const errorCodeMethodSwitchedOff = 13025
+
+// skipLiveIfSwitchedOff skips a live case whose method Deribit has switched off for a time, as no request for it can
+// succeed until Deribit switches it back on
+func skipLiveIfSwitchedOff(t *testing.T, err error) {
+	t.Helper()
+	var apiErr *APIError
+	if errors.As(err, &apiErr) && apiErr.Code == errorCodeMethodSwitchedOff {
+		t.Skip("Deribit has temporarily switched off this method")
+	}
+}
+
+func TestSkipLiveIfSwitchedOff(t *testing.T) {
+	t.Parallel()
+	switchedOffBody := `{"jsonrpc":"2.0","error":{"code":13025,"message":"method_switched_off_by_admin"},"testnet":false}`
+	switchedOff := &APIError{Code: errorCodeMethodSwitchedOff, Message: "method_switched_off_by_admin"}
+	rateLimited := &APIError{Code: 10028, Message: "too_many_requests"}
+	badStatus := fmt.Errorf("Deribit %w: 503 raw response: unavailable", request.ErrBadStatus)
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(switchedOffBody))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	_, restErr := ex.GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+	require.Error(t, restErr, "GetLastSettlementsByCurrency must return Deribit's refusal")
+	for _, tc := range []struct {
+		name    string
+		err     error
+		skipped bool
+	}{
+		{name: "answered"},
+		{name: "switched off over public REST", err: restErr, skipped: true},
+		{name: "switched off over the websocket", err: switchedOff, skipped: true},
+		{name: "switched off over authenticated REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, switchedOff), skipped: true},
+		{name: "rate limited", err: rateLimited},
+		{name: "rate limited over authenticated REST", err: fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, rateLimited)},
+		{name: "request failure", err: badStatus},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var skipped bool
+			t.Run("live case", func(t *testing.T) {
+				defer func() { skipped = t.Skipped() }()
+				skipLiveIfSwitchedOff(t, tc.err)
+			})
+			assert.Equal(t, tc.skipped, skipped, "skipLiveIfSwitchedOff should skip a live case only when Deribit has switched its method off")
+		})
+	}
+}
+
 // requestRefusalCodes are the codes of Deribit's errors that refuse or fail a request itself rather than answer what it
 // asks for, such as those for a malformed request, an unknown method, refused credentials, a rate limit or an outage.
 // Any other refusal is an answer, as a request naming nothing that exists or another account's user or resource draws

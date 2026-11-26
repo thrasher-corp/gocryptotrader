@@ -274,31 +274,61 @@ func TestWebsocketAPIGetInstruments(t *testing.T) {
 
 func TestWebsocketAPIGetLastSettlementsByCurrency(t *testing.T) {
 	t.Parallel()
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
-	require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testLastDeliveries(), result, "WebsocketAPI.GetLastSettlementsByCurrency should decode every field")
-	} else {
-		assert.Len(t, result.Settlements, 3, "WebsocketAPI.GetLastSettlementsByCurrency should return the deliveries requested")
-	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+		skipLiveIfSwitchedOff(t, err)
+		require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByCurrency must not error")
+		assert.Len(t, result.Settlements, 3, "WebsocketAPI.GetLastSettlementsByCurrency should return the deliveries requested")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+		require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByCurrency must not error")
+		assert.Equal(t, testLastDeliveries(), result, "WebsocketAPI.GetLastSettlementsByCurrency should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetLastSettlementsByCurrency should error without a websocket connection")
 }
 
 func TestWebsocketAPIGetLastSettlementsByInstrument(t *testing.T) {
 	t.Parallel()
-	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
-	require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testPerpetualLastSettlements(), result, "WebsocketAPI.GetLastSettlementsByInstrument should decode every field")
-	} else {
-		assert.Len(t, result.Settlements, 2, "WebsocketAPI.GetLastSettlementsByInstrument should return the settlements requested")
-	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
+		skipLiveIfSwitchedOff(t, err)
+		require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByInstrument must not error")
+		assert.Len(t, result.Settlements, 2, "WebsocketAPI.GetLastSettlementsByInstrument should return the settlements requested")
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		ex, _ := newWebsocketTestExchange(t)
+		result, err := ex.WebsocketAPI().GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
+		require.NoError(t, err, "WebsocketAPI.GetLastSettlementsByInstrument must not error")
+		assert.Equal(t, testPerpetualLastSettlements(), result, "WebsocketAPI.GetLastSettlementsByInstrument should decode every field")
+	})
+
+	_, err := newTestExchange(t).WebsocketAPI().GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.GetLastSettlementsByInstrument should error without a websocket connection")
 }
 

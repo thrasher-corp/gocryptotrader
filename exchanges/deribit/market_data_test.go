@@ -1425,13 +1425,26 @@ func TestGetLastSettlementsByCurrency(t *testing.T) {
 	_, err = e.GetLastSettlementsByCurrency(t.Context(), &LastSettlementsByCurrencyRequest{Currency: currency.BTC, Type: "exercise"})
 	require.ErrorIs(t, err, errInvalidLastSettlementsType, "GetLastSettlementsByCurrency must reject a type Deribit does not filter by")
 
-	result, err := e.GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
-	require.NoError(t, err, "GetLastSettlementsByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testLastDeliveries(), result, "GetLastSettlementsByCurrency should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		result, err := e.GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+		skipLiveIfSwitchedOff(t, err)
+		require.NoError(t, err, "GetLastSettlementsByCurrency must not error")
 		assert.Len(t, result.Settlements, 3, "GetLastSettlementsByCurrency should return the deliveries requested")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
+		require.NoError(t, err, "GetLastSettlementsByCurrency must not error")
+		assert.Equal(t, testLastDeliveries(), result, "GetLastSettlementsByCurrency should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLastSettlementsByCurrency(t.Context(), testLastSettlementsByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLastSettlementsByCurrency should reject a null result")
@@ -1482,13 +1495,26 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 	_, err = e.GetLastSettlementsByInstrument(t.Context(), &LastSettlementsByInstrumentRequest{InstrumentName: marketDataPerpetual, Type: "funding"})
 	require.ErrorIs(t, err, errInvalidLastSettlementsType, "GetLastSettlementsByInstrument must reject a type Deribit does not filter by")
 
-	result, err := e.GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
-	require.NoError(t, err, "GetLastSettlementsByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testPerpetualLastSettlements(), result, "GetLastSettlementsByInstrument should decode every field")
-	} else {
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if mockTests {
+			t.Skip("the mocked case below checks the recorded replies")
+		}
+		result, err := e.GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
+		skipLiveIfSwitchedOff(t, err)
+		require.NoError(t, err, "GetLastSettlementsByInstrument must not error")
 		assert.Len(t, result.Settlements, 2, "GetLastSettlementsByInstrument should return the settlements requested")
-	}
+	})
+
+	t.Run("mocked", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the recorded replies are checked in mock mode")
+		}
+		result, err := e.GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
+		require.NoError(t, err, "GetLastSettlementsByInstrument must not error")
+		assert.Equal(t, testPerpetualLastSettlements(), result, "GetLastSettlementsByInstrument should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLastSettlementsByInstrument(t.Context(), testLastSettlementsByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLastSettlementsByInstrument should reject a null result")
