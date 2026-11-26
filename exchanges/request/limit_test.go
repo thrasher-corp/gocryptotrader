@@ -451,6 +451,152 @@ func TestRateLimit(t *testing.T) {
 				"admission with a deadline should wait for one token")
 		})
 	})
+
+	t.Run("cancelled wait releases its reservations", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			shared := NewRateLimit(time.Second, 1)
+			single, triple := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, 3)
+			start := time.Now()
+			require.NoError(t, single.RateLimit(t.Context()), "initial call must not error")
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			errs := make(chan error, 1)
+			go func() { errs <- triple.RateLimit(ctx) }()
+			synctest.Wait()
+			time.Sleep(730 * time.Millisecond)
+
+			// A later waiter's reservation moves the limiter's clock past the weighted call's reservation time (tn in
+			// RateLimit). Cancelling it first leaves the weighted call's reservations last in line, so cancelling those
+			// at tn would wind the clock back.
+			laterCtx, cancelLater := context.WithCancel(t.Context())
+			defer cancelLater()
+			laterErrs := make(chan error, 1)
+			go func() { laterErrs <- single.RateLimit(laterCtx) }()
+			synctest.Wait()
+			cancelLater()
+			select {
+			case err := <-laterErrs:
+				require.ErrorIs(t, err, context.Canceled, "cancelled later call must report cancellation")
+			case <-time.After(time.Minute):
+				require.FailNow(t, "cancelled later call must return within a minute")
+			}
+			cancel()
+			select {
+			case err := <-errs:
+				require.ErrorIs(t, err, context.Canceled, "cancelled call must report cancellation")
+			case <-time.After(time.Minute):
+				require.FailNow(t, "cancelled call must return within a minute")
+			}
+
+			require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+			assert.InDelta(t, time.Second, time.Since(start), float64(time.Millisecond),
+				"follow-up call should be admitted one token period after the initial call")
+		})
+	})
+
+	for _, tc := range []struct {
+		name     string
+		interval time.Duration
+		queued   Weight
+		weight   Weight
+		startAt  time.Duration
+		cancelAt time.Duration
+		deadline time.Duration
+		cause    error
+		admitAt  time.Duration
+	}{
+		{
+			name:     "cancelled wait releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "cancelled wait with more reservations pending than spent releases them all",
+			interval: time.Second, weight: 6, cancelAt: 1500 * time.Millisecond,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "cancelled wait queued behind another caller releases all its reservations",
+			interval: time.Second, queued: 2, weight: 2, cancelAt: 1500 * time.Millisecond,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "cancelled wait on a faster limiter releases the reservations still pending",
+			interval: 500 * time.Millisecond, weight: 6, cancelAt: 750 * time.Millisecond,
+			admitAt: time.Second,
+		},
+		{
+			name:     "wait cancelled shortly before its last reservation is due releases it",
+			interval: time.Second, weight: 3, cancelAt: 1750 * time.Millisecond,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "wait cancelled before its deadline releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, deadline: 2 * time.Second,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "wait cancelled with a timeout cause releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, cause: context.DeadlineExceeded,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "wait cancelled with a timeout cause before its deadline releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, deadline: 2500 * time.Millisecond,
+			cause: context.DeadlineExceeded, admitAt: 2 * time.Second,
+		},
+		{
+			name:     "wait cancelled with another cause releases the reservations still pending",
+			interval: time.Second, weight: 3, cancelAt: 1500 * time.Millisecond, cause: assert.AnError,
+			admitAt: 2 * time.Second,
+		},
+		{
+			name:     "cancelled wait shorter than one token interval releases its reservation",
+			interval: time.Second, queued: 1, weight: 1, startAt: 250 * time.Millisecond, cancelAt: 500 * time.Millisecond,
+			admitAt: time.Second,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) {
+				shared := NewRateLimit(tc.interval, 1)
+				single, weighted := GetRateLimiterWithWeight(shared, 1), GetRateLimiterWithWeight(shared, tc.weight)
+				start := time.Now()
+				for range tc.queued {
+					shared.ReserveN(start, 1)
+				}
+
+				ctx, cancel := context.WithCancelCause(t.Context())
+				defer cancel(nil)
+				if tc.deadline != 0 {
+					var cancelDeadline context.CancelFunc
+					ctx, cancelDeadline = context.WithTimeout(ctx, tc.deadline)
+					defer cancelDeadline()
+				}
+				// The weighted call reserves one token per interval after any queued ones, and every row cancels it
+				// while at least one of them is still pending.
+				time.AfterFunc(tc.cancelAt, func() { cancel(tc.cause) })
+				time.Sleep(tc.startAt)
+				errs := make(chan error, 1)
+				go func() { errs <- weighted.RateLimit(ctx) }()
+				select {
+				case err := <-errs:
+					require.ErrorIs(t, err, context.Canceled, "cancelled call must report cancellation")
+					assert.Equal(t, tc.cancelAt, time.Since(start), "call should return when cancelled")
+				case <-time.After(time.Minute):
+					require.FailNow(t, "cancelled call must return within a minute")
+				}
+
+				require.NoError(t, single.RateLimit(t.Context()), "follow-up call must not error")
+				assert.Equal(t, tc.admitAt, time.Since(start),
+					"follow-up call should be admitted when the cancelled call's first pending reservation was due")
+			})
+		})
+	}
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {
@@ -575,19 +721,29 @@ func TestRateLimitBarrier(t *testing.T) {
 
 	t.Run("acceptance retains final reservations", func(t *testing.T) {
 		t.Parallel()
-		contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
-		require.NoError(t, err)
-		left := NewRateLimitWithWeight(time.Hour, 1, 1)
-		right := NewRateLimitWithWeight(time.Hour, 1, 1)
-		errs := make(chan error, 2)
-		go func() { errs <- left.RateLimit(contexts[0]) }()
-		go func() { errs <- right.RateLimit(contexts[1]) }()
-		require.NoError(t, <-errs)
-		require.NoError(t, <-errs)
-		require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
-		require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
-			"accepted participant must retain its reservation")
+		synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+			contexts, err := NewRateLimitBarrierContexts(WithDelayNotAllowed(t.Context()), 2)
+			require.NoError(t, err)
+			left := NewRateLimitWithWeight(time.Hour, 1, 1)
+			right := NewRateLimitWithWeight(time.Hour, 1, 1)
+			errs := make(chan error, 2)
+			go func() { errs <- left.RateLimit(contexts[0]) }()
+			go func() { errs <- right.RateLimit(contexts[1]) }()
+			for range 2 {
+				select {
+				case err := <-errs:
+					require.NoError(t, err, "barrier participant must be admitted")
+				case <-time.After(time.Minute):
+					require.FailNow(t, "barrier participant must return within a minute")
+				}
+			}
+			// On the fake clock, a call that waits out the hour instead of being
+			// refused fails at once rather than hanging until go test times out.
+			require.ErrorIs(t, left.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+			require.ErrorIs(t, right.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed,
+				"accepted participant must retain its reservation")
+		})
 	})
 
 	t.Run("one delayed rejects both and restores reservations", func(t *testing.T) {
@@ -1266,6 +1422,19 @@ func TestInitiateRateLimit(t *testing.T) {
 	r.limiter = NewBasicRateLimit(time.Second, 10, 1)
 	err = r.InitiateRateLimit(t.Context(), Unset)
 	assert.NoError(t, err, "should not error on valid rate limit initiation")
+
+	t.Run("disabled limiter refuses an endpoint without a limiter", func(t *testing.T) {
+		t.Parallel()
+		r := &Requester{limiter: RateLimitDefinitions{Unset: NewRateLimitWithWeight(time.Second, 10, 1), Auth: nil}}
+		r.disableRateLimiter.Store(true)
+		require.NoError(t, r.InitiateRateLimit(t.Context(), Unset), "InitiateRateLimit must not error for an endpoint with a limiter")
+		assert.ErrorIs(t, r.InitiateRateLimit(t.Context(), Auth), common.ErrNilPointer, "InitiateRateLimit should refuse an endpoint whose limiter is nil")
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		contexts, err := NewRateLimitBarrierContexts(ctx, 2)
+		require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+		assert.ErrorIs(t, r.InitiateRateLimit(contexts[0], EndpointLimit(99)), common.ErrNilPointer, "InitiateRateLimit should refuse an endpoint without a limiter before joining its barrier")
+	})
 }
 
 // reserveAt reserves a request of its definition's weight at now as RateLimit does, and returns when it is sent and

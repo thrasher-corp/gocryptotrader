@@ -888,6 +888,38 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
+
+	t.Run("connection subscription limit overrides manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+			MaxSubscriptions: 2,
+			Connector:        func(context.Context, Connection) error { return errConnectionFault },
+		}}
+		err := m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		assert.ErrorIs(t, err, errConnectionFault, "should allow a larger connection limit and reach the connector")
+
+		m.MaxSubscriptionsPerConnection = 0
+		ws.setup.MaxSubscriptions = 1
+		err = m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding the connection limit")
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce the connection limit when the manager has none")
+	})
+
+	t.Run("connection subscription limit below manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.useMultiConnectionManagement = true
+		m.MaxSubscriptionsPerConnection = 4
+		ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+			MaxSubscriptions: 1,
+			Connector:        func(context.Context, Connection) error { return errConnectionFault },
+		}}
+		err := m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding a connection limit below the manager's")
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce a connection limit below the manager's")
+	})
 }
 
 // newConnectionCountingServer returns a mock server URL and dialer, along with the number of websocket connections the
@@ -906,7 +938,8 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 // TestConnect drives connect, which Connect calls holding the manager's lock, through the paths the other connect tests
 // leave: a single connection without a connector or whose subscriptions fail, setups that generate nothing, need no
 // subscriptions or have their subscriptions tracked on a connection, with verbose logging, a tracking error before and
-// after batching, and a rollback in which a connection fails to shut down
+// after batching, a rollback in which a connection fails to shut down, and setups batched by their own subscription
+// limits
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
@@ -1041,6 +1074,78 @@ func TestConnect(t *testing.T) {
 		assert.Zero(t, stale.subscriptions.Len(), "connect should clear a rolled back connection's subscriptions")
 		assert.Empty(t, m.connections, "connect should forget every connection when rolling back")
 		assert.Equal(t, disconnectedState, m.state.Load(), "connect should leave the websocket disconnected after rolling back")
+	})
+
+	t.Run("batches each connection setup by its own subscription limit", func(t *testing.T) {
+		t.Parallel()
+		for _, managerCase := range []struct {
+			name           string
+			managerLimit   int
+			managerDefault []int
+		}{
+			{"manager limit", 2, []int{2, 1}},
+			{"no manager limit", 0, []int{3}},
+		} {
+			t.Run(managerCase.name, func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				m.exchangeName = "test"
+				m.useMultiConnectionManagement = true
+				m.MaxSubscriptionsPerConnection = managerCase.managerLimit
+				m.trafficTimeout = time.Minute
+				m.setEnabled(true)
+
+				srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+				}))
+				t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+
+				tests := []struct {
+					filter           string
+					maxSubscriptions int
+					subscriptions    int
+					want             []int
+				}{
+					{"larger limit", 5, 5, []int{5}},
+					{"smaller limit", 1, 2, []int{1, 1}},
+					{"manager default", 0, 3, managerCase.managerDefault},
+				}
+				for _, tc := range tests {
+					require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+						URL:              "ws" + srv.URL[len("http"):] + "/ws",
+						MessageFilter:    tc.filter,
+						MaxSubscriptions: tc.maxSubscriptions,
+						Connector: func(ctx context.Context, conn Connection) error {
+							return conn.Dial(ctx, dialer, nil, nil)
+						},
+						GenerateSubscriptions: func() (subscription.List, error) {
+							subs := make(subscription.List, tc.subscriptions)
+							for i := range subs {
+								subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
+							}
+							return subs, nil
+						},
+						Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+							return m.AddSuccessfulSubscriptions(c, s...)
+						},
+						Handler: func(context.Context, Connection, []byte) error { return nil },
+					}))
+				}
+
+				require.NoError(t, m.Connect(t.Context()))
+
+				// Serial rows check the connections straight after Connect; parallel ones run later, when the traffic monitor may have closed them
+				for i, tc := range tests {
+					t.Run(tc.filter, func(t *testing.T) {
+						var got []int
+						for _, conn := range m.snapshotManagedConnections(m.connectionManager[i]) {
+							got = append(got, conn.Subscriptions().Len())
+						}
+						assert.Equal(t, tc.want, got, "connections should be batched by the setup's subscription limit")
+					})
+				}
+			})
+		}
 	})
 }
 
@@ -2300,6 +2405,7 @@ func TestDisable(t *testing.T) {
 func TestEnable(t *testing.T) {
 	t.Parallel()
 	w := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, w) })
 	w.connector = noopConnect
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }
@@ -2395,6 +2501,40 @@ func TestSetupNewConnection(t *testing.T) {
 
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDuplicateConnectionSetup)
+
+	t.Run("negative connection limit is rejected", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		set := newDefaultSetup()
+		set.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(set), "Setup must not error")
+		err := m.SetupNewConnection(&ConnectionSetup{
+			URL:                   "urlstring",
+			MaxSubscriptions:      -1,
+			Connector:             func(context.Context, Connection) error { return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:               func(context.Context, Connection, []byte) error { return nil },
+		})
+		require.ErrorIs(t, err, errInvalidMaxSubscriptions, "SetupNewConnection must reject a negative connection limit")
+		assert.Empty(t, m.connectionManager, "rejected setup should not be added to the connection manager")
+	})
+
+	t.Run("connection limit without multi-connection management is rejected", func(t *testing.T) {
+		t.Parallel()
+		for _, authenticated := range []bool{false, true} {
+			t.Run("authenticated "+strconv.FormatBool(authenticated), func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				require.NoError(t, m.Setup(newDefaultSetup()), "Setup must not error")
+				err := m.SetupNewConnection(&ConnectionSetup{URL: "urlstring", MaxSubscriptions: 1, Authenticated: authenticated})
+				require.ErrorIs(t, err, errMaxSubscriptionsNeedsMultiConnection, "SetupNewConnection must reject a connection limit without multi-connection management")
+				assert.Nil(t, m.Conn, "rejected setup should not set the connection")
+				assert.Nil(t, m.AuthConn, "rejected setup should not set the authenticated connection")
+			})
+		}
+	})
 }
 
 func TestGetConfiguredWebsocketURLs(t *testing.T) {

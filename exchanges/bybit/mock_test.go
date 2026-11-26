@@ -48,10 +48,6 @@ func setupMockExchange(ex *Exchange) error {
 	if err := testexch.MockHTTPInstance(ex); err != nil {
 		return err
 	}
-	// Mock responses are served locally, so throttling protects nothing
-	if err := ex.DisableRateLimiter(); err != nil {
-		return err
-	}
 	for a, p := range map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
 		asset.USDTMarginedFutures: usdtMarginedTradablePair,

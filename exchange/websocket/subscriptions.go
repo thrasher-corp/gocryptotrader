@@ -304,8 +304,8 @@ func (m *Manager) maxSubscriptionsPerConnection(ws *websocket) int {
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
-	ws, managed := m.managedWebsocket(conn)
-	if managed {
+	maxSubs := m.MaxSubscriptionsPerConnection
+	if ws, ok := m.managedWebsocket(conn); ok {
 		if ws.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
@@ -321,6 +321,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		}
 		subscriptionStore = ws.subscriptions
 		usedCapacity = connSubStore.Len()
+		maxSubs = m.maxSubscriptions(ws)
 	} else {
 		subscriptionStore = m.subscriptionStore(nil)
 		if subscriptionStore == nil {
@@ -329,12 +330,12 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		usedCapacity = subscriptionStore.Len()
 	}
 
-	if limit := m.maxSubscriptionsPerConnection(ws); limit > 0 && usedCapacity+len(subs) > limit {
+	if maxSubs > 0 && usedCapacity+len(subs) > maxSubs {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v",
 			errSubscriptionsExceedsLimit,
 			usedCapacity,
 			len(subs),
-			limit)
+			maxSubs)
 	}
 
 	for _, s := range subs {
@@ -568,7 +569,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		}
 
 		// Spawn new connections if there are still subscriptions left to process
-		for _, batch := range common.Batch(currentSubs, m.maxSubscriptionsPerConnection(ws)) {
+		for _, batch := range common.Batch(currentSubs, m.maxSubscriptions(ws)) {
 			if err := ctx.Err(); err != nil {
 				return common.AppendError(subscribeErrs, err)
 			}
@@ -716,15 +717,15 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	}
 
 	ws, _ := m.managedWebsocket(conn)
-	limit := m.maxSubscriptionsPerConnection(ws)
+	maxSubs := m.maxSubscriptions(ws)
 	usedCap := store.Len()
-	if limit > 0 && usedCap >= limit {
+	if maxSubs > 0 && usedCap >= maxSubs {
 		return subs, nil // No capacity left for this connection
 	}
 
 	availableCap := len(subs)
-	if limit > 0 {
-		availableCap = limit - usedCap
+	if maxSubs > 0 {
+		availableCap = maxSubs - usedCap
 	}
 
 	if availableCap > len(subs) {

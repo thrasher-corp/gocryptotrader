@@ -254,6 +254,12 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return ErrRequestSystemIsNil
 	}
 	if r.disableRateLimiter.Load() {
+		// Disabling the limiter skips the wait, not the check that the endpoint has a limiter
+		if r.limiter != nil {
+			if err := common.NilGuard(r.limiter[e]); err != nil {
+				return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+			}
+		}
 		return WaitForRateLimitBarrier(ctx)
 	}
 	if err := common.NilGuard(r.limiter); err != nil {
@@ -324,7 +330,9 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	case <-ctx.Done():
 		// A request that will not be sent gives back its booking in every window budget, so that it holds up no later
 		// request on one, and those of its own limiter's tokens that rate.Limiter can still restore, which excludes any
-		// already due: tokens spent while it waited can still delay later requests on its own limiter
+		// already due: tokens spent while it waited can still delay later requests on its own limiter. It gives them
+		// back at the current time rather than tn, since once another request has moved the limiter past tn, giving
+		// them back at tn would wind its clock back and the next refill would count that time again
 		rateLimitReservationMu.Lock()
 		reserved.cancelLocked(time.Now())
 		rateLimitReservationMu.Unlock()
