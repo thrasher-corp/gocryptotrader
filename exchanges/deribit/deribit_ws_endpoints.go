@@ -400,7 +400,7 @@ func (e *Exchange) WSRetrieveOrderbookData(ctx context.Context, instrument strin
 		Depth:      depth,
 	}
 	var resp *Orderbook
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getOrderbook, input, &resp, false)
+	return resp, e.SendWSRequest(ctx, tickerOrderBookEPL, getOrderbook, input, &resp, false)
 }
 
 // WSRetrieveOrderbookByInstrumentID retrieves orderbook by instrument ID through websocket connection.
@@ -416,7 +416,7 @@ func (e *Exchange) WSRetrieveOrderbookByInstrumentID(ctx context.Context, instru
 		Depth:        depth,
 	}
 	var resp *Orderbook
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getOrderbookByInstrumentID, input, &resp, false)
+	return resp, e.SendWSRequest(ctx, tickerOrderBookEPL, getOrderbookByInstrumentID, input, &resp, false)
 }
 
 // WsRetrieveSupportedIndexNames retrieves the identifiers of all supported Price Indexes
@@ -520,7 +520,7 @@ func (e *Exchange) WSRetrievePublicTicker(ctx context.Context, instrument string
 		Instrument: instrument,
 	}
 	var resp *TickerData
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getTicker, input, &resp, false)
+	return resp, e.SendWSRequest(ctx, tickerOrderBookEPL, getTicker, input, &resp, false)
 }
 
 // WSRetrieveAccountSummary retrieves account summary data for the requested instrument through the websocket connection.
@@ -2728,8 +2728,8 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 		}
 	}()
 	for attempt := 1; ; attempt++ {
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := e.Requester.InitiateRateLimit(ctx, ep)
+		// Initiate a rate limit reservation and sleep on each of the requested endpoint's limits
+		err := e.initiateRateLimits(ctx, attemptRateLimits(ep))
 		if err != nil {
 			return fmt.Errorf("failed to rate limit Websocket request: %w", err)
 		}
