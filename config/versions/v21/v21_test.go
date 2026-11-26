@@ -1,7 +1,6 @@
 package v21_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -9,37 +8,29 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v21 "github.com/thrasher-corp/gocryptotrader/config/versions/v21"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // The v20 and v21 default subscriptions as the config saves them
 const (
-	heartbeatEntry  = `{"enabled":true,"channel":"heartbeat"}`
-	statusEntry     = `{"enabled":true,"channel":"status","asset":"all"}`
-	spotTicker      = `{"enabled":true,"channel":"ticker","asset":"spot"}`
-	spotCandles     = `{"enabled":true,"channel":"candles","asset":"spot"}`
-	spotTrades      = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
-	spotOrderbook   = `{"enabled":true,"channel":"orderbook","asset":"spot"}`
-	accountEntry    = `{"enabled":true,"channel":"myAccount","asset":"all","authenticated":true}`
-	tickerBatch     = `{"enabled":true,"channel":"ticker_batch","asset":"spot"}`
-	tickerEntry     = `{"enabled":true,"channel":"ticker","asset":"all"}`
-	candlesEntry    = `{"enabled":true,"channel":"candles","asset":"all","interval":"5m"}`
-	tradesEntry     = `{"enabled":true,"channel":"allTrades","asset":"all"}`
-	orderbookEntry  = `{"enabled":true,"channel":"orderbook","asset":"all"}`
-	balanceSummary  = `{"enabled":true,"channel":"futures_balance_summary","authenticated":true}`
-	derivativesBook = `{"enabled":true,"channel":"book","asset":"usdcmarginedfutures"}`
+	previousOrderbook = `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}`
+	previousTrades    = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
+	previousOrders    = `{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}`
+	previousMyTrades  = `{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
+	currentOrderbook  = `{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"}`
+	currentTrades     = `{"enabled":true,"channel":"allTrades","asset":"all"}`
+	currentFunding    = `{"enabled":true,"channel":"funding_rate","asset":"perpetualcontract"}`
+	currentOrders     = `{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`
+	currentMyTrades   = `{"enabled":true,"channel":"myTrades","asset":"all","authenticated":true}`
 )
 
 var (
-	previousDefaults = []string{heartbeatEntry, statusEntry, spotTicker, spotCandles, spotTrades, spotOrderbook, accountEntry, tickerBatch}
-	currentDefaults  = []string{tickerEntry, candlesEntry, tradesEntry, orderbookEntry, statusEntry, accountEntry}
-	// previousExample is the subscription list the v20 config_example.json shipped
-	previousExample = []string{heartbeatEntry, `{"enabled":false,"channel":"status","authenticated":true}`, spotTicker, spotCandles, spotTrades, spotOrderbook, `{"enabled":true,"channel":"account","authenticated":true}`, `{"enabled":false,"channel":"ticker_batch","asset":"spot"}`}
+	previousDefaults = []string{previousOrderbook, previousTrades, previousOrders, previousMyTrades}
+	currentDefaults  = []string{currentOrderbook, currentTrades, currentFunding, currentOrders, currentMyTrades}
 )
 
-// subscriptions returns a Coinbase config holding the subscription entries
+// subscriptions returns a Bitstamp config holding the subscription entries
 func subscriptions(entries ...string) string {
-	return `{"name":"Coinbase","features":{"subscriptions":[` + strings.Join(entries, ",") + `]}}`
+	return `{"name":"Bitstamp","features":{"subscriptions":[` + strings.Join(entries, ",") + `]}}`
 }
 
 // with returns entries with the entry at index i replaced
@@ -66,32 +57,24 @@ func replaced(entries []string, oldnew ...string) []string {
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Coinbase"}, new(v21.Version).Exchanges(), "Exchanges should only list Coinbase")
+	assert.Equal(t, []string{"Bitstamp"}, new(v21.Version).Exchanges(), "Exchanges should only list Bitstamp")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	t.Run("replaces the previous defaults", func(t *testing.T) {
+	t.Run("previous defaults", func(t *testing.T) {
 		t.Parallel()
 		for name, entries := range map[string][]string{
 			"previous defaults":         previousDefaults,
-			"reordered":                 {tickerBatch, accountEntry, spotOrderbook, spotTrades, spotCandles, spotTicker, statusEntry, heartbeatEntry},
-			"upper case assets":         replaced(previousDefaults, `"all"`, `"ALL"`, `"spot"`, `"SPOT"`),
-			"title case assets":         replaced(previousDefaults, `"all"`, `"All"`, `"spot"`, `"Spot"`),
-			"empty heartbeat asset":     with(previousDefaults, 0, field(heartbeatEntry, `"asset":""`)),
-			"zero candles interval":     with(previousDefaults, 3, field(spotCandles, `"interval":"0s"`)),
-			"nanosecond zero interval":  with(previousDefaults, 3, field(spotCandles, `"interval":0`)),
-			"zero levels":               with(previousDefaults, 5, field(spotOrderbook, `"levels":0`)),
-			"null levels":               with(previousDefaults, 5, field(spotOrderbook, `"levels":null`)),
-			"empty params":              with(previousDefaults, 2, field(spotTicker, `"params":{}`)),
-			"null params":               with(previousDefaults, 4, field(spotTrades, `"params":null`)),
-			"explicit unauthenticated":  with(previousDefaults, 7, field(tickerBatch, `"authenticated":false`)),
-			"null authenticated":        with(previousDefaults, 1, field(statusEntry, `"authenticated":null`)),
-			"repeated key last applies": with(previousDefaults, 2, strings.Replace(spotTicker, `"asset":"spot"`, `"asset":"futures","asset":"spot"`, 1)),
-			"legacy level2_batch":       {`{"enabled":true,"channel":"level2_batch","asset":"spot"}`, spotTicker},
-			"legacy matches":            {`{"enabled":false,"channel":"matches"}`, `{"enabled":true,"channel":"custom","asset":"spot","pairs":"BTC-USD"}`},
-			"master's example config":   previousExample,
-			"reordered example config":  {previousExample[7], previousExample[6], previousExample[5], previousExample[4], previousExample[3], previousExample[2], previousExample[1], previousExample[0]},
+			"reordered":                 {previousMyTrades, previousOrderbook, previousOrders, previousTrades},
+			"upper case assets":         replaced(previousDefaults, `"spot"`, `"SPOT"`),
+			"title case assets":         replaced(previousDefaults, `"spot"`, `"Spot"`),
+			"nanosecond interval":       with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `100000000`, 1)),
+			"seconds interval":          with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"0.1s"`, 1)),
+			"zero trades interval":      with(previousDefaults, 1, field(previousTrades, `"interval":"0s"`)),
+			"explicit unauthenticated":  with(with(previousDefaults, 0, field(previousOrderbook, `"authenticated":false`)), 1, field(previousTrades, `"authenticated":false`)),
+			"null authenticated":        with(previousDefaults, 1, field(previousTrades, `"authenticated":null`)),
+			"repeated key last applies": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"asset":"spot"`, `"asset":"margin","asset":"spot"`, 1)),
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
@@ -105,135 +88,138 @@ func TestUpgradeExchange(t *testing.T) {
 			})
 		}
 	})
-
-	t.Run("keeps customised subscriptions generatable", func(t *testing.T) {
+	t.Run("customised subscriptions", func(t *testing.T) {
 		t.Parallel()
-		// Disabling a default customises the list, which is kept
-		custom := with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1))
-		fiveMinutes := field(spotCandles, `"interval":"5m"`)
-		assetless := `{"enabled":true,"channel":"ticker"}`
-		disabledAssetless := `{"enabled":false,"channel":"ticker"}`
-		otherIntervals := []string{
-			heartbeatEntry, field(statusEntry, `"interval":"1m"`), field(spotTicker, `"interval":"1m"`), spotCandles,
-			field(spotTrades, `"interval":"1m"`), field(spotOrderbook, `"interval":"1m"`), accountEntry, field(tickerBatch, `"interval":"1m"`),
+		for name, entries := range map[string][]string{
+			"empty":                      {},
+			"missing entry":              previousDefaults[:3],
+			"extra entry":                append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"detail_order_book","asset":"spot"}`),
+			"repeated entry":             with(previousDefaults, 3, previousOrders),
+			"exchange specific channel":  with(previousDefaults, 0, strings.Replace(previousOrderbook, `"orderbook"`, `"order_book"`, 1)),
+			"disabled":                   with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":false`, 1)),
+			"enabled omitted":            with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled":true,`, ``, 1)),
+			"enabled null":               with(previousDefaults, 2, strings.Replace(previousOrders, `"enabled":true`, `"enabled":null`, 1)),
+			"custom interval":            with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"10ms"`, 1)),
+			"null interval":              with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `null`, 1)),
+			"interval omitted":           with(previousDefaults, 0, strings.Replace(previousOrderbook, `,"interval":"100ms"`, ``, 1)),
+			"trades interval":            with(previousDefaults, 1, field(previousTrades, `"interval":"100ms"`)),
+			"quoted nanosecond interval": with(previousDefaults, 0, strings.Replace(previousOrderbook, `"100ms"`, `"100000000"`, 1)),
+			"wildcard asset":             with(previousDefaults, 0, strings.Replace(previousOrderbook, `"spot"`, `"all"`, 1)),
+			"other asset":                with(previousDefaults, 1, strings.Replace(previousTrades, `"spot"`, `"margin"`, 1)),
+			"authenticated public":       with(previousDefaults, 0, field(previousOrderbook, `"authenticated":true`)),
+			"unauthenticated private":    with(previousDefaults, 2, strings.Replace(previousOrders, `,"authenticated":true`, ``, 1)),
+			"private explicitly public":  with(previousDefaults, 3, strings.Replace(previousMyTrades, `"authenticated":true`, `"authenticated":false`, 1)),
+			"pairs":                      with(previousDefaults, 0, field(previousOrderbook, `"pairs":"BTC/USD"`)),
+			"empty pairs":                with(previousDefaults, 1, field(previousTrades, `"pairs":""`)),
+			"levels":                     with(previousDefaults, 0, field(previousOrderbook, `"levels":10`)),
+			"params":                     with(previousDefaults, 2, field(previousOrders, `"params":{}`)),
+			"unknown field":              with(previousDefaults, 3, field(previousMyTrades, `"custom":"retained"`)),
+			"capitalised field":          with(previousDefaults, 1, strings.Replace(previousTrades, `"enabled"`, `"Enabled"`, 1)),
+			"current defaults":           currentDefaults,
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				input := subscriptions(entries...)
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "UpgradeExchange must accept customised subscriptions")
+				assert.Equal(t, input, string(got), "UpgradeExchange should preserve customised subscriptions byte-for-byte")
+			})
 		}
-		for name, tc := range map[string]struct{ entries, exp []string }{
-			// The previous version sent no interval, and Coinbase's candles are five minutes
-			"defaults with an interval": {with(previousDefaults, 3, field(spotCandles, `"interval":"1m"`)), with(previousDefaults, 3, fiveMinutes)},
-			"one minute":                {with(custom, 3, field(spotCandles, `"interval":"1m"`)), with(custom, 3, fiveMinutes)},
-			"duration":                  {with(custom, 3, field(spotCandles, `"interval":"1m0s"`)), with(custom, 3, fiveMinutes)},
-			"nanoseconds":               {with(custom, 3, field(spotCandles, `"interval":60000000000`)), with(custom, 3, fiveMinutes)},
-			"units":                     {with(custom, 3, field(spotCandles, `"interval":"15min"`)), with(custom, 3, fiveMinutes)},
-			"hourly":                    {with(custom, 3, field(spotCandles, `"interval":"1h"`)), with(custom, 3, fiveMinutes)},
-			"raw":                       {with(custom, 3, field(spotCandles, `"interval":"raw"`)), with(custom, 3, fiveMinutes)},
-			"raw nanoseconds":           {with(custom, 3, field(spotCandles, `"interval":-1`)), with(custom, 3, fiveMinutes)},
-			"negative interval":         {with(custom, 3, field(spotCandles, `"interval":"-1m"`)), with(custom, 3, fiveMinutes)},
-			"seconds":                   {with(custom, 3, field(spotCandles, `"interval":"30s"`)), with(custom, 3, fiveMinutes)},
-			"sub-second interval":       {with(custom, 3, field(spotCandles, `"interval":"500ms"`)), with(custom, 3, fiveMinutes)},
-			"title case asset":          {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"Spot","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"Spot","interval":"5m"}`)},
-			"upper case asset":          {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"SPOT","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"SPOT","interval":"5m"}`)},
-			"wildcard asset":            {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"all","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"all","interval":"5m"}`)},
-			"upper case wildcard":       {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"ALL","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"ALL","interval":"5m"}`)},
-			"futures":                   {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"futures","interval":"5m"}`)},
-			"title case futures":        {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"Futures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"Futures","interval":"5m"}`)},
-			"five minutes":              {with(custom, 3, fiveMinutes), with(custom, 3, fiveMinutes)},
-			"five minute duration":      {with(custom, 3, field(spotCandles, `"interval":"5m0s"`)), with(custom, 3, field(spotCandles, `"interval":"5m0s"`))},
-			"five minute nanoseconds":   {with(custom, 3, field(spotCandles, `"interval":300000000000`)), with(custom, 3, field(spotCandles, `"interval":300000000000`))},
-			"five minute units":         {with(custom, 3, field(spotCandles, `"interval":"5min"`)), with(custom, 3, field(spotCandles, `"interval":"5min"`))},
-			"five minute seconds":       {with(custom, 3, field(spotCandles, `"interval":"300s"`)), with(custom, 3, field(spotCandles, `"interval":"300s"`))},
-			"zero interval":             {with(custom, 3, field(spotCandles, `"interval":"0s"`)), with(custom, 3, field(spotCandles, `"interval":"0s"`))},
-			"null interval":             {with(custom, 3, field(spotCandles, `"interval":null`)), with(custom, 3, field(spotCandles, `"interval":null`))},
-			"disabled":                  {with(custom, 3, `{"enabled":false,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"enabled":false,"channel":"candles","asset":"spot","interval":"1m"}`)},
-			"enabled null":              {with(custom, 3, `{"enabled":null,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"enabled":null,"channel":"candles","asset":"spot","interval":"1m"}`)},
-			"enabled omitted":           {with(custom, 3, `{"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"channel":"candles","asset":"spot","interval":"1m"}`)},
-			"gateway asset":             {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"usdcmarginedfutures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"usdcmarginedfutures","interval":"1m"}`)},
-			"coin-margined asset":       {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"}`)},
-			"ticker interval":           {with(custom, 2, field(spotTicker, `"interval":"1m"`)), with(custom, 2, field(spotTicker, `"interval":"1m"`))},
-			"other channel intervals":   {otherIntervals, otherIntervals},
-			"authenticated candles":     {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","authenticated":true}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","authenticated":true}`)},
-			"unauthenticated candles":   {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","authenticated":false}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","authenticated":false}`)},
-			"candles with parameters":   {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","params":{"custom":"keep"}}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","params":{"custom":"keep"}}`)},
-			"candles with levels":       {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","levels":10}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","levels":10}`)},
-			"first entry":               {with(custom, 0, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 0, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)},
-			// The previous version requested a product channel without an asset for no products, which Coinbase refuses, so
-			// such an entry streamed nothing
-			"ticker without an asset":        {with(custom, 2, assetless), with(custom, 2, disabledAssetless)},
-			"empty asset":                    {with(custom, 2, `{"enabled":true,"channel":"ticker","asset":""}`), with(custom, 2, `{"enabled":false,"channel":"ticker","asset":""}`)},
-			"candles without an asset":       {with(custom, 3, `{"enabled":true,"channel":"candles","interval":"1m"}`), with(custom, 3, `{"enabled":false,"channel":"candles","interval":"1m"}`)},
-			"trades without an asset":        {with(custom, 4, `{"enabled":true,"channel":"allTrades"}`), with(custom, 4, `{"enabled":false,"channel":"allTrades"}`)},
-			"orderbook without an asset":     {with(custom, 5, `{"enabled":true,"channel":"orderbook"}`), with(custom, 5, `{"enabled":false,"channel":"orderbook"}`)},
-			"status without an asset":        {with(custom, 1, `{"enabled":true,"channel":"status"}`), with(custom, 1, `{"enabled":false,"channel":"status"}`)},
-			"ticker batch without an asset":  {with(custom, 7, `{"enabled":true,"channel":"ticker_batch"}`), with(custom, 7, `{"enabled":false,"channel":"ticker_batch"}`)},
-			"parameters without an asset":    {with(custom, 2, `{"enabled":true,"channel":"ticker","params":{"custom":"keep"}}`), with(custom, 2, `{"enabled":false,"channel":"ticker","params":{"custom":"keep"}}`)},
-			"levels without an asset":        {with(custom, 5, `{"enabled":true,"channel":"orderbook","levels":10}`), with(custom, 5, `{"enabled":false,"channel":"orderbook","levels":10}`)},
-			"authenticated without an asset": {with(custom, 2, `{"enabled":true,"channel":"ticker","authenticated":true}`), with(custom, 2, `{"enabled":false,"channel":"ticker","authenticated":true}`)},
-			"account without an asset":       {with(custom, 6, `{"enabled":true,"channel":"myAccount","authenticated":true}`), with(custom, 6, `{"enabled":true,"channel":"myAccount","authenticated":true}`)},
-			// The config loader refuses a blank asset rather than reading it as none
-			"blank asset": {with(custom, 2, `{"enabled":true,"channel":"ticker","asset":" "}`), with(custom, 2, `{"enabled":true,"channel":"ticker","asset":" "}`)},
-			// Both versions match channel names exactly, so neither takes this for its ticker channel
-			"capitalised channel": {with(custom, 2, `{"enabled":true,"channel":"Ticker"}`), with(custom, 2, `{"enabled":true,"channel":"Ticker"}`)},
-			// The loader matches a field's key in any case, and the last key read applies, so the field is set after it
-			"capitalised enabled":  {with(custom, 2, `{"Enabled":true,"channel":"ticker"}`), with(custom, 2, `{"Enabled":true,"channel":"ticker","enabled":false}`)},
-			"capitalised interval": {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","Interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","Interval":"1m","interval":"5m"}`)},
-			"each entry changed": {
-				with(with(with(custom, 2, assetless), 3, field(spotCandles, `"interval":"1m"`)), 4, `{"enabled":true,"channel":"allTrades"}`),
-				with(with(with(custom, 2, disabledAssetless), 3, fiveMinutes), 4, `{"enabled":false,"channel":"allTrades"}`),
+	})
+	t.Run("without subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range withoutSubscriptions {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
+			})
+		}
+	})
+	t.Run("client ID requirement", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ input, exp string }{
+			"required": {
+				input: `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentials":{"key":"Key","secret":"Secret","clientID":"ClientID"},"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
 			},
-			"every position changed": {
-				[]string{
-					assetless, field(spotCandles, `"interval":"1m"`), `{"enabled":true,"channel":"allTrades"}`, `{"enabled":true,"channel":"orderbook"}`, `{"enabled":true,"channel":"status"}`,
-					`{"enabled":true,"channel":"ticker_batch"}`, `{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"}`, `{"enabled":true,"channel":"candles","asset":"all","interval":"raw"}`,
-					`{"enabled":true,"channel":"candles"}`, field(spotCandles, `"interval":"15min"`),
-				},
-				[]string{
-					disabledAssetless, fiveMinutes, `{"enabled":false,"channel":"allTrades"}`, `{"enabled":false,"channel":"orderbook"}`, `{"enabled":false,"channel":"status"}`,
-					`{"enabled":false,"channel":"ticker_batch"}`, `{"enabled":true,"channel":"candles","asset":"futures","interval":"5m"}`, `{"enabled":true,"channel":"candles","asset":"all","interval":"5m"}`,
-					`{"enabled":false,"channel":"candles"}`, fiveMinutes,
-				},
+			"not required": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresClientID":false}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
 			},
-			"defaults and one without": {append(append([]string(nil), previousDefaults...), assetless), append(append([]string(nil), currentDefaults...), disabledAssetless)},
-			"example and one without":  {append(append([]string(nil), previousExample...), assetless), append(append([]string(nil), currentDefaults...), disabledAssetless)},
+			"only requirement": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{}}}`,
+			},
+			"capitalised key": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"RequiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
+			},
+			"repeated key": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false,"requiresKey":true,"requiresClientID":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true}}}`,
+			},
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				version := new(v21.Version)
-				got, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
+				got, err := version.UpgradeExchange(t.Context(), []byte(tc.input))
 				require.NoError(t, err, "UpgradeExchange must not error")
-				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "UpgradeExchange should change only the subscriptions the current version cannot generate, before matching the defaults")
+				assert.JSONEq(t, tc.exp, string(got), "UpgradeExchange should remove the client ID requirement and keep the other settings")
 				again, err := version.UpgradeExchange(t.Context(), got)
 				require.NoError(t, err, "repeated UpgradeExchange must not error")
 				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
 			})
 		}
 	})
-
-	t.Run("keeps a disabled exchange's subscriptions generatable", func(t *testing.T) {
+	t.Run("without a client ID requirement", func(t *testing.T) {
 		t.Parallel()
-		// An exchange disabled in the config can be enabled later, so its subscriptions are upgraded as an enabled one's are
-		disabled := func(entries []string) string {
-			return strings.Replace(subscriptions(entries...), `{"name":"Coinbase",`, `{"name":"Coinbase","enabled":false,`, 1)
+		for _, input := range []string{
+			`{"name":"Bitstamp","api":{}}`,
+			`{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+			`{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
+		} {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "UpgradeExchange should leave %s unchanged", input)
+			})
 		}
-		entries := append(with(previousDefaults, 3, field(spotCandles, `"interval":"1m"`)), `{"enabled":true,"channel":"ticker"}`)
-		exp := append(with(previousDefaults, 3, field(spotCandles, `"interval":"5m"`)), `{"enabled":false,"channel":"ticker"}`)
-		got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(disabled(entries)))
-		require.NoError(t, err, "UpgradeExchange must not error for a disabled exchange")
-		assert.JSONEq(t, disabled(exp), string(got), "UpgradeExchange should upgrade a disabled exchange's subscriptions as it does an enabled one's")
+	})
+	t.Run("malformed subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range malformedSubscriptions {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
+				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
+			})
+		}
+	})
+	t.Run("malformed validator", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range []string{`{"api":{"credentialsValidator":}}`, `{"api":{"credentialsValidator":{"requiresClientID":}}}`} {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				_, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
+				assert.ErrorContainsf(t, err, "Bitstamp credentials validator", "UpgradeExchange should report a malformed validator in %s", input)
+			})
+		}
 	})
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	t.Run("replaces the current defaults", func(t *testing.T) {
+	t.Run("current defaults", func(t *testing.T) {
 		t.Parallel()
 		for name, entries := range map[string][]string{
-			"current defaults":     currentDefaults,
-			"reordered":            {accountEntry, statusEntry, orderbookEntry, tradesEntry, candlesEntry, tickerEntry},
-			"upper case assets":    replaced(currentDefaults, `"all"`, `"ALL"`),
-			"duration interval":    with(currentDefaults, 1, strings.Replace(candlesEntry, `"5m"`, `"5m0s"`, 1)),
-			"nanosecond interval":  with(currentDefaults, 1, strings.Replace(candlesEntry, `"5m"`, `300000000000`, 1)),
-			"unit interval":        with(currentDefaults, 1, strings.Replace(candlesEntry, `"5m"`, `"5min"`, 1)),
-			"seconds interval":     with(currentDefaults, 1, strings.Replace(candlesEntry, `"5m"`, `"300s"`, 1)),
-			"explicit unauthentic": with(currentDefaults, 0, field(tickerEntry, `"authenticated":false`)),
+			"current defaults":  currentDefaults,
+			"reordered":         {currentFunding, currentMyTrades, currentOrderbook, currentOrders, currentTrades},
+			"upper case assets": replaced(currentDefaults, `"all"`, `"ALL"`, `"perpetualcontract"`, `"PERPETUALCONTRACT"`),
+			"mixed case assets": replaced(currentDefaults, `"all"`, `"All"`, `"perpetualcontract"`, `"PerpetualContract"`),
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
@@ -247,250 +233,146 @@ func TestDowngradeExchange(t *testing.T) {
 			})
 		}
 	})
-
-	t.Run("disables subscriptions the previous version cannot generate", func(t *testing.T) {
+	t.Run("customised subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, entries := range map[string][]string{
+			"missing funding rate":    with(currentDefaults, 2, currentOrders),
+			"disabled funding rate":   with(currentDefaults, 2, strings.Replace(currentFunding, `"enabled":true`, `"enabled":false`, 1)),
+			"spot orderbook":          with(currentDefaults, 0, strings.Replace(currentOrderbook, `"all"`, `"spot"`, 1)),
+			"funding rate pairs":      with(currentDefaults, 2, field(currentFunding, `"pairs":"BTC/USD-PERP"`)),
+			"custom current interval": with(currentDefaults, 0, strings.Replace(currentOrderbook, `"100ms"`, `"1s"`, 1)),
+			"previous defaults":       previousDefaults,
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				input := subscriptions(entries...)
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
+				assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
+			})
+		}
+	})
+	t.Run("unsupported channels", func(t *testing.T) {
 		t.Parallel()
 		for name, tc := range map[string]struct{ entries, exp []string }{
-			"balance summary": {
-				entries: append(append([]string(nil), previousDefaults...), balanceSummary),
-				exp:     append(append([]string(nil), previousDefaults...), strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)),
+			"wildcard funding rate": {
+				entries: with(currentDefaults, 2, strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1)),
+				exp:     with(currentDefaults, 2, strings.Replace(strings.Replace(currentFunding, `"perpetualcontract"`, `"all"`, 1), `"enabled":true`, `"enabled":false`, 1)),
 			},
-			"wildcard orders": {
-				entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`),
-				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"myOrders","asset":"all","authenticated":true}`),
-			},
-			"futures gateway channel": {
-				entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"book","asset":"Futures"}`),
-				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"book","asset":"Futures"}`),
-			},
-			"perpetual channel kept": {
-				entries: append(append([]string(nil), previousDefaults...), derivativesBook),
-				exp:     append(append([]string(nil), previousDefaults...), derivativesBook),
-			},
-			"coin margined channel kept": {
-				entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"myTrades","asset":"COINMARGINEDFUTURES","authenticated":true}`),
-				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"myTrades","asset":"COINMARGINEDFUTURES","authenticated":true}`),
-			},
-			"disabled kept": {
-				entries: append(append([]string(nil), previousDefaults...), strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)),
-				exp:     append(append([]string(nil), previousDefaults...), strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)),
-			},
-			"customised current defaults": {
-				entries: append(append([]string(nil), currentDefaults...), balanceSummary),
-				exp:     append(append([]string(nil), currentDefaults...), strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)),
-			},
-			// The previous version replaces every subscription with its defaults for a legacy channel, enabled or not
-			"legacy channels removed": {
-				entries: []string{
-					`{"enabled":false,"channel":"matches","asset":"spot"}`,
-					`{"enabled":true,"channel":"ticker","asset":"spot"}`,
-					`{"enabled":true,"channel":"level2_batch","asset":"spot"}`,
-					`{"enabled":false,"channel":"matches"}`,
-					`{"enabled":true,"channel":"candles","asset":"spot"}`,
-				},
-				exp: []string{
-					`{"enabled":true,"channel":"ticker","asset":"spot"}`,
-					`{"enabled":true,"channel":"candles","asset":"spot"}`,
-				},
-			},
-			"legacy channel names matched exactly": {
-				entries: []string{`{"enabled":false,"channel":"Matches","asset":"spot"}`, `{"enabled":true,"channel":"ticker","asset":"spot"}`},
-				exp:     []string{`{"enabled":false,"channel":"Matches","asset":"spot"}`, `{"enabled":true,"channel":"ticker","asset":"spot"}`},
+			"extra current entry": {
+				entries: append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"announcements"}`),
+				exp:     append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"announcements"}`),
 			},
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
 				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the subscriptions the previous version cannot generate")
+				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the channels the previous version cannot subscribe to")
 			})
 		}
 	})
-}
-
-func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
-	t.Parallel()
-	for name, entries := range map[string][]string{
-		"empty":                    {},
-		"missing entry":            previousDefaults[:7],
-		"extra entry":              append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"candles","asset":"futures"}`),
-		"repeated entry":           with(previousDefaults, 3, spotTicker),
-		"exchange specific name":   with(previousDefaults, 5, strings.Replace(spotOrderbook, `"orderbook"`, `"level2"`, 1)),
-		"capitalised channel":      with(previousDefaults, 2, strings.Replace(spotTicker, `"ticker"`, `"Ticker"`, 1)),
-		"disabled":                 with(previousDefaults, 2, strings.Replace(spotTicker, `"enabled":true`, `"enabled":false`, 1)),
-		"enabled omitted":          with(previousDefaults, 4, strings.Replace(spotTrades, `"enabled":true,`, ``, 1)),
-		"enabled null":             with(previousDefaults, 3, strings.Replace(spotCandles, `"enabled":true`, `"enabled":null`, 1)),
-		"custom interval":          with(previousDefaults, 3, field(spotCandles, `"interval":"5m"`)),
-		"null interval":            with(previousDefaults, 3, field(spotCandles, `"interval":null`)),
-		"heartbeat asset":          with(previousDefaults, 0, field(heartbeatEntry, `"asset":"spot"`)),
-		"wildcard ticker":          with(previousDefaults, 2, strings.Replace(spotTicker, `"spot"`, `"all"`, 1)),
-		"spot status":              with(previousDefaults, 1, strings.Replace(statusEntry, `"all"`, `"spot"`, 1)),
-		"unauthenticated account":  with(previousDefaults, 6, strings.Replace(accountEntry, `,"authenticated":true`, ``, 1)),
-		"authenticated ticker":     with(previousDefaults, 2, field(spotTicker, `"authenticated":true`)),
-		"pairs":                    with(previousDefaults, 2, field(spotTicker, `"pairs":"BTC-USD"`)),
-		"levels":                   with(previousDefaults, 5, field(spotOrderbook, `"levels":25`)),
-		"fractional levels":        with(previousDefaults, 5, field(spotOrderbook, `"levels":1.5`)),
-		"parameter":                with(previousDefaults, 2, field(spotTicker, `"params":{"product_ids":"BTC-USD"}`)),
-		"unknown field":            with(previousDefaults, 4, field(spotTrades, `"custom":"retained"`)),
-		"capitalised field":        with(previousDefaults, 4, strings.Replace(spotTrades, `"enabled"`, `"Enabled"`, 1)),
-		"current defaults":         currentDefaults,
-		"previous and one more":    append(append([]string(nil), previousDefaults...), balanceSummary),
-		"example account renamed":  with(previousExample, 6, `{"enabled":true,"channel":"myAccount","asset":"all","authenticated":true}`),
-		"example ticker batch on":  with(previousExample, 7, `{"enabled":true,"channel":"ticker_batch","asset":"spot"}`),
-		"example status omitted":   with(previousExample, 1, `{"channel":"status","authenticated":true}`),
-		"legacy name as parameter": with(previousDefaults, 2, field(spotTicker, `"params":{"channel":"matches"}`)),
-	} {
-		t.Run("upgrade/"+name, func(t *testing.T) {
-			t.Parallel()
-			input := subscriptions(entries...)
-			got, err := new(v21.Version).UpgradeExchange(t.Context(), []byte(input))
-			require.NoError(t, err, "UpgradeExchange must accept customised subscriptions")
-			assert.Equal(t, input, string(got), "UpgradeExchange should preserve customised subscriptions byte-for-byte")
-		})
-	}
-	for name, entries := range map[string][]string{
-		"missing account":      currentDefaults[:5],
-		"disabled candles":     with(currentDefaults, 1, strings.Replace(candlesEntry, `"enabled":true`, `"enabled":false`, 1)),
-		"one minute candles":   with(currentDefaults, 1, strings.Replace(candlesEntry, `"5m"`, `"1m"`, 1)),
-		"candles without time": with(currentDefaults, 1, strings.Replace(candlesEntry, `,"interval":"5m"`, ``, 1)),
-		"spot ticker":          with(currentDefaults, 0, strings.Replace(tickerEntry, `"all"`, `"spot"`, 1)),
-		"ticker pairs":         with(currentDefaults, 0, field(tickerEntry, `"pairs":"BTC-USD"`)),
-		"previous defaults":    previousDefaults,
-	} {
-		t.Run("downgrade/"+name, func(t *testing.T) {
-			t.Parallel()
-			input := subscriptions(entries...)
-			got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
-			require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
-			assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
-		})
-	}
-}
-
-func TestMigrationKeepsDisabledEntries(t *testing.T) {
-	t.Parallel()
-	disabledSummary := strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)
-	omittedLevel2 := `{"channel":"level2","asset":"spot"}`
-	nullBook := `{"enabled":null,"channel":"book","asset":"usdcmarginedfutures"}`
-	for name, tc := range map[string]struct {
-		migrate func(*v21.Version, context.Context, []byte) ([]byte, error)
-		entries []string
-		exp     []string
-	}{
-		"upgrade explicitly disabled":   {(*v21.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), disabledSummary), append(append([]string(nil), currentDefaults...), disabledSummary)},
-		"upgrade enabled omitted":       {(*v21.Version).UpgradeExchange, append([]string{omittedLevel2}, previousDefaults...), append(append([]string(nil), currentDefaults...), omittedLevel2)},
-		"upgrade enabled null":          {(*v21.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), nullBook), append(append([]string(nil), currentDefaults...), nullBook)},
-		"upgrade with custom field":     {(*v21.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), field(disabledSummary, `"pairs":"BTC-USD"`)), append(append([]string(nil), currentDefaults...), field(disabledSummary, `"pairs":"BTC-USD"`))},
-		"downgrade explicitly disabled": {(*v21.Version).DowngradeExchange, append(append([]string(nil), currentDefaults...), disabledSummary), append(append([]string(nil), previousDefaults...), disabledSummary)},
-		// A disabled default is the user's choice, which keeps the list
-		"upgrade disabled default": {(*v21.Version).UpgradeExchange, with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1)), with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1))},
-		"upgrade enabled extra":    {(*v21.Version).UpgradeExchange, append(append([]string(nil), previousDefaults...), balanceSummary), append(append([]string(nil), previousDefaults...), balanceSummary)},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			version := new(v21.Version)
-			got, err := tc.migrate(version, t.Context(), []byte(subscriptions(tc.entries...)))
-			require.NoError(t, err, "migration must not error")
-			assert.JSONEq(t, subscriptions(tc.exp...), string(got), "migration should keep disabled entries the defaults do not name")
-			again, err := tc.migrate(version, t.Context(), got)
-			require.NoError(t, err, "repeated migration must not error")
-			assert.JSONEq(t, string(got), string(again), "migration should be idempotent")
-		})
-	}
-}
-
-func TestMigrationWithoutSubscriptions(t *testing.T) {
-	t.Parallel()
-	for inputName, input := range map[string]string{
-		"no features":        `{"name":"Coinbase"}`,
-		"no subscriptions":   `{"name":"Coinbase","features":{}}`,
-		"null subscriptions": `{"name":"Coinbase","features":{"subscriptions":null}}`,
-	} {
-		t.Run(inputName, func(t *testing.T) {
-			t.Parallel()
-			for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-				"UpgradeExchange":   new(v21.Version).UpgradeExchange,
-				"DowngradeExchange": new(v21.Version).DowngradeExchange,
-			} {
-				t.Run(name, func(t *testing.T) {
-					t.Parallel()
-					got, err := migrate(t.Context(), []byte(input))
-					require.NoErrorf(t, err, "%s must not error for %s", name, input)
-					assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
-				})
-			}
-		})
-	}
-}
-
-func TestMigrationRejectsMalformedConfigs(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct{ input, errContains string }{
-		"subscriptions object":  {input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Coinbase subscriptions"},
-		"subscription string":   {input: `{"features":{"subscriptions":["ticker","allTrades"]}}`, errContains: "error decoding Coinbase subscriptions"},
-		"params string":         {input: subscriptions(with(previousDefaults, 2, field(spotTicker, `"params":"BTC-USD"`))...), errContains: "error decoding Coinbase subscriptions"},
-		"subscriptions missing": {input: `{"features":{"subscriptions":}}`, errContains: "error getting Coinbase subscriptions"},
-	} {
-		for direction, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-			"upgrade":   new(v21.Version).UpgradeExchange,
-			"downgrade": new(v21.Version).DowngradeExchange,
-		} {
-			t.Run(direction+"/"+name, func(t *testing.T) {
-				t.Parallel()
-				got, err := migrate(t.Context(), []byte(tc.input))
-				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
-				if tc.errContains == "error decoding Coinbase subscriptions" {
-					var typeErr *json.UnmarshalTypeError
-					assert.ErrorAs(t, err, &typeErr, "migration should wrap the decoding error")
-				}
-				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
+	t.Run("without subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for _, input := range withoutSubscriptions {
+			// Serial and in order, as each input goes through the same migration
+			t.Run(input, func(t *testing.T) {
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", input)
+				assert.Equalf(t, input, string(got), "DowngradeExchange should leave %s unchanged", input)
 			})
 		}
-	}
+	})
+	t.Run("client ID requirement", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct{ input, exp string }{
+			"absent": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}}}`,
+			},
+			"not required": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":false}}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":{"requiresClientID":true}}}`,
+			},
+			"no validator": {
+				input: `{"name":"Bitstamp","api":{}}`,
+				exp:   `{"name":"Bitstamp","api":{}}`,
+			},
+			"null validator": {
+				input: `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+				exp:   `{"name":"Bitstamp","api":{"credentialsValidator":null}}`,
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				version := new(v21.Version)
+				got, err := version.DowngradeExchange(t.Context(), []byte(tc.input))
+				require.NoError(t, err, "DowngradeExchange must not error")
+				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should restore the client ID requirement of a saved validator")
+				again, err := version.DowngradeExchange(t.Context(), got)
+				require.NoError(t, err, "repeated DowngradeExchange must not error")
+				assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
+			})
+		}
+	})
+	t.Run("malformed subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range malformedSubscriptions {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				input := tc.input
+				if name == "enabled string" {
+					input = subscriptions(with(currentDefaults, 0, strings.Replace(currentOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...)
+				}
+				got, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(input))
+				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
+				assert.Equal(t, input, string(got), "failed migration should preserve the input")
+			})
+		}
+	})
+	t.Run("malformed validator", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(v21.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"credentialsValidator":}}`))
+		assert.ErrorContains(t, err, "Bitstamp credentials validator", "DowngradeExchange should report a malformed validator")
+	})
+}
+
+// withoutSubscriptions are configurations which hold no subscriptions to migrate
+var withoutSubscriptions = []string{
+	`{"name":"Bitstamp"}`,
+	`{"name":"Bitstamp","features":{}}`,
+	`{"name":"Bitstamp","features":{"subscriptions":null}}`,
+}
+
+// malformedSubscriptions are configurations whose subscriptions cannot be migrated, with the error each reports
+var malformedSubscriptions = map[string]struct{ input, errContains string }{
+	"subscriptions object":  {input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Bitstamp subscriptions"},
+	"subscription string":   {input: `{"features":{"subscriptions":["orderbook","allTrades","myOrders","myTrades"]}}`, errContains: "error decoding Bitstamp subscriptions"},
+	"enabled string":        {input: subscriptions(with(previousDefaults, 0, strings.Replace(previousOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...), errContains: "error decoding Bitstamp subscriptions"},
+	"subscriptions missing": {input: `{"features":{"subscriptions":}}`, errContains: "error getting Bitstamp subscriptions"},
 }
 
 func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	previous := strings.Join(previousDefaults, ",")
+	previous := `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true},{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`
 	current := strings.Join(currentDefaults, ",")
-	// Other exchanges with the same subscriptions are not migrated
-	input := []byte(`{"version":20,"exchanges":[{"name":"Coinbase","features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`)
+	validator := `{"requiresKey":true,"requiresSecret":true,"requiresClientID":true}`
+	// Other exchanges with the same settings are not migrated
+	input := []byte(`{"version":20,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`)
 	unchanged, err := versions.Manager.Deploy(t.Context(), input, 20)
 	require.NoError(t, err, "Deploy must leave an existing v20 configuration valid")
-	assert.Equal(t, input, unchanged, "Deploy should retain v20 Coinbase subscriptions until the v21 upgrade")
+	assert.Equal(t, input, unchanged, "Deploy should retain v20 Bitstamp settings until the v21 upgrade")
 
 	out, err := versions.Manager.Deploy(t.Context(), input, 21)
 	require.NoError(t, err, "Deploy must apply the registered v21 upgrade")
-	expected := `{"version":21,"exchanges":[{"name":"Coinbase","features":{"subscriptions":[` + current + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`
-	assert.JSONEq(t, expected, string(out), "Deploy should only migrate Coinbase and advance to v21")
+	expected := `{"version":21,"exchanges":[{"name":"Bitstamp","api":{"credentialsValidator":{"requiresKey":true,"requiresSecret":true}},"features":{"subscriptions":[` + current + `]}},{"name":"Kraken","api":{"credentialsValidator":` + validator + `},"features":{"subscriptions":[` + previous + `]}}]}`
+	assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitstamp and advance to v21")
 
 	downgraded, err := versions.Manager.Deploy(t.Context(), out, 20)
 	require.NoError(t, err, "Deploy must downgrade from v21")
-	assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v20 Coinbase subscriptions")
+	assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v20 Bitstamp settings")
 
 	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 21)
 	require.NoError(t, err, "Deploy must reapply v21")
 	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v21 should reproduce the upgraded configuration")
-}
-
-func TestMigrationRoundTripsDisabledEntries(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct {
-		from        []string
-		there, back func(*v21.Version, context.Context, []byte) ([]byte, error)
-	}{
-		// A disabled entry naming a channel the other version's defaults stream is set aside on the way back too
-		"upgrade then downgrade": {append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"ticker","asset":"all"}`), (*v21.Version).UpgradeExchange, (*v21.Version).DowngradeExchange},
-		"downgrade then upgrade": {append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"ticker","asset":"spot"}`), (*v21.Version).DowngradeExchange, (*v21.Version).UpgradeExchange},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			version := new(v21.Version)
-			there, err := tc.there(version, t.Context(), []byte(subscriptions(tc.from...)))
-			require.NoError(t, err, "migration must not error")
-			back, err := tc.back(version, t.Context(), there)
-			require.NoError(t, err, "the reverse migration must not error")
-			assert.JSONEq(t, subscriptions(tc.from...), string(back), "a round trip should restore the defaults and keep the disabled entry")
-		})
-	}
 }

@@ -59,11 +59,7 @@ func setupMockExchange(ex *Exchange, creds *accounts.Credentials) error {
 	}
 	setTestCredentials(ex, creds)
 	ex.derivativesToken.set(creds.Key, testDerivativesAccessToken, time.Now().Add(24*time.Hour))
-	if err := testexch.MockHTTPInstance(ex); err != nil {
-		return err
-	}
-	// Mock responses are served locally, so throttling protects nothing
-	return ex.DisableRateLimiter()
+	return testexch.MockHTTPInstance(ex)
 }
 
 // newTestExchange returns a mock exchange named after the test, so the ticker, order book and account stores it
