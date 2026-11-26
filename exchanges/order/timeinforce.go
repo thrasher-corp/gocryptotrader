@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // var error definitions
@@ -40,6 +42,9 @@ const (
 	iocStr      = "IOC"
 	postonlyStr = "POSTONLY"
 	sorStr      = "SOR"
+
+	// unknownTIFStr is the string of a non-zero TimeInForce with no supported flag
+	unknownTIFStr = "UNKNOWN"
 )
 
 // Is checks to see if the enum contains the flag
@@ -119,7 +124,7 @@ func (t TimeInForce) String() string {
 		tifStrings = append(tifStrings, sorStr)
 	}
 	if len(tifStrings) == 0 {
-		return "UNKNOWN"
+		return unknownTIFStr
 	}
 	return strings.Join(tifStrings, ",")
 }
@@ -144,4 +149,32 @@ func (t *TimeInForce) UnmarshalJSON(data []byte) error {
 // MarshalJSON returns the JSON-encoded order time-in-force value
 func (t TimeInForce) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + t.String() + `"`), nil
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the TimeInForce as its string
+func (t TimeInForce) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(t.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. A non-zero TimeInForce with no supported flag is stored
+// as unknownTIFStr, which StringToTimeInForce rejects as exchange input, and reads back as UnknownTIF.
+func (t *TimeInForce) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidTimeInForce, err)
+	}
+	if str == unknownTIFStr {
+		*t = UnknownTIF
+		return nil
+	}
+	var tif TimeInForce
+	for flag := range strings.SplitSeq(str, ",") {
+		f, err := StringToTimeInForce(flag)
+		if err != nil {
+			return err
+		}
+		tif |= f
+	}
+	*t = tif
+	return nil
 }

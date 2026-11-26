@@ -50,6 +50,7 @@ var (
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
+	errMaxSubscriptionsNeedsMultiConnection = errors.New("connection max subscriptions requires multi-connection management")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
@@ -381,6 +382,9 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
 			return errMessageFilterNotComparable
 		}
+		if c.MaxSubscriptions < 0 {
+			return fmt.Errorf("%w: %w", errConnSetup, errInvalidMaxSubscriptions)
+		}
 
 		m.connectionManagerMu.Lock()
 		defer m.connectionManagerMu.Unlock()
@@ -394,6 +398,10 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		}
 		m.connectionManager = append(m.connectionManager, &websocket{setup: c, subscriptions: subscription.NewStore()})
 		return nil
+	}
+
+	if c.MaxSubscriptions > 0 {
+		return fmt.Errorf("%w: %w", errConnSetup, errMaxSubscriptionsNeedsMultiConnection)
 	}
 
 	if c.Authenticated {
@@ -673,7 +681,7 @@ func (m *Manager) connectSetupWith(ctx context.Context, i int, ws *websocket, di
 		return subscriptionError, nil
 	}
 
-	for _, batchCandidates := range common.Batch(remainingSubs, m.MaxSubscriptionsPerConnection) {
+	for _, batchCandidates := range common.Batch(remainingSubs, m.maxSubscriptions(ws)) {
 		batchRemainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batchCandidates)
 		if err != nil {
 			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
@@ -919,8 +927,8 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 // connectAndSubscribe is createConnectAndSubscribe using the dialled connection, when given and not yet used, rather
 // than creating and dialling one
 func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List, dialled *dialledConnection) error {
-	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
-		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
+	if maxSubs := m.maxSubscriptions(ws); maxSubs > 0 && len(subs) > maxSubs {
+		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, maxSubs, len(subs))
 	}
 	if ws.setup.SubscriptionsNotRequired && len(subs) != 0 {
 		return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
@@ -1000,6 +1008,14 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs s
 	}
 
 	return nil
+}
+
+// maxSubscriptions returns the subscription limit for each connection made from ws, falling back to the manager's limit
+func (m *Manager) maxSubscriptions(ws *websocket) int {
+	if ws != nil && ws.setup != nil && ws.setup.MaxSubscriptions > 0 {
+		return ws.setup.MaxSubscriptions
+	}
+	return m.MaxSubscriptionsPerConnection
 }
 
 // Disable disables the exchange websocket protocol
