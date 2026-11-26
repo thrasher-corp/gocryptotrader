@@ -1269,7 +1269,7 @@ func TestBasicLimiter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := Item{Path: "https://example.com", Method: http.MethodGet}
+	i := Item{Path: "http://www.google.com", Method: http.MethodGet}
 	ctx := t.Context()
 
 	tn := time.Now()

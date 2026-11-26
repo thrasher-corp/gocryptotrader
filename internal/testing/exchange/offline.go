@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
-// offlinePrice is the price of every candle, trade and order book level Offline makes up
+// offlinePrice is the price of the trades and candles Offline makes up, before kline processing pads any gaps, and the mid price of the order books it makes up
 const offlinePrice = 1337
 
 // cancelled asks the wrapped exchange for what it can answer without a request

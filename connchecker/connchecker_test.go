@@ -10,15 +10,20 @@ import (
 )
 
 func TestConnection(t *testing.T) {
+	t.Parallel()
 	_, err := New([]string{"faultyIP"}, nil, time.Second)
 	require.Error(t, err, "New must reject a DNS entry that isn't an address")
 
-	c, err := New([]string{"127.0.0.1"}, []string{"localhost"}, time.Second)
-	require.NoError(t, err, "New must not error")
-	assert.True(t, c.IsConnected(), "a resolvable loopback address and name should count as connected")
-	c.Shutdown()
+	t.Run("loopback address and name", func(t *testing.T) {
+		t.Parallel()
+		c, err := New([]string{"127.0.0.1"}, []string{"localhost"}, time.Second)
+		require.NoError(t, err, "New must not error")
+		assert.True(t, c.IsConnected(), "a resolvable loopback address and name should count as connected")
+		c.Shutdown()
+	})
 
 	t.Run("live", func(t *testing.T) {
+		t.Parallel()
 		if livetest.Mock {
 			t.Skip("queries public DNS; build with the mock_test_off tag to run it")
 		}

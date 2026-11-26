@@ -57,7 +57,7 @@ func noAppIDReply(currencies []byte) standin.Transport {
 		if r.URL.Host != "openexchangerates.org" {
 			return standin.Reply{}, fmt.Errorf("%w for host %q", standin.ErrNoReply, r.URL.Host)
 		}
-		if strings.HasSuffix(r.URL.Path, "/"+APIEndpointCurrencies) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.String(), "https://openexchangerates.org/api/currencies.json?") {
 			return standin.Reply{Status: http.StatusOK, Body: string(currencies)}, nil
 		}
 		return standin.Reply{Status: http.StatusForbidden, Body: missingAppIDReply}, nil

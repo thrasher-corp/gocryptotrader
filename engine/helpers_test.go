@@ -488,13 +488,13 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
-	exchCfg, err := e.Config.GetExchangeConfig(testExchange)
-	require.NoError(t, err, "GetExchangeConfig must not error")
+	exch, err := e.GetExchangeByName(testExchange)
+	require.NoError(t, err, "GetExchangeByName must not error")
 	available := currency.Pairs{pairs[1], pairs[0], currency.NewPair(currency.ETH, currency.USD)}
-	require.NoError(t, exchCfg.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
+	require.NoError(t, exch.GetBase().UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
 
-	result := e.MapCurrenciesByExchange(currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1]}, true, asset.Spot)
-	assert.Equal(t, map[string]currency.Pairs{testExchange: pairs}, result, "MapCurrenciesByExchange should map only the requested pairs the exchange supports")
+	result := e.MapCurrenciesByExchange(currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1], currency.NewBTCUSDT()}, true, asset.Spot)
+	assert.Equal(t, map[string]currency.Pairs{testExchange: pairs, "binance": {currency.NewBTCUSDT()}}, result, "MapCurrenciesByExchange should map only the requested pairs each exchange supports")
 }
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
