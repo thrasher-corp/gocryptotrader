@@ -45,6 +45,7 @@ type SyncManager struct {
 	currencyPairs            map[key.ExchangeAssetPair]*currencyPairSyncAgent
 	tickerBatchLastRequested map[key.ExchangeAsset]time.Time
 	restInFlight             map[string]*atomic.Int64
+	restInFlightMu           sync.Mutex
 	exchangeCount            atomic.Int64
 
 	remoteConfig    *config.RemoteControlConfig

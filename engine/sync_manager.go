@@ -664,8 +664,8 @@ func (m *SyncManager) syncOrderbook(ctx context.Context, c *currencyPairSyncAgen
 }
 
 func (m *SyncManager) getExchangeRESTCounter(exchangeName string) *atomic.Int64 {
-	m.mux.Lock()
-	defer m.mux.Unlock()
+	m.restInFlightMu.Lock()
+	defer m.restInFlightMu.Unlock()
 	if m.restInFlight == nil {
 		m.restInFlight = make(map[string]*atomic.Int64)
 	}
@@ -678,11 +678,13 @@ func (m *SyncManager) getExchangeRESTCounter(exchangeName string) *atomic.Int64 
 }
 
 func (m *SyncManager) tryAcquireExchangeREST(exchangeName string) (*atomic.Int64, bool) {
-	numExchanges := int(m.exchangeCount.Load())
-	if numExchanges <= 1 || m.config.NumWorkers <= 1 {
+	if m.config.NumWorkers <= 1 {
 		return nil, true
 	}
-	limit := int64(max(1, m.config.NumWorkers/numExchanges))
+	numExchanges := max(1, int(m.exchangeCount.Load()))
+	// Allow at least a sixth of the workers, rounded down: the share alone drops to one call once many exchanges are
+	// loaded.
+	limit := int64(max(1, m.config.NumWorkers/6, m.config.NumWorkers/numExchanges))
 	counter := m.getExchangeRESTCounter(exchangeName)
 	for {
 		cur := counter.Load()

@@ -455,6 +455,7 @@ func TestSyncManagerSlowExchangeDoesNotStarveOtherExchanges(t *testing.T) {
 		PairFormatDisplay:       &currency.EMPTYFORMAT,
 	}, em, &config.RemoteControlConfig{}, false)
 	require.NoError(t, err)
+	m.initSyncCompleted.Store(true)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -466,7 +467,74 @@ func TestSyncManagerSlowExchangeDoesNotStarveOtherExchanges(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return fastTickers.Load() >= 3 && fastOrderbooks.Load() >= 3
-	}, 2*time.Second, 20*time.Millisecond, "expected fast exchange ticker and orderbook to keep refreshing despite blocked slow exchange")
+	}, 2*time.Second, 20*time.Millisecond, "fast exchange ticker and orderbook must keep refreshing while the slow exchange blocks")
 
-	assert.LessOrEqual(t, slowMaxInFlight.Load(), int32(1), "slow exchange should hold at most NumWorkers/numExchanges concurrent REST workers")
+	assert.Equal(t, int32(1), slowMaxInFlight.Load(), "slow exchange should hold exactly its one REST worker")
+}
+
+func TestSyncManagerTryAcquireExchangeREST(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		workers   int
+		exchanges int64
+		admitted  int
+	}{
+		{name: "exchange count not yet stored admits every worker", workers: 15, exchanges: 0, admitted: 15},
+		{name: "one exchange may use every worker", workers: 15, exchanges: 1, admitted: 15},
+		{name: "one worker is always admitted", workers: 1, exchanges: 2, admitted: 1},
+		{name: "workers are shared between exchanges", workers: 15, exchanges: 2, admitted: 7},
+		{name: "a sixth of the workers when many exchanges are loaded", workers: 15, exchanges: 23, admitted: 2},
+		{name: "share rounds down", workers: 3, exchanges: 2, admitted: 1},
+		{name: "more exchanges than workers still admits one", workers: 3, exchanges: 5, admitted: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &SyncManager{config: config.SyncManagerConfig{NumWorkers: tc.workers}}
+			m.exchangeCount.Store(tc.exchanges)
+			var admitted int
+			for range tc.workers {
+				if _, ok := m.tryAcquireExchangeREST("Bitstamp"); ok {
+					admitted++
+				}
+			}
+			assert.Equal(t, tc.admitted, admitted, "tryAcquireExchangeREST should admit the exchange's share of workers")
+		})
+	}
+
+	t.Run("a call admitted with one exchange loaded still counts once a second loads", func(t *testing.T) {
+		t.Parallel()
+		m := &SyncManager{config: config.SyncManagerConfig{NumWorkers: 2}}
+		m.exchangeCount.Store(1)
+		_, ok := m.tryAcquireExchangeREST("Bitstamp")
+		require.True(t, ok, "first call must be admitted")
+		m.exchangeCount.Store(2)
+		_, ok = m.tryAcquireExchangeREST("Bitstamp")
+		assert.False(t, ok, "the first call should already fill a share of one")
+	})
+
+	t.Run("a released slot is admitted again and exchanges are capped apart", func(t *testing.T) {
+		t.Parallel()
+		m := &SyncManager{config: config.SyncManagerConfig{NumWorkers: 3}}
+		m.exchangeCount.Store(2)
+		counter, ok := m.tryAcquireExchangeREST("Bitstamp")
+		require.True(t, ok, "first slot must be admitted")
+		require.NotNil(t, counter, "a capped slot must return its counter")
+		_, ok = m.tryAcquireExchangeREST("Bitstamp")
+		assert.False(t, ok, "a full exchange should refuse another slot")
+		_, ok = m.tryAcquireExchangeREST("Kraken")
+		assert.True(t, ok, "another exchange should keep its own slot")
+		counter.Add(-1)
+		_, ok = m.tryAcquireExchangeREST("Bitstamp")
+		assert.True(t, ok, "a released slot should be admitted again")
+	})
+}
+
+func TestSyncManagerGetExchangeRESTCounter(t *testing.T) {
+	t.Parallel()
+	m := &SyncManager{}
+	counter := m.getExchangeRESTCounter("Bitstamp")
+	require.NotNil(t, counter, "a new exchange must get a counter")
+	assert.Same(t, counter, m.getExchangeRESTCounter("Bitstamp"), "the same exchange should get the same counter")
+	assert.NotSame(t, counter, m.getExchangeRESTCounter("Kraken"), "another exchange should get its own counter")
 }
