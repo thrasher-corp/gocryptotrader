@@ -241,7 +241,7 @@ func convertSummary(task *TaskSummary) *btrpc.TaskSummary {
 }
 
 // ExecuteStrategyFromFile will backtest a strategy from the filepath provided
-func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
+func (s *GRPCServer) ExecuteStrategyFromFile(ctx context.Context, request *btrpc.ExecuteStrategyFromFileRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	if s.config == nil {
 		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
 	}
@@ -291,7 +291,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		s.config.Report.TemplatePath = ""
 	}
 
-	bt, err := NewBacktesterFromConfigs(cfg, s.config)
+	bt, err := NewBacktesterFromConfigs(ctx, cfg, s.config)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 // ExecuteStrategyFromConfig will backtest a strategy config built from a GRPC command
 // this should be a preferred method of interacting with backtester, as it allows for very quick
 // minor tweaks to strategy to determine the best result - SO LONG AS YOU DONT OVERFIT
-func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
+func (s *GRPCServer) ExecuteStrategyFromConfig(ctx context.Context, request *btrpc.ExecuteStrategyFromConfigRequest) (*btrpc.ExecuteStrategyResponse, error) {
 	if s.config == nil {
 		return nil, fmt.Errorf("%w server config", gctcommon.ErrNilPointer)
 	}
@@ -671,7 +671,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		s.config.Report.TemplatePath = ""
 	}
 
-	bt, err := NewBacktesterFromConfigs(cfg, s.config)
+	bt, err := NewBacktesterFromConfigs(ctx, cfg, s.config)
 	if err != nil {
 		return nil, err
 	}

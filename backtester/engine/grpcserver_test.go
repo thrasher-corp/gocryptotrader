@@ -162,6 +162,13 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		DoNotStore:          true,
 	})
 	assert.ErrorIs(t, err, errCannotHandleRequest)
+
+	cancelledCtx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = s.ExecuteStrategyFromFile(cancelledCtx, &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath: dcaConfigPath,
+	})
+	assert.ErrorIs(t, err, context.Canceled, "ExecuteStrategyFromFile should propagate cancelled context")
 }
 
 func TestExecuteStrategyFromConfig(t *testing.T) {
@@ -374,6 +381,13 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Config:              cfg,
 	})
 	assert.ErrorIs(t, err, errCannotHandleRequest)
+
+	cancelledCtx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = s.ExecuteStrategyFromConfig(cancelledCtx, &btrpc.ExecuteStrategyFromConfigRequest{
+		Config: cfg,
+	})
+	assert.ErrorIs(t, err, context.Canceled, "ExecuteStrategyFromConfig should propagate cancelled context")
 
 	// coverage test to ensure the rest of the config can successfully be converted
 	// this will not have a successful response

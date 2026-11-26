@@ -177,7 +177,7 @@ func main() {
 			os.Exit(1)
 		}
 		var bt *backtest.BackTest
-		bt, err = backtest.NewBacktesterFromConfigs(cfg, &config.BacktesterConfig{
+		bt, err = backtest.NewBacktesterFromConfigs(context.Background(), cfg, &config.BacktesterConfig{
 			Report: config.Report{
 				GenerateReport: generateReport,
 				TemplatePath:   btCfg.Report.TemplatePath,
