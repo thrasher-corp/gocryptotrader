@@ -236,8 +236,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	executedAmountChanged := m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount
 	if executedAmountChanged {
 		d.ExecutedAmount = m.ExecutedAmount
-		// A stored quote total may not match the new executed amount, so drop it unless the update restates it.
-		if m.ExecutedQuoteAmount == 0 {
+		// A rounding-sized change can describe the same fills, whose quote total still applies.
+		if executionAdvanced && m.ExecutedQuoteAmount == 0 {
 			d.ExecutedQuoteAmount = 0
 		}
 		updated = true
@@ -256,7 +256,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			d.AverageExecutedPrice = m.AverageExecutedPrice
 			updated = true
 		}
-	} else if executedAmountChanged || executedQuoteAmountChanged {
+	} else if executionAdvanced || executedQuoteAmountChanged || (executedAmountChanged && m.ExecutedQuoteAmount > 0) {
 		effectiveAssetType := m.AssetType
 		if effectiveAssetType == asset.Empty {
 			effectiveAssetType = d.AssetType

@@ -57,21 +57,42 @@ func testUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 
 func testUpdateOrderFromDetailRoundingPreservesExecutionMetadata(t *testing.T) {
 	t.Parallel()
-	stored := Detail{
-		Amount: 0.2, RemainingAmount: 0.1, ExecutedAmount: 0.1,
-		ExecutedQuoteAmount: 6, AverageExecutedPrice: 60,
-		AssetType: asset.Spot, Status: PartiallyFilled,
+	for _, tc := range []struct {
+		name                                                       string
+		storedAmount, storedLeft, amount, left                     float64
+		storedQuote, storedAverage, reportedQuote, reportedAverage float64
+		wantExecuted, wantAverage                                  float64
+	}{
+		{"growing amendment", 0.2, 0.1, 0.3, 0.2, 6, 60, 0, 0, 0.1, 60},
+		{"shrinking amendment", 0.3, 0.2, 0.2, 0.1, 6, 60, 0, 0, 0.1, 60},
+		{"shrinking amendment with a reported average", 0.3, 0.2, 0.2, 0.1, 6, 59, 0, 60, 0.1, 60},
+		{"shrinking amendment with a restated quote total", 0.3, 0.2, 0.2, 0.1, 6, 59, 6, 0, 0.1, 60},
+		{"amended down a thousandfold", 1000, 999.9, 1, 0.9, 6, 60, 0, 0, 0.09999999999999998, 60},
+		{"amended up a thousandfold", 1, 0.9, 1000, 999.9, 6, 60, 0, 0, 0.10000000000002274, 60},
+		{"amended down from two hundred million", 200000000, 199999999.99, 1, 0.99, 6, 600, 0, 0, 0.010000000000000009, 600},
+		{"Bitstamp order quantity", 67110001.00000001, 1, 67110001.00000003, 1, 1518699.3, 0.02263, 0, 0, 67110000.00000003, 0.02263},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			stored := Detail{
+				Amount: tc.storedAmount, RemainingAmount: tc.storedLeft, ExecutedAmount: tc.storedAmount - tc.storedLeft,
+				ExecutedQuoteAmount: tc.storedQuote, AverageExecutedPrice: tc.storedAverage,
+				AssetType: asset.Spot, Status: PartiallyFilled,
+			}
+			update := Detail{
+				Amount: tc.amount, RemainingAmount: tc.left, ExecutedAmount: tc.amount - tc.left,
+				ExecutedQuoteAmount: tc.reportedQuote, AverageExecutedPrice: tc.reportedAverage, Status: PartiallyFilled,
+			}
+			original := update.Copy()
+			require.NoError(t, stored.UpdateOrderFromDetail(&update), "equal-fill amendment must merge")
+			assert.Equal(t, tc.amount, stored.Amount, "amendment should update the requested quantity")
+			assert.Equal(t, tc.left, stored.RemainingAmount, "amendment should update the remaining quantity")
+			assert.Equal(t, tc.wantExecuted, stored.ExecutedAmount, "execution should describe the same fills")
+			assert.Equal(t, tc.storedQuote, stored.ExecutedQuoteAmount, "rounding alone should preserve the known quote total")
+			assert.Equal(t, tc.wantAverage, stored.AverageExecutedPrice, "the average should describe the same fills")
+			assert.Equal(t, original, update, "merging should not mutate the incoming amendment")
+		})
 	}
-	amount, remaining := 0.3, 0.2
-	update := Detail{Amount: amount, RemainingAmount: remaining, ExecutedAmount: amount - remaining, Status: PartiallyFilled}
-	original := update.Copy()
-	require.NoError(t, stored.UpdateOrderFromDetail(&update), "equal-fill amendment must merge")
-	assert.Equal(t, amount, stored.Amount, "amendment should update the requested quantity")
-	assert.Equal(t, remaining, stored.RemainingAmount, "amendment should update the remaining quantity")
-	assert.Equal(t, 0.1, stored.ExecutedAmount, "rounding alone should not change cumulative execution")
-	assert.Equal(t, 6.0, stored.ExecutedQuoteAmount, "rounding alone should not invalidate the known quote total")
-	assert.Equal(t, 60.0, stored.AverageExecutedPrice, "rounding alone should not invalidate the known average")
-	assert.Equal(t, original, update, "merging should not mutate the incoming amendment")
 }
 
 func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {

@@ -1629,7 +1629,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 			assert.Equalf(t, status == "Open", d.IsActive(), "GetOrderInfo should return an order with 0.00000001 left as active only while it is open, for a %s order", status)
 		})
 	}
-	// Float sums of these transactions carry a residue into the cost, fee and average price
+	// Float sums of these transactions carry a residue into the executed quote amount, fee and average price.
 	for name, tc := range map[string]struct {
 		transactions []string
 		exp          [4]float64
@@ -1642,7 +1642,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		t.Run(name, func(t *testing.T) {
 			d, err := ex.GetOrderInfo(ctx, "1", spotPair, asset.Spot)
 			require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
-			assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.ExecutedQuoteAmount, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should sum the executed amount, cost and fee exactly and average them with %s", name)
+			assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.ExecutedQuoteAmount, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should compute the executed amounts, fees and average price from the %s fills", name)
 		})
 	}
 	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[{"tid":7,"price":"NaN","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)

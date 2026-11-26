@@ -1407,6 +1407,7 @@ func testUpdateOrderFromDetailExecutedQuoteAmount(t *testing.T) {
 		averageExecutedPrice float64
 	}{
 		{name: "new fill without a quote total", update: Detail{ExecutedAmount: 0.02}, executedQuoteAmount: 0, averageExecutedPrice: 0},
+		{name: "new fill with an average but no quote total", update: Detail{ExecutedAmount: 0.02, AverageExecutedPrice: 60500}, executedQuoteAmount: 0, averageExecutedPrice: 60500},
 		{name: "new fill with a quote total", update: Detail{ExecutedAmount: 0.02, ExecutedQuoteAmount: 1210}, executedQuoteAmount: 1210, averageExecutedPrice: 60500},
 		{name: "quote total correction", update: Detail{ExecutedAmount: 0.01, ExecutedQuoteAmount: 610}, executedQuoteAmount: 610, averageExecutedPrice: 61000},
 		{name: "quote total without an executed amount", update: Detail{ExecutedQuoteAmount: 1210}, executedQuoteAmount: 600, averageExecutedPrice: 60000},

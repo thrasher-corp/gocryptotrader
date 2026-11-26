@@ -995,7 +995,7 @@ func TestWebsocketProcessOrderUpdate(t *testing.T) {
 					Price: 80000, Amount: 0.002, Timestamp: time.UnixMilli(1792888875775),
 				}},
 			}
-			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the order's remaining amount and cost")
+			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the remaining amount and reported average price")
 		})
 		t.Run("frame without its update", func(t *testing.T) {
 			require.ErrorIs(t, ex.wsProcessOrderUpdate(t.Context(), &websocketMessage{}), common.ErrNoResponse, "wsProcessOrderUpdate must report a frame without its update")

@@ -419,8 +419,9 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	return nil
 }
 
-// fetchOrderTotals relays a deleted or replaced order's detail again with the fee, cost and average price which its
-// event does not carry, and the status, executed amount and date the API reports for it, fetched off the read loop
+// fetchOrderTotals fetches and relays a deleted or replaced order's details off the read loop.
+// It includes the fee, executed quote amount and average price missing from the event, plus the status,
+// executed amount and date reported by the API.
 // The order store takes an order's fee from its own fee field, not its trades, and the order manager never polls an
 // order which is no longer active, so a filled order would otherwise keep a fee of zero. A read which shows the order
 // still open, or less executed than its event, is older than the event and is not relayed
