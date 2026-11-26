@@ -3,6 +3,7 @@ package engine
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -128,6 +129,79 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.NoError(t, err)
+
+	// newCSVTask returns a backtester holding its own mock OKX exchange and a strategy config for one pair whose
+	// candles come from a CSV file, so setup sends no requests
+	newCSVTask := func(t *testing.T, a asset.Item, cp currency.Pair) (*BackTest, *config.Config) {
+		t.Helper()
+		task, err := NewBacktester()
+		require.NoError(t, err, "NewBacktester must not error")
+		require.NoError(t, task.exchangeManager.Add(newMockOKX(t)), "adding the mock OKX exchange must not error")
+		t.Cleanup(func() {
+			if task.orderManager != nil && task.orderManager.IsRunning() {
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		})
+		csvPath := filepath.Join(t.TempDir(), "candles.csv")
+		require.NoError(t, os.WriteFile(csvPath, []byte("1609459200,1,10,10,10,10\n1609459260,1,10,10,10,10\n"), 0o600), "writing the candles must not error")
+		return task, &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				CSVData:  &config.CSVData{FullPath: csvPath},
+			},
+			StrategySettings: config.StrategySettings{Name: dollarcostaverage.Name, DisableUSDTracking: true},
+			CurrencySettings: []config.CurrencySettings{{
+				ExchangeName: testExchange,
+				Asset:        a,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
+				MakerFee:     &decimal.Zero,
+				TakerFee:     &decimal.Zero,
+				SpotDetails:  &config.SpotDetails{InitialQuoteFunds: &leet},
+			}},
+		}
+	}
+
+	t.Run("a strategy pair the exchange doesn't list matches after setup", func(t *testing.T) {
+		t.Parallel()
+		cp := currency.NewPair(currency.NewCode("GCTTEST"), currency.USDT)
+		task, cfg := newCSVTask(t, asset.Spot, cp)
+		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		exch, err := task.exchangeManager.GetExchangeByName(testExchange)
+		require.NoError(t, err, "GetExchangeByName must not error")
+		enabled, err := exch.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		assert.True(t, enabled.Contains(cp, true), "SetupFromConfig should enable the strategy's pair")
+		matched, err := exch.MatchSymbolWithAvailablePairs("GCTTEST-USDT", asset.Spot, true)
+		require.NoError(t, err, "SetupFromConfig must leave the strategy's pair matchable")
+		assert.Equal(t, "GCTTEST-USDT", matched.String(), "the strategy's pair should match in the exchange's format")
+	})
+
+	t.Run("USD tracking enables each tracking pair", func(t *testing.T) {
+		t.Parallel()
+		task, cfg := newCSVTask(t, asset.Spot, currency.NewPair(currency.ETH, currency.BTC))
+		cfg.StrategySettings.DisableUSDTracking = false
+		exch, err := task.exchangeManager.GetExchangeByName(testExchange)
+		require.NoError(t, err, "GetExchangeByName must not error")
+		ethusdt := currency.NewPairWithDelimiter("ETH", "USDT", currency.DashDelimiter)
+		btcusdt := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+		pm := &exch.GetBase().CurrencyPairs
+		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{ethusdt, btcusdt}, false), "StorePairs must not error for available pairs")
+		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{btcusdt}, true), "StorePairs must not error for enabled pairs")
+		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		enabled, err := exch.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		for _, cp := range []currency.Pair{ethusdt, btcusdt} {
+			assert.Truef(t, enabled.Contains(cp, true), "SetupFromConfig should enable tracking pair %s", cp)
+		}
+	})
+
+	t.Run("a strategy asset the exchange doesn't support", func(t *testing.T) {
+		t.Parallel()
+		task, cfg := newCSVTask(t, asset.Binary, currency.NewBTCUSDT())
+		assert.ErrorIs(t, task.SetupFromConfig(cfg, "", "", false), asset.ErrNotSupported, "SetupFromConfig should refuse an asset the exchange doesn't support")
+	})
 
 	t.Run("a PostgreSQL task's setup does not switch the driver under a SQLite load", func(t *testing.T) {
 		t.Parallel()
@@ -1995,4 +2069,82 @@ func TestProcessSingleDataEvent(t *testing.T) {
 
 	err = bt.processSingleDataEvent(ev, collateral)
 	assert.NoError(t, err)
+}
+
+func TestEnableStrategyPair(t *testing.T) {
+	t.Parallel()
+
+	requestFormat := &currency.PairFormat{Uppercase: true}
+	configFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	ltcusdt := currency.NewPair(currency.LTC, currency.USDT)
+	newManager := func(t *testing.T, ps *currency.PairStore) *currency.PairsManager {
+		t.Helper()
+		pm := new(currency.PairsManager)
+		require.NoError(t, pm.Store(asset.Spot, ps), "Store must not error")
+		return pm
+	}
+
+	t.Run("adds a new pair", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{Available: currency.Pairs{currency.NewBTCUSDT()}, RequestFormat: requestFormat, ConfigFormat: configFormat})
+		require.NoError(t, enableStrategyPair(pm, asset.Spot, currency.NewPairWithDelimiter("ltc", "usdt", currency.DashDelimiter)), "enableStrategyPair must not error")
+		assert.NoError(t, pm.IsAssetEnabled(asset.Spot), "enableStrategyPair should enable the asset")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "BTCUSDT,LTCUSDT", available.Join(), "enableStrategyPair should add the pair in the request format")
+		enabled, err := pm.GetPairs(asset.Spot, true)
+		require.NoError(t, err, "GetPairs must not error for enabled pairs")
+		assert.Equal(t, "LTCUSDT", enabled.Join(), "enableStrategyPair should enable the pair")
+		matched, err := pm.Match("LTCUSDT", asset.Spot)
+		require.NoError(t, err, "Match must find the strategy's pair")
+		assert.Equal(t, "LTCUSDT", matched.String(), "Match should return the strategy's pair")
+	})
+
+	t.Run("enables an available pair once", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{
+			Available:     currency.Pairs{currency.NewBTCUSDT(), ltcusdt},
+			Enabled:       currency.Pairs{ltcusdt},
+			RequestFormat: requestFormat,
+			ConfigFormat:  configFormat,
+		})
+		for range 2 {
+			require.NoError(t, enableStrategyPair(pm, asset.Spot, currency.NewBTCUSDT()), "enableStrategyPair must not error")
+		}
+		assert.NoError(t, pm.IsAssetEnabled(asset.Spot), "enableStrategyPair should enable the asset")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "BTCUSDT,LTCUSDT", available.Join(), "enableStrategyPair should leave the available pairs unchanged")
+		enabled, err := pm.GetPairs(asset.Spot, true)
+		require.NoError(t, err, "GetPairs must not error for enabled pairs")
+		assert.Equal(t, "LTCUSDT,BTCUSDT", enabled.Join(), "enableStrategyPair should add the pair to the enabled pairs once")
+	})
+
+	t.Run("formats with the exchange's request format", func(t *testing.T) {
+		t.Parallel()
+		pm := &currency.PairsManager{
+			UseGlobalFormat: true,
+			RequestFormat:   &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+			ConfigFormat:    configFormat,
+		}
+		require.NoError(t, pm.Store(asset.Spot, &currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFormat}), "Store must not error")
+		require.NoError(t, enableStrategyPair(pm, asset.Spot, ltcusdt), "enableStrategyPair must not error")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "LTC_USDT", available.Join(), "enableStrategyPair should use the global request format")
+	})
+
+	t.Run("refuses an asset without a request format", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{Available: currency.Pairs{currency.NewBTCUSDT()}})
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Spot, ltcusdt), currency.ErrPairFormatIsNil, "enableStrategyPair should refuse an asset without a request format")
+	})
+
+	t.Run("refuses an asset without a pair store", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFormat})
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Futures, ltcusdt), asset.ErrNotSupported, "enableStrategyPair should refuse an asset without a pair store")
+		pm = &currency.PairsManager{Pairs: currency.FullStore{asset.Futures: nil}}
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Futures, ltcusdt), asset.ErrNotSupported, "enableStrategyPair should refuse a nil pair store")
+	})
 }

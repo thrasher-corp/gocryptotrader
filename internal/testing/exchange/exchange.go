@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 	"github.com/thrasher-corp/gocryptotrader/exchange/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
@@ -159,6 +160,7 @@ func (s *mockHTTPServer) newClient() (*http.Client, error) {
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to the mock http server for its package's
 // recording, which every instance mocked from that recording shares
+// It disables the exchange's rate limiter, since requests to the local server need no throttling
 func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
 	s, err := getMockHTTPServer(httpMockFile)
 	if err != nil {
@@ -172,6 +174,9 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	if err := b.DisableRateLimiter(); err != nil && !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		return fmt.Errorf("error disabling rate limiter: %w", err)
+	}
 	if err := b.SetHTTPClient(newClient); err != nil {
 		return fmt.Errorf("error setting HTTP client: %w", err)
 	}

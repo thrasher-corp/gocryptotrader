@@ -754,6 +754,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 
 			require.NoError(t, exch.Setup(defaultCfg), "Setup must not error")
+			assert.Equal(t, name, strings.ToLower(exch.GetName()), "NewExchangeByName should return the named exchange")
 		})
 	}
 }
