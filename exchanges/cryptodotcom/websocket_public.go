@@ -44,7 +44,8 @@ var (
 	errBookUnsubscribed     = errors.New("book channel unsubscribed")
 )
 
-// websocketCandleTimeframes are the intervals the candlestick channel serves, by the timeframe Crypto.com names each by
+// websocketCandleTimeframes are the intervals the candlestick channel serves, by the timeframe Crypto.com names each by.
+// Its 14D candles are left out, as they open on alternate Mondays, a week from GoCryptoTrader's two-week boundaries
 var websocketCandleTimeframes = map[string]kline.Interval{
 	"1m":  kline.OneMin,
 	"5m":  kline.FiveMin,
@@ -56,7 +57,6 @@ var websocketCandleTimeframes = map[string]kline.Interval{
 	"12h": kline.TwelveHour,
 	"1D":  kline.OneDay,
 	"7D":  kline.SevenDay,
-	"14D": kline.TwoWeek,
 	"1M":  kline.OneMonth,
 }
 

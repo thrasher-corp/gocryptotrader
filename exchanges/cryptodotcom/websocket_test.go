@@ -1100,11 +1100,11 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 			},
 		},
 		{
-			name: "candles of every asset, and a day, two weeks and a month of spot",
+			name: "candles of every asset, and a day, a week and a month of spot",
 			subs: subscription.List{
 				all(subscription.CandlesChannel, func(s *subscription.Subscription) { s.Interval = kline.OneHour }),
 				{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay, Pairs: currency.Pairs{spotBTCUSD}},
-				{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek, Pairs: currency.Pairs{spotBTCUSD}},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.SevenDay, Pairs: currency.Pairs{spotBTCUSD}},
 				{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMonth, Pairs: currency.Pairs{spotBTCUSD}},
 			},
 			exp: []expected{
@@ -1116,8 +1116,23 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 				{0, asset.PerpetualSwap, perpBTCUSD, "candlestick.1h.BTCUSD-PERP"},
 				{0, asset.PerpetualSwap, perpETHUSD, "candlestick.1h.ETHUSD-PERP"},
 				{1, asset.Spot, spotBTCUSD, "candlestick.1D.BTC_USD"},
-				{2, asset.Spot, spotBTCUSD, "candlestick.14D.BTC_USD"},
+				{2, asset.Spot, spotBTCUSD, "candlestick.7D.BTC_USD"},
 				{3, asset.Spot, spotBTCUSD, "candlestick.1M.BTC_USD"},
+			},
+		},
+		{
+			name: "a week and a month of a perpetual swap's and a future's candles",
+			subs: subscription.List{
+				{Enabled: true, Asset: asset.PerpetualSwap, Channel: subscription.CandlesChannel, Interval: kline.SevenDay, Pairs: currency.Pairs{perpBTCUSD}},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.SevenDay, Pairs: currency.Pairs{futureBTCUSD}},
+				{Enabled: true, Asset: asset.PerpetualSwap, Channel: subscription.CandlesChannel, Interval: kline.OneMonth, Pairs: currency.Pairs{perpBTCUSD}},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.OneMonth, Pairs: currency.Pairs{futureBTCUSD}},
+			},
+			exp: []expected{
+				{0, asset.PerpetualSwap, perpBTCUSD, "candlestick.7D.BTCUSD-PERP"},
+				{1, asset.Futures, futureBTCUSD, "candlestick.7D.BTCUSD-261030"},
+				{2, asset.PerpetualSwap, perpBTCUSD, "candlestick.1M.BTCUSD-PERP"},
+				{3, asset.Futures, futureBTCUSD, "candlestick.1M.BTCUSD-261030"},
 			},
 		},
 		{
@@ -1188,14 +1203,33 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 		{"books of a depth Crypto.com does not serve", all(subscription.OrderbookChannel, func(s *subscription.Subscription) { s.Levels = 20 }), subscription.ErrInvalidLevel},
 		{"books updated at an interval Crypto.com does not serve", all(subscription.OrderbookChannel, func(s *subscription.Subscription) { s.Interval = kline.ThousandMilliseconds }), subscription.ErrInvalidInterval},
 		{"candles of an interval Crypto.com does not serve", all(subscription.CandlesChannel, func(s *subscription.Subscription) { s.Interval = kline.ThreeMin }), kline.ErrUnsupportedInterval},
+		{"two-week candles of spot, whose 14D candles open a week from GoCryptoTrader's two-week boundaries", &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek, Pairs: currency.Pairs{spotBTCUSD}}, kline.ErrUnsupportedInterval},
+		{"two-week candles of margin", &subscription.Subscription{Enabled: true, Asset: asset.Margin, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek}, kline.ErrUnsupportedInterval},
+		{"two-week candles of futures", &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek}, kline.ErrUnsupportedInterval},
+		{"two-week candles of perpetual swaps", &subscription.Subscription{Enabled: true, Asset: asset.PerpetualSwap, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek}, kline.ErrUnsupportedInterval},
+		{"two-week candles of every asset", all(subscription.CandlesChannel, func(s *subscription.Subscription) { s.Interval = kline.TwoWeek }), kline.ErrUnsupportedInterval},
+		{"two-week candles of a named perpetual swap", &subscription.Subscription{Enabled: true, Asset: asset.PerpetualSwap, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek, Pairs: currency.Pairs{perpBTCUSD}}, kline.ErrUnsupportedInterval},
+		{"two-week candles of a named future", &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TwoWeek, Pairs: currency.Pairs{futureBTCUSD}}, kline.ErrUnsupportedInterval},
+		{"six-hour candles of spot", &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.SixHour, Pairs: currency.Pairs{spotBTCUSD}}, kline.ErrUnsupportedInterval},
+		{"ninety-second candles of spot, which no timeframe names", &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.Interval(90 * time.Second), Pairs: currency.Pairs{spotBTCUSD}}, kline.ErrUnsupportedInterval},
 		{"candles without an interval", all(subscription.CandlesChannel), kline.ErrUnsupportedInterval},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ex := newTestExchange(t)
-			ex.Features.Subscriptions = subscription.List{tc.sub}
-			_, err := ex.generateMarketDataSubscriptions()
-			assert.ErrorIs(t, err, tc.err, "generateMarketDataSubscriptions should refuse the subscription")
+			// A refused subscription refuses the rest with it, wherever it is configured
+			for name, subs := range map[string]subscription.List{
+				"alone":                            {tc.sub.Clone()},
+				"before the default subscriptions": append(subscription.List{tc.sub.Clone()}, defaultSubscriptions.Clone()...),
+				"after the default subscriptions":  append(defaultSubscriptions.Clone(), tc.sub.Clone()),
+			} {
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					ex := newTestExchange(t)
+					ex.Features.Subscriptions = subs
+					_, err := ex.generateMarketDataSubscriptions()
+					assert.ErrorIs(t, err, tc.err, "generateMarketDataSubscriptions should refuse the subscription")
+				})
+			}
 		})
 	}
 

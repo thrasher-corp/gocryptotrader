@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -241,9 +242,7 @@ func mockMarketDataVenue(t *testing.T) *websocketVenue {
 
 func TestWebsocketCandleTimeframe(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
-	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
-	// nothing from the last
-	for timeframe, interval := range map[string]kline.Interval{
+	timeframes := map[string]kline.Interval{
 		"1m":  kline.OneMin,
 		"5m":  kline.FiveMin,
 		"15m": kline.FifteenMin,
@@ -254,9 +253,11 @@ func TestWebsocketCandleTimeframe(t *testing.T) { //nolint:tparallel // the case
 		"12h": kline.TwelveHour,
 		"1D":  kline.OneDay,
 		"7D":  kline.SevenDay,
-		"14D": kline.TwoWeek,
 		"1M":  kline.OneMonth,
-	} {
+	}
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
+	for timeframe, interval := range timeframes {
 		t.Run(timeframe, func(t *testing.T) {
 			got, err := websocketCandleTimeframe(interval)
 			require.NoErrorf(t, err, "websocketCandleTimeframe must not error for %s", interval)
@@ -268,6 +269,28 @@ func TestWebsocketCandleTimeframe(t *testing.T) { //nolint:tparallel // the case
 	}
 	_, err := websocketCandleTimeframe(kline.ThreeMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "websocketCandleTimeframe should refuse an interval the candlestick channel does not serve")
+	t.Run("two weeks", func(t *testing.T) {
+		// Crypto.com's 14D candles open a week from GoCryptoTrader's two-week boundaries
+		_, err := websocketCandleTimeframe(kline.TwoWeek)
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "websocketCandleTimeframe should refuse two weeks")
+	})
+	served := make(map[kline.Interval]bool, len(timeframes))
+	for _, interval := range timeframes {
+		served[interval] = true
+	}
+	// kline.SupportedIntervals lists some intervals twice and leaves out these, which kline also declares
+	intervals := append(slices.Clone(kline.SupportedIntervals), kline.Raw, kline.TenMilliseconds, kline.TwentyMilliseconds, kline.TwoHundredAndFiftyMilliseconds, kline.ThirtySecond, kline.TwoDay, kline.ThreeWeek, kline.NineMonth)
+	for _, interval := range slices.Compact(slices.Sorted(slices.Values(intervals))) {
+		if !served[interval] {
+			t.Run("unsupported "+interval.Short(), func(t *testing.T) {
+				_, err := websocketCandleTimeframe(interval)
+				assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "websocketCandleTimeframe should refuse %s", interval)
+			})
+		}
+	}
+	t.Run("the channel's timeframes", func(t *testing.T) {
+		assert.Equal(t, timeframes, websocketCandleTimeframes, "websocketCandleTimeframes should hold each timeframe the candlestick channel serves, once")
+	})
 	_, err = websocketCandleInterval("1d")
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "websocketCandleInterval should refuse a timeframe Crypto.com does not name")
 }
@@ -1605,12 +1628,16 @@ func TestWebsocketCandleInterval(t *testing.T) { //nolint:tparallel // the cases
 		{"12h", kline.TwelveHour, nil},
 		{"1D", kline.OneDay, nil},
 		{"7D", kline.SevenDay, nil},
-		{"14D", kline.TwoWeek, nil},
+		{"14D", 0, kline.ErrUnsupportedInterval},
 		{"1M", kline.OneMonth, nil},
 		{"1d", 0, kline.ErrUnsupportedInterval},
 		{"3m", 0, kline.ErrUnsupportedInterval},
 		{"1m ", 0, kline.ErrUnsupportedInterval},
 		{"", 0, kline.ErrUnsupportedInterval},
+		{"6h", 0, kline.ErrUnsupportedInterval},
+		{"M5", 0, kline.ErrUnsupportedInterval},
+		{"1H", 0, kline.ErrUnsupportedInterval},
+		{"1w", 0, kline.ErrUnsupportedInterval},
 		{"1h", kline.OneHour, nil},
 	} {
 		t.Run(subtestName(tc.timeframe), func(t *testing.T) {
@@ -2307,6 +2334,31 @@ func TestWebsocketHandleCandles(t *testing.T) { //nolint:tparallel // the cases 
 		return push
 	}
 	hourCandle := `[{"o":"80750.5","h":"80800.0","l":"80700.0","c":"80790.0","v":"12.5","t":1792890000000,"ut":1792893599000}]`
+	// fortnightPush is a push of Crypto.com's 14D candles as it sends them, its subscription naming the timeframe
+	fortnightPush := func(instrument, data string) *websocketChannelPush {
+		push := candlesPush(instrument, "14D", data)
+		push.Subscription = channelCandlestick + ".14D." + instrument
+		return push
+	}
+	monthCandles := []kline.Candle{
+		{Time: time.UnixMilli(1790812800000), Open: 77454.16, High: 77454.16, Low: 77454.16, Close: 77454.16},
+		{Time: time.UnixMilli(1793491200000), Open: 77454.16, High: 81136.85, Low: 55029.73, Close: 60252.3, Volume: 150099.76217},
+	}
+	// venuePush is a push of candles as Crypto.com sends them, its subscription naming the timeframe
+	venuePush := func(instrument, timeframe, data string) *websocketChannelPush {
+		push := candlesPush(instrument, timeframe, data)
+		push.Subscription = channelCandlestick + "." + timeframe + "." + instrument
+		return push
+	}
+	weekCandles := []kline.Candle{
+		{Time: time.UnixMilli(1794787200000), Open: 65332.35, High: 65666.61, Low: 55029.73, Close: 61175.8, Volume: 54579.93473},
+		{Time: time.UnixMilli(1795392000000), Open: 61179.27, High: 64538.74, Low: 57217.89, Close: 60625.21, Volume: 24575.74362},
+	}
+	perpetualWeekCandles := []kline.Candle{
+		{Time: time.UnixMilli(1794787200000), Open: 65316.9, High: 65648.3, Low: 55034, Close: 61173.6, Volume: 61611.7666},
+		{Time: time.UnixMilli(1795392000000), Open: 61173.6, High: 64536.5, Low: 57212, Close: 60786.9, Volume: 30089.6081},
+	}
+	latestMonthCandle := []kline.Candle{{Time: time.UnixMilli(1793491200000), Open: 77454.16, High: 81136.85, Low: 55029.73, Close: 60773.34, Volume: 150996.53634}}
 	// The cases share ex and drain its data handler in order
 	for _, tc := range []struct {
 		name    string
@@ -2326,6 +2378,57 @@ func TestWebsocketHandleCandles(t *testing.T) { //nolint:tparallel // the cases 
 			relayed: []any{kline.Item{Exchange: ex.Name, Pair: perpBTCUSD, Asset: asset.PerpetualSwap, Interval: kline.OneHour, Candles: []kline.Candle{{Time: time.UnixMilli(1792890000000), Open: 80750.5, High: 80800, Low: 80700, Close: 80790, Volume: 12.5}}}},
 		},
 		{name: "candles of a timeframe Crypto.com does not name, refused before they are decoded", push: candlesPush("BTC_USD", "3m", `{}`), err: kline.ErrUnsupportedInterval},
+		{name: "candles of 1d, a timeframe differing only in case from Crypto.com's 1D", push: candlesPush("BTC_USD", "1d", `{}`), err: kline.ErrUnsupportedInterval},
+		{
+			name: "Crypto.com's 14D candles, which open a week from GoCryptoTrader's two-week boundaries",
+			push: fortnightPush("BTC_USD", `[{"o":"78258.51","h":"81136.85","l":"61960.80","c":"65336.18","v":"70424.33932","t":1793577600000,"ut":1794787197043},`+
+				`{"o":"65332.35","h":"65666.61","l":"55029.73","c":"60252.30","v":"78375.22259","t":1794787200000,"ut":1795649929352}]`),
+			err: kline.ErrUnsupportedInterval,
+		},
+		{
+			name: "a perpetual swap's 14D candles",
+			push: fortnightPush("BTCUSD-PERP", `[{"o":"78247.2","h":"81126.3","l":"61935.2","c":"65316.0","v":"77090.188","t":1793577600000,"ut":1794787197041},`+
+				`{"o":"65316.9","h":"65648.3","l":"55034.0","c":"60248.3","v":"90611.6762","t":1794787200000,"ut":1795649924953}]`),
+			err: kline.ErrUnsupportedInterval,
+		},
+		{name: "a dated future's 14D candles", push: fortnightPush("BTCUSD-261030", `{}`), err: kline.ErrUnsupportedInterval},
+		{
+			name: "Crypto.com's latest 14D candle, as it pushes each change",
+			push: fortnightPush("BTC_USD", `[{"o":"65332.35","h":"65666.61","l":"55029.73","c":"60790.10","v":"79271.62472","t":1794787200000,"ut":1795658321084}]`),
+			err:  kline.ErrUnsupportedInterval,
+		},
+		{
+			name: "a month's candles, which keep their timeframe and opening time",
+			push: candlesPush("BTC_USD", "1M", `[{"o":"77454.16","h":"77454.16","l":"77454.16","c":"77454.16","v":"0","t":1790812800000,"ut":1790899200000},`+
+				`{"o":"77454.16","h":"81136.85","l":"55029.73","c":"60252.30","v":"150099.76217","t":1793491200000,"ut":1795649929352}]`),
+			relayed: []any{
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Spot, Interval: kline.OneMonth, Candles: monthCandles},
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Margin, Interval: kline.OneMonth, Candles: monthCandles},
+			},
+		},
+		{
+			name: "a week's candles, which keep their timeframe and opening time",
+			push: venuePush("BTC_USD", "7D", `[{"o":"65332.35","h":"65666.61","l":"55029.73","c":"61175.80","v":"54579.93473","t":1794787200000,"ut":1795391996005},`+
+				`{"o":"61179.27","h":"64538.74","l":"57217.89","c":"60625.21","v":"24575.74362","t":1795392000000,"ut":1795656920919}]`),
+			relayed: []any{
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Spot, Interval: kline.SevenDay, Candles: weekCandles},
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Margin, Interval: kline.SevenDay, Candles: weekCandles},
+			},
+		},
+		{
+			name: "a perpetual swap's week of candles",
+			push: venuePush("BTCUSD-PERP", "7D", `[{"o":"65316.9","h":"65648.3","l":"55034.0","c":"61173.6","v":"61611.7666","t":1794787200000,"ut":1795391998728},`+
+				`{"o":"61173.6","h":"64536.5","l":"57212.0","c":"60786.9","v":"30089.6081","t":1795392000000,"ut":1795658322342}]`),
+			relayed: []any{kline.Item{Exchange: ex.Name, Pair: perpBTCUSD, Asset: asset.PerpetualSwap, Interval: kline.SevenDay, Candles: perpetualWeekCandles}},
+		},
+		{
+			name: "a month's latest candle, as Crypto.com pushes each change",
+			push: venuePush("BTC_USD", "1M", `[{"o":"77454.16","h":"81136.85","l":"55029.73","c":"60773.34","v":"150996.53634","t":1793491200000,"ut":1795658328983}]`),
+			relayed: []any{
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Spot, Interval: kline.OneMonth, Candles: latestMonthCandle},
+				kline.Item{Exchange: ex.Name, Pair: spotBTCUSD, Asset: asset.Margin, Interval: kline.OneMonth, Candles: latestMonthCandle},
+			},
+		},
 		{name: "candles that cannot be decoded", push: candlesPush("BTC_USD", "1m", `{}`), err: errMalformedWebsocketMessage},
 		{name: "no candles", push: candlesPush("BTC_USD", "1m", `[]`)},
 		{name: "no candles of an instrument no asset trades", push: candlesPush("NOPE_USD", "1m", `[]`), err: currency.ErrPairNotFound},

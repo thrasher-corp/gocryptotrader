@@ -734,27 +734,6 @@ func TestIntervalToTimeframe(t *testing.T) {
 	}
 }
 
-func TestTimeframeToInterval(t *testing.T) {
-	t.Parallel()
-	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
-	// nothing from the last
-	for _, tc := range candlestickTimeframes {
-		t.Run(tc.timeframe, func(t *testing.T) {
-			interval, err := timeframeToInterval(tc.timeframe)
-			require.NoErrorf(t, err, "timeframeToInterval must not error for %s", tc.timeframe)
-			assert.Equalf(t, tc.interval, interval, "timeframeToInterval should give the interval of %s", tc.timeframe)
-		})
-	}
-	// Crypto.com echoes the timeframe a request names, and also accepts its older names, such as M5, and 1d
-	for _, timeframe := range []string{"", "6h", "M5", "1d", "1H", "1w"} {
-		t.Run("invalid "+subtestName(timeframe), func(t *testing.T) {
-			t.Parallel()
-			_, err := timeframeToInterval(timeframe)
-			assert.ErrorIsf(t, err, kline.ErrInvalidInterval, "timeframeToInterval should refuse %q", timeframe)
-		})
-	}
-}
-
 func TestOrderbookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	exp := OrderbookLevel{Price: 80694.94, Quantity: 0.03103, OrderCount: 3}

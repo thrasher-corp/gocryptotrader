@@ -240,39 +240,6 @@ func intervalToTimeframe(interval kline.Interval) (string, error) {
 	}
 }
 
-// timeframeToInterval returns the interval of a candlestick timeframe, as Crypto.com names it in a response or a
-// candlestick channel
-func timeframeToInterval(timeframe string) (kline.Interval, error) {
-	switch timeframe {
-	case "1m":
-		return kline.OneMin, nil
-	case "5m":
-		return kline.FiveMin, nil
-	case "15m":
-		return kline.FifteenMin, nil
-	case "30m":
-		return kline.ThirtyMin, nil
-	case "1h":
-		return kline.OneHour, nil
-	case "2h":
-		return kline.TwoHour, nil
-	case "4h":
-		return kline.FourHour, nil
-	case "12h":
-		return kline.TwelveHour, nil
-	case "1D":
-		return kline.OneDay, nil
-	case "7D":
-		return kline.SevenDay, nil
-	case "14D":
-		return kline.TwoWeek, nil
-	case "1M":
-		return kline.OneMonth, nil
-	default:
-		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, timeframe)
-	}
-}
-
 // UnmarshalJSON decodes a level from its [price, quantity, number of orders] array, whose values Crypto.com quotes
 func (l *OrderbookLevel) UnmarshalJSON(data []byte) error {
 	fields := make([]json.RawMessage, 0, 3)
