@@ -47,7 +47,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Bitfinex | Yes | Yes | Only supports USDT |
 | Bitflyer | No | No | |
 | Bithumb | No | No | |
-| Bitstamp | No | No | |
+| Bitstamp | Yes | Yes | |
 | BTCMarkets | No | No| NA  |
 | BTSE | No | No | Only through website |
 | Bybit | Yes | Yes | |
@@ -60,7 +60,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | HTX | Yes | Yes | |
 | Kraken | Yes | Yes | Front-end and API don't match total available transfer chains |
 | Kucoin |  Yes | Yes | |
-| Lbank | No | No | |
+| Lbank | Yes | Yes | |
 | MEXC | No | Yes | |
 | Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |

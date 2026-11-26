@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
@@ -109,16 +110,73 @@ func Setup(e exchange.IBotExchange, verbose ...bool) error {
 // httpMockFile is a consistent path under each exchange to find the mock server definitions
 const httpMockFile = "testdata/http.json"
 
-// MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
-// It is expected to be run once,  since http requests do not often tangle with each other
-func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
-	serverPath, newClient, err := mock.NewVCRServer(httpMockFile)
+var errMockHTTPTransport = errors.New("mock HTTP server client has no *http.Transport to copy")
+
+// mockHTTPServers holds the VCR server for each recording, keyed by the recording's absolute path, so that a test
+// binary decodes each recording and starts its server once rather than on every MockHTTPInstance call
+var (
+	mockHTTPServersMu sync.Mutex
+	mockHTTPServers   = make(map[string]func() (*mockHTTPServer, error))
+)
+
+// mockHTTPServer is a VCR server shared by every exchange mocked from the same recording; its handlers only read the
+// recording, so one server can serve them all
+type mockHTTPServer struct {
+	url    string
+	client *http.Client
+}
+
+// getMockHTTPServer returns the VCR server for the recording at path, starting it on first use
+func getMockHTTPServer(path string) (*mockHTTPServer, error) {
+	abs, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("error starting NewVCRServer: %w", err)
+		return nil, fmt.Errorf("error resolving mock HTTP recording path %q: %w", path, err)
 	}
+	mockHTTPServersMu.Lock()
+	start, ok := mockHTTPServers[abs]
+	if !ok {
+		start = sync.OnceValues(func() (*mockHTTPServer, error) {
+			serverURL, client, err := mock.NewVCRServer(abs)
+			if err != nil {
+				return nil, err
+			}
+			return &mockHTTPServer{url: serverURL, client: client}, nil
+		})
+		mockHTTPServers[abs] = start
+	}
+	mockHTTPServersMu.Unlock()
+	return start()
+}
+
+// newClient returns a client for the server with a copy of its client's transport, since a requester refuses a client
+// that another requester uses and changes the settings of its client's transport
+func (s *mockHTTPServer) newClient() (*http.Client, error) {
+	t, ok := s.client.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("%w: %T", errMockHTTPTransport, s.client.Transport)
+	}
+	return &http.Client{Transport: t.Clone()}, nil
+}
+
+// MockHTTPInstance takes an existing Exchange instance and attaches it to the mock http server for its package's
+// recording, which every instance mocked from that recording shares
+// It disables the exchange's rate limiter, since requests to the local server need no throttling
+func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
+	s, err := getMockHTTPServer(httpMockFile)
+	if err != nil {
+		return fmt.Errorf("error getting mock HTTP server: %w", err)
+	}
+	newClient, err := s.newClient()
+	if err != nil {
+		return fmt.Errorf("error creating mock HTTP client: %w", err)
+	}
+	serverPath := s.url
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	if err := b.DisableRateLimiter(); err != nil && !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		return fmt.Errorf("error disabling rate limiter: %w", err)
+	}
 	if err := b.SetHTTPClient(newClient); err != nil {
 		return fmt.Errorf("error setting HTTP client: %w", err)
 	}

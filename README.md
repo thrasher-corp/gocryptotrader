@@ -35,7 +35,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | HTX | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
-| Lbank | Yes | No | NA |
+| Lbank | Yes | Yes | NA |
 | MEXC | Yes | Yes | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -72,6 +72,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](./backtester/README.md).
 + Exchange HTTP mock testing. See [mock](./exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](./docs/MULTICHAIN_TRANSFER_SUPPORT.md).
++ BSON support for order.Detail. Only the v2 [BSON driver](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) is supported.
 
 ## Development Tracking
 
