@@ -49,11 +49,7 @@ func setupMockExchange(ex *Exchange) error {
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
-	if err := testexch.MockHTTPInstance(ex); err != nil {
-		return err
-	}
-	// Mock responses are served locally, so throttling protects nothing
-	return ex.DisableRateLimiter()
+	return testexch.MockHTTPInstance(ex)
 }
 
 // newTestExchange returns a mock exchange named after the test, so the ticker and orderbook stores it writes do not

@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"math"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -567,6 +568,14 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	v, err = CalculateCandleDateRanges(start, end, OneDay, 0)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), v.Limit)
+
+	t.Run("limit above the interval count gives one range", func(t *testing.T) {
+		t.Parallel()
+		v, err := CalculateCandleDateRanges(pt, et, OneWeek, math.MaxUint64)
+		require.NoError(t, err, "CalculateCandleDateRanges must not error")
+		require.Len(t, v.Ranges, 1, "CalculateCandleDateRanges must return one range")
+		assert.Len(t, v.Ranges[0].Intervals, 52, "the range should hold every interval")
+	})
 }
 
 func TestItem_SortCandlesByTimestamp(t *testing.T) {
