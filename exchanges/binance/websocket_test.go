@@ -1704,11 +1704,35 @@ func TestOneOrderbookSubscription(t *testing.T) {
 }
 
 // TestDistinctSubscriptions ensures that only the first of the subscriptions the subscription store holds as one is
-// kept, its pairs compared whatever their order, case or delimiter, and that subscriptions of different streams are
-// all kept
+// kept, its pairs compared whatever their order, case or delimiter, and that subscriptions it holds apart are all kept
+// in the order given
 func TestDistinctSubscriptions(t *testing.T) {
 	t.Parallel()
 	eth := currency.NewPair(currency.ETH, currency.USDT)
+	// check takes what it expects from copies made before the call, so a distinctSubscriptions that rewrites the list or
+	// the subscriptions it is given cannot change the expectation; parameters are copied through JSON, as saved
+	// configurations give them, so nested maps and lists are copied too
+	check := func(t *testing.T, subs subscription.List, kept ...int) {
+		t.Helper()
+		given := slices.Clone(subs)
+		copies := make(subscription.List, len(subs))
+		for i, s := range subs {
+			copies[i] = s.Clone()
+			params, err := json.Marshal(s.Params)
+			require.NoError(t, err, "json.Marshal must not error")
+			copies[i].Params = nil
+			require.NoError(t, json.Unmarshal(params, &copies[i].Params), "json.Unmarshal must not error")
+		}
+		got := distinctSubscriptions(subs)
+		require.Len(t, got, len(kept), "distinctSubscriptions must return one subscription for each kept position")
+		for i, k := range kept {
+			assert.Samef(t, given[k], got[i], "distinctSubscriptions should return the subscription given at position %d at position %d", k, i)
+		}
+		for i := range given {
+			assert.Samef(t, given[i], subs[i], "distinctSubscriptions should leave the subscription given at position %d in place", i)
+			assert.Equalf(t, copies[i], given[i], "distinctSubscriptions should leave the subscription given at position %d as it was", i)
+		}
+	}
 	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}
 	for _, channel := range channels {
 		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
@@ -1718,72 +1742,236 @@ func TestDistinctSubscriptions(t *testing.T) {
 			}
 			t.Run(channel+" on "+a.String(), func(t *testing.T) {
 				t.Parallel()
-				// Generated subscriptions carry their stream name, which stays the same in every case
-				base := func() *subscription.Subscription {
-					s := &subscription.Subscription{Channel: channel, Asset: a, Pairs: currency.Pairs{currency.NewBTCUSDT(), eth}, QualifiedChannel: "btcusdt@stream"}
-					switch channel {
-					case subscription.CandlesChannel:
-						s.Interval = kline.OneMin
-					case subscription.OrderbookChannel:
-						s.Levels, s.Interval = 5, kline.HundredMilliseconds
-					}
-					return s
-				}
-				cases := []struct {
-					name     string
-					other    func(*subscription.Subscription)
-					distinct bool
-				}{
-					{"identical", func(*subscription.Subscription) {}, false},
-					{"pairs in another order, case and delimiter", func(s *subscription.Subscription) {
-						s.Pairs = currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
-					}, false},
-					{"other parameters", func(s *subscription.Subscription) { s.Params = map[string]any{"depth": map[string]any{"levels": 10.0}} }, false},
-					{"another asset", func(s *subscription.Subscription) { s.Asset = anotherAsset }, true},
-					{"other pairs", func(s *subscription.Subscription) { s.Pairs = currency.Pairs{currency.NewBTCUSDT()} }, true},
-					{"pairs of the same bases in another quote", func(s *subscription.Subscription) {
-						s.Pairs = currency.Pairs{currency.NewPair(currency.BTC, currency.USDC), currency.NewPair(currency.ETH, currency.USDC)}
-					}, true},
-					{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
-					{"another interval", func(s *subscription.Subscription) {
-						s.Interval = kline.FiveMin
-						if channel == subscription.OrderbookChannel {
-							s.Interval = kline.FiveHundredMilliseconds
+				// Both generators give each subscription one pair, and subscriptions built in Go can list several
+				for _, shape := range []struct {
+					name  string
+					pairs currency.Pairs
+				}{{"one pair", currency.Pairs{currency.NewBTCUSDT()}}, {"two pairs", currency.Pairs{currency.NewBTCUSDT(), eth}}} {
+					t.Run(shape.name, func(t *testing.T) {
+						t.Parallel()
+						// Generated subscriptions are enabled and carry their stream name, which only the qualified channel case
+						// changes
+						base := func() *subscription.Subscription {
+							s := &subscription.Subscription{Enabled: true, Channel: channel, Asset: a, Pairs: slices.Clone(shape.pairs), QualifiedChannel: "btcusdt@stream"}
+							switch channel {
+							case subscription.CandlesChannel:
+								s.Interval = kline.OneMin
+							case subscription.OrderbookChannel:
+								s.Levels, s.Interval = 5, kline.HundredMilliseconds
+							}
+							return s
 						}
-					}, true},
-				}
-				for _, another := range channels {
-					if another != channel {
-						cases = append(cases, struct {
+						respelt := currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
+						respeltName, otherPairs := "pairs in another order, case and delimiter", currency.Pairs{currency.NewBTCUSDT()}
+						if len(shape.pairs) == 1 {
+							respelt = currency.Pairs{currency.NewPairWithDelimiter("btc", "usdt", "_")}
+							respeltName, otherPairs = "pair in another case and delimiter", currency.Pairs{eth}
+						}
+						otherQuote := make(currency.Pairs, len(shape.pairs))
+						for i, p := range shape.pairs {
+							otherQuote[i] = currency.NewPair(p.Base, currency.USDC)
+						}
+						cases := []struct {
 							name     string
 							other    func(*subscription.Subscription)
 							distinct bool
-						}{"another channel, " + another, func(s *subscription.Subscription) { s.Channel = another }, true})
-					}
-				}
-				for _, tc := range cases {
-					t.Run(tc.name, func(t *testing.T) {
-						t.Parallel()
-						first, other := base(), base()
-						tc.other(other)
-						wantFirst, wantOther := base(), base()
-						tc.other(wantOther)
-						got := distinctSubscriptions(subscription.List{first, other})
-						if tc.distinct {
-							require.Lenf(t, got, 2, "distinctSubscriptions must keep both subscriptions with %s", tc.name)
-							assert.Samef(t, first, got[0], "distinctSubscriptions should keep the first subscription first with %s", tc.name)
-							assert.Samef(t, other, got[1], "distinctSubscriptions should keep the other subscription second with %s", tc.name)
-						} else {
-							require.Lenf(t, got, 1, "distinctSubscriptions must keep one subscription with %s", tc.name)
-							assert.Samef(t, first, got[0], "distinctSubscriptions should keep the first subscription with %s", tc.name)
+						}{
+							{"identical", func(*subscription.Subscription) {}, false},
+							{respeltName, func(s *subscription.Subscription) { s.Pairs = slices.Clone(respelt) }, false},
+							{"other parameters", func(s *subscription.Subscription) { s.Params = map[string]any{"depth": map[string]any{"levels": 10.0}} }, false},
+							{"another qualified channel", func(s *subscription.Subscription) { s.QualifiedChannel = "ethusdt@another" }, false},
+							{"authenticated", func(s *subscription.Subscription) { s.Authenticated = true }, false},
+							{"authenticated, with parameters", func(s *subscription.Subscription) {
+								s.Authenticated, s.Params = true, map[string]any{"source": "private"}
+							}, false},
+							{"another asset", func(s *subscription.Subscription) { s.Asset = anotherAsset }, true},
+							{"other pairs", func(s *subscription.Subscription) { s.Pairs = slices.Clone(otherPairs) }, true},
+							{"pairs of the same bases in another quote", func(s *subscription.Subscription) { s.Pairs = slices.Clone(otherQuote) }, true},
+							{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
+							{"another interval", func(s *subscription.Subscription) {
+								s.Interval = kline.FiveMin
+								if channel == subscription.OrderbookChannel {
+									s.Interval = kline.FiveHundredMilliseconds
+								}
+							}, true},
 						}
-						assert.Equalf(t, wantFirst, first, "distinctSubscriptions should leave the first subscription as it was with %s", tc.name)
-						assert.Equalf(t, wantOther, other, "distinctSubscriptions should leave the other subscription as it was with %s", tc.name)
+						for _, another := range channels {
+							if another != channel {
+								cases = append(cases, struct {
+									name     string
+									other    func(*subscription.Subscription)
+									distinct bool
+								}{"another channel, " + another, func(s *subscription.Subscription) { s.Channel = another }, true})
+							}
+						}
+						for _, tc := range cases {
+							t.Run(tc.name, func(t *testing.T) {
+								t.Parallel()
+								for _, order := range []struct {
+									name       string
+									otherFirst bool
+								}{{"listed second", false}, {"listed first", true}} {
+									t.Run(order.name, func(t *testing.T) {
+										t.Parallel()
+										unchanged, other := base(), base()
+										tc.other(other)
+										wantUnchanged, wantOther := base(), base()
+										tc.other(wantOther)
+										subs := subscription.List{unchanged, other}
+										if order.otherFirst {
+											subs = subscription.List{other, unchanged}
+										}
+										if tc.distinct {
+											check(t, subs, 0, 1)
+										} else {
+											check(t, subs, 0)
+										}
+										assert.Equal(t, wantUnchanged, unchanged, "distinctSubscriptions should leave the unchanged subscription as it was")
+										assert.Equal(t, wantOther, other, "distinctSubscriptions should leave the other subscription as it was")
+									})
+								}
+							})
+						}
 					})
 				}
 			})
 		}
 	}
+
+	t.Run("parameters", func(t *testing.T) {
+		t.Parallel()
+		// Saved configurations give parameters as JSON decodes them
+		param := func(v any) map[string]any { return map[string]any{"source": v} }
+		for _, tc := range []struct {
+			name          string
+			first, second func() map[string]any
+		}{
+			{"none on either", func() map[string]any { return nil }, func() map[string]any { return nil }},
+			{"none then empty", func() map[string]any { return nil }, func() map[string]any { return map[string]any{} }},
+			{"empty then none", func() map[string]any { return map[string]any{} }, func() map[string]any { return nil }},
+			{"none then some", func() map[string]any { return nil }, func() map[string]any { return param("configuration") }},
+			{"some then none", func() map[string]any { return param("configuration") }, func() map[string]any { return nil }},
+			{"empty then some", func() map[string]any { return map[string]any{} }, func() map[string]any { return param("configuration") }},
+			{"some then empty", func() map[string]any { return param("configuration") }, func() map[string]any { return map[string]any{} }},
+			{"the same on both", func() map[string]any { return param("configuration") }, func() map[string]any { return param("configuration") }},
+			{"another string", func() map[string]any { return param("configuration") }, func() map[string]any { return param("another") }},
+			{"another number", func() map[string]any { return param(5.0) }, func() map[string]any { return param(10.0) }},
+			{"another boolean", func() map[string]any { return param(true) }, func() map[string]any { return param(false) }},
+			{"another list", func() map[string]any { return param([]any{"bid"}) }, func() map[string]any { return param([]any{"ask"}) }},
+			{"another object", func() map[string]any { return param(map[string]any{"levels": 5.0}) }, func() map[string]any { return param(map[string]any{"levels": 10.0}) }},
+			{"other parameters", func() map[string]any { return param("configuration") }, func() map[string]any { return map[string]any{"depth": map[string]any{"levels": 10.0}} }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				sub := func(params map[string]any) *subscription.Subscription {
+					return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@ticker", Params: params}
+				}
+				check(t, subscription.List{sub(tc.first()), sub(tc.second())}, 0)
+			})
+		}
+	})
+
+	t.Run("pair spellings", func(t *testing.T) {
+		t.Parallel()
+		option := currency.NewPairWithDelimiter("BTC", "261225-100000-C", "-")
+		anotherOption := currency.NewPairWithDelimiter("ETH", "261225-4000-P", "-")
+		for _, tc := range []struct {
+			a           asset.Item
+			pair, other currency.Pair
+			spellings   []string
+		}{
+			{asset.Spot, currency.NewBTCUSDT(), eth, []string{"BTCUSDT", "btcusdt", "BTC-USDT", "btc_usdt", "BTC/usdt", "btc.USDT", "BTC:USDT", "bTc-UsDt"}},
+			{asset.Options, option, anotherOption, []string{"BTC-261225-100000-C", "BTC_261225-100000-C", "btc-261225-100000-c", "BTC/261225-100000-C", "btc.261225-100000-C"}},
+		} {
+			for _, spelling := range tc.spellings {
+				t.Run(tc.a.String()+" "+spelling, func(t *testing.T) {
+					t.Parallel()
+					spelt, err := currency.NewPairFromString(spelling)
+					require.NoError(t, err, "NewPairFromString must not error")
+					for _, shape := range []struct {
+						name        string
+						pairs, also func() currency.Pairs
+					}{
+						{"one pair", func() currency.Pairs { return currency.Pairs{tc.pair} }, func() currency.Pairs { return currency.Pairs{spelt} }},
+						{"two pairs", func() currency.Pairs { return currency.Pairs{tc.pair, tc.other} }, func() currency.Pairs { return currency.Pairs{tc.other, spelt} }},
+					} {
+						t.Run(shape.name, func(t *testing.T) {
+							t.Parallel()
+							sub := func(pairs currency.Pairs) *subscription.Subscription {
+								return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: tc.a, Pairs: pairs, QualifiedChannel: "btcusdt@ticker"}
+							}
+							check(t, subscription.List{sub(shape.pairs()), sub(shape.also())}, 0)
+							check(t, subscription.List{sub(shape.also()), sub(shape.pairs())}, 0)
+						})
+					}
+				})
+			}
+		}
+	})
+
+	t.Run("pairs of other currencies", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			a           asset.Item
+			pair, other string
+		}{
+			{"reversed", asset.Spot, "BTC/USDT", "USDT/BTC"},
+			{"spelt with the same letters", asset.Spot, "BTC/USDT", "BTCU/SDT"},
+			{"a dash inside a code", asset.Spot, "BTC/USDT", "BTC/US-DT"},
+			{"a full stop inside a code", asset.Spot, "BTC/USDT", "BTC/US.DT"},
+			{"a leading zero", asset.Spot, "G-USDT", "0G-USDT"},
+			{"a multiplier", asset.USDTMarginedFutures, "BOB_USDT", "1000000BOB_USDT"},
+			{"codes in another script", asset.USDTMarginedFutures, "币安人生_USDT", "我踏马来了_USDT"},
+			{"option expiries a day apart", asset.Options, "BNB-261007-740-C", "BNB-261008-740-C"},
+			{"option strikes differing in a decimal point", asset.Options, "SOL-261225-125-C", "SOL-261225-12.5-C"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				pair, err := currency.NewPairFromString(tc.pair)
+				require.NoError(t, err, "NewPairFromString must not error")
+				other, err := currency.NewPairFromString(tc.other)
+				require.NoError(t, err, "NewPairFromString must not error")
+				sub := func(pairs ...currency.Pair) *subscription.Subscription {
+					return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: tc.a, Pairs: pairs, QualifiedChannel: "btcusdt@ticker"}
+				}
+				check(t, subscription.List{sub(pair), sub(other)}, 0, 1)
+				check(t, subscription.List{sub(other), sub(pair)}, 0, 1)
+				check(t, subscription.List{sub(pair, eth), sub(eth, other)}, 0, 1)
+				check(t, subscription.List{sub(eth, other), sub(pair, eth)}, 0, 1)
+			})
+		}
+	})
+
+	t.Run("duplicates listed apart", func(t *testing.T) {
+		t.Parallel()
+		sub := func(channel string, p currency.Pair, stream string, authenticated bool) *subscription.Subscription {
+			return &subscription.Subscription{Enabled: true, Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{p}, QualifiedChannel: stream, Authenticated: authenticated}
+		}
+		check(t, subscription.List{
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", false),
+			sub(subscription.AllTradesChannel, eth, "ethusdt@trade", false),
+			sub(subscription.TickerChannel, currency.NewBTCUSDT(), "btcusdt@ticker", true),
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", false),
+			sub(subscription.AllTradesChannel, currency.NewBTCUSDT(), "btcusdt@trade", false),
+			sub(subscription.AllTradesChannel, eth, "ethusdt@trade", false),
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", true),
+		}, 0, 1, 2, 4)
+	})
+
+	t.Run("a duplicate of the first after many others", func(t *testing.T) {
+		t.Parallel()
+		// Binance takes 50 streams a subscription message and 1,024 a connection, and a list can run past both
+		book := func(levels int) *subscription.Subscription {
+			return &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@depth", Levels: levels, Interval: kline.HundredMilliseconds}
+		}
+		subs := make(subscription.List, 0, 1101)
+		kept := make([]int, 0, 1100)
+		for i := range 1100 {
+			subs, kept = append(subs, book(i+1)), append(kept, i)
+		}
+		check(t, append(subs, book(1)), kept...)
+	})
 }
 
 func TestChannelName(t *testing.T) {
