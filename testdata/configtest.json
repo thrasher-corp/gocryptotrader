@@ -746,6 +746,108 @@
    }
   },
   {
+   "name": "BingX",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "connectionMonitorDelay": 2000000000,
+   "baseCurrencies": "USD",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "useGlobalFormat": false,
+    "pairs": {
+     "coinmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USD",
+      "available": "BTC-USD,ETH-USD",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT,ETH-USDT",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "usdtmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDC,BTC-USDT,ETH-USDT",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
+    }
+   },
+   "bankAccounts": [
+    {
+     "enabled": false,
+     "bankName": "",
+     "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ],
+   "orderbook": {
+    "verificationBypass": false
+   }
+  },
+  {
    "name": "Bitfinex",
    "enabled": true,
    "verbose": false,

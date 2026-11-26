@@ -68,6 +68,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 |----------------|-------------|
 | Binance.US  | Y     |
 | Binance        | Y           |
+| BingX          | Y           |
 | Bitfinex       | Y           |
 | Bitflyer       |             |
 | Bithumb        | Y           |
