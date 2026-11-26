@@ -261,9 +261,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		// WebSocket API requests draw on the same weight pools as their REST equivalents, while stream control messages
 		// fall back to each connection's own message rate limit
 		RateLimitDefinitions: e.Requester.GetRateLimiterDefinitions(),
-		// Spot, USDⓈ-M and COIN-M connections carry up to 1024 streams but options connections only 200; the manager
-		// takes one limit for every connection, so the smallest applies
-		MaxWebsocketSubscriptionsPerConnection: 200,
+		// A spot connection carries up to 1024 streams; each derivatives connection sets its own product's limit below
+		MaxWebsocketSubscriptionsPerConnection: 1024,
 	}); err != nil {
 		return err
 	}
@@ -308,21 +307,24 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// - COIN-M private and market
 	// A generator returns nothing for a disabled asset, or for a private connection when not authenticated
 	// so the manager skips that connection instead of failing all
+	// Binance documents each product's market stream limit, 1024 streams a connection for USDⓈ-M and COIN-M and 200 for
+	// options; a private connection, carrying its account's listen key, takes its product's limit
 	for _, c := range []struct {
 		filter                 string
 		url                    string
 		generate               func() (subscription.List, error)
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
+		maxSubscriptions       int
 	}{
-		{usdtmPublicFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPublicRoute, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmMarketFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamMarketRoute, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmPrivateFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPrivateRoute, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
-		{coinmFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
-		{coinmPrivateFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
-		{optionsPublicFilter, urlConf[exchange.WebsocketOptions] + fstreamPublicRoute, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsMarketFilter, urlConf[exchange.WebsocketOptions] + fstreamMarketRoute, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsPrivateFilter, urlConf[exchange.WebsocketOptions] + fstreamPrivateRoute, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
+		{usdtmPublicFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPublicRoute, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData, 1024},
+		{usdtmMarketFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamMarketRoute, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData, 1024},
+		{usdtmPrivateFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPrivateRoute, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData, 1024},
+		{coinmFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData, 1024},
+		{coinmPrivateFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData, 1024},
+		{optionsPublicFilter, urlConf[exchange.WebsocketOptions] + fstreamPublicRoute, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData, 200},
+		{optionsMarketFilter, urlConf[exchange.WebsocketOptions] + fstreamMarketRoute, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData, 200},
+		{optionsPrivateFilter, urlConf[exchange.WebsocketOptions] + fstreamPrivateRoute, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData, 200},
 	} {
 		if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 			MessageFilter:         c.filter,
@@ -335,6 +337,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 			RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+			MaxSubscriptions:      c.maxSubscriptions,
 		}); err != nil {
 			return err
 		}

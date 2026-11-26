@@ -2020,6 +2020,52 @@ func TestSetup(t *testing.T) {
 			})
 		}
 
+		// Binance documents each product's market stream limit, but none for COIN-M user data streams or the options
+		// /private route, so those private connections take their product's market stream limit
+		t.Run("limits each stream connection to its product's market stream limit", func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, authenticated)
+			for _, tc := range []struct {
+				name   string
+				filter any
+				limit  int
+			}{
+				{"spot", asset.Spot, 1024},
+				{"USD-M public", usdtmPublicFilter, 1024},
+				{"USD-M market", usdtmMarketFilter, 1024},
+				{"USD-M private", usdtmPrivateFilter, 1024},
+				{"COIN-M market", coinmFilter, 1024},
+				{"COIN-M private at the COIN-M market stream limit", coinmPrivateFilter, 1024},
+				{"options public", optionsPublicFilter, 200},
+				{"options market", optionsMarketFilter, 200},
+				{"options private at the options market stream limit", optionsPrivateFilter, 200},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+					require.NoError(t, err, "CreateTestConnection must not error")
+					require.NoError(t, ex.Websocket.TrackTestConnection(tc.filter, conn), "TrackTestConnection must not error")
+					// The limit check runs before the duplicate check, so with a subscription already registered first, a
+					// batch within the limit stops at the duplicate and one past it is refused by the limit, both before
+					// anything is sent
+					registered := &subscription.Subscription{Channel: "registered"}
+					require.NoError(t, ex.Websocket.AddSubscriptions(conn, registered), "AddSubscriptions must not error")
+					batch := func(size int) subscription.List {
+						subs := subscription.List{registered}
+						for i := 1; i < size; i++ {
+							subs = append(subs, &subscription.Subscription{Channel: strconv.Itoa(i)})
+						}
+						return subs
+					}
+					err = ex.Websocket.SubscribeToChannels(t.Context(), conn, batch(tc.limit))
+					assert.ErrorIsf(t, err, subscription.ErrDuplicate, "SubscribeToChannels should take %d subscriptions within the limit", tc.limit)
+					err = ex.Websocket.SubscribeToChannels(t.Context(), conn, batch(tc.limit+1))
+					assert.Errorf(t, err, "SubscribeToChannels should refuse %d subscriptions", tc.limit+1)
+					assert.NotErrorIsf(t, err, subscription.ErrDuplicate, "SubscribeToChannels should refuse %d subscriptions at the limit check", tc.limit+1)
+				})
+			}
+		})
+
 		// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
 		// configuration saved before the endpoint existed keeps the production one
 		const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
