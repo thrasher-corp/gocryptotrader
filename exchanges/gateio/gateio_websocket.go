@@ -557,6 +557,9 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 	}
 	subAccts := accounts.SubAccounts{}
 	for _, bal := range resp {
+		if bal == nil {
+			continue
+		}
 		a := accounts.NewSubAccount(asset.Spot, bal.User)
 		a.Balances.Set(bal.Currency, accounts.Balance{
 			Total:                  bal.Total.Float64(),

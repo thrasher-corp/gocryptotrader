@@ -360,9 +360,12 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	trades := make([]trade.Data, len(resp))
-	for x, r := range resp {
-		trades[x] = trade.Data{
+	trades := make([]trade.Data, 0, len(resp))
+	for _, r := range resp {
+		if r == nil {
+			continue
+		}
+		trades = append(trades, trade.Data{
 			TID:          strconv.FormatUint(r.ID, 10),
 			Exchange:     e.Name,
 			CurrencyPair: r.Symbol,
@@ -370,7 +373,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 			Price:        r.Price.Float64(),
 			Timestamp:    r.Timestamp.Time(),
 			Amount:       r.BaseAmount.Float64(),
-		}
+		})
 	}
 	return trade.AddTradesToBuffer(trades...)
 }

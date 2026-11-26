@@ -133,6 +133,9 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
+	if result == nil {
+		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
+	}
 	if result.Event != "" {
 		switch result.Event {
 		case "pong":

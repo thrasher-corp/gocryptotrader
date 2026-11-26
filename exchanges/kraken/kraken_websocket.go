@@ -309,6 +309,9 @@ func (e *Exchange) wsProcessOpenOrders(ctx context.Context, ownOrdersResp json.R
 
 	for r := range result {
 		for key, val := range result[r] {
+			if val == nil {
+				continue
+			}
 			d := &order.Detail{
 				Exchange:             e.Name,
 				OrderID:              key,
