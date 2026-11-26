@@ -111,12 +111,14 @@ func TestSetupFromConfig(t *testing.T) {
 	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
 	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
+	assert.False(t, bt.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after it fails")
 
 	cfg.DataSettings.APIData.StartDate = time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
 	cfg.DataSettings.APIData.EndDate = cfg.DataSettings.APIData.StartDate.Add(gctkline.OneMin.Duration() * 5)
 	cfg.DataSettings.APIData.InclusiveEndDate = true
 	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.ErrorIs(t, err, holdings.ErrInitialFundsZero)
+	assert.False(t, bt.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after it fails")
 
 	cfg.FundingSettings.UseExchangeLevelFunding = true
 	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
@@ -130,6 +132,7 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	err = bt.SetupFromConfig(t.Context(), cfg, "", "", false)
 	assert.NoError(t, err)
+	assert.True(t, bt.orderManager.IsRunning(), "SetupFromConfig should start the order manager once it succeeds")
 
 	// newCSVTask returns a backtester holding its own mock OKX exchange and a strategy config for one pair whose
 	// candles come from a CSV file, so setup sends no requests
@@ -204,6 +207,66 @@ func TestSetupFromConfig(t *testing.T) {
 		assert.ErrorIs(t, task.SetupFromConfig(t.Context(), cfg, "", "", false), asset.ErrNotSupported, "SetupFromConfig should refuse an asset the exchange doesn't support")
 	})
 
+	t.Run("cancelled context stops fee lookup", func(t *testing.T) {
+		t.Parallel()
+		task, err := NewBacktester()
+		require.NoError(t, err, "NewBacktester must not error")
+		exch := &cancelFeeExchange{Exchange: newMockOKX(t)}
+		require.NoError(t, task.exchangeManager.Add(exch), "adding the mock OKX exchange must not error")
+		t.Cleanup(func() {
+			if task.orderManager != nil && task.orderManager.IsRunning() {
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		})
+		csvPath := filepath.Join(t.TempDir(), "candles.csv")
+		require.NoError(t, os.WriteFile(csvPath, []byte("1609459200,1,10,10,10,10\n1609459260,1,10,10,10,10\n"), 0o600), "writing candles must not error")
+
+		cfg := &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				CSVData:  &config.CSVData{FullPath: csvPath},
+			},
+			StrategySettings: config.StrategySettings{Name: dollarcostaverage.Name, DisableUSDTracking: true},
+			CurrencySettings: []config.CurrencySettings{{
+				ExchangeName: exch.GetName(),
+				Asset:        asset.Spot,
+				Base:         currency.BTC,
+				Quote:        currency.USDT,
+				SpotDetails:  &config.SpotDetails{InitialQuoteFunds: &leet},
+			}},
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		err = task.SetupFromConfig(ctx, cfg, "", "", false)
+		assert.ErrorIs(t, err, context.Canceled, "SetupFromConfig should propagate cancelled context from fee retrieval")
+		assert.False(t, task.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after cancellation")
+	})
+
+	t.Run("cancelled context stops the pair refresh", func(t *testing.T) {
+		t.Parallel()
+		_, cfg := newCSVTask(t, asset.Spot, currency.NewBTCUSDT())
+		// A task without the mock OKX builds the exchange, so setup refreshes its pairs first
+		task, err := NewBacktester()
+		require.NoError(t, err, "NewBacktester must not error")
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		assert.ErrorIs(t, task.SetupFromConfig(ctx, cfg, "", "", false), context.Canceled, "SetupFromConfig should propagate cancelled context from the pair refresh")
+		assert.False(t, task.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after cancellation")
+	})
+
+	t.Run("cancelled context stops setup's API data loading", func(t *testing.T) {
+		t.Parallel()
+		task, cfg := newCSVTask(t, asset.Spot, currency.NewBTCUSDT())
+		start := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
+		cfg.DataSettings.CSVData = nil
+		cfg.DataSettings.APIData = &config.APIData{StartDate: start, EndDate: start.Add(gctkline.OneMin.Duration() * 5)}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		assert.ErrorIs(t, task.SetupFromConfig(ctx, cfg, "", "", false), context.Canceled, "SetupFromConfig should propagate cancelled context from API data loading")
+		assert.False(t, task.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after cancellation")
+	})
+
 	t.Run("a PostgreSQL task's setup does not switch the driver under a SQLite load", func(t *testing.T) {
 		t.Parallel()
 		cp := currency.NewBTCUSDT()
@@ -237,10 +300,10 @@ func TestSetupFromConfig(t *testing.T) {
 				if !assert.NoError(t, err, "NewBacktester should not error") {
 					return
 				}
-				// The task stops for want of a strategy, after setting up its database manager and starting its order manager
+				// The task stops for want of a strategy, after setting up its database manager
 				assert.ErrorIs(t, task.SetupFromConfig(t.Context(), postgresTask, "", "", false), base.ErrStrategyNotFound, "SetupFromConfig should fail for want of a strategy")
 				assert.NotNil(t, task.databaseManager, "SetupFromConfig should set up the task's database manager")
-				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+				assert.False(t, task.orderManager.IsRunning(), "SetupFromConfig should leave no order manager running after it fails")
 			}
 		}()
 		t.Cleanup(func() {
@@ -370,6 +433,38 @@ func TestLoadDataAPI(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	t.Run("cancelled context stops API data loading", func(t *testing.T) {
+		t.Parallel()
+		bt := BackTest{Reports: &report.Data{}}
+		exch := newMockOKX(t)
+		cp := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+		b := exch.GetBase()
+		b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				Available:     currency.Pairs{cp},
+				Enabled:       currency.Pairs{cp},
+				AssetEnabled:  true,
+				ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+				RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+			},
+		}
+		start := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
+		cfg := &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				APIData: &config.APIData{
+					StartDate: start,
+					EndDate:   start.Add(gctkline.OneMin.Duration() * 5),
+				},
+			},
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err := bt.loadData(ctx, cfg, exch, cp, asset.Spot, false)
+		assert.ErrorIs(t, err, context.Canceled, "loadData should propagate cancelled context from API data loading")
+	})
 }
 
 func TestLoadDataCSV(t *testing.T) {
@@ -1993,77 +2088,6 @@ func (c *cancelFeeExchange) GetFeeByType(ctx context.Context, _ *gctexchange.Fee
 		return 0, err
 	}
 	return 0, nil
-}
-
-func TestSetupFromConfigContextCancellation(t *testing.T) {
-	t.Parallel()
-
-	t.Run("cancelled context stops API data loading", func(t *testing.T) {
-		t.Parallel()
-		bt := BackTest{Reports: &report.Data{}}
-		exch := newMockOKX(t)
-		cp := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
-		b := exch.GetBase()
-		b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-			asset.Spot: {
-				Available:     currency.Pairs{cp},
-				Enabled:       currency.Pairs{cp},
-				AssetEnabled:  true,
-				ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-				RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-			},
-		}
-		start := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
-		cfg := &config.Config{
-			DataSettings: config.DataSettings{
-				Interval: gctkline.OneMin,
-				DataType: common.CandleStr,
-				APIData: &config.APIData{
-					StartDate: start,
-					EndDate:   start.Add(gctkline.OneMin.Duration() * 5),
-				},
-			},
-		}
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		_, err := bt.loadData(ctx, cfg, exch, cp, asset.Spot, false)
-		assert.ErrorIs(t, err, context.Canceled, "loadData should propagate cancelled context from API data loading")
-	})
-
-	t.Run("cancelled context stops fee lookup", func(t *testing.T) {
-		t.Parallel()
-		task, err := NewBacktester()
-		require.NoError(t, err, "NewBacktester must not error")
-		exch := &cancelFeeExchange{Exchange: newMockOKX(t)}
-		require.NoError(t, task.exchangeManager.Add(exch), "adding the mock OKX exchange must not error")
-		t.Cleanup(func() {
-			if task.orderManager != nil && task.orderManager.IsRunning() {
-				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
-			}
-		})
-		csvPath := filepath.Join(t.TempDir(), "candles.csv")
-		require.NoError(t, os.WriteFile(csvPath, []byte("1609459200,1,10,10,10,10\n1609459260,1,10,10,10,10\n"), 0o600), "writing candles must not error")
-
-		cfg := &config.Config{
-			DataSettings: config.DataSettings{
-				Interval: gctkline.OneMin,
-				DataType: common.CandleStr,
-				CSVData:  &config.CSVData{FullPath: csvPath},
-			},
-			StrategySettings: config.StrategySettings{Name: dollarcostaverage.Name, DisableUSDTracking: true},
-			CurrencySettings: []config.CurrencySettings{{
-				ExchangeName: exch.GetName(),
-				Asset:        asset.Spot,
-				Base:         currency.BTC,
-				Quote:        currency.USDT,
-				SpotDetails:  &config.SpotDetails{InitialQuoteFunds: &leet},
-			}},
-		}
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		err = task.SetupFromConfig(ctx, cfg, "", "", false)
-		assert.ErrorIs(t, err, context.Canceled, "SetupFromConfig should propagate cancelled context from fee retrieval")
-	})
 }
 
 func TestProcessSingleDataEvent(t *testing.T) {

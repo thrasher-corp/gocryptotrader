@@ -208,20 +208,6 @@ func (bt *BackTest) SetupFromConfig(ctx context.Context, cfg *config.Config, tem
 		}
 	}
 
-	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, &gctconfig.OrderManager{
-		Verbose:                       verbose,
-		ActivelyTrackFuturesPositions: trackFuturesPositions,
-		RespectOrderHistoryLimits:     true,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = bt.orderManager.Start(context.Background())
-	if err != nil {
-		return err
-	}
-
 	for i := range cfg.CurrencySettings {
 		a := cfg.CurrencySettings[i].Asset
 		if !a.IsValid() {
@@ -476,6 +462,20 @@ func (bt *BackTest) SetupFromConfig(ctx context.Context, cfg *config.Config, tem
 	}
 	if !hasFunding && (cfg.DataSettings.LiveData == nil || !cfg.DataSettings.LiveData.RealOrders) {
 		return holdings.ErrInitialFundsZero
+	}
+
+	// The order manager starts last, so a setup that fails starts none.
+	bt.orderManager, err = engine.SetupOrderManager(bt.exchangeManager, &engine.CommunicationManager{}, &sync.WaitGroup{}, &gctconfig.OrderManager{
+		Verbose:                       verbose,
+		ActivelyTrackFuturesPositions: trackFuturesPositions,
+		RespectOrderHistoryLimits:     true,
+	})
+	if err != nil {
+		return err
+	}
+	err = bt.orderManager.Start(context.Background())
+	if err != nil {
+		return err
 	}
 
 	cfg.PrintSetting()
