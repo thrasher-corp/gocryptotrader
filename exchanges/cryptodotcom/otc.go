@@ -44,6 +44,7 @@ func (e *Exchange) RequestOTCQuote(ctx context.Context, req *OTCQuoteRequest) ([
 		return nil, err
 	}
 	var resp dataResponse[OTCQuoteRequestResponse]
+	// Not retried: a timed-out attempt may have opened the quote request, and a retry could open another
 	return resp.Data, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-quote", params, &resp)
 }
 
@@ -100,6 +101,7 @@ func (e *Exchange) RequestOTCDeal(ctx context.Context, req *OTCDealRequest) (*OT
 		return nil, err
 	}
 	var resp *OTCDealResponse
+	// Not retried: a timed-out attempt may have made the deal, and a retry could request it again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/otc/request-deal", params, &resp)
 }
 
@@ -329,11 +331,11 @@ func newOTCWindow(startTime, endTime time.Time, limit uint64) (otcWindow, error)
 	if limit > otcHistoryMaximumLimit {
 		return otcWindow{}, fmt.Errorf("%w: limit %d is above %d", errInvalidCount, limit, otcHistoryMaximumLimit)
 	}
-	start, err := unixNanoParam(startTime)
+	start, err := common.UnixNanoParam(startTime)
 	if err != nil {
 		return otcWindow{}, err
 	}
-	end, err := unixNanoParam(endTime)
+	end, err := common.UnixNanoParam(endTime)
 	if err != nil {
 		return otcWindow{}, err
 	}

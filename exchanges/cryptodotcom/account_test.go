@@ -88,7 +88,7 @@ func TestGetUserBalanceHistory(t *testing.T) { //nolint:tparallel // the cases r
 	_, err := e.GetUserBalanceHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserBalanceHistory must refuse a nil request")
 	_, err = e.GetUserBalanceHistory(t.Context(), &UserBalanceHistoryRequest{EndTime: time.Unix(0, -1)})
-	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetUserBalanceHistory must refuse an end time before 1970")
+	require.ErrorIs(t, err, common.ErrTimeBeforeUnixEpoch, "GetUserBalanceHistory must refuse an end time before 1970")
 	_, err = e.GetUserBalanceHistory(t.Context(), &UserBalanceHistoryRequest{Timeframe: "M1"})
 	require.ErrorIs(t, err, errInvalidBalanceHistoryTimeframe, "GetUserBalanceHistory must refuse an unknown timeframe")
 	// The cases run in order on e, before the GetUserBalanceHistory calls below, so each also checks that a refusal

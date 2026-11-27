@@ -105,7 +105,7 @@ type Integer int64
 
 // UnmarshalJSON decodes an integer from a JSON string or a bare JSON integer, leaving it unchanged for null
 func (i *Integer) UnmarshalJSON(data []byte) error {
-	if string(data) == jsonNull {
+	if string(data) == json.Null {
 		return nil
 	}
 	s := string(data)

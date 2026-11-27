@@ -74,7 +74,7 @@ func (e *Exchange) GetCandlestick(ctx context.Context, req *CandlestickRequest) 
 		params.Set("count", strconv.FormatUint(req.Count, 10))
 	}
 	// Crypto.com reads candle bounds as milliseconds whatever their length, so a nanosecond bound finds nothing
-	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, unixMilliParam); err != nil {
+	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, common.UnixMilliParam); err != nil {
 		return nil, err
 	}
 	var resp *CandlestickResponse
@@ -95,7 +95,7 @@ func (e *Exchange) GetTrades(ctx context.Context, req *TradesRequest) ([]TradeRe
 	if req.Count > 0 {
 		params.Set("count", strconv.FormatUint(req.Count, 10))
 	}
-	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, unixNanoParam); err != nil {
+	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, common.UnixNanoParam); err != nil {
 		return nil, err
 	}
 	var resp dataResponse[TradeResponse]
@@ -135,7 +135,7 @@ func (e *Exchange) GetValuations(ctx context.Context, req *ValuationsRequest) (*
 	if req.Count > 0 {
 		params.Set("count", strconv.FormatUint(req.Count, 10))
 	}
-	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, unixMilliParam); err != nil {
+	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, common.UnixMilliParam); err != nil {
 		return nil, err
 	}
 	var resp *ValuationsResponse
@@ -179,7 +179,7 @@ func (e *Exchange) GetInsurance(ctx context.Context, req *InsuranceRequest) (*In
 	if req.Count > 0 {
 		params.Set("count", strconv.FormatUint(req.Count, 10))
 	}
-	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, unixMilliParam); err != nil {
+	if err := setTimeWindowParams(params, req.StartTime, req.EndTime, common.UnixMilliParam); err != nil {
 		return nil, err
 	}
 	var resp *InsuranceResponse

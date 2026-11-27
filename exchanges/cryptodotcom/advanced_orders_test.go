@@ -1067,8 +1067,8 @@ func TestGetAdvancedOrderHistory(t *testing.T) { //nolint:tparallel // the refus
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a start time after the end time", req: &GetAdvancedOrderHistoryRequest{StartTime: endTime, EndTime: startTime}, err: common.ErrStartAfterEnd},
 		{name: "a limit above 100", req: &GetAdvancedOrderHistoryRequest{Limit: 101}, err: errInvalidCount},
-		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := refuser.GetAdvancedOrderHistory(t.Context(), tc.req)
@@ -2135,9 +2135,9 @@ func TestGetAdvancedOrderHistoryRequestParams(t *testing.T) {
 			err:  common.ErrStartAfterTimeNow,
 		},
 		{name: "a limit above 100", req: &GetAdvancedOrderHistoryRequest{Limit: maxAdvancedOrderHistoryLimit + 1}, err: errInvalidCount},
-		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
-		{name: "a window before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -2), EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "a window before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -2), EndTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
 		{name: "a request with Crypto.com's defaults", req: &GetAdvancedOrderHistoryRequest{}, exp: &advancedOrderHistoryParams{}},
 		{
 			name: "a request with every field",

@@ -44,6 +44,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, r *CreateOrderRequest) (*Ord
 		return nil, err
 	}
 	var resp *OrderIDResponse
+	// Not retried: a timed-out attempt may have placed the order, and a retry could place it again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), createOrderEPL, "private/create-order", params, &resp)
 }
 
@@ -84,6 +85,7 @@ func (e *Exchange) ClosePosition(ctx context.Context, r *ClosePositionRequest) (
 		return nil, err
 	}
 	var resp *OrderIDResponse
+	// Not retried: a timed-out attempt may have placed the closing order, and a retry could place another
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/close-position", r, &resp)
 }
 
@@ -116,6 +118,7 @@ func (e *Exchange) CreateOrderList(ctx context.Context, orders []CreateOrderRequ
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
+	// Not retried: a timed-out attempt may have placed the orders, and a retry could place them again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-order-list", params, &resp)
 }
 
@@ -184,6 +187,7 @@ func (e *Exchange) CreateIsolatedMarginTransfer(ctx context.Context, r *CreateIs
 	if r.Amount <= 0 {
 		return errInvalidAmount
 	}
+	// Not retried: a timed-out attempt may have moved the margin, and a retry could move it again
 	return e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-isolated-margin-transfer", r, nil)
 }
 
@@ -516,11 +520,11 @@ func newTradingHistoryParams(instrumentName, journalType string, start, end time
 	if limit > maxTradingHistoryLimit {
 		return nil, fmt.Errorf("%w: limit %d above %d", errInvalidCount, limit, maxTradingHistoryLimit)
 	}
-	startTime, err := unixNanoParam(start)
+	startTime, err := common.UnixNanoParam(start)
 	if err != nil {
 		return nil, err
 	}
-	endTime, err := unixNanoParam(end)
+	endTime, err := common.UnixNanoParam(end)
 	if err != nil {
 		return nil, err
 	}

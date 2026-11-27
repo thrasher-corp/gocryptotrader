@@ -335,7 +335,7 @@ func decodeWebsocketResponse(data []byte, result any) error {
 	if result == nil {
 		return nil
 	}
-	if len(resp.Result) == 0 || string(resp.Result) == jsonNull {
+	if len(resp.Result) == 0 || string(resp.Result) == json.Null {
 		return fmt.Errorf("%w: %s", common.ErrNoResponse, resp.Method)
 	}
 	return json.Unmarshal(resp.Result, result)

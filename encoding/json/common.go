@@ -42,6 +42,9 @@ import (
 	"io"
 )
 
+// Null is the JSON null literal
+const Null = "null"
+
 // readLatch remembers the first read failure so that every later call reports it, as v1 latches it,
 // rather than carrying on with whatever the reader served next. A failure served alongside data is
 // not latched: v1 reports the value that data completed and only fails once a read it needed does

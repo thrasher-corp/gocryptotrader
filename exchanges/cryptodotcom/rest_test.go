@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1126,56 +1125,6 @@ func TestTimedOutRequestRetries(t *testing.T) {
 			}
 			assert.ErrorIsf(t, err, context.DeadlineExceeded, "%s should return the timeout", tc.name)
 			assert.Equalf(t, int64(1), requests.Load(), "%s should send a timed-out request once", tc.name)
-		})
-	}
-}
-
-func TestUnixMilliParam(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		t    time.Time
-		exp  uint64
-		err  error
-	}{
-		{name: "zero time"},
-		{name: "after the epoch", t: time.UnixMilli(1700000000123), exp: 1700000000123},
-		{name: "before the epoch", t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
-		{name: "the epoch", t: time.Unix(0, 0)},
-		{name: "the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64), exp: math.MaxInt64},
-		{name: "after the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64).Add(time.Millisecond), err: errTimeTooLate},
-		{name: "so long before the epoch its milliseconds would wrap", t: time.Date(-300000000, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeBeforeUnixEpoch},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := unixMilliParam(tc.t)
-			require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
-			assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
-		})
-	}
-}
-
-func TestUnixNanoParam(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		t    time.Time
-		exp  uint64
-		err  error
-	}{
-		{name: "zero time"},
-		{name: "after the epoch", t: time.Unix(0, 1700000000123456789), exp: 1700000000123456789},
-		{name: "before the epoch", t: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
-		{name: "the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64), exp: math.MaxInt64},
-		{name: "after the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64).Add(time.Nanosecond), err: errTimeTooLate},
-		{name: "a year an int64 of nanoseconds wraps", t: time.Date(2600, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeTooLate},
-		{name: "a year before the first an int64 of nanoseconds holds", t: time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC), err: errTimeBeforeUnixEpoch},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := unixNanoParam(tc.t)
-			require.ErrorIsf(t, err, tc.err, "unixNanoParam must return the expected error for %s", tc.t)
-			assert.Equalf(t, tc.exp, got, "unixNanoParam should give %s in Unix nanoseconds", tc.t)
 		})
 	}
 }

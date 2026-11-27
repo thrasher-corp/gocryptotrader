@@ -199,8 +199,8 @@ func TestGetDepositHistory(t *testing.T) { //nolint:tparallel // the cases run i
 	}{
 		{name: "a nil request", req: nil, err: common.ErrNilPointer},
 		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
-		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 		{name: "a page size above 200", req: &WalletHistoryRequest{PageSize: maxWalletHistoryPageSize + 1}, err: errInvalidCount},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,8 +258,8 @@ func TestGetWithdrawalHistory(t *testing.T) { //nolint:tparallel // the cases ru
 	}{
 		{name: "a nil request", req: nil, err: common.ErrNilPointer},
 		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
-		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := e.GetWithdrawalHistory(t.Context(), tc.req)
@@ -330,8 +330,8 @@ func TestNewWalletHistoryParams(t *testing.T) {
 		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 		{name: "a window starting as it ends", req: &WalletHistoryRequest{StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
 		{name: "a window starting in the future", req: &WalletHistoryRequest{StartTime: now.Add(time.Hour), EndTime: now.Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
-		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

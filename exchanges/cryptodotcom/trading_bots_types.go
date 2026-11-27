@@ -5,6 +5,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -90,23 +91,23 @@ type TradingBotDollarCostAveragingSettings struct {
 // tradingBotDollarCostAveragingSettingsWire is a DCA bot's settings as Crypto.com takes and reports them, the first
 // investment time and the frequency in milliseconds
 type tradingBotDollarCostAveragingSettingsWire struct {
-	IsBasket                        bool                   `json:"is_basket"`
-	Allocations                     []TradingBotAllocation `json:"allocations"`
-	InvestmentCurrency              currency.Code          `json:"investment_currency"`
-	Side                            string                 `json:"side,omitempty"`
-	OrderType                       string                 `json:"type,omitempty"`
-	AutoStake                       bool                   `json:"auto_stake"`
-	Price                           types.Number           `json:"price,omitempty"`
-	Quantity                        types.Number           `json:"quantity,omitempty"`
-	TotalInvestment                 types.Number           `json:"total_investment,omitempty"`
-	InvestmentFrequencyMode         string                 `json:"investment_frequency_mode"`
-	InvestmentFrequencyMilliseconds uint64                 `json:"investment_frequency,omitempty"`
-	FirstInvestmentTimeMilliseconds uint64                 `json:"first_investment_time,omitempty"`
-	InvestmentDuration              uint64                 `json:"investment_duration,omitempty"`
-	MaximumOrders                   uint64                 `json:"max_order,omitempty,string"`
-	StopPrice                       types.Number           `json:"stop_price,omitempty"`
-	TakeProfitPrice                 types.Number           `json:"take_profit_price,omitempty"`
-	SimplifiedMode                  bool                   `json:"simplified_mode,omitempty"`
+	IsBasket                        bool                       `json:"is_basket"`
+	Allocations                     []TradingBotAllocation     `json:"allocations"`
+	InvestmentCurrency              currency.Code              `json:"investment_currency"`
+	Side                            string                     `json:"side,omitempty"`
+	OrderType                       string                     `json:"type,omitempty"`
+	AutoStake                       bool                       `json:"auto_stake"`
+	Price                           types.Number               `json:"price,omitempty"`
+	Quantity                        types.Number               `json:"quantity,omitempty"`
+	TotalInvestment                 types.Number               `json:"total_investment,omitempty"`
+	InvestmentFrequencyMode         string                     `json:"investment_frequency_mode"`
+	InvestmentFrequency             types.DurationMilliseconds `json:"investment_frequency,omitempty"`
+	FirstInvestmentTimeMilliseconds uint64                     `json:"first_investment_time,omitempty"`
+	InvestmentDuration              uint64                     `json:"investment_duration,omitempty"`
+	MaximumOrders                   uint64                     `json:"max_order,omitempty,string"`
+	StopPrice                       types.Number               `json:"stop_price,omitempty"`
+	TakeProfitPrice                 types.Number               `json:"take_profit_price,omitempty"`
+	SimplifiedMode                  bool                       `json:"simplified_mode,omitempty"`
 }
 
 // BotType returns TradingBotTypeDollarCostAveraging
@@ -117,7 +118,7 @@ func (*TradingBotDollarCostAveragingSettings) BotType() string {
 // MarshalJSON encodes the settings as Crypto.com takes them, the first investment time and the frequency in
 // milliseconds
 func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
-	firstInvestmentTime, err := unixMilliParam(s.FirstInvestmentTime)
+	firstInvestmentTime, err := common.UnixMilliParam(s.FirstInvestmentTime)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,7 @@ func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
 		Quantity:                        s.Quantity,
 		TotalInvestment:                 s.TotalInvestment,
 		InvestmentFrequencyMode:         s.InvestmentFrequencyMode,
-		InvestmentFrequencyMilliseconds: frequency,
+		InvestmentFrequency:             frequency,
 		FirstInvestmentTimeMilliseconds: firstInvestmentTime,
 		InvestmentDuration:              s.InvestmentDuration,
 		MaximumOrders:                   s.MaximumOrders,
@@ -148,7 +149,7 @@ func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes the settings as Crypto.com reports them; null leaves them as they are
 func (s *TradingBotDollarCostAveragingSettings) UnmarshalJSON(data []byte) error {
-	if string(data) == jsonNull {
+	if string(data) == json.Null {
 		return nil
 	}
 	var w tradingBotDollarCostAveragingSettingsWire
@@ -166,7 +167,7 @@ func (s *TradingBotDollarCostAveragingSettings) UnmarshalJSON(data []byte) error
 		Quantity:                w.Quantity,
 		TotalInvestment:         w.TotalInvestment,
 		InvestmentFrequencyMode: w.InvestmentFrequencyMode,
-		InvestmentFrequency:     millisecondsDuration(w.InvestmentFrequencyMilliseconds),
+		InvestmentFrequency:     w.InvestmentFrequency.Duration(),
 		FirstInvestmentTime:     unixMilliTime(w.FirstInvestmentTimeMilliseconds),
 		InvestmentDuration:      w.InvestmentDuration,
 		MaximumOrders:           w.MaximumOrders,
@@ -208,11 +209,11 @@ func (*TradingBotTimeWeightedAveragePriceSettings) BotType() string {
 
 // MarshalJSON encodes the settings as Crypto.com takes them, the times in milliseconds
 func (s *TradingBotTimeWeightedAveragePriceSettings) MarshalJSON() ([]byte, error) {
-	start, err := unixMilliParam(s.StartTime)
+	start, err := common.UnixMilliParam(s.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	end, err := unixMilliParam(s.EndTime)
+	end, err := common.UnixMilliParam(s.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +230,7 @@ func (s *TradingBotTimeWeightedAveragePriceSettings) MarshalJSON() ([]byte, erro
 
 // UnmarshalJSON decodes the settings as Crypto.com reports them; null leaves them as they are
 func (s *TradingBotTimeWeightedAveragePriceSettings) UnmarshalJSON(data []byte) error {
-	if string(data) == jsonNull {
+	if string(data) == json.Null {
 		return nil
 	}
 	var w tradingBotTimeWeightedAveragePriceSettingsWire
@@ -313,16 +314,16 @@ type TradingBotDollarCostAveragingUpdateSettings struct {
 // tradingBotDollarCostAveragingUpdateSettingsWire is a DCA bot's settings update as Crypto.com takes it, the frequency
 // in milliseconds
 type tradingBotDollarCostAveragingUpdateSettingsWire struct {
-	Allocations                     []TradingBotAllocation `json:"allocations,omitempty"`
-	OrderType                       string                 `json:"type,omitempty"`
-	Price                           types.Number           `json:"price,omitempty"`
-	MaximumOrders                   uint64                 `json:"max_order,omitempty,string"`
-	StopPrice                       types.Number           `json:"stop_price,omitempty"`
-	TakeProfitPrice                 types.Number           `json:"take_profit_price,omitempty"`
-	AutoStake                       *bool                  `json:"auto_stake,omitempty"`
-	InvestmentDuration              uint64                 `json:"investment_duration,omitempty"`
-	InvestmentFrequencyMilliseconds uint64                 `json:"investment_frequency,omitempty"`
-	Quantity                        types.Number           `json:"quantity,omitempty"`
+	Allocations         []TradingBotAllocation     `json:"allocations,omitempty"`
+	OrderType           string                     `json:"type,omitempty"`
+	Price               types.Number               `json:"price,omitempty"`
+	MaximumOrders       uint64                     `json:"max_order,omitempty,string"`
+	StopPrice           types.Number               `json:"stop_price,omitempty"`
+	TakeProfitPrice     types.Number               `json:"take_profit_price,omitempty"`
+	AutoStake           *bool                      `json:"auto_stake,omitempty"`
+	InvestmentDuration  uint64                     `json:"investment_duration,omitempty"`
+	InvestmentFrequency types.DurationMilliseconds `json:"investment_frequency,omitempty"`
+	Quantity            types.Number               `json:"quantity,omitempty"`
 }
 
 // BotType returns TradingBotTypeDollarCostAveraging
@@ -452,7 +453,7 @@ func (b *TradingBotResponse) UnmarshalJSON(data []byte) error {
 // without settings rather than failing the whole list of bots
 func (b *TradingBotResponse) decodeSettings(data json.RawMessage) error {
 	b.Settings = nil
-	if len(data) == 0 || string(data) == jsonNull {
+	if len(data) == 0 || string(data) == json.Null {
 		return nil
 	}
 	var settings TradingBotSettings
@@ -534,14 +535,6 @@ type TradingBotExecutionResponse struct {
 // tradingBotExecutionListResponse is the result of get-trading-bot-executions
 type tradingBotExecutionListResponse struct {
 	ExecutionList []TradingBotExecutionResponse `json:"execution_list"`
-}
-
-// millisecondsDuration returns a whole number of milliseconds as a duration, capped at the longest duration
-func millisecondsDuration(ms uint64) time.Duration {
-	if ms > math.MaxInt64/uint64(time.Millisecond) {
-		return math.MaxInt64
-	}
-	return time.Duration(ms) * time.Millisecond
 }
 
 // unixMilliTime returns Unix milliseconds as a time, and the zero time for zero, which Crypto.com sends for a time unset

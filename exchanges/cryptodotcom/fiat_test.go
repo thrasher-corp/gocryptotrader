@@ -156,8 +156,8 @@ var fiatHistoryValidationCases = []struct {
 	{name: "a request without a page size", req: &FiatHistoryRequest{}, err: errPageSizeRequired},
 	{name: "an end without a start", req: &FiatHistoryRequest{PageSize: 10, EndTime: time.UnixMilli(1781127400000)}, err: common.ErrDateUnset},
 	{name: "a window starting after it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(1781127400000), EndTime: time.UnixMilli(1781126400000)}, err: common.ErrStartAfterEnd},
-	{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-	{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
+	{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 }
 
 func TestGetFiatDepositHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
@@ -745,8 +745,8 @@ func TestNewFiatHistoryParams(t *testing.T) {
 		{name: "a window starting after it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 		{name: "a window starting as it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
 		{name: "a window starting in the future", req: &FiatHistoryRequest{PageSize: 10, StartTime: now.Add(time.Hour), EndTime: now.Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
-		{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-		{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

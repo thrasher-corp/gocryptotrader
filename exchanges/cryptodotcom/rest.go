@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -83,8 +82,6 @@ var (
 	errPaymentNetworkRequired = errors.New("payment network required")
 	errOrderListEmpty         = errors.New("order list empty")
 	errOrderListTooLong       = errors.New("order list too long")
-	errTimeBeforeUnixEpoch    = errors.New("time before the Unix epoch")
-	errTimeTooLate            = errors.New("time later than a request param can hold")
 )
 
 // Response codes of a request Crypto.com refuses as a whole, whatever it asks
@@ -264,7 +261,7 @@ func decodeResult(resp *apiResponse, requestErr error, method string, result any
 	if err := responseError(resp, requestErr); err != nil || result == nil {
 		return err
 	}
-	if len(resp.Result) == 0 || string(resp.Result) == jsonNull {
+	if len(resp.Result) == 0 || string(resp.Result) == json.Null {
 		return fmt.Errorf("%w: %s", common.ErrNoResponse, method)
 	}
 	err := json.Unmarshal(resp.Result, result)
@@ -284,7 +281,7 @@ func encodeParams(params any) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if string(encoded) == jsonNull {
+	if string(encoded) == json.Null {
 		return json.RawMessage("{}"), nil
 	}
 	return encoded, nil
@@ -361,47 +358,9 @@ func appendParamString(sb *strings.Builder, value []byte, dataType jsonparser.Va
 		}
 		sb.WriteString(s)
 	case jsonparser.Null:
-		sb.WriteString(jsonNull)
+		sb.WriteString(json.Null)
 	default:
 		sb.Write(value)
 	}
 	return nil
 }
-
-// unixMilliParam returns a time as the Unix milliseconds a request param takes, zero, which is left unsent, for the
-// zero time, and an error for a time before 1970 or after the last millisecond an int64 holds, which would wrap
-func unixMilliParam(t time.Time) (uint64, error) {
-	if t.IsZero() {
-		return 0, nil
-	}
-	if t.Before(unixEpoch) {
-		return 0, fmt.Errorf("%w: %s", errTimeBeforeUnixEpoch, t)
-	}
-	if t.After(lastUnixMilliTime) {
-		return 0, fmt.Errorf("%w: %s", errTimeTooLate, t)
-	}
-	return uint64(t.UnixMilli()), nil
-}
-
-// unixNanoParam returns a time as the Unix nanoseconds a request param takes, zero, which is left unsent, for the zero
-// time, and an error for a time before 1970 or after 2262-04-11T23:47:16.854775807Z, the last nanosecond an int64
-// holds, which would wrap; Crypto.com recommends nanoseconds for paging history accurately
-func unixNanoParam(t time.Time) (uint64, error) {
-	if t.IsZero() {
-		return 0, nil
-	}
-	if t.Before(unixEpoch) {
-		return 0, fmt.Errorf("%w: %s", errTimeBeforeUnixEpoch, t)
-	}
-	if t.After(lastUnixNanoTime) {
-		return 0, fmt.Errorf("%w: %s", errTimeTooLate, t)
-	}
-	return uint64(t.UnixNano()), nil
-}
-
-// The bounds of the times Unix time params hold
-var (
-	unixEpoch         = time.Unix(0, 0)
-	lastUnixMilliTime = time.UnixMilli(math.MaxInt64)
-	lastUnixNanoTime  = time.Unix(0, math.MaxInt64)
-)

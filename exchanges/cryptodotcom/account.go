@@ -47,7 +47,7 @@ func (e *Exchange) GetUserBalanceHistory(ctx context.Context, req *UserBalanceHi
 	if req.Limit > maxLimit {
 		return nil, fmt.Errorf("%w: %d above %d", errInvalidCount, req.Limit, maxLimit)
 	}
-	endTime, err := unixNanoParam(req.EndTime)
+	endTime, err := common.UnixNanoParam(req.EndTime)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +84,7 @@ func (e *Exchange) CreateSubAccountTransfer(ctx context.Context, req *SubAccount
 	}
 	params := *req
 	params.Currency = req.Currency.Upper()
+	// Not retried: a timed-out attempt may have moved the funds, and a retry could move them again
 	return e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-subaccount-transfer", &params, nil)
 }
 

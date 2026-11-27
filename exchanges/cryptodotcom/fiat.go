@@ -74,6 +74,7 @@ func (e *Exchange) CreateFiatWithdrawal(ctx context.Context, req *FiatWithdrawal
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *FiatWithdrawalResponse
+	// Not retried: a timed-out attempt may have withdrawn, and a retry could withdraw again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-withdraw", &params, &resp)
 }
 
@@ -120,6 +121,7 @@ func (e *Exchange) CreateFiatBankAccount(ctx context.Context, req *FiatBankAccou
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp fiatBankAccountsResponse
+	// Not retried: a timed-out attempt may have linked the account, and a retry could link it again
 	return resp.BankAccounts, e.sendAuthenticatedRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/fiat/fiat-create-bank-account", req.OnBehalfOfAccountUUID, &params, &resp)
 }
 
@@ -147,11 +149,11 @@ func newFiatHistoryParams(req *FiatHistoryRequest) (*fiatHistoryParams, error) {
 			return nil, err
 		}
 	}
-	startTime, err := unixMilliParam(req.StartTime)
+	startTime, err := common.UnixMilliParam(req.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	endTime, err := unixMilliParam(req.EndTime)
+	endTime, err := common.UnixMilliParam(req.EndTime)
 	if err != nil {
 		return nil, err
 	}

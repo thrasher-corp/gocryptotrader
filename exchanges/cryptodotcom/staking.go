@@ -40,6 +40,7 @@ func (e *Exchange) Stake(ctx context.Context, req *StakeRequest) (*StakeResponse
 		return nil, err
 	}
 	var resp *StakeResponse
+	// Not retried: a timed-out attempt may have staked, and a retry could stake again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/stake", req, &resp)
 }
 
@@ -53,6 +54,7 @@ func (e *Exchange) Unstake(ctx context.Context, req *UnstakeRequest) (*UnstakeRe
 		return nil, err
 	}
 	var resp *UnstakeResponse
+	// Not retried: a timed-out attempt may have unstaked, and a retry could unstake again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/unstake", req, &resp)
 }
 
@@ -130,6 +132,7 @@ func (e *Exchange) ConvertStakedToken(ctx context.Context, req *ConvertStakedTok
 		SlippageToleranceBasisPoints: strconv.FormatFloat(req.SlippageToleranceBasisPoints.Float64(), 'f', -1, 64),
 	}
 	var resp *ConvertStakedTokenResponse
+	// Not retried: a timed-out attempt may have converted, and a retry could convert again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), stakingEPL, "private/staking/convert", params, &resp)
 }
 
@@ -189,11 +192,11 @@ func newStakingWindowParams(instrumentName string, startTime, endTime time.Time,
 	if limit > stakingHistoryMaximumLimit {
 		return nil, fmt.Errorf("%w: limit %d is above %d", errInvalidCount, limit, stakingHistoryMaximumLimit)
 	}
-	start, err := unixNanoParam(startTime)
+	start, err := common.UnixNanoParam(startTime)
 	if err != nil {
 		return nil, err
 	}
-	end, err := unixNanoParam(endTime)
+	end, err := common.UnixNanoParam(endTime)
 	if err != nil {
 		return nil, err
 	}

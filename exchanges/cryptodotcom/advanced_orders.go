@@ -38,6 +38,7 @@ func (e *Exchange) CreateAdvancedOrder(ctx context.Context, req *CreateAdvancedO
 		return nil, err
 	}
 	var resp *OrderIDResponse
+	// Not retried: a timed-out attempt may have placed the order, and a retry could place it again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order", req, &resp)
 }
 
@@ -62,6 +63,7 @@ func (e *Exchange) CreateOneCancelsTheOtherOrder(ctx context.Context, orders []A
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
+	// Not retried: a timed-out attempt may have placed the orders, and a retry could place them again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oco", params, &resp)
 }
 
@@ -85,6 +87,7 @@ func (e *Exchange) CreateOneTriggersTheOtherOrder(ctx context.Context, orders []
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
+	// Not retried: a timed-out attempt may have placed the orders, and a retry could place them again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-oto", params, &resp)
 }
 
@@ -110,6 +113,7 @@ func (e *Exchange) CreateOneTriggersAOneCancelsTheOtherOrder(ctx context.Context
 		return nil, err
 	}
 	var resp *AdvancedOrderListIDResponse
+	// Not retried: a timed-out attempt may have placed the orders, and a retry could place them again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-otoco", params, &resp)
 }
 
@@ -183,6 +187,7 @@ func (e *Exchange) CreateAdvancedOrderList(ctx context.Context, orders []CreateA
 		return nil, err
 	}
 	var resp []OrderListEntryResponse
+	// Not retried: a timed-out attempt may have placed the orders, and a retry could place them again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/advanced/create-order-list", params, &resp)
 }
 
@@ -463,11 +468,11 @@ func (r *GetAdvancedOrderHistoryRequest) params() (*advancedOrderHistoryParams, 
 	if r.Limit > maxAdvancedOrderHistoryLimit {
 		return nil, fmt.Errorf("%w: limit %d exceeds the maximum of %d", errInvalidCount, r.Limit, maxAdvancedOrderHistoryLimit)
 	}
-	startTime, err := unixNanoParam(r.StartTime)
+	startTime, err := common.UnixNanoParam(r.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	endTime, err := unixNanoParam(r.EndTime)
+	endTime, err := common.UnixNanoParam(r.EndTime)
 	if err != nil {
 		return nil, err
 	}

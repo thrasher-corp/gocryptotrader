@@ -271,7 +271,7 @@ func TestGetCandlestick(t *testing.T) { //nolint:tparallel // the cases share e'
 	_, err = e.GetCandlestick(t.Context(), &CandlestickRequest{InstrumentName: "BTC_USD", StartTime: start.Add(time.Hour), EndTime: start})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetCandlestick must refuse a start after the end")
 	_, err = e.GetCandlestick(t.Context(), &CandlestickRequest{InstrumentName: "BTC_USD", StartTime: time.UnixMilli(-1)})
-	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetCandlestick must refuse a time before the Unix epoch")
+	require.ErrorIs(t, err, common.ErrTimeBeforeUnixEpoch, "GetCandlestick must refuse a time before the Unix epoch")
 
 	// The cases share e and its recorded mock in order, before the GetCandlestick calls below
 	for _, tc := range []struct {
@@ -333,7 +333,7 @@ func TestGetTrades(t *testing.T) { //nolint:tparallel // the cases share e's rec
 	_, err = e.GetTrades(t.Context(), &TradesRequest{InstrumentName: "BTC_USD", StartTime: start.Add(time.Second), EndTime: start})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetTrades must refuse a start after the end")
 	_, err = e.GetTrades(t.Context(), &TradesRequest{InstrumentName: "BTC_USD", EndTime: time.Unix(0, -1)})
-	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetTrades must refuse a time before the Unix epoch")
+	require.ErrorIs(t, err, common.ErrTimeBeforeUnixEpoch, "GetTrades must refuse a time before the Unix epoch")
 
 	// The cases share e and its recorded mock in order, before the GetTrades calls below
 	for _, tc := range []struct {
@@ -444,7 +444,7 @@ func TestGetValuations(t *testing.T) { //nolint:tparallel // the cases share e's
 	_, err = e.GetValuations(t.Context(), &ValuationsRequest{InstrumentName: "BTCUSD-PERP", ValuationType: ValuationTypeFundingHistory, StartTime: start.Add(time.Hour), EndTime: start})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetValuations must refuse a start after the end")
 	_, err = e.GetValuations(t.Context(), &ValuationsRequest{InstrumentName: "BTCUSD-PERP", ValuationType: ValuationTypeFundingHistory, StartTime: time.UnixMilli(-1)})
-	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetValuations must refuse a time before the Unix epoch")
+	require.ErrorIs(t, err, common.ErrTimeBeforeUnixEpoch, "GetValuations must refuse a time before the Unix epoch")
 
 	// The cases share e and its recorded mock in order, before the GetValuations calls below
 	for _, tc := range []struct {
@@ -620,7 +620,7 @@ func TestGetInsurance(t *testing.T) { //nolint:tparallel // the cases share e's 
 	_, err = e.GetInsurance(t.Context(), &InsuranceRequest{Currency: currency.USD, StartTime: start.Add(time.Hour), EndTime: start})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetInsurance must refuse a start after the end")
 	_, err = e.GetInsurance(t.Context(), &InsuranceRequest{Currency: currency.USD, EndTime: time.UnixMilli(-1)})
-	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetInsurance must refuse a time before the Unix epoch")
+	require.ErrorIs(t, err, common.ErrTimeBeforeUnixEpoch, "GetInsurance must refuse a time before the Unix epoch")
 
 	// The cases share e and its recorded mock in order, before the GetInsurance calls below
 	for _, tc := range []struct {
@@ -674,15 +674,15 @@ func TestSetTimeWindowParams(t *testing.T) {
 		exp        url.Values
 		err        error
 	}{
-		{name: "no bounds", toParam: unixMilliParam, exp: url.Values{}},
-		{name: "start only", start: start, toParam: unixMilliParam, exp: url.Values{"start_ts": {"1792800000123"}}},
-		{name: "end only", end: start, toParam: unixNanoParam, exp: url.Values{"end_ts": {"1792800000123456789"}}},
-		{name: "both in milliseconds", start: start, end: start.Add(time.Hour), toParam: unixMilliParam, exp: url.Values{"start_ts": {"1792800000123"}, "end_ts": {"1792803600123"}}},
-		{name: "both in nanoseconds", start: start, end: start.Add(time.Hour), toParam: unixNanoParam, exp: url.Values{"start_ts": {"1792800000123456789"}, "end_ts": {"1792803600123456789"}}},
-		{name: "start after end", start: start.Add(time.Nanosecond), end: start, toParam: unixNanoParam, exp: url.Values{}, err: common.ErrStartAfterEnd},
-		{name: "start equals end", start: start, end: start, toParam: unixNanoParam, exp: url.Values{}, err: common.ErrStartEqualsEnd},
-		{name: "start before the epoch", start: time.Unix(0, -1), toParam: unixNanoParam, exp: url.Values{}, err: errTimeBeforeUnixEpoch},
-		{name: "end before the epoch", end: time.UnixMilli(-1), toParam: unixMilliParam, exp: url.Values{}, err: errTimeBeforeUnixEpoch},
+		{name: "no bounds", toParam: common.UnixMilliParam, exp: url.Values{}},
+		{name: "start only", start: start, toParam: common.UnixMilliParam, exp: url.Values{"start_ts": {"1792800000123"}}},
+		{name: "end only", end: start, toParam: common.UnixNanoParam, exp: url.Values{"end_ts": {"1792800000123456789"}}},
+		{name: "both in milliseconds", start: start, end: start.Add(time.Hour), toParam: common.UnixMilliParam, exp: url.Values{"start_ts": {"1792800000123"}, "end_ts": {"1792803600123"}}},
+		{name: "both in nanoseconds", start: start, end: start.Add(time.Hour), toParam: common.UnixNanoParam, exp: url.Values{"start_ts": {"1792800000123456789"}, "end_ts": {"1792803600123456789"}}},
+		{name: "start after end", start: start.Add(time.Nanosecond), end: start, toParam: common.UnixNanoParam, exp: url.Values{}, err: common.ErrStartAfterEnd},
+		{name: "start equals end", start: start, end: start, toParam: common.UnixNanoParam, exp: url.Values{}, err: common.ErrStartEqualsEnd},
+		{name: "start before the epoch", start: time.Unix(0, -1), toParam: common.UnixNanoParam, exp: url.Values{}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "end before the epoch", end: time.UnixMilli(-1), toParam: common.UnixMilliParam, exp: url.Values{}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

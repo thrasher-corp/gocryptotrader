@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -46,10 +47,12 @@ var emailRX = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9
 
 // Vars for common.go operations
 var (
-	_HTTPClient    *http.Client
-	_HTTPUserAgent string
-	m              sync.RWMutex
-	zeroValueUnix  = time.Unix(0, 0)
+	_HTTPClient       *http.Client
+	_HTTPUserAgent    string
+	m                 sync.RWMutex
+	zeroValueUnix     = time.Unix(0, 0)
+	lastUnixMilliTime = time.UnixMilli(math.MaxInt64).Add(time.Millisecond - time.Nanosecond)
+	lastUnixNanoTime  = time.Unix(0, math.MaxInt64)
 )
 
 // Public common Errors
@@ -78,6 +81,8 @@ var (
 	ErrParsingWSField            = errors.New("error parsing websocket field")
 	ErrMalformedData             = errors.New("malformed data")
 	ErrFatal                     = errors.New("fatal error")
+	ErrTimeBeforeUnixEpoch       = errors.New("time before the Unix epoch")
+	ErrTimeTooLate               = errors.New("time later than a request param can hold")
 )
 
 var (
@@ -612,6 +617,38 @@ func StartEndTimeCheckSkipZero(start, end time.Time) error {
 		return nil
 	}
 	return StartEndTimeCheck(start, end)
+}
+
+// UnixMilliParam returns a time as the Unix milliseconds an unsigned request param takes: zero for the zero time,
+// which an omitempty param leaves unsent, and an error for a time before 1970 or after the last millisecond an int64
+// holds, which would wrap
+func UnixMilliParam(t time.Time) (uint64, error) {
+	if t.IsZero() {
+		return 0, nil
+	}
+	if t.Before(zeroValueUnix) {
+		return 0, fmt.Errorf("%w: %s", ErrTimeBeforeUnixEpoch, t)
+	}
+	if t.After(lastUnixMilliTime) {
+		return 0, fmt.Errorf("%w: %s", ErrTimeTooLate, t)
+	}
+	return uint64(t.UnixMilli()), nil
+}
+
+// UnixNanoParam returns a time as the Unix nanoseconds an unsigned request param takes: zero for the zero time, which
+// an omitempty param leaves unsent, and an error for a time before 1970 or after 2262-04-11T23:47:16.854775807Z, the
+// last nanosecond an int64 holds, which would wrap
+func UnixNanoParam(t time.Time) (uint64, error) {
+	if t.IsZero() {
+		return 0, nil
+	}
+	if t.Before(zeroValueUnix) {
+		return 0, fmt.Errorf("%w: %s", ErrTimeBeforeUnixEpoch, t)
+	}
+	if t.After(lastUnixNanoTime) {
+		return 0, fmt.Errorf("%w: %s", ErrTimeTooLate, t)
+	}
+	return uint64(t.UnixNano()), nil
 }
 
 // GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.

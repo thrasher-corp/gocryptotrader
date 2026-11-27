@@ -30,6 +30,7 @@ func (e *Exchange) CreateWithdrawal(ctx context.Context, req *WithdrawalRequest)
 	params := *req
 	params.Currency = req.Currency.Upper()
 	var resp *WithdrawalResponse
+	// Not retried: a timed-out attempt may have withdrawn, and a retry could withdraw again
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/create-withdrawal", &params, &resp)
 }
 
@@ -81,11 +82,11 @@ func newWalletHistoryParams(req *WalletHistoryRequest) (*walletHistoryParams, er
 	if err := common.StartEndTimeCheckSkipZero(req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	startTime, err := unixMilliParam(req.StartTime)
+	startTime, err := common.UnixMilliParam(req.StartTime)
 	if err != nil {
 		return nil, err
 	}
-	endTime, err := unixMilliParam(req.EndTime)
+	endTime, err := common.UnixMilliParam(req.EndTime)
 	if err != nil {
 		return nil, err
 	}

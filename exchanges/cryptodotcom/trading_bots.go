@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -58,6 +59,7 @@ func (e *Exchange) CreateTradingBot(ctx context.Context, req *CreateTradingBotRe
 		return nil, err
 	}
 	var resp *CreateTradingBotResponse
+	// Not retried: a timed-out attempt may have created the bot, and a retry could create another
 	return resp, e.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(ctx), privateEPL, "private/bot/create-trading-bot", req, &resp)
 }
 
@@ -241,7 +243,7 @@ func (s *TradingBotDollarCostAveragingSettings) validateSettings() error {
 	default:
 		return fmt.Errorf("%w: %q", errInvalidTradingBotInvestmentFrequencyMode, s.InvestmentFrequencyMode)
 	}
-	_, err := unixMilliParam(s.FirstInvestmentTime)
+	_, err := common.UnixMilliParam(s.FirstInvestmentTime)
 	return err
 }
 
@@ -277,7 +279,7 @@ func (s *TradingBotTimeWeightedAveragePriceSettings) validateSettings() error {
 	if s.StartTime.Equal(s.EndTime) {
 		return common.ErrStartEqualsEnd
 	}
-	_, err := unixMilliParam(s.StartTime)
+	_, err := common.UnixMilliParam(s.StartTime)
 	return err
 }
 
@@ -365,16 +367,16 @@ func (s *TradingBotDollarCostAveragingUpdateSettings) updateSettingsParams() (an
 		return nil, err
 	}
 	return &tradingBotDollarCostAveragingUpdateSettingsWire{
-		Allocations:                     s.Allocations,
-		OrderType:                       s.OrderType,
-		Price:                           s.Price,
-		MaximumOrders:                   s.MaximumOrders,
-		StopPrice:                       s.StopPrice,
-		TakeProfitPrice:                 s.TakeProfitPrice,
-		AutoStake:                       s.AutoStake,
-		InvestmentDuration:              s.InvestmentDuration,
-		InvestmentFrequencyMilliseconds: frequency,
-		Quantity:                        s.Quantity,
+		Allocations:         s.Allocations,
+		OrderType:           s.OrderType,
+		Price:               s.Price,
+		MaximumOrders:       s.MaximumOrders,
+		StopPrice:           s.StopPrice,
+		TakeProfitPrice:     s.TakeProfitPrice,
+		AutoStake:           s.AutoStake,
+		InvestmentDuration:  s.InvestmentDuration,
+		InvestmentFrequency: frequency,
+		Quantity:            s.Quantity,
 	}, nil
 }
 
@@ -466,9 +468,9 @@ func tradingBotIDParam(botID string) (uint64, error) {
 
 // investmentFrequencyParam returns a DCA bot's investment frequency as the whole milliseconds Crypto.com takes, zero,
 // which is left unsent, for none, and an error for a negative frequency
-func investmentFrequencyParam(frequency time.Duration) (uint64, error) {
+func investmentFrequencyParam(frequency time.Duration) (types.DurationMilliseconds, error) {
 	if frequency < 0 {
 		return 0, fmt.Errorf("%w: %s", errInvalidTradingBotInvestmentFrequency, frequency)
 	}
-	return uint64(frequency.Milliseconds()), nil //nolint:gosec // The frequency is not negative, as checked above
+	return types.DurationMilliseconds(frequency.Truncate(time.Millisecond)), nil
 }

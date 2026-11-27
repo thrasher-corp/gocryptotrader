@@ -108,8 +108,8 @@ func requireOTCDealValidation(t *testing.T, method string, call func(*OTCDealReq
 func requireOTCWindowValidation(t *testing.T, method string, takesLimit bool, call func(start, end time.Time, limit uint64) error) {
 	t.Helper()
 	require.ErrorIsf(t, call(otcHistoryEnd, otcHistoryStart, 0), common.ErrStartAfterEnd, "%s must error for a start after the end", method)
-	require.ErrorIsf(t, call(time.UnixMilli(-1), time.Time{}, 0), errTimeBeforeUnixEpoch, "%s must error for a start before 1970", method)
-	require.ErrorIsf(t, call(time.Time{}, time.UnixMilli(-1), 0), errTimeBeforeUnixEpoch, "%s must error for an end before 1970", method)
+	require.ErrorIsf(t, call(time.UnixMilli(-1), time.Time{}, 0), common.ErrTimeBeforeUnixEpoch, "%s must error for a start before 1970", method)
+	require.ErrorIsf(t, call(time.Time{}, time.UnixMilli(-1), 0), common.ErrTimeBeforeUnixEpoch, "%s must error for an end before 1970", method)
 	if takesLimit {
 		require.ErrorIsf(t, call(time.Time{}, time.Time{}, otcHistoryMaximumLimit+1), errInvalidCount, "%s must error for a page size above the maximum", method)
 	}
@@ -999,7 +999,7 @@ func TestNewOTCQuoteRequestHistoryParams(t *testing.T) {
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a limit above the largest", req: &OTCQuoteRequestHistoryRequest{Limit: otcHistoryMaximumLimit + 1}, err: errInvalidCount},
 		{name: "a window starting after it ends", req: &OTCQuoteRequestHistoryRequest{StartTime: otcHistoryEnd, EndTime: otcHistoryStart}, err: common.ErrStartAfterEnd},
-		{name: "an end before the Unix epoch", req: &OTCQuoteRequestHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &OTCQuoteRequestHistoryRequest{EndTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1027,7 +1027,7 @@ func TestNewOTCQuoteHistoryParams(t *testing.T) {
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a limit above the largest", req: &OTCQuoteHistoryRequest{Limit: otcHistoryMaximumLimit + 1}, err: errInvalidCount},
 		{name: "a window starting after it ends", req: &OTCQuoteHistoryRequest{StartTime: otcHistoryEnd, EndTime: otcHistoryStart}, err: common.ErrStartAfterEnd},
-		{name: "a start before the Unix epoch", req: &OTCQuoteHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &OTCQuoteHistoryRequest{StartTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1054,8 +1054,8 @@ func TestNewOTCDealHistoryParams(t *testing.T) {
 		{name: "no fields", req: &OTCDealHistoryRequest{}, exp: &otcDealHistoryParams{DealType: OTCDealTypeQuoteRequest}},
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a window starting after it ends", req: &OTCDealHistoryRequest{StartTime: otcHistoryEnd, EndTime: otcHistoryStart}, err: common.ErrStartAfterEnd},
-		{name: "a start before the Unix epoch", req: &OTCDealHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", req: &OTCDealHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &OTCDealHistoryRequest{StartTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &OTCDealHistoryRequest{EndTime: time.Unix(0, -1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1087,8 +1087,8 @@ func TestNewOTCWindow(t *testing.T) {
 		{name: "a window starting after it ends", start: otcHistoryEnd, end: otcHistoryStart, err: common.ErrStartAfterEnd},
 		{name: "a window starting as it ends", start: otcHistoryStart, end: otcHistoryStart, err: common.ErrStartEqualsEnd},
 		{name: "a window starting in the future", start: now.Add(time.Hour), end: now.Add(2 * time.Hour), err: common.ErrStartAfterTimeNow},
-		{name: "a start a nanosecond before the Unix epoch", start: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
-		{name: "an end a nanosecond before the Unix epoch", end: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+		{name: "a start a nanosecond before the Unix epoch", start: time.Unix(0, -1), err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end a nanosecond before the Unix epoch", end: time.Unix(0, -1), err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

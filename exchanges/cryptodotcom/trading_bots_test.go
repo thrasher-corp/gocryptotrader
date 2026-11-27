@@ -190,7 +190,7 @@ func invalidTradingBotSettingsCases() []invalidTradingBotSettingsCase {
 			s.InvestmentFrequencyMode = TradingBotInvestmentFrequencyModeMonthly
 			s.InvestmentFrequency = -time.Hour
 		}), err: errInvalidTradingBotInvestmentFrequency},
-		{name: "a DCA bot first investing before 1970", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "a DCA bot first investing before 1970", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: common.ErrTimeBeforeUnixEpoch},
 		{name: "typed nil TWAP settings", settings: (*TradingBotTimeWeightedAveragePriceSettings)(nil), err: common.ErrNilPointer},
 		{name: "a TWAP bot without an instrument", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.InstrumentName = "" }), err: errInstrumentNameRequired},
 		{name: "a TWAP bot without a side", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.Side = "" }), err: errInvalidSide},
@@ -201,7 +201,7 @@ func invalidTradingBotSettingsCases() []invalidTradingBotSettingsCase {
 		{name: "a TWAP bot without an end time", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.EndTime = time.Time{} }), err: common.ErrDateUnset},
 		{name: "a TWAP bot starting after it ends", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime.Add(time.Minute) }), err: common.ErrStartAfterEnd},
 		{name: "a TWAP bot starting as it ends", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime }), err: common.ErrStartEqualsEnd},
-		{name: "a TWAP bot starting before 1970", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "a TWAP bot starting before 1970", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.UnixMilli(-1) }), err: common.ErrTimeBeforeUnixEpoch},
 		{name: "typed nil grid settings", settings: (*TradingBotGridSettings)(nil), err: common.ErrNilPointer},
 		{name: "a grid bot without an instrument", settings: grid(func(s *TradingBotGridSettings) { s.InstrumentName = "" }), err: errInstrumentNameRequired},
 		{name: "a grid bot without a total investment", settings: grid(func(s *TradingBotGridSettings) { s.TotalInvestment = 0 }), err: errInvalidAmount},
@@ -847,7 +847,7 @@ func TestTradingBotDollarCostAveragingSettingsValidateSettings(t *testing.T) {
 		{name: "a monthly bot with a negative frequency", settings: dca(func(s *TradingBotDollarCostAveragingSettings) {
 			s.InvestmentFrequencyMode, s.InvestmentFrequency = TradingBotInvestmentFrequencyModeMonthly, -time.Nanosecond
 		}), err: errInvalidTradingBotInvestmentFrequency},
-		{name: "a first investment before the Unix epoch", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "a first investment before the Unix epoch", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -888,7 +888,7 @@ func TestTradingBotTimeWeightedAveragePriceSettingsValidateSettings(t *testing.T
 		{name: "no end time", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.EndTime = time.Time{} }), err: common.ErrDateUnset},
 		{name: "a start after the end", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime.Add(time.Millisecond) }), err: common.ErrStartAfterEnd},
 		{name: "a start at the end", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime }), err: common.ErrStartEqualsEnd},
-		{name: "a start before the Unix epoch", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.UnixMilli(-1) }), err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1004,7 +1004,7 @@ func TestTradingBotDollarCostAveragingUpdateSettingsUpdateSettingsParams(t *test
 		{
 			name:     "a frequency and maximum orders",
 			settings: &TradingBotDollarCostAveragingUpdateSettings{InvestmentFrequency: 90 * time.Second, MaximumOrders: 3},
-			exp:      &tradingBotDollarCostAveragingUpdateSettingsWire{MaximumOrders: 3, InvestmentFrequencyMilliseconds: 90000},
+			exp:      &tradingBotDollarCostAveragingUpdateSettingsWire{MaximumOrders: 3, InvestmentFrequency: types.DurationMilliseconds(90 * time.Second)},
 			expJSON:  `{"max_order":"3","investment_frequency":90000}`,
 		},
 		{
@@ -1022,16 +1022,16 @@ func TestTradingBotDollarCostAveragingUpdateSettingsUpdateSettingsParams(t *test
 				Quantity:            0.02,
 			},
 			exp: &tradingBotDollarCostAveragingUpdateSettingsWire{
-				Allocations:                     []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 100}},
-				OrderType:                       OrderTypeLimit,
-				Price:                           29000,
-				MaximumOrders:                   12,
-				StopPrice:                       20000,
-				TakeProfitPrice:                 40000,
-				AutoStake:                       new(false),
-				InvestmentDuration:              43200000,
-				InvestmentFrequencyMilliseconds: 1800000,
-				Quantity:                        0.02,
+				Allocations:         []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 100}},
+				OrderType:           OrderTypeLimit,
+				Price:               29000,
+				MaximumOrders:       12,
+				StopPrice:           20000,
+				TakeProfitPrice:     40000,
+				AutoStake:           new(false),
+				InvestmentDuration:  43200000,
+				InvestmentFrequency: types.DurationMilliseconds(30 * time.Minute),
+				Quantity:            0.02,
 			},
 			expJSON: `{"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"type":"LIMIT","price":"29000","max_order":"12","stop_price":"20000","take_profit_price":"40000","auto_stake":false,"investment_duration":43200000,"investment_frequency":1800000,"quantity":"0.02"}`,
 		},
@@ -1273,13 +1273,13 @@ func TestInvestmentFrequencyParam(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		frequency time.Duration
-		exp       uint64
+		exp       types.DurationMilliseconds
 		err       error
 	}{
 		{},
-		{frequency: time.Millisecond, exp: 1},
-		{frequency: 1500 * time.Microsecond, exp: 1},
-		{frequency: 5 * time.Minute, exp: 300000},
+		{frequency: time.Millisecond, exp: types.DurationMilliseconds(time.Millisecond)},
+		{frequency: 1500 * time.Microsecond, exp: types.DurationMilliseconds(time.Millisecond)},
+		{frequency: 5 * time.Minute, exp: types.DurationMilliseconds(5 * time.Minute)},
 		{frequency: -time.Millisecond, err: errInvalidTradingBotInvestmentFrequency},
 		{frequency: -time.Hour, err: errInvalidTradingBotInvestmentFrequency},
 		{frequency: -time.Nanosecond, err: errInvalidTradingBotInvestmentFrequency},
@@ -1312,7 +1312,7 @@ func TestTradingBotDollarCostAveragingSettingsMarshalJSON(t *testing.T) {
 		{name: "every setting", settings: dcaBotEverySetting(), exp: dcaBotEverySettingJSON},
 		{name: "a basket", settings: dcaBasketBotSettings(), exp: dcaBasketBotSettingsJSON},
 		{name: "no settings", settings: &TradingBotDollarCostAveragingSettings{}, exp: `{"is_basket":false,"allocations":null,"investment_currency":"","auto_stake":false,"investment_frequency_mode":""}`},
-		{name: "a first investment before the Unix epoch", settings: &TradingBotDollarCostAveragingSettings{FirstInvestmentTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a first investment before the Unix epoch", settings: &TradingBotDollarCostAveragingSettings{FirstInvestmentTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 		{name: "a negative frequency", settings: &TradingBotDollarCostAveragingSettings{InvestmentFrequency: -time.Hour}, err: errInvalidTradingBotInvestmentFrequency},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1356,11 +1356,12 @@ func TestTradingBotDollarCostAveragingSettingsUnmarshalJSON(t *testing.T) {
 			data: `{"investment_frequency_mode":"MONTHLY","investment_frequency":0,"first_investment_time":0}`,
 			exp:  TradingBotDollarCostAveragingSettings{InvestmentFrequencyMode: TradingBotInvestmentFrequencyModeMonthly},
 		},
+		{name: "a frequency and first investment time too large to hold", data: `{"investment_frequency":18446744073709551615,"first_investment_time":18446744073709551615}`, malformed: true},
 		{
-			name: "a frequency and first investment time too large to hold",
-			data: `{"investment_frequency":18446744073709551615,"first_investment_time":18446744073709551615}`,
-			exp:  TradingBotDollarCostAveragingSettings{InvestmentFrequency: math.MaxInt64},
+			name: "a first investment time too large to hold",
+			data: `{"first_investment_time":18446744073709551615}`,
 		},
+		{name: "a frequency too long for a duration", data: `{"investment_frequency":18446744073709551615}`, malformed: true},
 		{name: "no settings", data: `{}`},
 		{name: "a malformed first investment time", data: `{"first_investment_time":"soon"}`, malformed: true},
 		{name: "a malformed allocated percentage", data: `{"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":true}]}`, malformed: true},
@@ -1411,8 +1412,8 @@ func TestTradingBotTimeWeightedAveragePriceSettingsMarshalJSON(t *testing.T) {
 		{name: "the docs' TWAP bot", settings: twapBotSettings(), exp: twapBotSettingsJSON},
 		{name: "a limit order", settings: twapLimitBotSettings(), exp: twapLimitBotSettingsJSON},
 		{name: "no settings", settings: &TradingBotTimeWeightedAveragePriceSettings{}, exp: `{"instrument_name":"","side":"","type":"","start_time_millis":0,"end_time_millis":0}`},
-		{name: "a start before the Unix epoch", settings: &TradingBotTimeWeightedAveragePriceSettings{StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", settings: &TradingBotTimeWeightedAveragePriceSettings{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", settings: &TradingBotTimeWeightedAveragePriceSettings{StartTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", settings: &TradingBotTimeWeightedAveragePriceSettings{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1617,13 +1618,6 @@ func TestTradingBotResponseDecodeSettings(t *testing.T) {
 			assert.Equalf(t, TradingBotResponse{BotID: "9", BotType: tc.botType, Settings: tc.exp}, bot, "decodeSettings should replace the bot's settings with %s, decoded by its type", tc.name)
 		})
 	}
-}
-
-func TestMillisecondsDuration(t *testing.T) {
-	t.Parallel()
-	assert.Zero(t, millisecondsDuration(0), "millisecondsDuration should give no duration for zero")
-	assert.Equal(t, 5*time.Minute, millisecondsDuration(300000), "millisecondsDuration should give the duration of the milliseconds")
-	assert.Equal(t, time.Duration(math.MaxInt64), millisecondsDuration(math.MaxUint64), "millisecondsDuration should cap a duration too long to hold")
 }
 
 func TestUnixMilliTime(t *testing.T) {

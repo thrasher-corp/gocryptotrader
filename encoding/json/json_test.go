@@ -284,6 +284,32 @@ func TestNilSliceAndMapAsNull(t *testing.T) {
 	assert.JSONEq(t, `{"slice":null,"map":null,"bytes":null}`, string(out), "nil slice, map and byte slice should marshal as null")
 }
 
+func TestNull(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		v    any
+	}{
+		{name: "nil"},
+		{name: "nil pointer", v: (*int)(nil)},
+		{name: "nil slice", v: []string(nil)},
+		{name: "nil map", v: map[string]string(nil)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := Marshal(tc.v)
+			require.NoErrorf(t, err, "Marshal must not error for %s", tc.name)
+			assert.Equalf(t, Null, string(out), "Null should be what Marshal writes for %s", tc.name)
+		})
+	}
+	t.Run("decoding Null sets a pointer to nil", func(t *testing.T) {
+		t.Parallel()
+		p := new(int)
+		require.NoError(t, Unmarshal([]byte(Null), &p), "Unmarshal must accept Null")
+		assert.Nil(t, p, "Unmarshal of Null should set a pointer to nil")
+	})
+}
+
 // v1 escaped HTML characters and the JS line separators by default.
 func TestEscaping(t *testing.T) {
 	t.Parallel()

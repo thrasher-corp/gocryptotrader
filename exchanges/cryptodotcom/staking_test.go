@@ -27,8 +27,8 @@ func requireStakingHistoryValidation(t *testing.T, method string, call func(*Sta
 	require.ErrorIsf(t, call(nil), common.ErrNilPointer, "%s must error for a nil request", method)
 	require.ErrorIsf(t, call(&StakingHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}), common.ErrStartAfterEnd, "%s must error for a start after the end", method)
 	require.ErrorIsf(t, call(&StakingHistoryRequest{Limit: stakingHistoryMaximumLimit + 1}), errInvalidCount, "%s must error for a limit above the maximum", method)
-	require.ErrorIsf(t, call(&StakingHistoryRequest{StartTime: time.UnixMilli(-1)}), errTimeBeforeUnixEpoch, "%s must error for a time before 1970", method)
-	require.ErrorIsf(t, call(&StakingHistoryRequest{EndTime: time.UnixMilli(-1)}), errTimeBeforeUnixEpoch, "%s must error for an end before 1970", method)
+	require.ErrorIsf(t, call(&StakingHistoryRequest{StartTime: time.UnixMilli(-1)}), common.ErrTimeBeforeUnixEpoch, "%s must error for a time before 1970", method)
+	require.ErrorIsf(t, call(&StakingHistoryRequest{EndTime: time.UnixMilli(-1)}), common.ErrTimeBeforeUnixEpoch, "%s must error for an end before 1970", method)
 }
 
 // requireStakingConvertHistoryValidation checks a convert history method refuses each request its validation rejects
@@ -37,7 +37,7 @@ func requireStakingConvertHistoryValidation(t *testing.T, method string, call fu
 	require.ErrorIsf(t, call(nil), common.ErrNilPointer, "%s must error for a nil request", method)
 	require.ErrorIsf(t, call(&StakingConvertHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}), common.ErrStartAfterEnd, "%s must error for a start after the end", method)
 	require.ErrorIsf(t, call(&StakingConvertHistoryRequest{Limit: stakingHistoryMaximumLimit + 1}), errInvalidCount, "%s must error for a limit above the maximum", method)
-	require.ErrorIsf(t, call(&StakingConvertHistoryRequest{StartTime: time.UnixMilli(-1)}), errTimeBeforeUnixEpoch, "%s must error for a time before 1970", method)
+	require.ErrorIsf(t, call(&StakingConvertHistoryRequest{StartTime: time.UnixMilli(-1)}), common.ErrTimeBeforeUnixEpoch, "%s must error for a time before 1970", method)
 }
 
 func TestGetStakingConversionRate(t *testing.T) {
@@ -676,7 +676,7 @@ func TestNewStakingHistoryParams(t *testing.T) {
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a limit above the largest", req: &StakingHistoryRequest{InstrumentName: "SOL.staked", Limit: stakingHistoryMaximumLimit + 1}, err: errInvalidCount},
 		{name: "a window starting after it ends", req: &StakingHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}, err: common.ErrStartAfterEnd},
-		{name: "an end before the Unix epoch", req: &StakingHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &StakingHistoryRequest{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -704,7 +704,7 @@ func TestNewStakingConvertHistoryParams(t *testing.T) {
 		{name: "a nil request", err: common.ErrNilPointer},
 		{name: "a limit above the largest", req: &StakingConvertHistoryRequest{Limit: stakingHistoryMaximumLimit + 1}, err: errInvalidCount},
 		{name: "a window starting after it ends", req: &StakingConvertHistoryRequest{StartTime: stakingHistoryEnd, EndTime: stakingHistoryStart}, err: common.ErrStartAfterEnd},
-		{name: "an end before the Unix epoch", req: &StakingConvertHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &StakingConvertHistoryRequest{EndTime: time.UnixMilli(-1)}, err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -745,8 +745,8 @@ func TestNewStakingWindowParams(t *testing.T) {
 		{name: "a window starting after it ends", start: stakingHistoryEnd, end: stakingHistoryStart, err: common.ErrStartAfterEnd},
 		{name: "a window starting as it ends", start: stakingHistoryStart, end: stakingHistoryStart, err: common.ErrStartEqualsEnd},
 		{name: "a window starting in the future", start: now.Add(time.Hour), end: now.Add(2 * time.Hour), err: common.ErrStartAfterTimeNow},
-		{name: "a start a nanosecond before the Unix epoch", start: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
-		{name: "an end a nanosecond before the Unix epoch", end: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+		{name: "a start a nanosecond before the Unix epoch", start: time.Unix(0, -1), err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end a nanosecond before the Unix epoch", end: time.Unix(0, -1), err: common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

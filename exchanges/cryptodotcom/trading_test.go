@@ -1217,8 +1217,8 @@ func TestGetUserOrderHistory(t *testing.T) { //nolint:tparallel // the cases run
 		{"a nil request", nil, common.ErrNilPointer},
 		{"a window starting after it ends", &UserOrderHistoryRequest{StartTime: time.Unix(0, tradingTestOrderHistoryEnd), EndTime: time.Unix(0, tradingTestOrderHistoryStart)}, common.ErrStartAfterEnd},
 		{"a limit above 100", &UserOrderHistoryRequest{Limit: 101}, errInvalidCount},
-		{"a start before the Unix epoch", &UserOrderHistoryRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
-		{"an end before the Unix epoch", &UserOrderHistoryRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
+		{"a start before the Unix epoch", &UserOrderHistoryRequest{StartTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
+		{"an end before the Unix epoch", &UserOrderHistoryRequest{EndTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := e.GetUserOrderHistory(t.Context(), tc.req)
@@ -1333,8 +1333,8 @@ func TestGetUserTrades(t *testing.T) { //nolint:tparallel // the cases run in or
 		{"a nil request", nil, common.ErrNilPointer},
 		{"a window starting after it ends", &UserTradesRequest{StartTime: time.Unix(0, tradingTestTradesWindowEnd), EndTime: time.Unix(0, tradingTestTradesWindowStart)}, common.ErrStartAfterEnd},
 		{"a limit above 100", &UserTradesRequest{Limit: 101}, errInvalidCount},
-		{"a start before the Unix epoch", &UserTradesRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
-		{"an end before the Unix epoch", &UserTradesRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
+		{"a start before the Unix epoch", &UserTradesRequest{StartTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
+		{"an end before the Unix epoch", &UserTradesRequest{EndTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := e.GetUserTrades(t.Context(), tc.req)
@@ -1433,8 +1433,8 @@ func TestGetTransactions(t *testing.T) { //nolint:tparallel // the cases run in 
 		{"a nil request", nil, common.ErrNilPointer},
 		{"a window starting after it ends", &TransactionsRequest{StartTime: time.Unix(0, tradingTestTradesWindowEnd), EndTime: time.Unix(0, tradingTestTradesWindowStart)}, common.ErrStartAfterEnd},
 		{"a limit above 100", &TransactionsRequest{Limit: 101}, errInvalidCount},
-		{"a start before the Unix epoch", &TransactionsRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
-		{"an end before the Unix epoch", &TransactionsRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
+		{"a start before the Unix epoch", &TransactionsRequest{StartTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
+		{"an end before the Unix epoch", &TransactionsRequest{EndTime: time.Unix(-1, 0)}, common.ErrTimeBeforeUnixEpoch},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := e.GetTransactions(t.Context(), tc.req)
@@ -2004,9 +2004,9 @@ func TestNewTradingHistoryParams(t *testing.T) {
 		{name: "a window starting as it ends", req: &TransactionsRequest{StartTime: start, EndTime: start}, err: common.ErrStartEqualsEnd},
 		{name: "a window starting in the future", req: &TransactionsRequest{StartTime: time.Now().Add(time.Hour), EndTime: time.Now().Add(2 * time.Hour)}, err: common.ErrStartAfterTimeNow},
 		{name: "a limit above 100", req: &TransactionsRequest{Limit: maxTradingHistoryLimit + 1}, err: errInvalidCount},
-		{name: "a start before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
-		{name: "an end before the Unix epoch", req: &TransactionsRequest{EndTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
-		{name: "a window before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-2, 0), EndTime: time.Unix(-1, 0)}, err: errTimeBeforeUnixEpoch},
+		{name: "a start before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-1, 0)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &TransactionsRequest{EndTime: time.Unix(-1, 0)}, err: common.ErrTimeBeforeUnixEpoch},
+		{name: "a window before the Unix epoch", req: &TransactionsRequest{StartTime: time.Unix(-2, 0), EndTime: time.Unix(-1, 0)}, err: common.ErrTimeBeforeUnixEpoch},
 		{name: "no params", req: &TransactionsRequest{}, exp: &tradingHistoryParams{}},
 		{
 			name: "every param",
