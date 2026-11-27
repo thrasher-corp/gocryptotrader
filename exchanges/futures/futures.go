@@ -35,11 +35,15 @@ func (c *PositionController) TrackNewOrder(d *order.Detail) error {
 	if d == nil {
 		return errNilOrder
 	}
-	var err error
-	d.Exchange, err = checkTrackerPrerequisitesLowerExchange(d.Exchange, d.AssetType, d.Pair)
+	exch, err := checkTrackerPrerequisitesLowerExchange(d.Exchange, d.AssetType, d.Pair)
 	if err != nil {
 		return err
 	}
+	// The trackers key and compare exchanges by lowercase name, which they are given on a copy, so the caller's order,
+	// such as one an order store holds and matches by exchange name, keeps its own
+	tracked := d.Copy()
+	tracked.Exchange = exch
+	d = &tracked
 	c.m.Lock()
 	defer c.m.Unlock()
 	exchMap, ok := c.multiPositionTrackers[key.NewExchangeAssetPair(d.Exchange, d.AssetType, d.Pair)]

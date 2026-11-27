@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"cmp"
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -280,6 +283,21 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	return m
 }
 
+// newOrderStoreTestManager returns a started order manager holding the test exchange with only its defaults set, for a test
+// that needs no pairs, which OrdersSetup requests from the exchange
+func newOrderStoreTestManager(t *testing.T) *OrderManager {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	require.NoError(t, em.Add(omfExchange{IBotExchange: exch}), "Add must not error")
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	return m
+}
+
 func TestOrdersGet(t *testing.T) {
 	m := OrdersSetup(t)
 	if m.orderStore.get() == nil {
@@ -364,7 +382,56 @@ func TestExists(t *testing.T) {
 	}
 }
 
-func TestStore_modifyOrder(t *testing.T) {
+func TestStore_modifyExisting(t *testing.T) {
+	// The trailing stop limit cases are serial and first, as tparallel asks a test with a parallel subtest to be parallel
+	// itself, which this one is not, and so the live Bitstamp setup of the steps after them cannot stop them
+	t.Run("trailing stop limit prices", func(t *testing.T) {
+		for _, tc := range []struct {
+			name        string
+			orderType   order.Type
+			side        order.Side
+			storedPrice float64
+			reply       order.ModifyResponse // the reply's type and fill; its ID, price and amount are the edit's
+			expPrice    float64
+			expType     order.Type
+		}{
+			{name: "trailing stop limit replied to without a type", orderType: order.TrailingStopLimit, side: order.Sell, storedPrice: 79900, expPrice: 79900, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit replied to as a trailing stop limit", orderType: order.TrailingStopLimit, side: order.Sell, storedPrice: 79900, reply: order.ModifyResponse{Type: order.TrailingStopLimit}, expPrice: 79900, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit replaced by a stop limit", orderType: order.TrailingStopLimit, side: order.Sell, storedPrice: 79900, reply: order.ModifyResponse{Type: order.StopLimit}, expPrice: 150, expType: order.StopLimit},
+			{name: "limit replied to as a trailing stop limit", orderType: order.Limit, side: order.Sell, storedPrice: 79900, reply: order.ModifyResponse{Type: order.TrailingStopLimit}, expPrice: 150, expType: order.TrailingStopLimit},
+			{name: "order of unknown type replied to without a type", side: order.Sell, storedPrice: 79900, expPrice: 150},
+			{name: "trailing stop limit without a working price replied to without a type", orderType: order.TrailingStopLimit, side: order.Sell, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit replied to with a fill", orderType: order.TrailingStopLimit, side: order.Sell, storedPrice: 79900, reply: order.ModifyResponse{Status: order.PartiallyFilled, ExecutedAmount: 0.5, RemainingAmount: 1.5}, expPrice: 79900, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit without a side replied to without a type", orderType: order.TrailingStopLimit, storedPrice: 79900, expPrice: 79900, expType: order.TrailingStopLimit},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				m := newOrderStoreTestManager(t)
+				require.NoError(t, m.orderStore.add(&order.Detail{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "0", Type: order.TrailingStopLimit, Side: order.Sell, Price: 40100, TriggerPrice: 40000, Amount: 3}), "orderStore.add must not error for the order ahead of the one edited")
+				neighbour, err := m.orderStore.getByExchangeAndID(testExchange, "0")
+				require.NoError(t, err, "getByExchangeAndID must not error for the order ahead of the one edited")
+				require.NoError(t, m.orderStore.add(&order.Detail{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "1", Type: tc.orderType, Side: tc.side, Price: tc.storedPrice, TriggerPrice: 80000, Amount: 3}), "orderStore.add must not error")
+				reply := tc.reply
+				// The store finds an order by its exchange's name whatever its case, as the reply may give it
+				reply.Exchange, reply.OrderID, reply.Price, reply.Amount = strings.ToLower(testExchange), "1", 150, 2
+				sent := reply
+				require.NoError(t, m.orderStore.modifyExisting("1", &reply), "modifyExisting must not error")
+				assert.Equal(t, sent, reply, "modifyExisting should leave the reply as the exchange returned it")
+				stored, err := m.orderStore.getByExchangeAndID(testExchange, "1")
+				require.NoError(t, err, "getByExchangeAndID must not error")
+				assert.Equal(t, tc.expPrice, stored.Price, "modifyExisting should store the reply's price, except as a trailing stop limit's, which is an offset")
+				assert.Equal(t, tc.expType, stored.Type, "modifyExisting should store the reply's type, if it names one")
+				assert.Equal(t, 2.0, stored.Amount, "modifyExisting should store the reply's amount")
+				assert.Equal(t, 80000.0, stored.TriggerPrice, "modifyExisting should keep the trigger price the reply leaves out")
+				assert.Equal(t, tc.reply.Status, stored.Status, "modifyExisting should store the reply's status")
+				assert.Equal(t, tc.reply.ExecutedAmount, stored.ExecutedAmount, "modifyExisting should store what the reply reports executed")
+				assert.Equal(t, tc.reply.RemainingAmount, stored.RemainingAmount, "modifyExisting should store what the reply reports remaining")
+				other, err := m.orderStore.getByExchangeAndID(testExchange, "0")
+				require.NoError(t, err, "getByExchangeAndID must not error for the order ahead of the one edited")
+				assert.Equal(t, neighbour, other, "modifyExisting should leave the order ahead of the one edited as stored")
+			})
+		}
+	})
+
 	m := OrdersSetup(t)
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
@@ -749,7 +816,324 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	}
 }
 
+func TestProcessSubmittedOrder(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	_, err := m.processSubmittedOrder(nil)
+	assert.ErrorIs(t, err, order.ErrOrderDetailIsNil, "processSubmittedOrder should error for a nil response")
+
+	reply := &order.SubmitResponse{Exchange: testExchange, OrderID: "o-1", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.New, Amount: 3}
+	resp, err := m.processSubmittedOrder(reply)
+	require.NoError(t, err, "processSubmittedOrder must not error")
+	assert.Equal(t, order.New, resp.Status, "processSubmittedOrder should return the reply's status")
+	stored, err := m.GetByExchangeAndID(testExchange, "o-1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, 3.0, stored.Amount, "processSubmittedOrder should store the reply's amount")
+	assert.Equal(t, stored.InternalOrderID.String(), resp.InternalOrderID, "processSubmittedOrder should return the internal ID stored")
+	assert.Equal(t, stored.InternalOrderID, resp.Detail.InternalOrderID, "processSubmittedOrder should return details with the internal ID stored")
+	assert.NotEqual(t, uuid.Nil(), stored.InternalOrderID, "processSubmittedOrder should give the order an internal ID")
+
+	// An order that cannot be stored or tracked has still been placed, so its reply is returned
+	resp, err = m.processSubmittedOrder(&order.SubmitResponse{Exchange: "not loaded", OrderID: "o-2", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.New})
+	require.NoError(t, err, "processSubmittedOrder must not error for an exchange that is not loaded")
+	assert.Equal(t, order.New, resp.Status, "processSubmittedOrder should return the reply's status for an exchange that is not loaded")
+
+	streamed := &order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.Open}
+	assert.Error(t, m.orderStore.add(streamed), "add should error for a futures order the position tracker refuses for want of a time")
+	resp, err = m.processSubmittedOrder(&order.SubmitResponse{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.New, Amount: 3})
+	require.NoError(t, err, "processSubmittedOrder must not error for a merged order the position tracker refuses")
+	assert.Equal(t, order.Open, resp.Status, "processSubmittedOrder should return the merged status when the position tracker refuses the order")
+	assert.Equal(t, 3.0, resp.Amount, "processSubmittedOrder should return the merged amount when the position tracker refuses the order")
+
+	// The details of an order the websocket reports before processSubmittedOrder supersede the submission's, which give
+	// what they leave out
+	t.Run("order the websocket stored first", func(t *testing.T) {
+		t.Parallel()
+		placed := time.Date(2026, 10, 31, 1, 2, 3, 0, time.UTC)
+		trade := order.TradeHistory{TID: "fill-1", Price: 100, Amount: 1}
+		for _, tc := range []struct {
+			name     string
+			streamed order.Detail
+			exp      order.Detail
+		}{
+			{
+				name:     "a fill alone, which gives no status or quantities",
+				streamed: order.Detail{Trades: []order.TradeHistory{trade}},
+				exp:      order.Detail{Status: order.PartiallyFilled, Amount: 3, ExecutedAmount: 1, RemainingAmount: 2, Trades: []order.TradeHistory{trade}},
+			},
+			{
+				name:     "filled by its fills",
+				streamed: order.Detail{Status: order.Filled, Amount: 3, ExecutedAmount: 3, Trades: []order.TradeHistory{trade}},
+				exp:      order.Detail{Status: order.Filled, Amount: 3, ExecutedAmount: 3, Trades: []order.TradeHistory{trade}},
+			},
+			{
+				name:     "removed, the report naming only the order",
+				streamed: order.Detail{Status: order.Cancelled},
+				exp:      order.Detail{Status: order.Cancelled, Amount: 3, ExecutedAmount: 1, RemainingAmount: 2},
+			},
+			{
+				name:     "amended and partly filled",
+				streamed: order.Detail{Status: order.PartiallyFilled, Amount: 2.5, ExecutedAmount: 2, RemainingAmount: 0.5, ClientOrderID: "streamed"},
+				exp:      order.Detail{Status: order.PartiallyFilled, Amount: 2.5, ExecutedAmount: 2, RemainingAmount: 0.5, ClientOrderID: "streamed"},
+			},
+		} {
+			for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDTMarginedFutures} {
+				t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+					t.Parallel()
+					m := newOrderStoreTestManager(t)
+					other := &order.Detail{Exchange: testExchange, OrderID: "o-2", Pair: btcusdPair, AssetType: a, Side: order.Buy, Status: order.Open, Amount: 9, Date: placed}
+					require.NoError(t, m.orderStore.add(other), "add must not error")
+					streamed := tc.streamed
+					streamed.Exchange, streamed.OrderID, streamed.Pair, streamed.AssetType, streamed.Side = testExchange, "o-1", btcusdPair, a, order.Buy
+					// A futures report without a time is stored, and refused by the position tracker alone
+					if err := m.orderStore.add(&streamed); a == asset.Spot {
+						require.NoError(t, err, "add must not error for a spot order")
+					}
+					internalID := streamed.InternalOrderID
+					report := streamed.Copy()
+
+					submit := &order.Submit{Type: order.Limit, Pair: btcusdPair, AssetType: a, Side: order.Buy, Amount: 3, Price: 1, ReduceOnly: true, Exchange: testExchange}
+					submitResp, err := submit.DeriveSubmitResponse("o-1")
+					require.NoError(t, err, "DeriveSubmitResponse must not error")
+					submitResp.Date, submitResp.Status, submitResp.ExecutedAmount, submitResp.RemainingAmount = placed, order.PartiallyFilled, 1, 2
+					submitResp.QuoteAmount, submitResp.AverageExecutedPrice, submitResp.Fee = 100, 50, 0.7
+					resp, err := m.SubmitFakeOrder(submit, submitResp, false)
+					require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+					assert.Equal(t, report, streamed, "SubmitFakeOrder should not write to the report the websocket routine stored, which it can still be reading")
+
+					stored, err := m.GetByExchangeAndID(testExchange, "o-1")
+					require.NoError(t, err, "GetByExchangeAndID must not error")
+					assert.Equal(t, stored.Status, resp.Status, "Submit should return the status stored")
+					assert.Equal(t, stored.Amount, resp.Amount, "Submit should return the amount stored")
+					assert.Equal(t, internalID, stored.InternalOrderID, "InternalOrderID should stay the one the order was first stored under")
+					assert.Equal(t, placed, stored.Date, "Date should be the submission's")
+					assert.Equal(t, 1.0, stored.Price, "Price should be the submission's, which the report left out")
+					assert.Equal(t, 100.0, stored.QuoteAmount, "QuoteAmount should be the submission's, which the report left out")
+					assert.Equal(t, 50.0, stored.AverageExecutedPrice, "AverageExecutedPrice should be the submission's, which the report left out")
+					assert.Equal(t, 0.7, stored.Fee, "Fee should be the submission's, which the report left out")
+					assert.True(t, stored.ReduceOnly, "ReduceOnly should be the submission's, which the report left out")
+					assert.Equal(t, tc.exp.Status, stored.Status, "Status should be the report's, or the submission's without one")
+					assert.Equal(t, tc.exp.Amount, stored.Amount, "Amount should be the report's, or the submission's without one")
+					assert.Equal(t, tc.exp.ExecutedAmount, stored.ExecutedAmount, "ExecutedAmount should be the report's, or the submission's without one")
+					assert.Equal(t, tc.exp.RemainingAmount, stored.RemainingAmount, "RemainingAmount should be the report's, or the submission's without one")
+					assert.Equal(t, tc.exp.Trades, stored.Trades, "Trades should be the report's")
+					assert.Equal(t, tc.exp.ClientOrderID, stored.ClientOrderID, "ClientOrderID should be the report's, or the submission's without one")
+					untouched, err := m.GetByExchangeAndID(testExchange, "o-2")
+					require.NoError(t, err, "GetByExchangeAndID must not error")
+					assert.Equal(t, 9.0, untouched.Amount, "Another order's amount should stay as it was")
+					if a.IsFutures() {
+						position, err := m.orderStore.futuresPositionController.GetOpenPosition(testExchange, a, btcusdPair)
+						require.NoError(t, err, "GetOpenPosition must not error")
+						require.Len(t, position.Orders, 2, "the position must hold the order once the submission gives its time")
+						tracked := position.Orders[slices.IndexFunc(position.Orders, func(d order.Detail) bool { return d.OrderID == "o-1" })]
+						assert.Equal(t, stored.Amount, tracked.Amount, "the position should hold the merged order's amount")
+						assert.Equal(t, stored.ExecutedAmount, tracked.ExecutedAmount, "the position should hold the merged order's executed amount")
+					}
+				})
+			}
+		}
+
+		m := newOrderStoreTestManager(t)
+		reported := time.Date(2026, 10, 31, 1, 2, 2, 0, time.UTC)
+		streamed := &order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Date: reported, ReduceOnly: true, CostAsset: currency.USDT, SettlementCurrency: currency.USDC, MarginType: margin.Isolated, Fee: -0.4, Trades: []order.TradeHistory{trade}}
+		require.NoError(t, m.orderStore.add(streamed), "add must not error")
+		submit := &order.Submit{Type: order.Limit, Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Amount: 3, Price: 1, Exchange: testExchange}
+		submitResp, err := submit.DeriveSubmitResponse("o-3")
+		require.NoError(t, err, "DeriveSubmitResponse must not error")
+		submitResp.Date, submitResp.Fee = placed, 0.4
+		resp, err := m.SubmitFakeOrder(submit, submitResp, false)
+		require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+		resp.Amount = 99
+		resp.Trades[0].Amount = 99
+		stored, err := m.GetByExchangeAndID(testExchange, "o-3")
+		require.NoError(t, err, "GetByExchangeAndID must not error")
+		assert.Equal(t, 3.0, stored.Amount, "Amount should not change with what Submit returned")
+		assert.Equal(t, trade.Amount, stored.Trades[0].Amount, "A trade should not change with what Submit returned")
+		assert.Equal(t, reported, stored.Date, "Date should stay the report's")
+		assert.True(t, stored.ReduceOnly, "ReduceOnly should stay the report's")
+		assert.Equal(t, currency.USDT, stored.CostAsset, "CostAsset should stay the report's")
+		assert.Equal(t, currency.USDC, stored.SettlementCurrency, "SettlementCurrency should stay the report's")
+		assert.Equal(t, margin.Isolated, stored.MarginType, "MarginType should stay the report's")
+		assert.Equal(t, -0.4, stored.Fee, "Fee should stay the report's, a rebate being below zero")
+		_, err = m.orderStore.mergeStreamed(&order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy})
+		assert.NoError(t, err, "mergeStreamed should not track a spot order as a position")
+
+		rebate := &order.Detail{Exchange: testExchange, OrderID: "o-5", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Fee: -0.4}
+		require.NoError(t, m.orderStore.add(rebate), "add must not error")
+		submitResp, err = submit.DeriveSubmitResponse("o-5")
+		require.NoError(t, err, "DeriveSubmitResponse must not error")
+		_, err = m.SubmitFakeOrder(submit, submitResp, false)
+		require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+		stored, err = m.GetByExchangeAndID(testExchange, "o-5")
+		require.NoError(t, err, "GetByExchangeAndID must not error")
+		assert.Equal(t, -0.4, stored.Fee, "Fee should stay the report's when the submission gives none")
+
+		det := &order.Detail{Exchange: testExchange, OrderID: "not stored"}
+		got, err := m.orderStore.mergeStreamed(det)
+		assert.ErrorIs(t, err, ErrOrderNotFound, "mergeStreamed should error for an order not stored")
+		assert.Same(t, det, got, "mergeStreamed should return the submission's details for an order not stored")
+
+		refused := &order.Detail{Exchange: testExchange, OrderID: "o-4", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.Open}
+		assert.Error(t, m.orderStore.add(refused), "add should error for a futures order the position tracker refuses for want of a time")
+		got, err = m.orderStore.mergeStreamed(&order.Detail{Exchange: testExchange, OrderID: "o-4", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Amount: 3})
+		assert.ErrorContains(t, err, "time unset", "mergeStreamed should return the position tracker's error")
+		assert.Equal(t, 3.0, got.Amount, "mergeStreamed should return the merged details with the position tracker's error")
+	})
+}
+
+// modifyRecordingExchange records the modification the order manager sends it
+type modifyRecordingExchange struct {
+	omfExchange
+	received  *order.Modify
+	inPlace   bool       // whether the edit keeps the order's ID, as an amendment does
+	retyped   bool       // whether the reply names replyType rather than the edit's type
+	replyType order.Type // the type the reply names when retyped
+	during    func()     // run while the edit is in flight, if set
+}
+
+func (e *modifyRecordingExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	received := *action
+	e.received = &received
+	if e.during != nil {
+		e.during()
+	}
+	resp, err := e.omfExchange.ModifyOrder(ctx, action)
+	if err == nil && e.inPlace {
+		resp.OrderID = action.OrderID
+	}
+	if err == nil && e.retyped {
+		resp.Type = e.replyType
+	}
+	return resp, err
+}
+
+// newModifyTestOrderManager returns a started order manager holding a spot order of the type and side given, whose
+// exchange records the edits sent to it
+func newModifyTestOrderManager(t *testing.T, orderType order.Type, side order.Side) (*OrderManager, *modifyRecordingExchange) {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	recorder := &modifyRecordingExchange{IBotExchange: exch}
+	require.NoError(t, em.Add(recorder), "Add must not error")
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	require.NoError(t, m.orderStore.add(&order.Detail{
+		Exchange:     testExchange,
+		AssetType:    asset.Spot,
+		Pair:         currency.NewBTCUSD(),
+		OrderID:      "trailing_order_id",
+		Type:         orderType,
+		Side:         side,
+		Price:        79900,
+		TriggerPrice: 80000,
+		Amount:       3,
+	}), "orderStore.add must not error")
+	return m, recorder
+}
+
 func TestOrderManager_Modify(t *testing.T) {
+	// This group is serial, as tparallel asks a test with a parallel subtest to be parallel itself, which master's
+	// TestOrderManager_Modify is not, and first, so the live Bitstamp setup of the steps after it cannot stop it
+	t.Run("price sent with an edit of the amount", func(t *testing.T) {
+		for _, tc := range []struct {
+			name      string
+			orderType order.Type
+			side      order.Side
+			editType  order.Type
+			trigger   float64
+			price     float64
+			expPrice  float64
+		}{
+			{name: "trailing stop limit sell", orderType: order.TrailingStopLimit, side: order.Sell},
+			{name: "trailing stop limit buy", orderType: order.TrailingStopLimit, side: order.Buy},
+			{name: "trailing stop limit sell edit naming its type", orderType: order.TrailingStopLimit, side: order.Sell, editType: order.TrailingStopLimit},
+			{name: "trailing stop limit buy edit naming its type", orderType: order.TrailingStopLimit, side: order.Buy, editType: order.TrailingStopLimit},
+			{name: "trailing stop limit sell edit of its trigger too", orderType: order.TrailingStopLimit, side: order.Sell, trigger: 80500},
+			{name: "trailing stop limit sell with an offset", orderType: order.TrailingStopLimit, side: order.Sell, price: -150, expPrice: -150},
+			{name: "trailing stop limit buy with an offset", orderType: order.TrailingStopLimit, side: order.Buy, price: 150, expPrice: 150},
+			{name: "trailing stop sell", orderType: order.TrailingStop, side: order.Sell, expPrice: 79900},
+			{name: "stop limit sell", orderType: order.StopLimit, side: order.Sell, expPrice: 79900},
+			{name: "take profit limit sell", orderType: order.TakeProfit | order.Limit, side: order.Sell, expPrice: 79900},
+			{name: "limit buy", orderType: order.Limit, side: order.Buy, expPrice: 79900},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m, recorder := newModifyTestOrderManager(t, tc.orderType, tc.side)
+				_, err := m.Modify(t.Context(), &order.Modify{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "trailing_order_id", Type: tc.editType, Amount: 2, Price: tc.price, TriggerPrice: tc.trigger})
+				require.NoError(t, err, "Modify must not error")
+				require.NotNil(t, recorder.received, "Modify must send the edit to the exchange")
+				assert.Equal(t, 2.0, recorder.received.Amount, "Modify should send the edit's amount")
+				assert.Equal(t, tc.expPrice, recorder.received.Price, "Modify should send the edit's price, or the stored price when it has none, except for an order whose limit trails")
+			})
+		}
+	})
+
+	t.Run("prices stored after an edit", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			orderType  order.Type
+			side       order.Side
+			editType   order.Type
+			price      float64
+			trigger    float64
+			inPlace    bool       // whether the edit keeps the order's ID
+			retyped    bool       // whether the reply names replyType rather than the edit's type
+			replyType  order.Type // the type the reply names when retyped
+			moved      float64    // where a read while the edit is in flight stores the limit, if anywhere
+			movedType  order.Type // the type that read reports, if not the order's
+			expPrice   float64
+			expTrigger float64
+			expType    order.Type // the type stored after the edit, checked when set
+		}{
+			{name: "trailing stop limit buy with an offset", orderType: order.TrailingStopLimit, side: order.Buy, price: 150, expPrice: 79900, expTrigger: 80000},
+			{name: "trailing stop limit sell with an offset", orderType: order.TrailingStopLimit, side: order.Sell, price: -150, expPrice: 79900, expTrigger: 80000},
+			{name: "trailing stop limit sell edit naming its type", orderType: order.TrailingStopLimit, side: order.Sell, editType: order.TrailingStopLimit, price: 150, expPrice: 79900, expTrigger: 80000},
+			{name: "trailing stop limit sell with an offset and a trigger price", orderType: order.TrailingStopLimit, side: order.Sell, price: 150, trigger: 80500, expPrice: 79900, expTrigger: 80500},
+			{name: "trailing stop sell with a price", orderType: order.TrailingStop, side: order.Sell, price: 79800, expPrice: 79800, expTrigger: 80000},
+			{name: "stop limit sell with a price and a trigger price", orderType: order.StopLimit, side: order.Sell, price: 79800, trigger: 80500, expPrice: 79800, expTrigger: 80500},
+			{name: "take profit limit sell with a price", orderType: order.TakeProfit | order.Limit, side: order.Sell, price: 80100, expPrice: 80100, expTrigger: 80000},
+			{name: "limit buy with a price", orderType: order.Limit, side: order.Buy, price: 80100, expPrice: 80100, expTrigger: 80000},
+			{name: "limit buy edit naming trailing stop limit", orderType: order.Limit, side: order.Buy, editType: order.TrailingStopLimit, price: 80100, expPrice: 80100, expTrigger: 80000},
+			{name: "trailing stop limit sell replaced by a stop limit", orderType: order.TrailingStopLimit, side: order.Sell, editType: order.StopLimit, price: 80100, expPrice: 80100, expTrigger: 80000, expType: order.StopLimit},
+			{name: "trailing stop limit buy amended in place with an offset", orderType: order.TrailingStopLimit, side: order.Buy, price: 150, inPlace: true, expPrice: 79900, expTrigger: 80000},
+			{name: "trailing stop limit sell whose limit moves while an offset edit is in flight", orderType: order.TrailingStopLimit, side: order.Sell, price: 150, moved: 80300, expPrice: 80300, expTrigger: 80000},
+			{name: "order of unknown type read as a trailing stop limit while an offset edit is in flight", side: order.Sell, price: 150, moved: 80300, movedType: order.TrailingStopLimit, expPrice: 80300, expTrigger: 80000, expType: order.TrailingStopLimit},
+			{name: "order of unknown type read as a trailing stop limit at its price while an offset amendment is in flight", side: order.Buy, price: 150, inPlace: true, moved: 79900, movedType: order.TrailingStopLimit, expPrice: 79900, expTrigger: 80000, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit buy read as a limit while an edit is in flight", orderType: order.TrailingStopLimit, side: order.Buy, price: 80100, moved: 79950, movedType: order.Limit, expPrice: 80100, expTrigger: 80000, expType: order.Limit},
+			{name: "trailing stop limit sell edit naming another type, replied to without a type", orderType: order.TrailingStopLimit, side: order.Sell, editType: order.StopLimit, retyped: true, price: 150, expPrice: 79900, expTrigger: 80000, expType: order.TrailingStopLimit},
+			{name: "trailing stop limit sell edit naming no type, replaced by a stop limit", orderType: order.TrailingStopLimit, side: order.Sell, retyped: true, replyType: order.StopLimit, price: 80100, expPrice: 80100, expTrigger: 80000, expType: order.StopLimit},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m, recorder := newModifyTestOrderManager(t, tc.orderType, tc.side)
+				recorder.inPlace, recorder.retyped, recorder.replyType = tc.inPlace, tc.retyped, tc.replyType
+				if tc.moved != 0 {
+					recorder.during = func() {
+						assert.NoError(t, m.UpdateExistingOrder(&order.Detail{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "trailing_order_id", Type: cmp.Or(tc.movedType, tc.orderType), Side: tc.side, Price: tc.moved}), "UpdateExistingOrder should store the read made while the edit is in flight")
+					}
+				}
+				id := "modified_order_id"
+				if tc.inPlace {
+					id = "trailing_order_id"
+				}
+				resp, err := m.Modify(t.Context(), &order.Modify{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "trailing_order_id", Type: tc.editType, Amount: 2, Price: tc.price, TriggerPrice: tc.trigger})
+				require.NoError(t, err, "Modify must not error")
+				require.Equal(t, id, resp.OrderID, "Modify must return the edited order's ID")
+				stored, err := m.GetByExchangeAndID(testExchange, id)
+				require.NoError(t, err, "GetByExchangeAndID must not error")
+				assert.Equal(t, 2.0, stored.Amount, "Modify should store the edit's amount")
+				assert.Equal(t, tc.expPrice, stored.Price, "Modify should store the edit's price, except as a trailing stop limit's, which is an offset")
+				assert.Equal(t, tc.expTrigger, stored.TriggerPrice, "Modify should store the edit's trigger price")
+				if tc.expType != order.UnknownType {
+					assert.Equal(t, tc.expType, stored.Type, "Modify should store the type of the order the edit leaves")
+				}
+			})
+		}
+	})
+
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
 		Quote: currency.NewCode("YYYYY"),
@@ -846,9 +1230,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	fakeExchange := omfExchange{
-		IBotExchange: exch,
-	}
+	fakeExchange := &orderLookupExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
 
@@ -1014,6 +1396,9 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+
+	// Order 4 is a futures order exch.GetActiveOrders() leaves out
+	assert.NotContains(t, fakeExchange.lookedUp(), "4", "processOrders should not look up a futures order the exchange no longer lists as open")
 }
 
 func TestGetOrdersFiltered(t *testing.T) {
@@ -1125,7 +1510,31 @@ func TestGetOrdersActive(t *testing.T) {
 	}
 }
 
-func TestProcessMatchingOrders(t *testing.T) {
+func TestProcessMatchingOrders(t *testing.T) { //nolint:tparallel // Serial for OrdersSetup's live Bitstamp setup; the futures case needs no venue
+	t.Run("futures orders looked up only when their status is unknown", func(t *testing.T) {
+		t.Parallel()
+		m := newOrderStoreTestManager(t)
+		exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+		require.NoError(t, err, "GetExchangeByName must not error")
+		f := &orderLookupExchange{IBotExchange: exch}
+		stale := time.Now().Add(-time.Hour)
+		assets := asset.Supported()
+		statuses := []order.Status{order.New, order.Open, order.PartiallyFilled, order.UnknownStatus}
+		orders := make([]order.Detail, 0, len(assets)*len(statuses))
+		var exp []string
+		for _, a := range assets {
+			for _, s := range statuses {
+				id := a.String() + " " + s.String()
+				orders = append(orders, order.Detail{Exchange: testExchange, OrderID: id, Pair: btcusdPair, AssetType: a, Status: s, LastUpdated: stale})
+				if !a.IsFutures() || s == order.UnknownStatus {
+					exp = append(exp, id)
+				}
+			}
+		}
+		m.processMatchingOrders(t.Context(), f, orders, nil)
+		assert.Equal(t, exp, f.lookedUp(), "processMatchingOrders should look up futures orders of unknown status alone, and every other asset's orders")
+	})
+
 	m := OrdersSetup(t)
 	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
 	if err != nil {
@@ -1157,6 +1566,27 @@ func TestProcessMatchingOrders(t *testing.T) {
 	if res[0].OrderID != "Test4" {
 		t.Error("Order Test4 should have been fetched and updated")
 	}
+}
+
+// orderLookupExchange records the orders the order manager looks up, answering as omfExchange does
+type orderLookupExchange struct {
+	omfExchange
+	mu      sync.Mutex
+	lookups []string
+}
+
+func (f *orderLookupExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	f.mu.Lock()
+	f.lookups = append(f.lookups, orderID)
+	f.mu.Unlock()
+	return f.omfExchange.GetOrderInfo(ctx, orderID, pair, assetType)
+}
+
+// lookedUp returns the IDs of the orders looked up so far
+func (f *orderLookupExchange) lookedUp() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.lookups)
 }
 
 func TestFetchAndUpdateExchangeOrder(t *testing.T) {
@@ -1427,6 +1857,36 @@ func TestGetOrdersSnapshot(t *testing.T) {
 	if len(snap) != 0 {
 		t.Error("expected 0")
 	}
+
+	t.Run("holds the store's lock", func(t *testing.T) {
+		t.Parallel()
+		m := newOrderStoreTestManager(t)
+		stored := &order.Detail{Exchange: testExchange, OrderID: "o-1", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Trades: []order.TradeHistory{{TID: "t-1", Amount: 1}}}
+		require.NoError(t, m.orderStore.add(stored), "add must not error")
+		m.orderStore.m.Lock()
+		snapshots := make(chan []order.Detail, 1)
+		go func() { snapshots <- m.GetOrdersSnapshot(order.AnyStatus) }()
+		assert.Never(t, func() bool { return len(snapshots) != 0 }, 50*time.Millisecond, 5*time.Millisecond, "GetOrdersSnapshot should wait for a write to the store")
+		// A snapshot taken under the lock returns this write, and the race detector reports one taken without it, whichever
+		// runs first
+		stored.Status = order.Filled
+		m.orderStore.m.Unlock()
+		var snapshot []order.Detail
+		select {
+		case snapshot = <-snapshots:
+		case <-time.After(time.Minute):
+			// A run stalled past the first wait still finds the snapshot within the second
+			select {
+			case snapshot = <-snapshots:
+			case <-time.After(time.Minute):
+				require.FailNow(t, "GetOrdersSnapshot must return once the store is unlocked")
+			}
+		}
+		require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the stored order")
+		assert.Equal(t, order.Filled, snapshot[0].Status, "GetOrdersSnapshot should return the stored order as the write made under the lock left it")
+		snapshot[0].Trades[0].Amount = 99
+		assert.Equal(t, 1.0, stored.Trades[0].Amount, "GetOrdersSnapshot should not share a stored order's trades")
+	})
 }
 
 func TestUpdateExisting(t *testing.T) {
@@ -1468,6 +1928,40 @@ func TestUpdateExisting(t *testing.T) {
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
+}
+
+// TestStoreFuturesOrdersKeepExchangeName pins that futures orders stay matched by their exchange's name once they are
+// tracked as positions, as the order store's filters, such as RPC GetManagedOrders', match orders by that name
+func TestStoreFuturesOrdersKeepExchangeName(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	newOrder := func(id string) *order.Detail {
+		return &order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Futures,
+			Pair:      currency.NewBTCUSDT(),
+			OrderID:   id,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Status:    order.Open,
+			Amount:    1,
+			Price:     1,
+			Date:      time.Now(),
+		}
+	}
+	require.NoError(t, m.orderStore.add(newOrder("added")), "add must not error")
+	_, err := m.orderStore.upsert(newOrder("upserted"))
+	require.NoError(t, err, "upsert must not error")
+	require.NoError(t, m.orderStore.updateExisting(newOrder("added")), "updateExisting must not error")
+	require.NoError(t, m.orderStore.modifyExisting("upserted", &order.ModifyResponse{Exchange: testExchange, OrderID: "upserted", Amount: 2}), "modifyExisting must not error")
+
+	active := m.orderStore.getActiveOrders(&order.Filter{Exchange: testExchange})
+	ids := make([]string, len(active))
+	for i := range active {
+		ids[i] = active[i].OrderID
+		assert.Equal(t, testExchange, active[i].Exchange, "a tracked futures order should keep its exchange's name")
+	}
+	assert.ElementsMatch(t, []string{"added", "upserted"}, ids, "the active futures orders should be matched by their exchange's name")
 }
 
 func TestOrderManagerExists(t *testing.T) {

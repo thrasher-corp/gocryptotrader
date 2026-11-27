@@ -93,8 +93,27 @@ func (d *Depth) Retrieve() (*Book, error) {
 func (d *Depth) LoadSnapshot(incoming *Book) error {
 	d.m.Lock()
 	defer d.m.Unlock()
+	return d.loadSnapshot(incoming, false)
+}
+
+// LoadSnapshotWithOptions flushes the bids and asks with a snapshot and replaces the depth's options, such as its max
+// depth and price duplication, with the snapshot's. Both change under one lock, so that no reader sees the snapshot's
+// levels with the previous options. Like LoadSnapshot, it changes nothing for a snapshot without a time
+func (d *Depth) LoadSnapshotWithOptions(incoming *Book) error {
+	d.m.Lock()
+	defer d.m.Unlock()
+	return d.loadSnapshot(incoming, true)
+}
+
+// loadSnapshot flushes the bids and asks with a snapshot, first replacing the depth's options with the snapshot's when
+// replaceOptions is set. A snapshot without a time is refused before anything changes
+// NOTE: This requires locking.
+func (d *Depth) loadSnapshot(incoming *Book, replaceOptions bool) error {
 	if incoming.LastUpdated.IsZero() {
 		return fmt.Errorf("error loading orderbook snapshot: %s %s %s - %w", d.exchange, d.pair, d.asset, ErrLastUpdatedNotSet)
+	}
+	if replaceOptions {
+		d.assignOptions(incoming)
 	}
 	d.lastUpdateID = incoming.LastUpdateID
 	d.lastUpdated = incoming.LastUpdated
@@ -137,6 +156,13 @@ func (d *Depth) IsValid() bool {
 // AssignOptions assigns the initial options for the depth instance
 func (d *Depth) AssignOptions(b *Book) {
 	d.m.Lock()
+	d.assignOptions(b)
+	d.m.Unlock()
+}
+
+// assignOptions replaces the depth's options with a book's
+// NOTE: This requires locking.
+func (d *Depth) assignOptions(b *Book) {
 	d.options = options{
 		exchange:               b.Exchange,
 		pair:                   b.Pair,
@@ -151,7 +177,6 @@ func (d *Depth) AssignOptions(b *Book) {
 		maxDepth:               b.MaxDepth,
 		checksumStringRequired: b.ChecksumStringRequired,
 	}
-	d.m.Unlock()
 }
 
 // GetName returns name of exchange

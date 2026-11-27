@@ -195,6 +195,9 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	_, err = r.ProcessResponse(nil)
 	require.ErrorIs(t, err, ErrNoTimeSeriesDataToConvert)
 
+	_, err = r.ProcessResponse([]Candle{{Time: start}})
+	require.ErrorIs(t, err, ErrInvalidInterval)
+
 	hourStart := time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
 	february := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
