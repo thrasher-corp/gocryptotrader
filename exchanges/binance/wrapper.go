@@ -312,7 +312,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	for _, c := range []struct {
 		filter                 string
 		url                    string
-		generate               func() (subscription.List, error)
+		generate               func(context.Context) (subscription.List, error)
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
 		maxSubscriptions       int

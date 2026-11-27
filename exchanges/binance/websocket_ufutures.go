@@ -97,13 +97,13 @@ func (e *Exchange) WebsocketDerivativesConnect(ctx context.Context, conn websock
 }
 
 // generateUSDTMarginedFuturesPublicSubscriptions returns the USDⓈ-M /public stream subscriptions, its order books
-func (e *Exchange) generateUSDTMarginedFuturesPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateUSDTMarginedFuturesPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, isOrderbookSubscription)
 }
 
 // generateUSDTMarginedFuturesMarketSubscriptions returns the USDⓈ-M /market stream subscriptions, all but its order
 // books
-func (e *Exchange) generateUSDTMarginedFuturesMarketSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateUSDTMarginedFuturesMarketSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(s *subscription.Subscription) bool { return !isOrderbookSubscription(s) })
 }
 
@@ -113,8 +113,8 @@ func isOrderbookSubscription(s *subscription.Subscription) bool {
 }
 
 // generateUSDTMarginedFuturesUserDataSubscriptions returns the USDⓈ-M user data stream subscription when it can be used
-func (e *Exchange) generateUSDTMarginedFuturesUserDataSubscriptions() (subscription.List, error) {
-	return e.generateUserDataSubscriptions(asset.USDTMarginedFutures)
+func (e *Exchange) generateUSDTMarginedFuturesUserDataSubscriptions(ctx context.Context) (subscription.List, error) {
+	return e.generateUserDataSubscriptions(ctx, asset.USDTMarginedFutures)
 }
 
 // generateDerivativesSubscriptions expands an asset's subscriptions, and the all-assets ones, that belong on a connection
@@ -305,8 +305,8 @@ func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, p
 
 // generateUserDataSubscriptions returns a user data stream subscription for an asset when authenticated websocket use
 // is possible. The listen key is fetched when subscribing, so none is kept where subscriptions are listed
-func (e *Exchange) generateUserDataSubscriptions(a asset.Item) (subscription.List, error) {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.GetAssetTypes(true).Contains(a) || !e.AreCredentialsValid(context.Background()) {
+func (e *Exchange) generateUserDataSubscriptions(ctx context.Context, a asset.Item) (subscription.List, error) {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.GetAssetTypes(true).Contains(a) || !e.AreCredentialsValid(ctx) {
 		return subscription.List{}, nil
 	}
 	return subscription.List{{Channel: userDataStreamChannel, Asset: a, Authenticated: true}}, nil
@@ -358,7 +358,7 @@ func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn w
 	if e.Websocket.GetSubscription(s) != s || s.State() != subscription.SubscribingState {
 		return true, nil
 	}
-	wanted, err := e.generateUserDataSubscriptions(s.Asset)
+	wanted, err := e.generateUserDataSubscriptions(ctx, s.Asset)
 	if err != nil || len(wanted) == 0 {
 		return false, err
 	}

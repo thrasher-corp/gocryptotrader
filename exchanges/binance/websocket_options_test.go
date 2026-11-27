@@ -29,7 +29,7 @@ import (
 func TestGenerateOptionsPublicSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateOptionsPublicSubscriptions()
+	subs, err := ex.generateOptionsPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateOptionsPublicSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, QualifiedChannel: "btc-261030-85000-c@optionTicker"},
@@ -38,7 +38,7 @@ func TestGenerateOptionsPublicSubscriptions(t *testing.T) {
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateOptionsPublicSubscriptions()
+	subs, err = ex.generateOptionsPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
@@ -46,14 +46,14 @@ func TestGenerateOptionsPublicSubscriptions(t *testing.T) {
 func TestGenerateOptionsMarketSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateOptionsMarketSubscriptions()
+	subs, err := ex.generateOptionsMarketSubscriptions(t.Context())
 	require.NoError(t, err, "generateOptionsMarketSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.CandlesChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.OneMin, QualifiedChannel: "btc-261030-85000-c@kline_1m"},
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateOptionsMarketSubscriptions()
+	subs, err = ex.generateOptionsMarketSubscriptions(t.Context())
 	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }

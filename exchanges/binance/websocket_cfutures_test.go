@@ -24,7 +24,7 @@ import (
 func TestGenerateCoinMarginedFuturesSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateCoinMarginedFuturesSubscriptions()
+	subs, err := ex.generateCoinMarginedFuturesSubscriptions(t.Context())
 	require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
@@ -34,7 +34,7 @@ func TestGenerateCoinMarginedFuturesSubscriptions(t *testing.T) {
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateCoinMarginedFuturesSubscriptions()
+	subs, err = ex.generateCoinMarginedFuturesSubscriptions(t.Context())
 	require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error for a disabled asset")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }

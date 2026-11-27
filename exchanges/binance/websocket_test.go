@@ -1507,7 +1507,7 @@ func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, expectedSpotSubscriptions(
 		t, ex,
@@ -1523,7 +1523,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
 		{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.OneDay},
 	}
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, expectedSpotSubscriptions(
 		t, ex,
@@ -1536,7 +1536,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 		{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.TwoDay},
 	}
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateSubscriptions must report partial generation")
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must report the failed subscription's error")
 	testsubs.EqualLists(t, expectedSpotSubscriptions(
@@ -1549,7 +1549,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Levels: 20, Interval: kline.HundredMilliseconds},
 		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	}
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateSubscriptions must report partial generation")
 	require.ErrorIs(t, err, errOrderbookSubscriptionConflict, "generateSubscriptions must report the conflicting order book subscription")
 	testsubs.EqualLists(t, expectedSpotSubscriptions(
@@ -1571,7 +1571,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			testEx := newTestExchange(t)
 			testEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			testEx.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: tc.a, Authenticated: true}}
-			generated, err := testEx.generateSubscriptions()
+			generated, err := testEx.generateSubscriptions(t.Context())
 			require.NoErrorf(t, err, "generateSubscriptions must not error for %s", tc.name)
 			assert.Emptyf(t, generated, "generateSubscriptions should generate no stream for %s", tc.name)
 		})
@@ -1579,7 +1579,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	// Spot disabled leaves nothing to subscribe to, so the connection is not made
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error with spot disabled")
 	assert.Empty(t, subs, "generateSubscriptions should generate nothing with spot disabled")
 }
@@ -2332,8 +2332,8 @@ func TestSetup(t *testing.T) {
 		require.NoError(t, err, "RootPathFromCWD must not error")
 		saved, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
 		require.NoError(t, err, "ReadFile must read the test configuration")
-		// Version 21 is the last before Binance had derivatives streams
-		saved, err = jsonparser.Set(saved, []byte("21"), "version")
+		// Version 23 is the last before Binance had derivatives streams
+		saved, err = jsonparser.Set(saved, []byte("23"), "version")
 		require.NoError(t, err, "Set must replace the configuration's version")
 		binanceIndex, i := -1, 0
 		_, err = jsonparser.ArrayEach(saved, func(exch []byte, _ jsonparser.ValueType, _ int, _ error) {
@@ -2501,7 +2501,7 @@ func TestSetup(t *testing.T) {
 						}
 					}
 				}
-				for _, generate := range []func() (subscription.List, error){
+				for _, generate := range []func(context.Context) (subscription.List, error){
 					ex.generateSubscriptions,
 					ex.generateUSDTMarginedFuturesPublicSubscriptions,
 					ex.generateUSDTMarginedFuturesMarketSubscriptions,
@@ -2509,7 +2509,7 @@ func TestSetup(t *testing.T) {
 					ex.generateOptionsPublicSubscriptions,
 					ex.generateOptionsMarketSubscriptions,
 				} {
-					subs, err := generate()
+					subs, err := generate(t.Context())
 					require.NoError(t, err, "each stream connection must generate its subscriptions")
 					for _, s := range subs {
 						for _, p := range s.Pairs {

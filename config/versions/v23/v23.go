@@ -1,147 +1,246 @@
-// Package v23 replaces Binance's previous default subscriptions, which stream spot alone, with the current defaults,
-// which also stream USDT-margined futures, coin-margined futures and options.
+// Package v23 renames the GateIO exchange to Gate, the name Gate.io now trades under.
 package v23
 
 import (
 	"context"
-	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
+	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"errors"
+	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-var errNotDefault = errors.New("not a default subscription")
+var errExchangeNameConflict = errors.New("exchange is configured under both its old and new names")
 
-// Version implements ExchangeVersion for Binance's default subscriptions
-type Version struct{}
-
-// defaultSubscription is an enabled default subscription with its fields as GCT saves them
-type defaultSubscription struct {
-	channel, asset, interval string
-}
-
-func assetDefaults(a string) []defaultSubscription {
-	return []defaultSubscription{
-		{channel: "ticker", asset: a},
-		{channel: "allTrades", asset: a},
-		{channel: "candles", asset: a, interval: "1m"},
-		{channel: "orderbook", asset: a, interval: "100ms"},
-	}
-}
-
-var (
-	previousDefaults = assetDefaults("spot")
-	currentDefaults  = slices.Concat(assetDefaults("spot"), assetDefaults("usdtmarginedfutures"), assetDefaults("coinmarginedfutures"), assetDefaults("options"))
+const (
+	oldName = "GateIO"
+	newName = "Gate"
+	// exchangeAddress describes a portfolio address holding an exchange's balance, which the portfolio names after the
+	// exchange
+	exchangeAddress = "Exchange"
 )
 
-// Exchanges returns just Binance
-func (*Version) Exchanges() []string { return []string{"Binance"} }
+// Version implements ConfigVersion to rename the GateIO exchange
+type Version struct{}
 
-// UpgradeExchange replaces the previous default subscriptions with the current defaults
-func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	return replaceDefaults(exchange, previousDefaults, currentDefaults)
+// UpgradeConfig renames GateIO to Gate: the exchange, the portfolio's balances for it and the exchange lists of
+// portfolio addresses and bank accounts, each name matched as the engine matches it. A config holding both names is
+// refused, as one of the two exchanges would have to go
+func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return renameExchange(config, oldName, newName)
 }
 
-// DowngradeExchange replaces the current default subscriptions with the previous defaults
-func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
-	return replaceDefaults(exchange, currentDefaults, previousDefaults)
+// DowngradeConfig renames Gate back to GateIO wherever UpgradeConfig renames GateIO
+func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return renameExchange(config, newName, oldName)
 }
 
-// replaceDefaults replaces saved subscriptions which are one set of defaults, in any order, with another set. Any other
-// list is the user's choice and stays as saved, as does a list the loader would reject, or one in a configuration with
-// more than one field the loader could read its name, features or subscriptions from, as it ignores case in field names
-func replaceDefaults(exchange []byte, from, to []defaultSubscription) ([]byte, error) {
-	if _, ok := soleField(exchange, "name", jsonparser.String); !ok {
-		return exchange, nil
+func renameExchange(config []byte, from, to string) ([]byte, error) {
+	exchanges, err := getArray(config, "exchanges")
+	if err != nil {
+		return config, err
 	}
-	features, ok := soleField(exchange, "features", jsonparser.Object)
-	if !ok {
-		return exchange, nil
+	var renames []int
+	var held bool
+	for i := range exchanges {
+		var exchange struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(exchanges[i], &exchange); err != nil {
+			return config, err
+		}
+		switch {
+		case strings.EqualFold(exchange.Name, to):
+			held = true
+		case strings.EqualFold(exchange.Name, from):
+			renames = append(renames, i)
+		}
 	}
-	if subscriptions, ok := soleField(features, "subscriptions", jsonparser.Array); !ok || !isDefaults(subscriptions, from) {
-		return exchange, nil
+	if held && len(renames) != 0 {
+		return config, fmt.Errorf("%w: remove either %s or %s", errExchangeNameConflict, from, to)
 	}
-	return jsonparser.Set(exchange, marshal(to), "features", "subscriptions")
+	for _, i := range renames {
+		if config, err = setString(config, to, "exchanges", index(i), "name"); err != nil {
+			return config, err
+		}
+	}
+	renameBankAccount := func(account []byte) ([]byte, error) {
+		return renameListed(account, "supportedExchanges", from, to)
+	}
+	for i := range exchanges {
+		if config, err = editArray(config, renameBankAccount, "exchanges", index(i), "bankAccounts"); err != nil {
+			return config, err
+		}
+	}
+	if config, err = editArray(config, renameBankAccount, "bankAccounts"); err != nil {
+		return config, err
+	}
+	return renamePortfolioAddresses(config, from, to)
 }
 
-// soleField returns the value of an object's field, and whether name, spelled as GCT saves it, is the only field the
-// loader could read as name ignoring case and its value has the type given. The default build's decoder folds field
-// names, matching ſ to s, and sonic's lower-cases them, matching İ to i, so a field matching either way counts
-func soleField(object []byte, name string, valueType jsonparser.ValueType) ([]byte, bool) {
-	var matches int
-	var exact bool
-	var value []byte
-	err := jsonparser.ObjectEach(object, func(key, v []byte, dataType jsonparser.ValueType, _ int) error {
-		if k := string(key); strings.EqualFold(k, name) || strings.ToLower(k) == name { //nolint:gocritic // EqualFold alone misses what sonic's lower-casing matches
-			matches++
-			exact = k == name && dataType == valueType
-			value = v
-		}
-		return nil
-	})
-	return value, err == nil && matches == 1 && exact
-}
-
-// isDefaults reports whether saved subscriptions are each a different one of the defaults, and every one of them, in
-// JSON the loader accepts
-func isDefaults(subscriptions []byte, defaults []defaultSubscription) bool {
-	if !json.Valid(subscriptions) {
-		return false
+// renamePortfolioAddresses renames the portfolio's balances for the exchange, which the portfolio matches by the
+// exchange's exact name, and the exchange lists of its addresses. A balance of the same currency already held under
+// the new name replaces the old one, as the portfolio keeps one balance for each exchange and currency
+func renamePortfolioAddresses(config []byte, from, to string) ([]byte, error) {
+	addresses, err := getArray(config, "portfolioAddresses", "addresses")
+	if err != nil || len(addresses) == 0 {
+		return config, err
 	}
-	matched := make([]bool, len(defaults))
-	var count int
-	_, err := jsonparser.ArrayEach(subscriptions, func(entry []byte, _ jsonparser.ValueType, _ int, _ error) {
-		count++
-		if i := slices.IndexFunc(defaults, func(d defaultSubscription) bool { return d.savedAs(entry) }); i != -1 {
-			matched[i] = true
+	held := make(map[string]bool)
+	for _, address := range addresses {
+		if exchange, coin, ok := exchangeBalance(address); ok && exchange == to {
+			held[strings.ToUpper(coin)] = true
 		}
-	})
-	return err == nil && count == len(defaults) && !slices.Contains(matched, false)
-}
-
-// savedAs reports whether a saved subscription is the default as GCT saves it: an object with each of the default's
-// fields given once and no other, with its asset in any case, as the loader reads assets, or absent for spot, as saved
-// before subscriptions had assets
-func (d defaultSubscription) savedAs(entry []byte) bool {
-	var enabled, channel, asset, interval bool
-	err := jsonparser.ObjectEach(entry, func(key, value []byte, dataType jsonparser.ValueType, _ int) error {
-		var ok bool
-		switch string(key) {
-		case "enabled":
-			ok = !enabled && dataType == jsonparser.Boolean && string(value) == "true"
-			enabled = true
-		case "channel":
-			ok = !channel && string(value) == d.channel
-			channel = true
-		case "asset":
-			ok = !asset && strings.ToLower(string(value)) == d.asset //nolint:gocritic // asset.New lower-cases; EqualFold's Unicode folding would accept assets it refuses
-			asset = true
-		case "interval":
-			ok = !interval && string(value) == d.interval
-			interval = true
-		}
-		if !ok {
-			return errNotDefault
-		}
-		return nil
-	})
-	return err == nil && enabled && channel && (asset || d.asset == "spot") && interval == (d.interval != "")
-}
-
-// marshal returns subscriptions as GCT saves them
-func marshal(subscriptions []defaultSubscription) []byte {
-	b := []byte{'['}
-	for i, s := range subscriptions {
-		if i > 0 {
-			b = append(b, ',')
-		}
-		b = append(b, `{"enabled":true,"channel":"`+s.channel+`","asset":"`+s.asset+`"`...)
-		if s.interval != "" {
-			b = append(b, `,"interval":"`+s.interval+`"`...)
-		}
-		b = append(b, '}')
 	}
-	return append(b, ']')
+	renamed := make([]json.RawMessage, 0, len(addresses))
+	var changed bool
+	for _, address := range addresses {
+		original := address
+		if exchange, coin, ok := exchangeBalance(address); ok && exchange == from {
+			if held[strings.ToUpper(coin)] {
+				changed = true
+				continue
+			}
+			if address, err = setString(address, to, "Address"); err != nil {
+				return config, err
+			}
+		}
+		if address, err = renameListed(address, "SupportedExchanges", from, to); err != nil {
+			return config, err
+		}
+		changed = changed || string(address) != string(original)
+		renamed = append(renamed, address)
+	}
+	if !changed {
+		return config, nil
+	}
+	v, err := json.Marshal(renamed)
+	if err != nil {
+		return config, err
+	}
+	return set(config, v, "portfolioAddresses", "addresses")
+}
+
+// exchangeBalance returns the exchange and currency of a portfolio address holding an exchange's balance
+func exchangeBalance(address []byte) (exchange, coin string, ok bool) {
+	if description, err := jsonparser.GetString(address, resolve(address, "Description")...); err != nil || description != exchangeAddress {
+		return "", "", false
+	}
+	exchange, err := jsonparser.GetString(address, resolve(address, "Address")...)
+	if err != nil {
+		return "", "", false
+	}
+	coin, _ = jsonparser.GetString(address, resolve(address, "CoinType")...)
+	return exchange, coin, true
+}
+
+// renameListed renames the exchange in the comma separated exchange list held under key, matching each name in any
+// case as bank accounts and portfolio addresses do, and keeping the spacing around it. A missing or non-string list
+// names no exchange
+func renameListed(element []byte, key, from, to string) ([]byte, error) {
+	value, valueType, _, err := jsonparser.Get(element, resolve(element, key)...)
+	if errors.Is(err, jsonparser.KeyPathNotFoundError) || err == nil && valueType != jsonparser.String {
+		return element, nil
+	}
+	if err != nil {
+		return element, err
+	}
+	list, err := jsonparser.ParseString(value)
+	if err != nil {
+		return element, err
+	}
+	names := strings.Split(list, ",")
+	var changed bool
+	for i, name := range names {
+		if trimmed := strings.TrimSpace(name); strings.EqualFold(trimmed, from) {
+			names[i] = strings.Replace(name, trimmed, to, 1)
+			changed = true
+		}
+	}
+	if !changed {
+		return element, nil
+	}
+	return setString(element, strings.Join(names, ","), key)
+}
+
+// editArray applies edit to each element of the array at path, if there is one
+func editArray(config []byte, edit func([]byte) ([]byte, error), path ...string) ([]byte, error) {
+	elements, err := getArray(config, path...)
+	if err != nil {
+		return config, err
+	}
+	for i := range elements {
+		element, err := edit(elements[i])
+		if err != nil {
+			return config, err
+		}
+		if string(element) == string(elements[i]) {
+			continue
+		}
+		if config, err = set(config, element, append(path, index(i))...); err != nil {
+			return config, err
+		}
+	}
+	return config, nil
+}
+
+// getArray returns the elements of the array at path, or none when there is no array there
+func getArray(config []byte, path ...string) ([]json.RawMessage, error) {
+	value, valueType, _, err := jsonparser.Get(config, resolve(config, path...)...)
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	case valueType != jsonparser.Array:
+		return nil, nil
+	}
+	var elements []json.RawMessage
+	if err := json.Unmarshal(value, &elements); err != nil {
+		return nil, err
+	}
+	return elements, nil
+}
+
+func setString(data []byte, value string, path ...string) ([]byte, error) {
+	v, err := json.Marshal(value)
+	if err != nil {
+		return data, err
+	}
+	return set(data, v, path...)
+}
+
+// set sets the value at path, keeping each key's spelling where it is already present
+func set(data, value []byte, path ...string) ([]byte, error) {
+	return jsonparser.Set(data, value, resolve(data, path...)...)
+}
+
+// resolve spells each key of path as data spells it, matching it in any case as the config loader does. Where several
+// keys match, the last is taken, as its value is the one the loader keeps
+func resolve(data []byte, path ...string) []string {
+	resolved := slices.Clone(path)
+	current := data
+	for i, key := range path {
+		if !strings.HasPrefix(key, "[") {
+			_ = jsonparser.ObjectEach(current, func(found, _ []byte, _ jsonparser.ValueType, _ int) error {
+				if strings.EqualFold(string(found), key) {
+					resolved[i] = string(found)
+				}
+				return nil
+			})
+		}
+		value, _, _, err := jsonparser.Get(current, resolved[i])
+		if err != nil {
+			break
+		}
+		current = value
+	}
+	return resolved
+}
+
+func index(i int) string {
+	return "[" + strconv.Itoa(i) + "]"
 }

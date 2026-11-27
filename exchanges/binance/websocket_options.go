@@ -35,18 +35,18 @@ var optionsKlineIntervals = []kline.Interval{
 
 // generateOptionsPublicSubscriptions returns the options /public stream subscriptions, all but its candles. A
 // connection takes at most 200 streams
-func (e *Exchange) generateOptionsPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateOptionsPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.Options, func(s *subscription.Subscription) bool { return s.Channel != subscription.CandlesChannel })
 }
 
 // generateOptionsMarketSubscriptions returns the options /market stream subscriptions, its candles
-func (e *Exchange) generateOptionsMarketSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateOptionsMarketSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.Options, func(s *subscription.Subscription) bool { return s.Channel == subscription.CandlesChannel })
 }
 
 // generateOptionsUserDataSubscriptions returns the options user data stream subscription when it can be used
-func (e *Exchange) generateOptionsUserDataSubscriptions() (subscription.List, error) {
-	return e.generateUserDataSubscriptions(asset.Options)
+func (e *Exchange) generateOptionsUserDataSubscriptions(ctx context.Context) (subscription.List, error) {
+	return e.generateUserDataSubscriptions(ctx, asset.Options)
 }
 
 // wsHandleOptionsData routes options /public and /market stream frames

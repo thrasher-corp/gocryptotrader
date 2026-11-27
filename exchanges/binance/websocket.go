@@ -463,7 +463,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 // generateSubscriptions returns the spot stream subscriptions of the enabled spot pairs. A subscription that cannot be
 // expanded, or an order book subscription left out for conflicting with another, is reported as partial generation,
 // so it does not stop the other connections
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.GetAssetTypes(true).Contains(asset.Spot) {
 		return subscription.List{}, nil
 	}

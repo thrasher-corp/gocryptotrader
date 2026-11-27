@@ -19,13 +19,13 @@ const (
 )
 
 // generateCoinMarginedFuturesSubscriptions returns the COIN-M stream subscriptions
-func (e *Exchange) generateCoinMarginedFuturesSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateCoinMarginedFuturesSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.CoinMarginedFutures, func(*subscription.Subscription) bool { return true })
 }
 
 // generateCoinMarginedFuturesUserDataSubscriptions returns the COIN-M user data stream subscription when it can be used
-func (e *Exchange) generateCoinMarginedFuturesUserDataSubscriptions() (subscription.List, error) {
-	return e.generateUserDataSubscriptions(asset.CoinMarginedFutures)
+func (e *Exchange) generateCoinMarginedFuturesUserDataSubscriptions(ctx context.Context) (subscription.List, error) {
+	return e.generateUserDataSubscriptions(ctx, asset.CoinMarginedFutures)
 }
 
 // wsHandleCoinMarginedFuturesData routes COIN-M market data stream frames

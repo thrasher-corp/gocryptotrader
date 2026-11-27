@@ -2228,7 +2228,7 @@ func TestWebsocketAPIConnectionDuringFlush(t *testing.T) {
 	var subscribe atomic.Bool
 	streams := ex.spotStreamConnectionSetup(ex.Config)
 	streams.URL = "ws" + strings.TrimPrefix(streamsServer.URL, "http")
-	streams.GenerateSubscriptions = func() (subscription.List, error) {
+	streams.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 		if !subscribe.Load() {
 			return subscription.List{}, nil
 		}

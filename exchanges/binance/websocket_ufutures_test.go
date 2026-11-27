@@ -276,14 +276,14 @@ func TestWebsocketDerivativesConnect(t *testing.T) { //nolint:tparallel // the c
 func TestGenerateUSDTMarginedFuturesPublicSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateUSDTMarginedFuturesPublicSubscriptions()
+	subs, err := ex.generateUSDTMarginedFuturesPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateUSDTMarginedFuturesPublicSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth@100ms"},
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateUSDTMarginedFuturesPublicSubscriptions()
+	subs, err = ex.generateUSDTMarginedFuturesPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
@@ -291,7 +291,7 @@ func TestGenerateUSDTMarginedFuturesPublicSubscriptions(t *testing.T) {
 func TestGenerateUSDTMarginedFuturesMarketSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateUSDTMarginedFuturesMarketSubscriptions()
+	subs, err := ex.generateUSDTMarginedFuturesMarketSubscriptions(t.Context())
 	require.NoError(t, err, "generateUSDTMarginedFuturesMarketSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
@@ -300,7 +300,7 @@ func TestGenerateUSDTMarginedFuturesMarketSubscriptions(t *testing.T) {
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateUSDTMarginedFuturesMarketSubscriptions()
+	subs, err = ex.generateUSDTMarginedFuturesMarketSubscriptions(t.Context())
 	require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
@@ -362,7 +362,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 	})
 	type generationCase struct {
 		name     string
-		generate func(*Exchange) (subscription.List, error)
+		generate func(*Exchange, context.Context) (subscription.List, error)
 		exp      subscription.List
 		partial  bool
 		setup    func(*testing.T) *Exchange
@@ -372,7 +372,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		topic string
 	}
 	const explicitPairs = "explicit pairs determine the streams/"
-	listing := func(name string, a asset.Item, template *subscription.Subscription, available, enabled currency.Pairs, generate func(*Exchange) (subscription.List, error), streams ...listedStream) generationCase {
+	listing := func(name string, a asset.Item, template *subscription.Subscription, available, enabled currency.Pairs, generate func(*Exchange, context.Context) (subscription.List, error), streams ...listedStream) generationCase {
 		listed := make(currency.Pairs, 0, len(streams))
 		want := make(subscription.List, 0, len(streams))
 		for _, stream := range streams {
@@ -396,7 +396,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			},
 		}
 	}
-	trades := func(name string, a, configuredAsset asset.Item, available, enabled currency.Pairs, generate func(*Exchange) (subscription.List, error), streams ...listedStream) generationCase {
+	trades := func(name string, a, configuredAsset asset.Item, available, enabled currency.Pairs, generate func(*Exchange, context.Context) (subscription.List, error), streams ...listedStream) generationCase {
 		return listing(name, a, &subscription.Subscription{Enabled: true, Asset: configuredAsset, Channel: subscription.AllTradesChannel}, available, enabled, generate, streams...)
 	}
 	btcUSDC := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
@@ -664,7 +664,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		usdtMarginedPerpetualsEnabled = append(usdtMarginedPerpetualsEnabled, stream.pair)
 	}
 	// An all-assets subscription's listed pairs reach every derivatives asset unfiltered, as with subscription templates
-	mixedAssets := func(connection string, a asset.Item, generate func(*Exchange) (subscription.List, error), enabled currency.Pair, streams ...listedStream) generationCase {
+	mixedAssets := func(connection string, a asset.Item, generate func(*Exchange, context.Context) (subscription.List, error), enabled currency.Pair, streams ...listedStream) generationCase {
 		return trades("all-assets list of every derivatives asset's pairs on "+connection, a, asset.All, currency.Pairs{enabled}, currency.Pairs{enabled}, generate, streams...)
 	}
 	for _, tc := range []generationCase{
@@ -1338,7 +1338,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			configured := rowExchange.Features.Subscriptions.Clone()
 			saved, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
 			require.NoError(t, err, "Marshal must not error")
-			subs, err := tc.generate(rowExchange)
+			subs, err := tc.generate(rowExchange, t.Context())
 			if tc.partial {
 				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
 			} else {
@@ -1361,11 +1361,11 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		require.NoError(t, err, "Marshal must not error")
 		saved, err := json.Marshal(rowExchange.Config.Features.Subscriptions)
 		require.NoError(t, err, "Marshal must not error")
-		for _, generate := range []func() (subscription.List, error){
+		for _, generate := range []func(context.Context) (subscription.List, error){
 			rowExchange.generateUSDTMarginedFuturesPublicSubscriptions, rowExchange.generateUSDTMarginedFuturesMarketSubscriptions, rowExchange.generateCoinMarginedFuturesSubscriptions,
 			rowExchange.generateOptionsPublicSubscriptions, rowExchange.generateOptionsMarketSubscriptions,
 		} {
-			_, err := generate()
+			_, err := generate(t.Context())
 			require.NoError(t, err, "generating subscriptions must not error")
 		}
 		generated, err := json.Marshal(rowExchange.Features.Subscriptions)
@@ -1384,7 +1384,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		rowExchange := setup(t, subscription.List{allAssets(withPairs(usdtMarginedTicker, pairs...))})
 		for _, g := range []struct {
 			name     string
-			generate func() (subscription.List, error)
+			generate func(context.Context) (subscription.List, error)
 			stream   func(currency.Pair) string
 		}{
 			{"spot", rowExchange.generateSubscriptions, func(p currency.Pair) string { return strings.ToLower(p.Base.String()) + "usdt@ticker" }},
@@ -1394,7 +1394,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		} {
 			t.Run(g.name, func(t *testing.T) {
 				t.Parallel()
-				subs, err := g.generate()
+				subs, err := g.generate(t.Context())
 				assert.NoErrorf(t, err, "%s generation should not error", g.name)
 				exp := make([]string, 0, len(pairs))
 				for _, p := range pairs {
@@ -1411,7 +1411,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			a         asset.Item
 			delimiter string
 			listed    bool
-			generate  func(*Exchange) (subscription.List, error)
+			generate  func(*Exchange, context.Context) (subscription.List, error)
 		}{
 			{"spot listing them", asset.Spot, currency.DashDelimiter, true, (*Exchange).generateSubscriptions},
 			{"spot enabling them", asset.Spot, currency.DashDelimiter, false, (*Exchange).generateSubscriptions},
@@ -1436,7 +1436,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 					require.NoError(t, rowExchange.CurrencyPairs.StorePairs(g.a, pairs, false), "StorePairs must set the available pairs")
 					require.NoError(t, rowExchange.CurrencyPairs.StorePairs(g.a, pairs, true), "StorePairs must set the enabled pairs")
 				}
-				subs, err := g.generate(rowExchange)
+				subs, err := g.generate(rowExchange, t.Context())
 				assert.NoErrorf(t, err, "%s generation should not error", g.name)
 				assert.ElementsMatchf(t, exp, subs.QualifiedChannels(), "%s generation should stream each pair once", g.name)
 			})
@@ -1454,7 +1454,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			subs, err := setup(t, tc.subs).generateCoinMarginedFuturesSubscriptions()
+			subs, err := setup(t, tc.subs).generateCoinMarginedFuturesSubscriptions(t.Context())
 			require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error")
 			assert.Len(t, subs, tc.exp, "COIN-M should stream its defaults only where the configuration has no subscription of it")
 		})
@@ -1465,11 +1465,11 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 	generateAll := func(t *testing.T, ex *Exchange) subscription.List {
 		t.Helper()
 		var all subscription.List
-		for _, generate := range []func() (subscription.List, error){
+		for _, generate := range []func(context.Context) (subscription.List, error){
 			ex.generateSubscriptions, ex.generateUSDTMarginedFuturesPublicSubscriptions, ex.generateUSDTMarginedFuturesMarketSubscriptions,
 			ex.generateCoinMarginedFuturesSubscriptions, ex.generateOptionsPublicSubscriptions, ex.generateOptionsMarketSubscriptions,
 		} {
-			subs, err := generate()
+			subs, err := generate(t.Context())
 			require.NoError(t, err, "generating subscriptions must not error")
 			all = append(all, subs...)
 		}
@@ -1557,7 +1557,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			myOrdersEx.Websocket.SetCanUseAuthenticatedEndpoints(auth.canUseAuthenticated)
 			for _, tc := range []struct {
 				name     string
-				generate func() (subscription.List, error)
+				generate func(context.Context) (subscription.List, error)
 			}{
 				{"spot", myOrdersEx.generateSubscriptions},
 				{"USDⓈ-M /public", myOrdersEx.generateUSDTMarginedFuturesPublicSubscriptions},
@@ -1568,7 +1568,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					t.Parallel()
-					subs, err := tc.generate()
+					subs, err := tc.generate(t.Context())
 					require.NoErrorf(t, err, "%s generation must not error with only MyOrdersChannel configured", tc.name)
 					assert.Emptyf(t, subs, "%s generation should generate no streams with only MyOrdersChannel configured", tc.name)
 				})
@@ -1606,7 +1606,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			ex := setup(t, tc.subs)
 			for _, g := range []struct {
 				name     string
-				generate func() (subscription.List, error)
+				generate func(context.Context) (subscription.List, error)
 				defaults int
 			}{
 				{"USDⓈ-M /public", ex.generateUSDTMarginedFuturesPublicSubscriptions, 1},
@@ -1621,7 +1621,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 					if !ok {
 						exp = g.defaults
 					}
-					subs, err := g.generate()
+					subs, err := g.generate(t.Context())
 					require.NoErrorf(t, err, "%s generation must not error", g.name)
 					assert.Lenf(t, subs, exp, "%s should stream its defaults beside MyOrdersChannel, or only what else configures it", g.name)
 				})
@@ -1637,7 +1637,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		for _, tc := range []struct {
 			a        asset.Item
-			generate func() (subscription.List, error)
+			generate func(context.Context) (subscription.List, error)
 		}{
 			{asset.USDTMarginedFutures, ex.generateUSDTMarginedFuturesUserDataSubscriptions},
 			{asset.CoinMarginedFutures, ex.generateCoinMarginedFuturesUserDataSubscriptions},
@@ -1645,7 +1645,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		} {
 			t.Run(tc.a.String(), func(t *testing.T) {
 				t.Parallel()
-				subs, err := tc.generate()
+				subs, err := tc.generate(t.Context())
 				require.NoErrorf(t, err, "%s user data generation must not error", tc.a)
 				testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}}, subs)
 			})
@@ -1790,7 +1790,7 @@ func TestSubscribeDerivatives(t *testing.T) {
 	require.NoError(t, err, "GetConnection must not error")
 	// The connection was set up without subscriptions, so the subscriptions come from the defaults
 	ex.Features.Subscriptions = defaultSubscriptions.Clone()
-	subs, err := ex.generateUSDTMarginedFuturesMarketSubscriptions()
+	subs, err := ex.generateUSDTMarginedFuturesMarketSubscriptions(t.Context())
 	require.NoError(t, err, "generateUSDTMarginedFuturesMarketSubscriptions must not error")
 
 	require.NoError(t, ex.SubscribeDerivatives(t.Context(), conn, subs), "SubscribeDerivatives must not error")
@@ -1925,7 +1925,7 @@ func TestSetProperty(t *testing.T) {
 func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	generators := map[asset.Item]func() (subscription.List, error){
+	generators := map[asset.Item]func(context.Context) (subscription.List, error){
 		asset.USDTMarginedFutures: ex.generateUSDTMarginedFuturesUserDataSubscriptions,
 		asset.CoinMarginedFutures: ex.generateCoinMarginedFuturesUserDataSubscriptions,
 		asset.Options:             ex.generateOptionsUserDataSubscriptions,
@@ -1933,7 +1933,7 @@ func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the
 	// The cases share ex, whose authenticated use is turned on after them, so they run in order
 	for a, generate := range generators {
 		t.Run("unauthenticated "+a.String(), func(t *testing.T) {
-			subs, err := generate()
+			subs, err := generate(t.Context())
 			require.NoErrorf(t, err, "%s user data generation must not error", a)
 			assert.Emptyf(t, subs, "%s user data should not be subscribed without authenticated websocket use", a)
 		})
@@ -1942,7 +1942,7 @@ func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the
 	// The cases share ex, which the statements after them change, so they run in order
 	for a, generate := range generators {
 		t.Run("authenticated "+a.String(), func(t *testing.T) {
-			subs, err := generate()
+			subs, err := generate(t.Context())
 			require.NoErrorf(t, err, "%s user data generation must not error", a)
 			require.Lenf(t, subs, 1, "%s user data generation must return one subscription", a)
 			testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: a}}, subs)
@@ -1950,13 +1950,19 @@ func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the
 		})
 	}
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	subs, err := ex.generateOptionsUserDataSubscriptions()
+	subs, err := ex.generateOptionsUserDataSubscriptions(t.Context())
 	require.NoError(t, err, "options user data generation must not error")
 	assert.Empty(t, subs, "a disabled asset should not subscribe its user data")
 	ex.SetCredentials(&accounts.Credentials{})
-	subs, err = ex.generateUSDTMarginedFuturesUserDataSubscriptions()
+	subs, err = ex.generateUSDTMarginedFuturesUserDataSubscriptions(t.Context())
 	require.NoError(t, err, "USDⓈ-M user data generation must not error")
 	assert.Empty(t, subs, "user data should not be subscribed without usable credentials")
+	t.Run("credentials in the context", func(t *testing.T) {
+		ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "context-key", Secret: "context-secret"})
+		subs, err := ex.generateUSDTMarginedFuturesUserDataSubscriptions(ctx)
+		require.NoError(t, err, "USDⓈ-M user data generation must not error")
+		testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures}}, subs)
+	})
 }
 
 func TestSubscribeUserData(t *testing.T) {
@@ -2483,7 +2489,7 @@ type userDataRetryProduct struct {
 	a        asset.Item
 	filter   string
 	keyPath  string
-	generate func(*Exchange) (subscription.List, error)
+	generate func(*Exchange, context.Context) (subscription.List, error)
 	handle   func(*Exchange, context.Context, websocket.Connection, []byte) error
 }
 
@@ -2581,7 +2587,7 @@ func newUserDataRetryExchange(t *testing.T, p userDataRetryProduct, v *userDataR
 	useMockWebsocket(t, ex, &websocket.ConnectionSetup{
 		MessageFilter:         p.filter,
 		Connector:             ex.WebsocketDerivativesConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return p.generate(ex) },
+		GenerateSubscriptions: func(ctx context.Context) (subscription.List, error) { return p.generate(ex, ctx) },
 		Subscriber:            ex.SubscribeUserData,
 		Unsubscriber:          ex.UnsubscribeUserData,
 		Handler: func(ctx context.Context, conn websocket.Connection, msg []byte) error {

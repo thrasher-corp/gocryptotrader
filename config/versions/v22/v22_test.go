@@ -5,114 +5,170 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v22 "github.com/thrasher-corp/gocryptotrader/config/versions/v22"
 )
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should apply the migration to every exchange")
+	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct{ name, input string }{
-		{name: "default endpoint", input: `{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com"}}}`},
-		{name: "no options endpoint", input: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotSupplementaryURL":"https://api.binance.com"}}}`},
-		{name: "other exchange", input: `{"name":"Kraken"}`},
+
+	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
+	for _, tc := range []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "old defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
+		{
+			name: "custom endpoints with the version prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+		},
+		{
+			name: "custom endpoints without the prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+		},
+		{
+			name: "unrelated endpoints are kept",
+			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			out, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.Equal(t, tc.input, string(out), "UpgradeExchange should leave the configuration unchanged")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
 		})
 	}
+
+	in := []byte(`{"name":"GateIO","api":{}}`)
+	out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+
+	_, err = new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
+
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
+		name string
+		in   string
+		exp  string
 	}{
 		{
-			name:     "default endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com"}}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{"RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com"}}}`,
+			name: "new defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 		{
-			name:     "customised endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"https://options.example.com"},"authenticatedSupport":true}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{},"authenticatedSupport":true}}`,
+			name: "a custom bare host regains the version prefix and a custom path gains a final slash",
+			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
 		},
 		{
-			name:     "empty endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"","RestSpotURL":"https://sapi.binance.com"}}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
+			name: "custom paths over http or ending in the version prefix gain a final slash",
+			in:   `{"RestSpotURL":"http://localhost:8080/gateway","RestFuturesURL":"https://proxy.example/gate-fx/api/v4"}`,
+			exp:  `{"RestSpotURL":"http://localhost:8080/gateway/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/"}`,
 		},
 		{
-			name:     "null endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com","RestOptionsURL":null}}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
+			name: "a custom bare host with a port regains the version prefix and a host ending in a slash is kept",
+			in:   `{"RestSpotURL":"https://proxy.example:8443","RestFuturesURL":"https://proxy.example/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example:8443/api/v4/","RestFuturesURL":"https://proxy.example/"}`,
 		},
 		{
-			name:     "repeated endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"https://eapi.binance.com","RestSpotURL":"https://sapi.binance.com","RestOptionsURL":"https://options.example.com"}}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
-		},
-		{
-			name:     "other exchange",
-			input:    `{"name":"Kraken","api":{"urlEndpoints":{"RestOptionsURL":"https://options.example.com","RestSpotURL":"https://api.kraken.com"}}}`,
-			expected: `{"name":"Kraken","api":{"urlEndpoints":{"RestSpotURL":"https://api.kraken.com"}}}`,
-		},
-		{
-			name:     "key outside the endpoints",
-			input:    `{"name":"Binance","RestOptionsURL":"https://eapi.binance.com","api":{"RestOptionsURL":"https://eapi.binance.com","urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
-			expected: `{"name":"Binance","RestOptionsURL":"https://eapi.binance.com","api":{"RestOptionsURL":"https://eapi.binance.com","urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
-		},
-		{
-			name:     "no options endpoint",
-			input:    `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
-			expected: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotURL":"https://sapi.binance.com"}}}`,
-		},
-		{
-			name:     "no endpoints",
-			input:    `{"name":"Binance","api":{}}`,
-			expected: `{"name":"Binance","api":{}}`,
-		},
-		{
-			name:     "no api",
-			input:    `{"name":"Binance"}`,
-			expected: `{"name":"Binance"}`,
+			name: "endpoints already carrying the prefix and placeholders are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(tc.input))
+			out, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, tc.expected, string(out), "DowngradeExchange should remove only saved options REST endpoints")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
+
+	_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
 }
 
-func TestRegisteredMigration(t *testing.T) {
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	// The Binance entry holds every endpoint this version saves for Binance
-	input := []byte(`{"version":21,"exchanges":[{"name":"Binance","api":{"urlEndpoints":{"EdgeCase1URL":"https://www.binance.com","RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestFuturesSupplementaryURL":"https://papi.binance.com","RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com","RestSpotURL":"https://sapi.binance.com","RestUSDTMarginedFuturesURL":"https://fapi.binance.com","WebsocketSpotURL":"wss://stream.binance.com:9443/stream","WebsocketTradeURL":"wss://ws-api.binance.com:443/ws-api/v3"}}},{"name":"Kraken","api":{"urlEndpoints":{"RestSpotURL":"https://api.kraken.com"}}}]}`)
-	upgraded, err := versions.Manager.Deploy(t.Context(), input, 22)
-	require.NoError(t, err, "Deploy must apply the registered v22 upgrade")
-	expected := `{"version":22,"exchanges":[{"name":"Binance","api":{"urlEndpoints":{"EdgeCase1URL":"https://www.binance.com","RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestFuturesSupplementaryURL":"https://papi.binance.com","RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com","RestSpotURL":"https://sapi.binance.com","RestUSDTMarginedFuturesURL":"https://fapi.binance.com","WebsocketSpotURL":"wss://stream.binance.com:9443/stream","WebsocketTradeURL":"wss://ws-api.binance.com:443/ws-api/v3"}}},{"name":"Kraken","api":{"urlEndpoints":{"RestSpotURL":"https://api.kraken.com"}}}]}`
-	assert.JSONEq(t, expected, string(upgraded), "Deploy should only advance the version to v22")
-
-	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 21)
-	require.NoError(t, err, "Deploy must downgrade from v22")
-	downgradedExpected := `{"version":21,"exchanges":[{"name":"Binance","api":{"urlEndpoints":{"EdgeCase1URL":"https://www.binance.com","RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestFuturesSupplementaryURL":"https://papi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com","RestSpotURL":"https://sapi.binance.com","RestUSDTMarginedFuturesURL":"https://fapi.binance.com","WebsocketSpotURL":"wss://stream.binance.com:9443/stream","WebsocketTradeURL":"wss://ws-api.binance.com:443/ws-api/v3"}}},{"name":"Kraken","api":{"urlEndpoints":{"RestSpotURL":"https://api.kraken.com"}}}]}`
-	assert.JSONEq(t, downgradedExpected, string(downgraded), "Downgrade should remove only the options REST endpoint, which v21 rejects")
-
-	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 22)
-	require.NoError(t, err, "Deploy must reapply v22")
-	reupgradedExpected := `{"version":22,"exchanges":[{"name":"Binance","api":{"urlEndpoints":{"EdgeCase1URL":"https://www.binance.com","RestCoinMarginedFuturesURL":"https://dapi.binance.com","RestFuturesSupplementaryURL":"https://papi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com","RestSpotURL":"https://sapi.binance.com","RestUSDTMarginedFuturesURL":"https://fapi.binance.com","WebsocketSpotURL":"wss://stream.binance.com:9443/stream","WebsocketTradeURL":"wss://ws-api.binance.com:443/ws-api/v3"}}},{"name":"Kraken","api":{"urlEndpoints":{"RestSpotURL":"https://api.kraken.com"}}}]}`
-	assert.JSONEq(t, reupgradedExpected, string(reupgraded), "Reapplying v22 should leave Binance to restore its options REST endpoint default at setup")
+	for _, endpoint := range []string{"https://proxy.example/gate/api/v4/", "https://proxy.example/gateway/", "https://proxy.example/"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+			in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"` + endpoint + `"}}}`)
+			up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+		})
+	}
 }
