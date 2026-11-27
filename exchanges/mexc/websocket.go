@@ -281,14 +281,14 @@ func isPrivateChannel(s *subscription.Subscription) bool {
 // generatePublicSubscriptions returns the configured subscriptions to the public spot channels. Of the spot subscriptions
 // which can't be expanded it reports those without the Authenticated flag; the private connection reports the others,
 // which are only expanded when it can be used
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePublicSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return isSpotSubscription(s) && !s.Authenticated })
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || isPrivateChannel(s) }), err
 }
 
 // generatePrivateSubscriptions returns the configured subscriptions to the private spot channels, none unless they can
 // be used, and reports the spot subscriptions with the Authenticated flag which can't be expanded
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.spotPrivateChannelsUsable() {
 		return nil, nil
 	}
@@ -861,7 +861,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		// The account's own fills are published as fill.Data, as bybit and gateio do, so that they are not
+		// The account's own fills are published as fill.Data, as bybit and gate do, so that they are not
 		// mistaken for the market's trades and keep the order they belong to.
 		side := order.Sell
 		if body.TradeType == 1 {

@@ -426,7 +426,7 @@ func isFuturesPrivateChannel(s *subscription.Subscription) bool {
 // generateFuturesPublicSubscriptions returns the configured subscriptions to the public futures channels. Of the futures
 // subscriptions which can't be expanded it reports those without the Authenticated flag; the private connection reports
 // the others, which are only expanded when it can be used
-func (e *Exchange) generateFuturesPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return s.Asset == asset.Futures && !s.Authenticated })
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
 		return s.Asset != asset.Futures || isFuturesPrivateChannel(s)
@@ -436,7 +436,7 @@ func (e *Exchange) generateFuturesPublicSubscriptions() (subscription.List, erro
 // generateFuturesPrivateSubscriptions returns the configured subscriptions to the private futures channels, none
 // unless the authenticated websocket can be used, and reports the futures subscriptions with the Authenticated flag
 // which can't be expanded
-func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesPrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

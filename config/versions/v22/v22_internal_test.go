@@ -2,221 +2,68 @@ package v22
 
 import (
 	"cmp"
-	"encoding/json" //nolint:depguard // Matches the encoding/json the migration uses
-	"fmt"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseInterval(t *testing.T) {
+func TestIsGateIO(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		raw json.RawMessage
-		exp time.Duration
-		ok  bool
+		name, config string
+		expected     bool
 	}{
-		{raw: nil, ok: true},
-		{raw: json.RawMessage(`null`)},
-		{raw: json.RawMessage(`900000000000`), exp: 15 * time.Minute, ok: true},
-		{raw: json.RawMessage(`"15m"`), exp: 15 * time.Minute, ok: true},
-		{raw: json.RawMessage(`"0.25h"`), exp: 15 * time.Minute, ok: true},
-		{raw: json.RawMessage(`"100ms"`), exp: 100 * time.Millisecond, ok: true},
-		{raw: json.RawMessage(`"0s"`), ok: true},
-		{raw: json.RawMessage(`"900000000000"`)},
-		{raw: json.RawMessage(`"1d"`)},
-		{raw: json.RawMessage(`true`)},
-	} {
-		t.Run(cmp.Or(string(tc.raw), "empty"), func(t *testing.T) {
-			t.Parallel()
-			got, ok := parseInterval(tc.raw)
-			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %s parses", tc.raw)
-			assert.Equalf(t, tc.exp, got, "parseInterval should return the duration of %s", tc.raw)
-		})
-	}
-}
-
-func TestShortInterval(t *testing.T) {
-	t.Parallel()
-	for d, exp := range map[time.Duration]string{
-		15 * time.Minute:        "15m",
-		100 * time.Millisecond:  "100ms",
-		4 * time.Hour:           "4h",
-		90 * time.Second:        "1m30s",
-		time.Hour + time.Minute: "1h1m",
-	} {
-		t.Run(d.String(), func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, exp, shortInterval(d), "%s should be saved as the config saves it", d)
-		})
-	}
-}
-
-var savedPrevious = []string{
-	`{"enabled":true,"channel":"orderbook","asset":"spot","levels":20}`,
-	`{"enabled":true,"channel":"candles","asset":"spot","interval":"15m"}`,
-	`{"enabled":true,"channel":"ticker","asset":"spot","interval":"100ms"}`,
-	`{"enabled":true,"channel":"public.miniTicker.v3.api.pb","asset":"spot"}`,
-	`{"enabled":true,"channel":"allTrades","asset":"spot","interval":"100ms"}`,
-	`{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true}`,
-	`{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true}`,
-	`{"enabled":true,"channel":"myAccount","asset":"spot","authenticated":true}`,
-}
-
-func rawEntries(entries ...string) []json.RawMessage {
-	raw := make([]json.RawMessage, len(entries))
-	for i := range entries {
-		raw[i] = json.RawMessage(entries[i])
-	}
-	return raw
-}
-
-func TestNamesDefault(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		s   savedSubscription
-		exp bool
-	}{
-		{savedSubscription{Channel: "ticker", Asset: "spot"}, true},
-		{savedSubscription{Channel: "ticker", Asset: "FUTURES"}, true},
-		{savedSubscription{Channel: "position", Asset: "futures"}, true},
-		{savedSubscription{Channel: "public.miniTicker.v3.api.pb", Asset: "all"}, true},
-		{savedSubscription{Channel: "public.aggre.bookTicker.v3.api.pb", Asset: "spot"}, true},
-		{savedSubscription{Channel: "public.limit.depth.v3.api.pb", Asset: "Spot"}, true},
-		{savedSubscription{Channel: "public.aggre.deals.v3.api.pb", Asset: "spot"}, true},
-		{savedSubscription{Channel: "public.kline.v3.api.pb", Asset: "SPOT"}, true},
-		{savedSubscription{Channel: "private.deals.v3.api.pb", Asset: "spot"}, true},
-		{savedSubscription{Channel: "private.orders.v3.api.pb", Asset: "All"}, true},
-		{savedSubscription{Channel: "private.account.v3.api.pb", Asset: "all"}, true},
-		{savedSubscription{Channel: "candles", Asset: "ALL"}, true},
-		{savedSubscription{Channel: "public.aggre.deals.v3.api.pb"}, false},
-		{savedSubscription{Channel: "myOrders"}, false},
-		{savedSubscription{Channel: " ticker ", Asset: "spot"}, false},
-		{savedSubscription{Channel: "position", Asset: "spot"}, false},
-		{savedSubscription{Channel: "public.aggre.deals.v3.api.pb", Asset: "futures"}, false},
-		{savedSubscription{Channel: "public.bookTicker.batch.v3.api.pb", Asset: "spot"}, false},
-		{savedSubscription{Channel: "Ticker", Asset: "spot"}, false},
-		{savedSubscription{Channel: "ticker", Asset: "margin"}, false},
-		{savedSubscription{Asset: "spot"}, false},
-	} {
-		t.Run(fmt.Sprintf("%q under %q", tc.s.Channel, tc.s.Asset), func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, tc.exp, namesDefault(&tc.s), "namesDefault should report whether channel %q under asset %q names a default", tc.s.Channel, tc.s.Asset)
-		})
-	}
-}
-
-func TestSavedAssetUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		raw string
-		exp savedAsset
-	}{
-		{`"futures"`, "futures"},
-		{`null`, ""},
-	} {
-		t.Run(tc.raw, func(t *testing.T) {
-			t.Parallel()
-			a := savedAsset("spot")
-			require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &a), "Unmarshal must decode %s", tc.raw)
-			assert.Equalf(t, tc.exp, a, "%s should decode as the loader decodes it", tc.raw)
-		})
-	}
-	var a savedAsset
-	var typeErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, json.Unmarshal([]byte(`1`), &a), &typeErr, "a number should be refused as the loader refuses it")
-}
-
-func TestDefaultSubscriptionMatches(t *testing.T) {
-	t.Parallel()
-	orderbook := &defaultSubscription{channel: "orderbook", asset: spotAsset, levels: 20}
-	candles := &defaultSubscription{channel: "candles", asset: spotAsset, interval: 15 * time.Minute}
-	orders := &defaultSubscription{channel: "myOrders", asset: spotAsset, authenticated: true}
-	for _, tc := range []struct {
-		name string
-		d    *defaultSubscription
-		s    savedSubscription
-		exp  bool
-	}{
-		{"orderbook default", orderbook, savedSubscription{Enabled: true, Levels: 20}, true},
-		{"disabled orderbook", orderbook, savedSubscription{Levels: 20}, false},
-		{"orderbook of 5 levels", orderbook, savedSubscription{Enabled: true, Levels: 5}, false},
-		{"authenticated orderbook", orderbook, savedSubscription{Enabled: true, Levels: 20, Authenticated: true}, false},
-		{"orderbook with an interval", orderbook, savedSubscription{Enabled: true, Levels: 20, Interval: json.RawMessage(`"1m"`)}, false},
-		{"candles default", candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`"15m"`)}, true},
-		{"candles with a null interval", candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`null`)}, false},
-		{"myOrders default", orders, savedSubscription{Enabled: true, Authenticated: true}, true},
-		{"unauthenticated myOrders", orders, savedSubscription{Enabled: true}, false},
+		{name: "GateIO", config: `{"name":"GateIO"}`, expected: true},
+		{name: "lower case", config: `{"name":"gateio"}`, expected: true},
+		{name: "upper case", config: `{"name":"GATEIO"}`, expected: true},
+		{name: "mixed case", config: `{"name":"gAtEiO"}`, expected: true},
+		{name: "Gate", config: `{"name":"Gate"}`},
+		{name: "longer name", config: `{"name":"GateIOX"}`},
+		{name: "other exchange", config: `{"name":"Binance"}`},
+		{name: "missing name", config: `{"enabled":true}`},
+		{name: "non-string name", config: `{"name":42}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tc.exp, tc.d.matches(&tc.s), "matches should report whether %+v resolves to the %s default", tc.s, tc.d.channel)
+			assert.Equal(t, tc.expected, isGateIO([]byte(tc.config)), "isGateIO should match only GateIO's name, in any case")
 		})
 	}
 }
 
-func TestMatchDefaults(t *testing.T) {
+func TestIsBareHost(t *testing.T) {
 	t.Parallel()
-	const disabled = `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`
-	for name, tc := range map[string]struct {
-		entries []string
-		matched bool
-		carried []json.RawMessage
+	for _, tc := range []struct {
+		endpoint string
+		expected bool
 	}{
-		"defaults":                    {entries: savedPrevious, matched: true},
-		"defaults and disabled entry": {entries: append(append([]string(nil), savedPrevious...), disabled), matched: true, carried: rawEntries(disabled)},
-		"defaults and enabled entry":  {entries: append(append([]string(nil), savedPrevious...), `{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`)},
-		"disabled default":            {entries: append(append([]string(nil), savedPrevious...), `{"enabled":false,"channel":"ticker","asset":"spot"}`)},
+		{endpoint: "https://proxy.example", expected: true},
+		{endpoint: "https://proxy.example:8443", expected: true},
+		{endpoint: "http://localhost:8080", expected: true},
+		{endpoint: "https://proxy.example:8443/gateway/"},
+		{endpoint: "https://proxy.example/"},
+		{endpoint: "https://proxy.example//"},
+		{endpoint: "https://proxy.example/gateway"},
+		{endpoint: "https://proxy.example/gateway/"},
+		{endpoint: "https://proxy.example/gate/api/v4/"},
+		{endpoint: "proxy.example"},
+		{endpoint: "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"},
+		{endpoint: ""},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(cmp.Or(tc.endpoint, "empty endpoint"), func(t *testing.T) {
 			t.Parallel()
-			matched, carried, err := matchDefaults(rawEntries(tc.entries...), previousDefaults)
-			require.NoErrorf(t, err, "matchDefaults must not error for %s", name)
-			assert.Equalf(t, tc.matched, matched, "matchDefaults should report whether %s match the defaults", name)
-			assert.Equalf(t, tc.carried, carried, "matchDefaults should carry the disabled entries naming no default for %s", name)
-		})
-	}
-	for _, entry := range []string{`"orderbook"`, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":20.5}`} {
-		t.Run(entry, func(t *testing.T) {
-			t.Parallel()
-			_, _, err := matchDefaults(rawEntries(entry), previousDefaults)
-			var typeErr *json.UnmarshalTypeError
-			assert.ErrorAsf(t, err, &typeErr, "matchDefaults should refuse the malformed entry %s", entry)
+			assert.Equal(t, tc.expected, isBareHost(tc.endpoint), "isBareHost should report whether the endpoint is a scheme and host alone")
 		})
 	}
 }
 
-func TestReplaceSubscriptions(t *testing.T) {
+func TestSetEndpoint(t *testing.T) {
 	t.Parallel()
-	const disabled = `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`
-	saved := `{"features":{"subscriptions":[` + strings.Join(savedPrevious, ",") + `,` + disabled + `]}}`
-	got, err := replaceSubscriptions([]byte(saved), previousDefaults, previousDefaults)
-	require.NoError(t, err, "replaceSubscriptions must not error")
-	assert.JSONEq(t, saved, string(got), "replacing the defaults with themselves should keep the list and its disabled entry")
+	got, err := setEndpoint([]byte(`{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`), "RestSpotURL", `https://proxy.example/"gate"`)
+	require.NoError(t, err, "setEndpoint must not error")
+	assert.JSONEq(t, `{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/\"gate\"","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`, string(got), "setEndpoint should replace only the endpoint, encoded as a JSON string")
 
-	got, err = replaceSubscriptions([]byte(saved), currentDefaults, previousDefaults)
-	require.NoError(t, err, "replaceSubscriptions must not error when nothing matches")
-	assert.Equal(t, saved, string(got), "subscriptions which match no defaults should be left unchanged")
-
-	for _, malformed := range []string{`{"features":{"subscriptions":{}}}`, `{"features":{"subscriptions":["orderbook"]}}`} {
-		t.Run(malformed, func(t *testing.T) {
-			t.Parallel()
-			result, err := replaceSubscriptions([]byte(malformed), previousDefaults, currentDefaults)
-			var typeErr *json.UnmarshalTypeError
-			assert.ErrorAsf(t, err, &typeErr, "replaceSubscriptions should refuse %s", malformed)
-			assert.Equalf(t, malformed, string(result), "replaceSubscriptions should leave %s unchanged", malformed)
-		})
-	}
-	missing := []byte(`{"features":{"subscriptions":}}`)
-	got, err = replaceSubscriptions(missing, previousDefaults, currentDefaults)
-	assert.ErrorIs(t, err, jsonparser.UnknownValueTypeError, "replaceSubscriptions should refuse subscriptions without a value")
-	assert.Equal(t, missing, got, "replaceSubscriptions should leave subscriptions without a value unchanged")
-	unsubscribed := []byte(`{"name":"MEXC"}`)
-	got, err = replaceSubscriptions(unsubscribed, previousDefaults, currentDefaults)
-	require.NoError(t, err, "replaceSubscriptions must not error without subscriptions")
-	assert.Equal(t, unsubscribed, got, "a config without subscriptions should be left unchanged")
+	_, err = setEndpoint([]byte(`not json`), "RestSpotURL", "https://proxy.example")
+	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "setEndpoint should reject a document it cannot set the endpoint in")
 }

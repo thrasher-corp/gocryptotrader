@@ -1626,13 +1626,13 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	all, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	public, err := ex.generatePublicSubscriptions()
+	public, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
-	private, err := ex.generatePrivateSubscriptions()
+	private, err := ex.generatePrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
-	futuresPublic, err := ex.generateFuturesPublicSubscriptions()
+	futuresPublic, err := ex.generateFuturesPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
-	futuresPrivate, err := ex.generateFuturesPrivateSubscriptions()
+	futuresPrivate, err := ex.generateFuturesPrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 	require.NotEmpty(t, public, "the public channels must be subscribed")
 	require.NotEmpty(t, private, "the private channels must be subscribed")
@@ -1662,16 +1662,16 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, QualifiedChannel: "spot@" + channelAccountV3},
 	} {
 		ex.Features.Subscriptions = subscription.List{s}
-		private, err = ex.generatePrivateSubscriptions()
+		private, err = ex.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
-		public, err = ex.generatePublicSubscriptions()
+		public, err = ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		assert.Lenf(t, private, 1, "%s%s should be on the private connection", s.Channel, s.QualifiedChannel)
 		assert.Emptyf(t, public, "%s%s should not be on a public connection", s.Channel, s.QualifiedChannel)
 	}
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	private, err = ex.generatePrivateSubscriptions()
+	private, err = ex.generatePrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
 	assert.Empty(t, private, "no private channel should be subscribed without the authenticated websocket")
 }
@@ -2453,10 +2453,10 @@ func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "the private channels should be reported as not subscribed")
 	assert.ErrorIs(t, err, errNoListenKey, "the missing listen key should be named")
 	require.True(t, ex.Websocket.IsConnected(), "the websocket must stay connected for the market data")
-	public, err := ex.generatePublicSubscriptions()
+	public, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, int64(len(public)), publicSubscribed.Load(), "every public channel should be subscribed")
-	private, err := ex.generatePrivateSubscriptions()
+	private, err := ex.generatePrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
 	assert.Empty(t, private, "the private channels should be left out of later connects")
 

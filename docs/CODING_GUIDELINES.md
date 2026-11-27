@@ -15,6 +15,10 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
+- Before adding a package-local helper for a general task, such as converting
+    times, numbers or currencies, check `common`, `types` and `currency` for
+    one. When a second package needs a helper, move it to a shared package
+    rather than copying it.
 
 ### External dependencies
 
@@ -49,14 +53,6 @@ relaying them to `DataHandler`. Do not relay a ticker that fails processing.
 For batches, relay the successfully processed entries and report any failures.
 Never relay an empty batch.
 
-Batch endpoints carry a documented maximum number of entries per request.
-Wrapper methods over such endpoints must enforce that maximum and reject a
-longer list with an error rather than silently chunk it: the caller is
-responsible for supplying a batch within the maximum. An asset or order kind
-the endpoint cannot batch at all is rejected as unsupported. Flows that
-legitimately exceed the maximum, such as a cancel-all crawling every open
-order, dispatch explicitly sized batches at the call site.
-
 ### Endpoint Organisation
 
 - Implement API endpoints in the order they are presented in the API documentation to maintain alignment with the source.
@@ -70,6 +66,7 @@ order, dispatch explicitly sized batches at the call site.
   - If the API always returns a number as a bare JSON number, use `float64`.
   - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
+  - For durations the API sends as a number of seconds or milliseconds, use `types.DurationSeconds` or `types.DurationMilliseconds`, which hold a `time.Duration`.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
@@ -122,6 +119,20 @@ order, dispatch explicitly sized batches at the call site.
 - Use pointer structs for passing request parameters.
 - Use idiomatic Go types (e.g., `time.Time`) in the parameter definition and convert them within the method as needed when preparing the request.
 - Time related requests should default to UTC.
+
+### Batch Operations
+
+- Batch endpoints carry a documented maximum number of entries per request.
+    Wrapper methods over such endpoints, such as `CancelBatchOrders` and
+    `WebsocketSubmitOrders`, send one batch request and must enforce that
+    maximum, rejecting a longer list with an error rather than silently
+    chunking it: the caller is responsible for supplying a batch within the
+    maximum.
+- An asset or order kind the endpoint cannot batch at all is rejected as
+    unsupported. Return `common.ErrFunctionNotSupported` when the venue has no
+    batch endpoint for an asset, rather than sending one request per item.
+- Flows that legitimately exceed the maximum, such as a cancel-all crawling
+    every open order, dispatch explicitly sized batches at the call site.
 
 ### Path Construction
 

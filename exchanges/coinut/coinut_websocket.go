@@ -555,7 +555,7 @@ func (e *Exchange) WsProcessOrderbookUpdate(ctx context.Context, update *WsOrder
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDefaultSubscriptions(_ context.Context) (subscription.List, error) {
 	channels := []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions subscription.List
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)

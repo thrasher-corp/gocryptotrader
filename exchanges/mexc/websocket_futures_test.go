@@ -1251,7 +1251,7 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	ex := newFuturesWebsocketTestExchange(t)
 	ex.Features.Subscriptions = defaultSubscriptions.Clone()
 
-	public, err := ex.generateFuturesPublicSubscriptions()
+	public, err := ex.generateFuturesPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
 	got := make([]string, 0, len(public))
 	for _, s := range public {
@@ -1266,12 +1266,12 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 		"kline@BTC_USDT@Min15", "kline@BTC_USD@Min15",
 	}, got, "every public channel should be subscribed for each contract")
 
-	private, err := ex.generateFuturesPrivateSubscriptions()
+	private, err := ex.generateFuturesPrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 	assert.Empty(t, private, "no private channel should be subscribed without the authenticated websocket")
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	private, err = ex.generateFuturesPrivateSubscriptions()
+	private, err = ex.generateFuturesPrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 	got = got[:0]
 	for _, s := range private {
@@ -1280,7 +1280,7 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	assert.ElementsMatch(t, []string{"personal.order", "personal.order.deal", "personal.asset", "personal.position"}, got,
 		"every private channel should be subscribed once")
 
-	spot, err := ex.generatePublicSubscriptions()
+	spot, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	for _, s := range spot {
 		assert.Equalf(t, asset.Spot, s.Asset, "the spot connection should not carry %s", s.QualifiedChannel)
@@ -1306,10 +1306,10 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 		refusing.Features.Subscriptions = defaultSubscriptions.Clone()
 		refusing.API.AuthenticatedWebsocketSupport = true
 		refusing.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		spotPublic, err := refusing.generatePublicSubscriptions()
+		spotPublic, err := refusing.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		require.NotEmpty(t, spotPublic, "the public spot channels must be generated")
-		spotPrivate, err := refusing.generatePrivateSubscriptions()
+		spotPrivate, err := refusing.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
 		require.NotEmpty(t, spotPrivate, "the private spot channels must be generated before a listen key is refused")
 
@@ -1337,15 +1337,15 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 		stored := refusing.Websocket.GetSubscriptions()
 		require.Len(t, stored, 1, "only the public spot channel must be subscribed")
 		assert.Equal(t, spotPublic[0].QualifiedChannel, stored[0].QualifiedChannel, "only the public spot channel should be subscribed")
-		left, err := refusing.generatePrivateSubscriptions()
+		left, err := refusing.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
 		assert.Empty(t, left, "the private spot channels should be left out once a listen key is refused")
 		refusing.Features.Subscriptions = append(defaultSubscriptions.Clone(), &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: unflagged.Channel})
-		left, err = refusing.generatePrivateSubscriptions()
+		left, err = refusing.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
 		assert.Empty(t, left, "a private spot channel configured without the Authenticated flag should be left out too")
 
-		futuresPrivate, err := refusing.generateFuturesPrivateSubscriptions()
+		futuresPrivate, err := refusing.generateFuturesPrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 		channels := make([]string, 0, len(futuresPrivate))
 		for _, s := range futuresPrivate {
@@ -1360,7 +1360,7 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 
 		// Neither the futures login nor an unsubscription lifts the refusal
 		assert.NoError(t, refusing.Unsubscribe(t.Context(), conn, spotPublic[:1]), "the public spot channel should be unsubscribed")
-		left, err = refusing.generatePrivateSubscriptions()
+		left, err = refusing.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
 		assert.Empty(t, left, "the private spot channels should stay left out")
 		require.NoError(t, refusing.wsConnectPrivate(t.Context(), &listenKeyTestConn{url: "wss://private"}), "wsConnectPrivate must not error")
@@ -1401,10 +1401,10 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 				failing.API.AuthenticatedWebsocketSupport = true
 				failing.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				require.NoError(t, failing.wsConnectPrivate(t.Context(), &listenKeyTestConn{url: "wss://private"}), "wsConnectPrivate must not error")
-				left, err := failing.generatePrivateSubscriptions()
+				left, err := failing.generatePrivateSubscriptions(t.Context())
 				require.NoError(t, err, "generatePrivateSubscriptions must not error")
 				assert.Empty(t, left, "the private spot channels should be left out once the listen key request fails")
-				futuresPrivate, err := failing.generateFuturesPrivateSubscriptions()
+				futuresPrivate, err := failing.generateFuturesPrivateSubscriptions(t.Context())
 				require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 				assert.Len(t, futuresPrivate, 4, "the private futures channels should be kept")
 			})
@@ -1488,7 +1488,7 @@ func TestGenerateFuturesSubscriptionsUnserved(t *testing.T) {
 						{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
 						tc.sub,
 					}
-					public, err := ex.generateFuturesPublicSubscriptions()
+					public, err := ex.generateFuturesPublicSubscriptions(t.Context())
 					require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "a %s subscription the venue does not serve must leave the others for %s", tc.sub.Channel, pairs.Join())
 					assert.ErrorIsf(t, err, tc.err, "the expansion should say why the venue does not serve %s", tc.sub.Channel)
 					exp := make([]string, len(pairs))
@@ -1500,12 +1500,12 @@ func TestGenerateFuturesSubscriptionsUnserved(t *testing.T) {
 						got[i] = s.QualifiedChannel
 					}
 					assert.ElementsMatchf(t, exp, got, "the futures ticker should still be subscribed for %s", pairs.Join())
-					_, err = ex.generateFuturesPrivateSubscriptions()
+					_, err = ex.generateFuturesPrivateSubscriptions(t.Context())
 					assert.NoError(t, err, "the private futures connection should not report a public subscription")
-					spot, err := ex.generatePublicSubscriptions()
+					spot, err := ex.generatePublicSubscriptions(t.Context())
 					assert.NoError(t, err, "the spot connection should not report a futures subscription")
 					assert.Len(t, spot, 1, "the spot ticker should still be subscribed")
-					_, err = ex.generatePrivateSubscriptions()
+					_, err = ex.generatePrivateSubscriptions(t.Context())
 					assert.NoError(t, err, "the private spot connection should not report a futures subscription")
 				})
 			}
@@ -1522,7 +1522,7 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 			{Enabled: true, Asset: asset.All, Channel: channelMiniTickerV3},
 			{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin},
 		}
-		spot, err := ex.generatePublicSubscriptions()
+		spot, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "the spot connection must not report a futures subscription")
 		require.Len(t, spot, 1, "a subscription for every asset must still be expanded for spot")
 		assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, spot[0].QualifiedChannel, "the spot mini ticker should be subscribed")
@@ -1564,7 +1564,7 @@ func TestGenerateSubscriptionsFailureReportedOnce(t *testing.T) {
 					// The generators share ex in order, so each also checks that a generation keeps nothing from the last
 					for _, g := range connectionGenerators(ex) {
 						t.Run(g.name, func(t *testing.T) {
-							subs, err := g.generate()
+							subs, err := g.generate(t.Context())
 							if g.name == "spot public" {
 								assert.Lenf(t, subs, 1, "the spot ticker should still be subscribed with %d explicit pairs", len(pairs))
 							}
@@ -1611,7 +1611,7 @@ func TestGenerateSubscriptionsPairListFailureReportedOnce(t *testing.T) {
 			// The generators share ex in order, so each also checks that a generation keeps nothing from the last
 			for _, g := range connectionGenerators(ex) {
 				t.Run(g.name, func(t *testing.T) {
-					_, err := g.generate()
+					_, err := g.generate(t.Context())
 					if g.name != tc.reporter {
 						assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports", g.name, tc.reporter)
 						return
@@ -1627,7 +1627,7 @@ func TestGenerateSubscriptionsPairListFailureReportedOnce(t *testing.T) {
 // connectionGenerator is one of an exchange's connections' subscription generators, by the connection's name
 type connectionGenerator struct {
 	name     string
-	generate func() (subscription.List, error)
+	generate func(context.Context) (subscription.List, error)
 }
 
 // connectionGenerators returns the subscription generators of an exchange's four connections
@@ -1673,7 +1673,7 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 	require.NotEqual(t, -1, i, "the test config must hold MEXC")
 	var features map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must decode MEXC's features")
-	// A version 21 config holds the spot defaults, here beside a disabled subscription which names no default
+	// A version 23 config holds the spot defaults, here beside a disabled subscription which names no default
 	spotDefaults := slices.DeleteFunc(defaultSubscriptions.Clone(), func(s *subscription.Subscription) bool { return s.Asset != asset.Spot })
 	previous, err := json.Marshal(spotDefaults)
 	require.NoError(t, err, "Marshal must encode the spot defaults")
@@ -1683,14 +1683,14 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 	require.NoError(t, err, "Marshal must encode MEXC's features")
 	saved["exchanges"], err = json.Marshal(exchanges)
 	require.NoError(t, err, "Marshal must encode the saved exchanges")
-	saved["version"] = json.RawMessage(`21`)
+	saved["version"] = json.RawMessage(`23`)
 	data, err = json.Marshal(saved)
-	require.NoError(t, err, "Marshal must encode the version 21 config")
+	require.NoError(t, err, "Marshal must encode the version 23 config")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 21 config")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 23 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 21 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 23 config")
 	exchCfg, err := cfg.GetExchangeConfig("MEXC")
 	require.NoError(t, err, "GetExchangeConfig must find MEXC")
 	ex := new(Exchange)
@@ -1699,7 +1699,7 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 	require.NoError(t, ex.Setup(exchCfg), "Setup must accept the upgraded config")
 	assert.Len(t, ex.Config.Features.Subscriptions, len(defaultSubscriptions)+1, "the upgraded config should hold every default and the disabled subscription")
 
-	public, err := ex.generateFuturesPublicSubscriptions()
+	public, err := ex.generateFuturesPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
 	got := make([]string, 0, len(public))
 	for _, s := range public {
@@ -1711,7 +1711,7 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 		"deal@BTC_USDT", "deal@ETH_USDT",
 		"kline@BTC_USDT@Min15", "kline@ETH_USDT@Min15",
 	}, got, "the upgraded config should subscribe to every public futures channel for each enabled contract")
-	spot, err := ex.generatePublicSubscriptions()
+	spot, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	for _, s := range spot {
 		assert.NotContainsf(t, s.QualifiedChannel, "bookTicker.batch", "the disabled subscription should not subscribe, but %s does", s.QualifiedChannel)
