@@ -41,7 +41,7 @@ func setupLiveExchange(ex *Exchange) error {
 		return err
 	}
 	if apiCredentials.Key != "" {
-		setTestCredentials(ex, apiCredentials)
+		sharedtestvalues.SetTestCredentials(ex, apiCredentials)
 	}
 	return nil
 }

@@ -95,13 +95,6 @@ func setupTestExchange(ex *Exchange) error {
 	return nil
 }
 
-// setTestCredentials enables authenticated support with the given credentials
-func setTestCredentials(ex *Exchange, creds *accounts.Credentials) {
-	ex.API.AuthenticatedSupport = true
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials(creds)
-}
-
 // newTestServerExchange returns an exchange, with placeholder credentials, whose REST requests the handler serves, for
 // responses the mock recording cannot express, such as malformed payloads and errors
 func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
@@ -110,7 +103,7 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	ex.Name = t.Name()
-	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+	sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 	ex.SkipAuthCheck = true
 	var requests atomic.Int64
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

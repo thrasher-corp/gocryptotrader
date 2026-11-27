@@ -43,6 +43,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -524,7 +525,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 	t.Run("credentials refused before any request", func(t *testing.T) {
 		t.Parallel()
 		unauthenticated := newTestExchange(t)
-		setTestCredentials(unauthenticated, &accounts.Credentials{})
+		sharedtestvalues.SetTestCredentials(unauthenticated, &accounts.Credentials{})
 		unauthenticated.SkipAuthCheck = false
 		_, err := unauthenticated.UpdateAccountBalances(t.Context(), asset.Spot)
 		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should refuse empty credentials")
@@ -4892,6 +4893,77 @@ func TestCancelBatchOrders(t *testing.T) {
 			assert.Empty(t, received(), "CancelBatchOrders should send no list of a batch it refuses")
 		})
 	}
+	// An order of an asset the exchange does not support, or of a type SubmitOrder does not place other than no type or
+	// order.AnyType, is refused before any list is sent, alone or between orders a list would cancel
+	type unsupportedCancel struct {
+		name   string
+		cancel order.Cancel
+		err    error
+	}
+	unsupported := []unsupportedCancel{
+		{"a trailing stop", order.Cancel{OrderID: "12", Type: order.TrailingStop}, order.ErrUnsupportedOrderType},
+		{"a trailing stop limit", order.Cancel{OrderID: "12", Type: order.TrailingStopLimit}, order.ErrUnsupportedOrderType},
+		{"an OCO order", order.Cancel{OrderID: "12", Type: order.OCO}, order.ErrUnsupportedOrderType},
+		{"a conditional stop", order.Cancel{OrderID: "12", Type: order.ConditionalStop}, order.ErrUnsupportedOrderType},
+		{"a bracket order", order.Cancel{OrderID: "12", Type: order.Bracket}, order.ErrUnsupportedOrderType},
+		{"a limit maker order", order.Cancel{OrderID: "12", Type: order.LimitMaker}, order.ErrUnsupportedOrderType},
+		{"a trigger order", order.Cancel{OrderID: "12", Type: order.Trigger}, order.ErrUnsupportedOrderType},
+		{"a TWAP order", order.Cancel{OrderID: "12", Type: order.TWAP}, order.ErrUnsupportedOrderType},
+		{"a chase order", order.Cancel{OrderID: "12", Type: order.Chase}, order.ErrUnsupportedOrderType},
+		{"an IOS order", order.Cancel{OrderID: "12", Type: order.IOS}, order.ErrUnsupportedOrderType},
+		{"a liquidation", order.Cancel{OrderID: "12", Type: order.Liquidation}, order.ErrUnsupportedOrderType},
+		{"an optimal limit order", order.Cancel{OrderID: "12", Type: order.OptimalLimit}, order.ErrUnsupportedOrderType},
+		{"a market maker protection order", order.Cancel{OrderID: "12", Type: order.MarketMakerProtection}, order.ErrUnsupportedOrderType},
+		{"a spot OCO order", order.Cancel{OrderID: "12", AssetType: asset.Spot, Type: order.OCO}, order.ErrUnsupportedOrderType},
+		{"an OCO order by its client order ID", order.Cancel{ClientOrderID: "my_oco_order", Type: order.OCO}, order.ErrUnsupportedOrderType},
+		{"an options limit order", order.Cancel{OrderID: "12", AssetType: asset.Options, Type: order.Limit}, asset.ErrNotSupported},
+		{"an options stop", order.Cancel{OrderID: "12", AssetType: asset.Options, Type: order.Stop}, asset.ErrNotSupported},
+		{"an options order by its client order ID", order.Cancel{ClientOrderID: "my_options_order", AssetType: asset.Options}, asset.ErrNotSupported},
+		{"an order of an undefined asset", order.Cancel{OrderID: "12", AssetType: asset.Item(1 << 30)}, asset.ErrNotSupported},
+		{"an options order of any type", order.Cancel{OrderID: "12", AssetType: asset.Options, Type: order.AnyType}, asset.ErrNotSupported},
+		{"an options limit order on a pair", order.Cancel{OrderID: "12", AssetType: asset.Options, Type: order.Limit, Pair: testSpotPair}, asset.ErrNotSupported},
+		{"an OCO order of every asset", order.Cancel{OrderID: "12", AssetType: asset.All, Type: order.OCO}, order.ErrUnsupportedOrderType},
+		{"a perpetual swap OCO order", order.Cancel{OrderID: "12", AssetType: asset.PerpetualSwap, Type: order.OCO}, order.ErrUnsupportedOrderType},
+	}
+	for _, a := range asset.Supported() {
+		if !slices.Contains(asset.Items{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures}, a) {
+			unsupported = append(unsupported, unsupportedCancel{"an order of " + a.String(), order.Cancel{OrderID: "12", AssetType: a}, asset.ErrNotSupported})
+		}
+	}
+	for _, tc := range unsupported {
+		for _, batch := range []struct {
+			position string
+			orders   []order.Cancel
+		}{
+			{"alone", []order.Cancel{tc.cancel}},
+			{"between orders a list would cancel", []order.Cancel{{OrderID: "1", AssetType: asset.Spot}, tc.cancel, {OrderID: "101", AssetType: asset.Spot, Type: order.Stop}}},
+		} {
+			t.Run("refuses "+tc.name+" "+batch.position, func(t *testing.T) {
+				t.Parallel()
+				ex, received := newRoutesServerExchange(t, map[string]testRoute{
+					"private/cancel-order-list":          acceptCancelList,
+					"private/advanced/cancel-order-list": acceptCancelList,
+				})
+				_, err := ex.CancelBatchOrders(t.Context(), batch.orders)
+				assert.ErrorIs(t, err, tc.err, "CancelBatchOrders should refuse an order it cannot cancel in a list")
+				assert.Empty(t, received(), "CancelBatchOrders should send no list of a batch it refuses")
+			})
+		}
+	}
+	t.Run("cancels an order of an asset whose pairs are disabled", func(t *testing.T) {
+		t.Parallel()
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/cancel-order-list": acceptCancelList})
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
+		got, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{OrderID: "1", AssetType: asset.Margin},
+			{OrderID: "2", AssetType: asset.Margin, Type: order.Limit},
+			{OrderID: "3", AssetType: asset.Margin, Type: order.Limit, Pair: testSpotPair},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error for orders of an asset whose pairs are disabled")
+		exp := &order.CancelBatchResponse{Status: map[string]string{"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL"}}
+		assert.Equal(t, exp, got, "CancelBatchOrders should cancel orders of an asset whose pairs are disabled")
+		assertJSONRequests(t, []testRequest{{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"1"},{"order_id":"2"},{"order_id":"3"}]}`}}, received())
+	})
 	// Up to as many orders as a list takes go in one list, an order the trading methods refuse to cancel for the order
 	// named retried with the advanced order methods after any trigger orders
 	orderIDs := func(first, last int) string {
@@ -4952,6 +5024,82 @@ func TestCancelBatchOrders(t *testing.T) {
 			requests: []testRequest{
 				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + orderIDs(1, 9) + `]}`},
 				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"client_oid":"my_sl_order"},{"order_id":"2"}]}`},
+			},
+		},
+		{
+			name: "an order of each asset the exchange supports, one without an asset, one of every asset and trigger orders of two",
+			routes: map[string]testRoute{
+				"private/cancel-order-list":          acceptCancelList,
+				"private/advanced/cancel-order-list": acceptCancelList,
+			},
+			orders: []order.Cancel{
+				{OrderID: "1", AssetType: asset.Spot},
+				{OrderID: "101", AssetType: asset.Spot, Type: order.Stop},
+				{OrderID: "2", AssetType: asset.Margin},
+				{OrderID: "3", AssetType: asset.PerpetualSwap},
+				{OrderID: "102", AssetType: asset.PerpetualSwap, Type: order.TakeProfitLimit},
+				{OrderID: "4", AssetType: asset.Futures},
+				{OrderID: "5"},
+				{OrderID: "6", AssetType: asset.All},
+			},
+			exp: map[string]string{
+				"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL", "6": "PENDING_CANCEL",
+				"101": "PENDING_CANCEL", "102": "PENDING_CANCEL",
+			},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + orderIDs(1, 6) + `]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[` + orderIDs(101, 102) + `]}`},
+			},
+		},
+		{
+			name: "an order of each type SubmitOrder places, one without a type and one of any type",
+			routes: map[string]testRoute{
+				"private/cancel-order-list":          acceptCancelList,
+				"private/advanced/cancel-order-list": acceptCancelList,
+			},
+			orders: []order.Cancel{
+				{OrderID: "101", Type: order.Stop},
+				{OrderID: "1", Type: order.Limit},
+				{OrderID: "102", Type: order.StopMarket},
+				{OrderID: "2", Type: order.Market},
+				{OrderID: "103", Type: order.StopLimit},
+				{OrderID: "3"},
+				{OrderID: "104", Type: order.TakeProfit},
+				{OrderID: "4", Type: order.AnyType},
+				{OrderID: "105", Type: order.TakeProfitMarket},
+				{OrderID: "106", Type: order.TakeProfitLimit},
+			},
+			exp: map[string]string{
+				"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL",
+				"101": "PENDING_CANCEL", "102": "PENDING_CANCEL", "103": "PENDING_CANCEL", "104": "PENDING_CANCEL", "105": "PENDING_CANCEL", "106": "PENDING_CANCEL",
+			},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[` + orderIDs(1, 4) + `]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[` + orderIDs(101, 106) + `]}`},
+			},
+		},
+		{
+			name: "orders of every asset or of any type, by order ID or client order ID, and orders on pairs",
+			routes: map[string]testRoute{
+				"private/cancel-order-list":          acceptCancelList,
+				"private/advanced/cancel-order-list": acceptCancelList,
+			},
+			orders: []order.Cancel{
+				{OrderID: "1", AssetType: asset.All, Type: order.Stop},
+				{OrderID: "2", AssetType: asset.Spot, Type: order.AnyType},
+				{ClientOrderID: "my_order"},
+				{ClientOrderID: "my_any_order", Type: order.AnyType},
+				{OrderID: "3", AssetType: asset.Margin, Type: order.Stop},
+				{OrderID: "4", AssetType: asset.Spot, Pair: testSpotPair},
+				{OrderID: "5", AssetType: asset.PerpetualSwap, Pair: testPerpetualPair},
+			},
+			exp: map[string]string{
+				"1": "PENDING_CANCEL", "2": "PENDING_CANCEL", "3": "PENDING_CANCEL", "4": "PENDING_CANCEL", "5": "PENDING_CANCEL",
+				"my_order": "PENDING_CANCEL", "my_any_order": "PENDING_CANCEL",
+			},
+			requests: []testRequest{
+				{Method: "private/cancel-order-list", Params: `{"contingency_type":"LIST","order_list":[{"order_id":"2"},{"client_oid":"my_order"},{"client_oid":"my_any_order"},{"order_id":"4"},{"order_id":"5"}]}`},
+				{Method: "private/advanced/cancel-order-list", Params: `{"order_list":[{"order_id":"1"},{"order_id":"3"}]}`},
 			},
 		},
 		{
@@ -7930,7 +8078,7 @@ func TestGetCachedSubAccounts(t *testing.T) {
 	t.Run("credentials it cannot use", func(t *testing.T) {
 		t.Parallel()
 		ex := newWalletServerExchange(t, testCachedWallet())
-		setTestCredentials(ex, &accounts.Credentials{})
+		sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{})
 		ex.SkipAuthCheck = false
 		_, err := ex.GetCachedSubAccounts(t.Context(), asset.Spot)
 		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetCachedSubAccounts should refuse empty credentials")
@@ -8003,7 +8151,7 @@ func TestGetCachedCurrencyBalances(t *testing.T) {
 	t.Run("credentials it cannot use", func(t *testing.T) {
 		t.Parallel()
 		ex := newWalletServerExchange(t, testCachedWallet())
-		setTestCredentials(ex, &accounts.Credentials{})
+		sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{})
 		ex.SkipAuthCheck = false
 		_, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
 		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetCachedCurrencyBalances should refuse empty credentials")

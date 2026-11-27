@@ -7,9 +7,11 @@ import (
 	"math"
 	"math/rand/v2"
 	"os"
+	"reflect"
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,7 +21,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestMain(m *testing.M) {
@@ -708,6 +712,89 @@ func TestLevelsArrayPriceAmountUnmarshalJSON(t *testing.T) {
 
 	err = asks.UnmarshalJSON([]byte(`invalid`))
 	assert.Error(t, err)
+}
+
+func TestLevelsArrayPriceAmountOrderCountUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	held := func() LevelsArrayPriceAmountOrderCount {
+		return LevelsArrayPriceAmountOrderCount{{Price: 91, Amount: 9, OrderCount: 9}, {Price: 81, Amount: 8, OrderCount: 8}, {Price: 71, Amount: 7, OrderCount: 7}}
+	}
+	type into struct {
+		name   string
+		levels LevelsArrayPriceAmountOrderCount
+	}
+	intos := func() []into {
+		return []into{{"into no levels", nil}, {"into levels held", held()}}
+	}
+	fiftyOne := make([]string, 51)
+	fiftyOneLevels := make(LevelsArrayPriceAmountOrderCount, 51)
+	for i := range fiftyOne {
+		fiftyOne[i] = `["` + strconv.Itoa(i+1) + `","1","` + strconv.Itoa(i+2) + `"]`
+		fiftyOneLevels[i] = Level{Price: float64(i + 1), Amount: 1, OrderCount: int64(i + 2)}
+	}
+	for _, tc := range []struct {
+		name string
+		data string
+		exp  LevelsArrayPriceAmountOrderCount
+	}{
+		{"quoted values", `[["80775.54","0.82815","11"],["80779.94","0","0"]]`, LevelsArrayPriceAmountOrderCount{{Price: 80775.54, Amount: 0.82815, OrderCount: 11}, {Price: 80779.94}}},
+		{"numbers", `[[1,2,3],[4.5,6.25,7]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 2, OrderCount: 3}, {Price: 4.5, Amount: 6.25, OrderCount: 7}}},
+		{"numbers in descending price order", `[[4.5,6.25,7],[1,2,3]]`, LevelsArrayPriceAmountOrderCount{{Price: 4.5, Amount: 6.25, OrderCount: 7}, {Price: 1, Amount: 2, OrderCount: 3}}},
+		{"levels at one price", `[["7","10","1"],["7","20","2"]]`, LevelsArrayPriceAmountOrderCount{{Price: 7, Amount: 10, OrderCount: 1}, {Price: 7, Amount: 20, OrderCount: 2}}},
+		{"as many levels as are held", `[["1","1","1"],["2","2","2"],["3","3","3"]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 1, OrderCount: 1}, {Price: 2, Amount: 2, OrderCount: 2}, {Price: 3, Amount: 3, OrderCount: 3}}},
+		{"more levels than are held", `[["1","1","1"],["2","2","2"],["3","3","3"],["4","4","4"]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 1, OrderCount: 1}, {Price: 2, Amount: 2, OrderCount: 2}, {Price: 3, Amount: 3, OrderCount: 3}, {Price: 4, Amount: 4, OrderCount: 4}}},
+		{"fifty-one levels", "[" + strings.Join(fiftyOne, ",") + "]", fiftyOneLevels},
+		{"an order count over 32 bits", `[["1","2","4294967297"]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 2, OrderCount: 4294967297}}},
+		{"a level without an order count", `[["1","2"]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 2}}},
+		{"a level with a value after its order count", `[["1","2","3","4"]]`, LevelsArrayPriceAmountOrderCount{{Price: 1, Amount: 2, OrderCount: 3}}},
+		{"no levels", `[]`, LevelsArrayPriceAmountOrderCount{}},
+		{"null", `null`, LevelsArrayPriceAmountOrderCount{}},
+	} {
+		for _, in := range intos() {
+			t.Run(tc.name+" "+in.name, func(t *testing.T) {
+				t.Parallel()
+				before := slices.Clone(in.levels)
+				levels := in.levels
+				require.NoError(t, levels.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+				assert.Equal(t, tc.exp, levels, "UnmarshalJSON should replace the levels with each level's price, amount and order count")
+				assert.Equal(t, before, in.levels, "UnmarshalJSON should leave the levels it replaces as they were")
+				clear(levels[:cap(levels)])
+				assert.Equal(t, before, in.levels, "UnmarshalJSON should return levels that share no storage with those it replaces")
+			})
+		}
+	}
+	// types.Number's error for a value it cannot decode is not exported
+	var number types.Number
+	errInvalidNumber := errors.Unwrap(number.UnmarshalJSON([]byte(`"x"`)))
+	require.Error(t, errInvalidNumber, "types.Number must refuse a value it cannot decode")
+	for _, tc := range []struct {
+		name string
+		data string
+		err  error
+	}{
+		{"a level it cannot decode", `[["x","1","1"]]`, errInvalidNumber},
+		{"a last level it cannot decode", `[["1","1","1"],["2","2","2"],["3","x","3"]]`, errInvalidNumber},
+		{"an order count it cannot decode", `[["1","1","1"],["2","2","x"]]`, errInvalidNumber},
+		{"a level that is not an array", `["1"]`, nil},
+		{"levels that are not an array", `{}`, nil},
+	} {
+		for _, in := range intos() {
+			t.Run("errors for "+tc.name+" "+in.name, func(t *testing.T) {
+				t.Parallel()
+				var decoded [][3]types.Number
+				decodeErr := json.Unmarshal([]byte(tc.data), &decoded)
+				require.Error(t, decodeErr, "Unmarshal must error for the levels")
+				levels := slices.Clone(in.levels)
+				err := levels.UnmarshalJSON([]byte(tc.data))
+				assert.ErrorContains(t, err, decodeErr.Error(), "UnmarshalJSON should return the error decoding the levels")
+				assert.ErrorAs(t, err, reflect.New(reflect.TypeOf(decodeErr)).Interface(), "UnmarshalJSON should return an error of the type decoding the levels gives")
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err, "UnmarshalJSON should return the error decoding a value")
+				}
+				assert.Equal(t, in.levels, levels, "UnmarshalJSON should leave the levels as they were when it errors")
+			})
+		}
+	}
 }
 
 func TestStoreUpdatePublication(t *testing.T) {

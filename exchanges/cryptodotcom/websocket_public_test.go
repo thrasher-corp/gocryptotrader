@@ -343,16 +343,6 @@ func TestEnabledInstrumentAssets(t *testing.T) { //nolint:tparallel // the cases
 	}
 }
 
-func TestWebsocketBookLevelsUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var levels WebsocketBookLevels
-	require.NoError(t, json.Unmarshal([]byte(`[["80775.54","0.82815","11"],["80779.94","0","0"]]`), &levels), "Unmarshal must not error")
-	exp := WebsocketBookLevels{{Price: 80775.54, Amount: 0.82815, OrderCount: 11}, {Price: 80779.94}}
-	assert.Equal(t, exp, levels, "Unmarshal should decode each level's price, quantity and order count")
-	assert.Error(t, json.Unmarshal([]byte(`[["x","1","1"]]`), &levels), "Unmarshal should error for a level it cannot decode")
-	assert.Error(t, json.Unmarshal([]byte(`{}`), &levels), "Unmarshal should error for levels that are not an array")
-}
-
 func TestIntegerUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
 	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
@@ -424,7 +414,7 @@ func TestWebsocketBookUnmarshalJSON(t *testing.T) {
 	var book WebsocketBook
 	require.NoError(t, json.Unmarshal([]byte(`{"update":{"asks":[],"bids":[]},"t":"1792893127459","u":"382097464750000","pu":"382097464465088","cs":"-12"}`), &book), "Unmarshal must not error for a delta in the schema's form")
 	exp := WebsocketBook{
-		Update:           &WebsocketBookUpdate{Asks: WebsocketBookLevels{}, Bids: WebsocketBookLevels{}},
+		Update:           &WebsocketBookUpdate{Asks: orderbook.LevelsArrayPriceAmountOrderCount{}, Bids: orderbook.LevelsArrayPriceAmountOrderCount{}},
 		PublishTime:      types.Time(time.UnixMilli(1792893127459)),
 		UpdateID:         382097464750000,
 		PreviousUpdateID: 382097464465088,

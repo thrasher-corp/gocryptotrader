@@ -1863,8 +1863,10 @@ type orderCancel struct {
 
 // CancelBatchOrders cancels up to 10 orders by their order IDs or client order IDs, and refuses more, as each list
 // takes 10: trigger orders, when their type is given, go straight to the list the advanced order methods cancel, and
-// the orders the trading methods refuse to cancel for the order named join them there. A list whose request fails
-// stops the list after it, and the outcomes of the list sent before it are returned with the error
+// the orders the trading methods refuse to cancel for the order named join them there. An order of an asset the
+// exchange does not support, or of a type SubmitOrder does not place, is refused before any list is sent; an order may
+// leave out its asset or give asset.All, and leave out its type or give order.AnyType. A list whose request fails stops
+// the list after it, and the outcomes of the list sent before it are returned with the error
 func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
 	if err := checkOrderListLength(len(orders), min(maxOrderListLength, maxAdvancedOrderListLength)); err != nil {
 		return nil, err
@@ -1874,7 +1876,17 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 		if orders[i].OrderID == "" && orders[i].ClientOrderID == "" {
 			return nil, fmt.Errorf("order %d: %w", i, order.ErrOrderIDNotSet)
 		}
-		cancels[i] = orderCancel{OrderID: orders[i].OrderID, ClientOrderID: orders[i].ClientOrderID, Advanced: isTriggerOrder(orders[i].Type)}
+		if a := orders[i].AssetType; a != asset.Empty && a != asset.All && !e.SupportsAsset(a) {
+			return nil, fmt.Errorf("order %d: %w: %s", i, asset.ErrNotSupported, a)
+		}
+		var trigger bool
+		if t := orders[i].Type; t != order.UnknownType && t != order.AnyType {
+			var err error
+			if _, trigger, err = orderTypeString(t); err != nil {
+				return nil, fmt.Errorf("order %d: %w", i, err)
+			}
+		}
+		cancels[i] = orderCancel{OrderID: orders[i].OrderID, ClientOrderID: orders[i].ClientOrderID, Advanced: trigger}
 	}
 	status, err := e.cancelOrders(ctx, cancels)
 	return &order.CancelBatchResponse{Status: status}, err

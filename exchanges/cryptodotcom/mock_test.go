@@ -74,7 +74,7 @@ func setupMockExchange(ex *Exchange) error {
 	if err := setupTestExchange(ex); err != nil {
 		return err
 	}
-	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+	sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 	server, err := mockServer()
 	if err != nil {
 		return fmt.Errorf("error starting NewVCRServer: %w", err)

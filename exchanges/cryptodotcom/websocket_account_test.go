@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -761,7 +762,7 @@ func TestWebsocketTransactions(t *testing.T) {
 func TestWebsocketUserBalance(t *testing.T) { //nolint:tparallel // the cases change one exchange's stored balances in order
 	t.Parallel()
 	ex := newTestExchange(t)
-	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+	sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 
@@ -821,7 +822,7 @@ func TestWebsocketUserBalance(t *testing.T) { //nolint:tparallel // the cases ch
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without balances, or for balances that cannot be decoded")
 
 	unauthenticated := newTestExchange(t)
-	setTestCredentials(unauthenticated, &accounts.Credentials{})
+	sharedtestvalues.SetTestCredentials(unauthenticated, &accounts.Credentials{})
 	// Checking the credentials, which the mock skips, refuses empty ones with an error the account store's check does not
 	// export
 	unauthenticated.SkipAuthCheck = false
@@ -1629,7 +1630,7 @@ func withoutUpdateTimes(t *testing.T, balances accounts.CurrencyBalances) accoun
 func TestWebsocketHandleUserBalance(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+	sharedtestvalues.SetTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	cro := accounts.Balance{Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884}
@@ -1700,7 +1701,7 @@ func TestWebsocketHandleUserBalance(t *testing.T) {
 	t.Run("balances without credentials", func(t *testing.T) {
 		t.Parallel()
 		unauthenticated := newTestExchange(t)
-		setTestCredentials(unauthenticated, &accounts.Credentials{})
+		sharedtestvalues.SetTestCredentials(unauthenticated, &accounts.Credentials{})
 		// Checking the credentials, which the mock skips, refuses empty ones
 		unauthenticated.SkipAuthCheck = false
 		assert.ErrorIs(t, unauthenticated.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), exchange.ErrCredentialsAreEmpty, "wsHandleUserBalance should report balances it has no credentials to store under")
@@ -1712,7 +1713,7 @@ func TestWebsocketHandleUserBalance(t *testing.T) {
 	t.Run("balances saved under the wallet lock", func(t *testing.T) {
 		t.Parallel()
 		locked := newTestExchange(t)
-		setTestCredentials(locked, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+		sharedtestvalues.SetTestCredentials(locked, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 		probe := &walletLockProbe{Exchange: locked}
 		locked.Accounts = accounts.MustNewAccounts(probe)
 		require.NoError(t, locked.wsHandleUserBalance(t.Context(), channelPush(t, accountFrame(t, "user.balance", 0))), "wsHandleUserBalance must save the balances")
@@ -1722,7 +1723,7 @@ func TestWebsocketHandleUserBalance(t *testing.T) {
 	t.Run("balances the account store refuses", func(t *testing.T) {
 		t.Parallel()
 		refused := newTestExchange(t)
-		setTestCredentials(refused, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
+		sharedtestvalues.SetTestCredentials(refused, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
 		refusedCreds, err := refused.GetCredentials(t.Context())
 		require.NoError(t, err, "GetCredentials must not error")
 		refused.Accounts = nil

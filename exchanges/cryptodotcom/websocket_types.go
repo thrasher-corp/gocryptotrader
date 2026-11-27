@@ -65,28 +65,12 @@ type websocketChannelPush struct {
 	Data           json.RawMessage `json:"data"`
 }
 
-// WebsocketBookLevels is one side of an order book
-type WebsocketBookLevels orderbook.Levels
-
-// UnmarshalJSON decodes a side of a book from its levels' [price, quantity, order count] arrays, whose values are quoted
-func (l *WebsocketBookLevels) UnmarshalJSON(data []byte) error {
-	var levels [][3]types.Number
-	if err := json.Unmarshal(data, &levels); err != nil {
-		return err
-	}
-	*l = make(WebsocketBookLevels, len(levels))
-	for i := range levels {
-		(*l)[i] = orderbook.Level{Price: levels[i][0].Float64(), Amount: levels[i][1].Float64(), OrderCount: levels[i][2].Int64()}
-	}
-	return nil
-}
-
 // WebsocketBook is an order book from the book channel: a snapshot of each side's levels, or a delta, whose
 // Update holds the levels changed since the update PreviousUpdateID names; a delta's level of zero quantity is deleted
 type WebsocketBook struct {
-	Asks   WebsocketBookLevels  `json:"asks"`
-	Bids   WebsocketBookLevels  `json:"bids"`
-	Update *WebsocketBookUpdate `json:"update"`
+	Asks   orderbook.LevelsArrayPriceAmountOrderCount `json:"asks"`
+	Bids   orderbook.LevelsArrayPriceAmountOrderCount `json:"bids"`
+	Update *WebsocketBookUpdate                       `json:"update"`
 	// PublishTime is when the book was published and UpdateTime when it was last updated, a little before
 	PublishTime types.Time `json:"t"`
 	UpdateTime  types.Time `json:"tt"`
@@ -124,8 +108,8 @@ func (i *Integer) UnmarshalJSON(data []byte) error {
 
 // WebsocketBookUpdate is the levels a book delta changes
 type WebsocketBookUpdate struct {
-	Asks WebsocketBookLevels `json:"asks"`
-	Bids WebsocketBookLevels `json:"bids"`
+	Asks orderbook.LevelsArrayPriceAmountOrderCount `json:"asks"`
+	Bids orderbook.LevelsArrayPriceAmountOrderCount `json:"bids"`
 }
 
 // WebsocketTicker is an instrument's ticker from the ticker channel

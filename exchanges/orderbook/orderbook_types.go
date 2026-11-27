@@ -210,3 +210,20 @@ func (l *LevelsArrayPriceAmount) UnmarshalJSON(data []byte) error {
 func (l *LevelsArrayPriceAmount) Levels() Levels {
 	return Levels(*l)
 }
+
+// LevelsArrayPriceAmountOrderCount is a side of an order book decoded from a JSON array of [price, amount, order count]
+// arrays, whose values may be numbers or quoted numbers
+type LevelsArrayPriceAmountOrderCount Levels
+
+// UnmarshalJSON implements json.Unmarshaler
+func (l *LevelsArrayPriceAmountOrderCount) UnmarshalJSON(data []byte) error {
+	var v [][3]types.Number
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*l = make(LevelsArrayPriceAmountOrderCount, len(v))
+	for x := range v {
+		(*l)[x] = Level{Price: v[x][0].Float64(), Amount: v[x][1].Float64(), OrderCount: v[x][2].Int64()}
+	}
+	return nil
+}
