@@ -3,143 +3,172 @@ package v22_test
 import (
 	"testing"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v22 "github.com/thrasher-corp/gocryptotrader/config/versions/v22"
 )
 
-func TestUpgradeConfig(t *testing.T) {
+func TestExchanges(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
+}
+
+func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
 
+	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
+		name string
+		in   string
+		exp  string
 	}{
 		{
-			name:     "previous default",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name: "old defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 		{
-			name:     "previous nanosecond selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"custom":"preserved"}}}`,
+			name: "custom endpoints with the version prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
 		},
 		{
-			name:     "missing setting",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true}}}`,
+			name: "custom endpoints without the prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
 		},
 		{
-			name:     "missing gRPC configuration",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
+			name: "unrelated endpoints are kept",
+			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v22.Version).UpgradeConfig(t.Context(), []byte(tc.input))
-			require.NoError(t, err, "UpgradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "UpgradeConfig should remove, and only remove, the obsolete timestamp setting")
+			out, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
 		})
 	}
+
+	in := []byte(`{"name":"GateIO","api":{}}`)
+	out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+
+	_, err = new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
 }
 
-func TestDowngradeConfig(t *testing.T) {
+func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
 
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
-		name     string
-		input    string
-		expected string
-		errs     []error
-		errField string
+		name string
+		in   string
+		exp  string
 	}{
 		{
-			name:     "gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved"}}}`,
-			expected: `{"remoteControl":{"gRPC":{"enabled":true,"custom":"preserved","timeInNanoSeconds":false}}}`,
+			name: "new defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
 		},
 		{
-			name:     "explicit seconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
+			name: "a custom bare host regains the version prefix and a custom path gains a final slash",
+			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
 		},
 		{
-			name:     "explicit nanoseconds selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true}}}`,
+			name: "custom paths over http or ending in the version prefix gain a final slash",
+			in:   `{"RestSpotURL":"http://localhost:8080/gateway","RestFuturesURL":"https://proxy.example/gate-fx/api/v4"}`,
+			exp:  `{"RestSpotURL":"http://localhost:8080/gateway/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/"}`,
 		},
 		{
-			name:     "null selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":null}}}`,
-			expected: `{"remoteControl":{"gRPC":{"timeInNanoSeconds":false}}}`,
+			name: "a custom bare host with a port regains the version prefix and a host ending in a slash is kept",
+			in:   `{"RestSpotURL":"https://proxy.example:8443","RestFuturesURL":"https://proxy.example/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example:8443/api/v4/","RestFuturesURL":"https://proxy.example/"}`,
 		},
 		{
-			name:     "numeric selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":1}}}`,
-			errs:     []error{common.ErrTypeAssertFailure},
-			errField: "gRPC timestamp precision",
-		},
-		{
-			name:     "string selection",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":"true"}}}`,
-			errs:     []error{common.ErrTypeAssertFailure},
-			errField: "gRPC timestamp precision",
-		},
-		{
-			name:     "missing gRPC configuration remains absent",
-			input:    `{"name":"gocryptotrader"}`,
-			expected: `{"name":"gocryptotrader"}`,
-		},
-		{
-			name:     "non-object gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":null}}`,
-			expected: `{"remoteControl":{"gRPC":null}}`,
-		},
-		{
-			name:     "malformed gRPC configuration",
-			input:    `{"remoteControl":{"gRPC":`,
-			errs:     []error{common.ErrGettingField, jsonparser.MalformedJsonError},
-			errField: "gRPC configuration",
-		},
-		{
-			name:     "malformed timestamp precision",
-			input:    `{"remoteControl":{"gRPC":{"timeInNanoSeconds":true!}}}`,
-			errs:     []error{common.ErrGettingField, jsonparser.UnknownValueTypeError},
-			errField: "gRPC timestamp precision",
+			name: "endpoints already carrying the prefix and placeholders are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			output, err := new(v22.Version).DowngradeConfig(t.Context(), []byte(tc.input))
-			if len(tc.errs) != 0 {
-				for _, want := range tc.errs {
-					require.ErrorIs(t, err, want, "DowngradeConfig must return the expected error")
-				}
-				require.ErrorContains(t, err, tc.errField, "DowngradeConfig must name the field it failed to read")
-				assert.Equal(t, tc.input, string(output), "DowngradeConfig should return the original configuration on error")
-				return
-			}
-			require.NoError(t, err, "DowngradeConfig must not error")
-			assert.JSONEq(t, tc.expected, string(output), "DowngradeConfig should restore the legacy default without overriding explicit settings")
+			out, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
+
+	_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
 }
 
-func TestRegisteredMigration(t *testing.T) {
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-
-	input := []byte(`{"version":21,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":true}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`)
-	upgraded, err := versions.Manager.Deploy(t.Context(), input, 22)
-	require.NoError(t, err, "Deploy must apply the registered v22 upgrade")
-	assert.JSONEq(t, `{"version":22,"remoteControl":{"gRPC":{"enabled":true}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`, string(upgraded), "Deploy should remove the obsolete setting, preserve HTX and OKX settings and set version 22")
-
-	downgraded, err := versions.Manager.Deploy(t.Context(), upgraded, 21)
-	require.NoError(t, err, "Deploy must apply the registered v22 downgrade")
-	assert.JSONEq(t, `{"version":21,"remoteControl":{"gRPC":{"enabled":true,"timeInNanoSeconds":false}},"exchanges":[{"name":"HTX"},{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}]}`, string(downgraded), "Deploy should restore the legacy default, preserve HTX and OKX settings and set version 21")
+	for _, endpoint := range []string{"https://proxy.example/gate/api/v4/", "https://proxy.example/gateway/", "https://proxy.example/"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+			in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"` + endpoint + `"}}}`)
+			up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+		})
+	}
 }

@@ -1,51 +1,116 @@
-// Package v22 removes the obsolete configurable gRPC timestamp precision.
+// Package v22 replaces GateIO's old default REST endpoints, which carried the API version prefix that GateIO now adds
+// to a bare host.
 package v22
 
 import (
 	"context"
+	"encoding/json" //nolint:depguard // Used instead of gct encoding/json so that we can ensure consistent library functionality between versions
 	"errors"
-	"fmt"
+	"strings"
 
 	"github.com/buger/jsonparser"
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// Version implements ConfigVersion for the gRPC timestamp migration.
+// Version is an ExchangeVersion for GateIO's default REST endpoints, which no longer carry the API version prefix
 type Version struct{}
 
-// UpgradeConfig removes the timestamp precision setting because protobuf
-// timestamps now preserve nanoseconds without configuration.
-func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	return jsonparser.Delete(config, "remoteControl", "gRPC", "timeInNanoSeconds"), nil
+const apiVersionPrefix = "/api/v4"
+
+// endpoint is a GateIO REST endpoint key with its default before and after this version
+type endpoint struct {
+	key        string
+	oldDefault string
+	newDefault string
 }
 
-// DowngradeConfig restores the legacy default expected by older releases, as the
-// upgrade discarded any configured precision. An explicitly supplied boolean is
-// preserved, and other non-null values return an error.
-func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
-	_, valueType, _, err := jsonparser.Get(config, "remoteControl", "gRPC")
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, nil
-	case err != nil:
-		return config, fmt.Errorf("%w gRPC configuration: %w", common.ErrGettingField, err)
-	case valueType != jsonparser.Object:
-		return config, nil
-	}
+// endpoints lists the REST endpoints GateIO prefixes with the API version. The testnet default never carried the
+// prefix and is unchanged, so only a custom testnet endpoint changes.
+var endpoints = []endpoint{
+	{key: "RestSpotURL", oldDefault: "https://api.gateio.ws/api/v4/", newDefault: "https://api.gateio.ws"},
+	{key: "RestFuturesURL", oldDefault: "https://fx-api.gateio.ws/api/v4/", newDefault: "https://fx-api.gateio.ws"},
+	{key: "RestSpotSupplementaryURL", oldDefault: "https://fx-api-testnet.gateio.ws", newDefault: "https://fx-api-testnet.gateio.ws"},
+}
 
-	_, precisionType, _, err := jsonparser.Get(config, "remoteControl", "gRPC", "timeInNanoSeconds")
-	switch {
-	case err == nil && precisionType == jsonparser.Boolean:
-		return config, nil
-	case err == nil && precisionType != jsonparser.Null:
-		return config, fmt.Errorf("%w: gRPC timestamp precision must be a boolean, got %v", common.ErrTypeAssertFailure, precisionType)
-	case err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrGettingField, err)
-	}
+// Exchanges returns every exchange; UpgradeExchange and DowngradeExchange pick out GateIO themselves, matching its name
+// in any case as the engine does
+func (*Version) Exchanges() []string { return []string{"*"} }
 
-	updated, err := jsonparser.Set(config, []byte("false"), "remoteControl", "gRPC", "timeInNanoSeconds")
+// UpgradeExchange removes the old default endpoints, so the new defaults apply. Custom endpoints are kept, as GateIO
+// still uses an endpoint ending in a slash or with a path as the root of the versioned API, as earlier versions use every
+// endpoint
+func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isGateIO(e) {
+		return e, nil
+	}
+	for _, ep := range endpoints {
+		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			continue
+		}
+		if err != nil {
+			return e, err
+		}
+		if url == ep.oldDefault && ep.oldDefault != ep.newDefault {
+			e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
+		}
+	}
+	return e, nil
+}
+
+// DowngradeExchange removes the new default endpoints, so the old defaults apply. It adds the version prefix to a custom
+// bare host and a final slash to a custom endpoint with a path, since earlier versions append each request's path to
+// the endpoint as written
+func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
+	if !isGateIO(e) {
+		return e, nil
+	}
+	for _, ep := range endpoints {
+		url, err := jsonparser.GetString(e, "api", "urlEndpoints", ep.key)
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			continue
+		}
+		if err != nil {
+			return e, err
+		}
+		if url == ep.newDefault {
+			if ep.oldDefault != ep.newDefault {
+				e = jsonparser.Delete(e, "api", "urlEndpoints", ep.key)
+			}
+			continue
+		}
+		switch {
+		case isBareHost(url):
+			url += apiVersionPrefix + "/"
+		case strings.Contains(url, "://") && !strings.HasSuffix(url, "/"):
+			url += "/"
+		default:
+			continue
+		}
+		if e, err = setEndpoint(e, ep.key, url); err != nil {
+			return e, err
+		}
+	}
+	return e, nil
+}
+
+// isBareHost reports whether an endpoint is a scheme and host, with no path or trailing slash, which GateIO now prefixes
+// with the API version while earlier versions use any other endpoint as written. It is a local copy of Gate's check, so
+// a later change to Gate's leaves this migration as it is
+func isBareHost(endpoint string) bool {
+	_, rest, hasScheme := strings.Cut(endpoint, "://")
+	return hasScheme && !strings.Contains(rest, "/")
+}
+
+// isGateIO reports whether an exchange config is GateIO's, matching its name in any case
+func isGateIO(e []byte) bool {
+	name, err := jsonparser.GetString(e, "name")
+	return err == nil && strings.EqualFold(name, "GateIO")
+}
+
+func setEndpoint(e []byte, key, url string) ([]byte, error) {
+	v, err := json.Marshal(url)
 	if err != nil {
-		return config, fmt.Errorf("%w gRPC timestamp precision: %w", common.ErrSettingField, err)
+		return e, err
 	}
-	return updated, nil
+	return jsonparser.Set(e, v, "api", "urlEndpoints", key)
 }
