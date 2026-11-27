@@ -813,7 +813,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if err != nil {
 			return nil, err
 		}
-		modResp.OrderID = resp.ID
+		modResp.OrderID, modResp.ClientOrderID = resp.ID, resp.ClientOrderID
 		return modResp, nil
 	case order.Stop, order.StopLimit:
 		oResp, err := e.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderRequest{
@@ -834,7 +834,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		if err != nil {
 			return nil, err
 		}
-		modResp.OrderID = oResp.ID
+		modResp.OrderID, modResp.ClientOrderID = oResp.ID, oResp.ClientOrderID
 		return modResp, nil
 	default:
 		return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, action.Type)

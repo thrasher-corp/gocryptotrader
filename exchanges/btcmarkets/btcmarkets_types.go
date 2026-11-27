@@ -101,6 +101,20 @@ type OrderData struct {
 	TimeInForce  string        `json:"timeInForce"`
 }
 
+// replaceOrderResponse holds the order BTC Markets placed to replace another, as ModifyOrder reads it. Its open amount
+// is unset when the reply leaves it out or sends it null or blank, none of which states how much of the order is open.
+type replaceOrderResponse struct {
+	OrderID      string              `json:"orderId"`
+	MarketID     currency.Pair       `json:"marketId"`
+	Side         string              `json:"side"`
+	Type         string              `json:"type"`
+	CreationTime time.Time           `json:"creationTime"`
+	Price        types.Number        `json:"price"`
+	Amount       types.Number        `json:"amount"`
+	OpenAmount   types.PreciseNumber `json:"openAmount"`
+	Status       string              `json:"status"`
+}
+
 // CancelOrderResp stores data for cancelled orders
 type CancelOrderResp struct {
 	OrderID       string `json:"orderId"`

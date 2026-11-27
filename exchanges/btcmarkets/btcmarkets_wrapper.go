@@ -447,8 +447,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	resp, err := e.ReplaceOrder(ctx, action.OrderID, action.ClientOrderID, action.Price, action.Amount)
-	if err != nil {
+	var resp *replaceOrderResponse
+	if err := e.replaceOrder(ctx, action.OrderID, action.ClientOrderID, action.Price, action.Amount, &resp); err != nil {
 		return nil, err
 	}
 	mod, err := action.DeriveModifyResponse()
@@ -470,9 +470,15 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	mod.OrderID = resp.OrderID
 	mod.LastUpdated = resp.CreationTime
-	mod.Price = resp.Price
-	mod.Amount = resp.Amount
-	mod.RemainingAmount = resp.OpenAmount
+	mod.Price = resp.Price.Float64()
+	mod.Amount = resp.Amount.Float64()
+	switch {
+	case !resp.OpenAmount.IsZero():
+		mod.RemainingAmount = resp.OpenAmount.Float64()
+		mod.ExecutedAmount = mod.Amount - mod.RemainingAmount
+	case mod.Status == order.Filled:
+		mod.ExecutedAmount = mod.Amount
+	}
 	return mod, nil
 }
 

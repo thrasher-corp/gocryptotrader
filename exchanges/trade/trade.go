@@ -80,7 +80,10 @@ func AddTradesToBuffer(data ...Data) error {
 	validDatas := make([]Data, 0, len(data))
 	var errs error
 	for i := range data {
-		if data[i].Price == 0 ||
+		// A spread or combo is priced from its legs' prices, so zero and negative prices are real; any other negative
+		// price marks a sell
+		multiLeg := data[i].AssetType.IsMultiLeg()
+		if (data[i].Price == 0 && !multiLeg) ||
 			data[i].Amount == 0 ||
 			data[i].CurrencyPair.IsEmpty() ||
 			data[i].Exchange == "" ||
@@ -89,7 +92,7 @@ func AddTradesToBuffer(data ...Data) error {
 			continue
 		}
 
-		if data[i].Price < 0 {
+		if data[i].Price < 0 && !multiLeg {
 			data[i].Price *= -1
 			data[i].Side = order.Sell
 		}
@@ -110,6 +113,14 @@ func AddTradesToBuffer(data ...Data) error {
 	processor.buffer = append(processor.buffer, validDatas...)
 	processor.mutex.Unlock()
 	return errs
+}
+
+// BufferedTrades returns a copy of the trades waiting to be saved to the
+// database
+func BufferedTrades() []Data {
+	processor.mutex.Lock()
+	defer processor.mutex.Unlock()
+	return slices.Clone(processor.buffer)
 }
 
 // Run will save trade data to the database in batches

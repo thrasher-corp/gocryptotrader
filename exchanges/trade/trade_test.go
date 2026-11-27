@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"slices"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -93,6 +94,69 @@ func TestAddTradesToBuffer(t *testing.T) {
 		t.Error("expected unknown side")
 	}
 	processor.mutex.Unlock()
+
+	t.Run("prices by asset", func(t *testing.T) {
+		t.Parallel()
+		spread := currency.NewPairWithDelimiter("BTC-USDT", "BTC-USDT-SWAP", "_")
+		combo := currency.NewPairWithDelimiter("BTC", "FS-27DEC24_PERP", currency.DashDelimiter)
+		at := time.UnixMilli(1795413500000)
+		trade := func(a asset.Item, pair currency.Pair, price, amount float64, side order.Side) Data {
+			return Data{TID: "1", Timestamp: at, Exchange: "test!", CurrencyPair: pair, AssetType: a, Price: price, Amount: amount, Side: side}
+		}
+		for _, tc := range []struct {
+			name    string
+			in      Data
+			exp     Data
+			refused bool
+		}{
+			{"negative spread price keeps its sign and side", trade(asset.Spread, spread, -46, 2, order.Buy), trade(asset.Spread, spread, -46, 2, order.Buy), false},
+			{"zero spread price", trade(asset.Spread, spread, 0, 2, order.Sell), trade(asset.Spread, spread, 0, 2, order.Sell), false},
+			{"negative future combo price keeps its sign and side", trade(asset.FutureCombo, combo, -5, 1, order.Buy), trade(asset.FutureCombo, combo, -5, 1, order.Buy), false},
+			{"zero option combo price", trade(asset.OptionCombo, combo, 0, 1, order.Sell), trade(asset.OptionCombo, combo, 0, 1, order.Sell), false},
+			{"negative spread amount is a sell", trade(asset.Spread, spread, -3, -1, order.UnknownSide), trade(asset.Spread, spread, -3, 1, order.Sell), false},
+			{"negative spot price is a sell at its magnitude", trade(asset.Spot, currency.NewBTCUSD(), -50, 1, order.UnknownSide), trade(asset.Spot, currency.NewBTCUSD(), 50, 1, order.Sell), false},
+			{"negative perpetual swap price is a sell at its magnitude", trade(asset.PerpetualSwap, currency.NewBTCUSD(), -50, 1, order.Buy), trade(asset.PerpetualSwap, currency.NewBTCUSD(), 50, 1, order.Sell), false},
+			{"zero spot price is refused", trade(asset.Spot, currency.NewBTCUSD(), 0, 1, order.Buy), Data{}, true},
+		} {
+			// The rows share the package's trade buffer, so they run in turn
+			t.Run(tc.name, func(t *testing.T) {
+				processor.mutex.Lock()
+				processor.buffer = nil
+				processor.mutex.Unlock()
+				err := AddTradesToBuffer(tc.in)
+				processor.mutex.Lock()
+				buffered := slices.Clone(processor.buffer)
+				processor.mutex.Unlock()
+				if tc.refused {
+					assert.ErrorContains(t, err, "received invalid trade data", "AddTradesToBuffer should refuse the trade")
+					assert.Empty(t, buffered, "AddTradesToBuffer should buffer nothing it refuses")
+					return
+				}
+				require.NoError(t, err, "AddTradesToBuffer must accept the trade")
+				require.Len(t, buffered, 1, "AddTradesToBuffer must buffer the trade")
+				assert.NotEqual(t, uuid.Nil(), buffered[0].ID, "the buffered trade should be given an ID")
+				buffered[0].ID = uuid.Nil()
+				assert.Equal(t, tc.exp, buffered[0], "AddTradesToBuffer should buffer the trade's price and side by its asset's convention")
+			})
+		}
+	})
+}
+
+func TestBufferedTrades(t *testing.T) {
+	// Serial, as it replaces the trade buffer the package's parallel tests share
+	processor.mutex.Lock()
+	held := processor.buffer
+	processor.buffer = []Data{{TID: "1"}, {TID: "2"}}
+	processor.mutex.Unlock()
+	t.Cleanup(func() {
+		processor.mutex.Lock()
+		processor.buffer = held
+		processor.mutex.Unlock()
+	})
+	buffered := BufferedTrades()
+	assert.Equal(t, []Data{{TID: "1"}, {TID: "2"}}, buffered, "BufferedTrades should return the buffered trades")
+	buffered[0].TID = "3"
+	assert.Equal(t, []Data{{TID: "1"}, {TID: "2"}}, BufferedTrades(), "BufferedTrades should return a copy of the buffer")
 }
 
 func TestSQLDataToTrade(t *testing.T) {

@@ -1468,6 +1468,29 @@ func TestUpdateExisting(t *testing.T) {
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
+
+	t.Run("stores a spread order's negative price", func(t *testing.T) {
+		t.Parallel()
+		spreadPair := currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter)
+		placed, reportTime := time.UnixMilli(1700000000000), time.UnixMilli(1700000001000)
+		stored := &order.Detail{
+			Exchange: testExchange, OrderID: "spread-1", Pair: spreadPair, AssetType: asset.Spread, Side: order.Buy, Type: order.Limit,
+			Status: order.Active, Price: -5, Amount: 1, Date: placed, LastUpdated: placed,
+		}
+		s := &store{
+			Orders:                    map[string][]*order.Detail{strings.ToLower(testExchange): {stored}},
+			futuresPositionController: futures.SetupPositionController(),
+		}
+		require.NoError(t, s.updateExisting(&order.Detail{
+			Exchange: testExchange, OrderID: "spread-1", Status: order.Filled, Price: -7, ExecutedAmount: 1, AverageExecutedPrice: -7.5, LastUpdated: reportTime,
+		}), "updateExisting must not error")
+		// The position tracker, which tracks spread orders as futures, lower-cases the stored order's exchange name
+		exp := &order.Detail{
+			Exchange: strings.ToLower(testExchange), OrderID: "spread-1", Pair: spreadPair, AssetType: asset.Spread, Side: order.Buy, Type: order.Limit,
+			Status: order.Filled, Price: -7, Amount: 1, ExecutedAmount: 1, AverageExecutedPrice: -7.5, Date: placed, LastUpdated: reportTime,
+		}
+		assert.Equal(t, exp, s.Orders[strings.ToLower(testExchange)][0], "updateExisting should store the spread order's negative prices")
+	})
 }
 
 func TestOrderManagerExists(t *testing.T) {

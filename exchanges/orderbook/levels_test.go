@@ -232,6 +232,25 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	}, 0)
 
 	Check(t, b, 6, 36, 6)
+
+	t.Run("an update at a level's price takes its price and size as sent", func(t *testing.T) {
+		asks := askLevels{}
+		asks.load(Levels{{Price: 0.01, StrPrice: "0.010", Amount: 1, StrAmount: "1", OrderCount: 4}, {Price: 0.02, StrPrice: "0.020", Amount: 3, StrAmount: "3", OrderCount: 2}})
+		asks.updateInsertByPrice(Levels{{Price: 0.01, StrPrice: "0.01", Amount: 2, StrAmount: "2.00"}}, 0)
+		exp := Levels{{Price: 0.01, StrPrice: "0.01", Amount: 2, StrAmount: "2.00", OrderCount: 4}, {Price: 0.02, StrPrice: "0.020", Amount: 3, StrAmount: "3", OrderCount: 2}}
+		assert.Equal(t, exp, asks.Levels, "an ask update should replace the level's price and size as sent and keep its other fields")
+
+		bids := bidLevels{}
+		bids.load(Levels{{Price: 0.02, StrPrice: "0.020", Amount: 1, StrAmount: "1", OrderCount: 4}, {Price: 0.01, StrPrice: "0.010", Amount: 3, StrAmount: "3", OrderCount: 2}})
+		bids.updateInsertByPrice(Levels{{Price: 0.02, StrPrice: "0.02", Amount: 2, StrAmount: "2.00"}}, 0)
+		exp = Levels{{Price: 0.02, StrPrice: "0.02", Amount: 2, StrAmount: "2.00", OrderCount: 4}, {Price: 0.01, StrPrice: "0.010", Amount: 3, StrAmount: "3", OrderCount: 2}}
+		assert.Equal(t, exp, bids.Levels, "a bid update should replace the level's price and size as sent and keep its other fields")
+
+		unspelled := askLevels{}
+		unspelled.load(Levels{{Price: 1, StrPrice: "1.0", Amount: 1, StrAmount: "1"}})
+		unspelled.updateInsertByPrice(Levels{{Price: 1, Amount: 2}}, 0)
+		assert.Equal(t, Levels{{Price: 1, Amount: 2}}, unspelled.Levels, "an update sent without the level's price and size as text should leave the level without them")
+	})
 }
 
 func TestUpdateByID(t *testing.T) {

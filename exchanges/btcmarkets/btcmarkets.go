@@ -431,16 +431,22 @@ func (e *Exchange) RemoveOrder(ctx context.Context, id string) (CancelOrderResp,
 
 // ReplaceOrder cancels an order and then places a new order.
 func (e *Exchange) ReplaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64) (*OrderData, error) {
+	var resp *OrderData
+	return resp, e.replaceOrder(ctx, id, clientOrderID, price, amount, &resp)
+}
+
+// replaceOrder cancels an order and then places a new order, decoding the new order into result
+func (e *Exchange) replaceOrder(ctx context.Context, id, clientOrderID string, price, amount float64, result any) error {
 	if price <= 0 {
-		return nil, fmt.Errorf("price %w", errInvalidAmount)
+		return fmt.Errorf("price %w", errInvalidAmount)
 	}
 
 	if amount <= 0 {
-		return nil, fmt.Errorf("amount %w", errInvalidAmount)
+		return fmt.Errorf("amount %w", errInvalidAmount)
 	}
 
 	if id == "" {
-		return nil, errIDRequired
+		return errIDRequired
 	}
 
 	req := make(map[string]any, 3)
@@ -450,12 +456,11 @@ func (e *Exchange) ReplaceOrder(ctx context.Context, id, clientOrderID string, p
 		req["clientOrderId"] = clientOrderID
 	}
 
-	var resp *OrderData
-	return resp, e.SendAuthenticatedRequest(ctx,
+	return e.SendAuthenticatedRequest(ctx,
 		http.MethodPut,
 		btcMarketsOrders+"/"+id,
 		req,
-		&resp,
+		result,
 		request.Auth)
 }
 

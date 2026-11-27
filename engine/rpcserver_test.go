@@ -4564,3 +4564,87 @@ func TestCancelBatchOrders(t *testing.T) {
 		assert.ErrorContains(t, err, "exchange unavailable")
 	})
 }
+
+// cancelAllRecorder records the cancel request the RPC server passes to CancelAllOrders
+type cancelAllRecorder struct {
+	exchange.IBotExchange
+	got *order.Cancel
+	err error
+}
+
+func (c *cancelAllRecorder) CancelAllOrders(_ context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+	c.got = req
+	if c.err != nil {
+		return order.CancelAllResponse{}, c.err
+	}
+	return order.CancelAllResponse{Status: map[string]string{"1": "cancelled", "2": "cancelled"}}, nil
+}
+
+func TestRPCServerCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	errVenue := errors.New("venue refused the cancel")
+	newServer := func(t *testing.T, venueErr error) (*RPCServer, *cancelAllRecorder) {
+		t.Helper()
+		em := NewExchangeManager()
+		exch, err := em.NewExchangeByName("Binance")
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+		cp := currency.NewBTCUSDT()
+		exch.GetBase().CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				Available:     currency.Pairs{cp, currency.NewPair(currency.ETH, currency.USDT)},
+				Enabled:       currency.Pairs{cp},
+				AssetEnabled:  true,
+				ConfigFormat:  &currency.PairFormat{Uppercase: true},
+				RequestFormat: &currency.PairFormat{Uppercase: true},
+			},
+		}
+		rec := &cancelAllRecorder{IBotExchange: exch, err: venueErr}
+		require.NoError(t, em.Add(rec), "Add must not error")
+		return &RPCServer{Engine: &Engine{ExchangeManager: em}}, rec
+	}
+
+	t.Run("invalid requests", func(t *testing.T) {
+		t.Parallel()
+		s, rec := newServer(t, nil)
+		_, err := s.CancelAllOrders(t.Context(), nil)
+		assert.ErrorIs(t, err, errInvalidArguments, "a nil request should be rejected")
+		_, err = s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: "Binance"})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "a request without an asset should be rejected")
+		_, err = s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: "unknown", AssetType: asset.Spot.String()})
+		assert.ErrorIs(t, err, ErrExchangeNotFound, "an unknown exchange should be rejected")
+		_, err = s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: "Binance", AssetType: asset.Futures.String()})
+		assert.ErrorIs(t, err, currency.ErrAssetNotFound, "an asset the exchange does not trade should be rejected")
+		assert.Nil(t, rec.got, "rejected requests should not reach the exchange")
+	})
+
+	t.Run("no pair filter", func(t *testing.T) {
+		t.Parallel()
+		fields := (&gctrpc.CancelAllOrdersRequest{}).ProtoReflect().Descriptor().Fields()
+		names := make([]string, fields.Len())
+		for i := range names {
+			names[i] = string(fields.Get(i).Name())
+		}
+		assert.Equal(t, []string{"exchange", "asset_type"}, names, "the request should carry only an exchange and an asset, as exchanges such as Gemini cancel every order whatever pair is given")
+	})
+
+	t.Run("asset scope", func(t *testing.T) {
+		t.Parallel()
+		s, rec := newServer(t, nil)
+		resp, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: "Binance", AssetType: asset.Spot.String()})
+		require.NoError(t, err, "CancelAllOrders must not error")
+		assert.Equal(t, &order.Cancel{Exchange: "Binance", AssetType: asset.Spot}, rec.got, "the exchange should receive the asset to cancel")
+		exp := &gctrpc.CancelAllOrdersResponse{
+			Orders: []*gctrpc.Orders{{Exchange: "Binance", OrderStatus: map[string]string{"1": "cancelled", "2": "cancelled"}}},
+			Count:  2,
+		}
+		assert.Equal(t, exp, resp, "CancelAllOrders should report every cancelled order")
+	})
+
+	t.Run("exchange error", func(t *testing.T) {
+		t.Parallel()
+		s, _ := newServer(t, errVenue)
+		_, err := s.CancelAllOrders(t.Context(), &gctrpc.CancelAllOrdersRequest{Exchange: "Binance", AssetType: asset.Spot.String()})
+		assert.ErrorIs(t, err, errVenue, "an exchange error should be returned")
+	})
+}

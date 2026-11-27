@@ -1231,6 +1231,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Side:          side,
 		Type:          oType,
 		Amount:        r.Amount,
+		QuoteAmount:   r.QuoteAmount,
 		Price:         r.Price,
 		ClientID:      r.ClientId,
 		ClientOrderID: r.ClientOrderId,
@@ -1490,15 +1491,30 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}, nil
 }
 
-// CancelAllOrders cancels all orders, filterable by exchange
+// CancelAllOrders cancels all orders of an exchange's asset
 func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
+	if r == nil {
+		return nil, errInvalidArguments
+	}
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return nil, err
+	}
+
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
+	if err := checkParams(r.Exchange, exch, a, currency.EMPTYPAIR); err != nil {
+		return nil, err
+	}
+
 	// TODO: Change to order manager
-	resp, err := exch.CancelAllOrders(ctx, nil)
+	resp, err := exch.CancelAllOrders(ctx, &order.Cancel{
+		Exchange:  exch.GetName(),
+		AssetType: a,
+	})
 	if err != nil {
 		return nil, err
 	}

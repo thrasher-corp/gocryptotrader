@@ -1,0 +1,2 @@
+{"arg":{"channel":"trades","instId":"BTC-USDT"},"data":[{"instId":"BTC-USDT","tradeId":"1089297792","px":"61512.6","sz":"0.00105628","side":"buy","ts":"1795405194320","count":"3","source":"0","seqId":84749417822}]}
+{"arg":{"channel":"trades","instId":"BTC-USDT"},"data":[{"instId":"BTC-USDT","tradeId":"1089297793","px":"61513","sz":"0.00001","side":"sell","ts":"1795405195366","count":"1","source":"0","seqId":84749419932}]}

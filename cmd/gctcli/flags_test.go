@@ -58,9 +58,11 @@ func TestCommandFlagValues(t *testing.T) {
 			values:   map[string]any{"amount": 2.5},
 		},
 		{
-			name: "submit required side and amount", command: submitOrderCommand,
-			baseArgs: []string{"--exchange=Binance", "--asset=spot", "--pair=BTC-USDT", "--side=buy", "--type=market", "--amount=2.5"},
-			values:   map[string]any{"side": "buy", "amount": 2.5},
+			name: "submit required side and optional amounts", command: submitOrderCommand,
+			baseArgs: []string{"--exchange=Binance", "--asset=spot", "--pair=BTC-USDT", "--side=buy", "--type=market"},
+			args:     []string{"--amount=2.5", "--quote_amount=100"},
+			defaults: map[string]any{"amount": float64(0), "quote_amount": float64(0)},
+			values:   map[string]any{"side": "buy", "amount": 2.5, "quote_amount": float64(100)},
 		},
 		{
 			name: "Bollinger bands", command: technicalAnalysisCommand.Command("bbands"),

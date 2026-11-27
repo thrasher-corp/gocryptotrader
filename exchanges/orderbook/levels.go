@@ -133,6 +133,8 @@ updates:
 					// Update
 					(*l)[y].Amount = updts[x].Amount
 					(*l)[y].StrAmount = updts[x].StrAmount
+					// An exchange can send one price in several spellings, and checksums the spelling it last sent
+					(*l)[y].StrPrice = updts[x].StrPrice
 				}
 				continue updates
 			case compare((*l)[y].Price, updts[x].Price):

@@ -211,8 +211,11 @@ type ModifyResponse struct {
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
 	RemainingAmount float64
-	Date            time.Time
-	LastUpdated     time.Time
+	// ExecutedAmount is the amount the amended or replacement order has
+	// executed, when the venue's reply reports it
+	ExecutedAmount float64
+	Date           time.Time
+	LastUpdated    time.Time
 }
 
 // Detail contains all properties of an order

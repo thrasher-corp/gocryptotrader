@@ -1024,7 +1024,14 @@ var submitOrderCommand = &cli.Command{
 			Required: true,
 			Usage:    "the order type (MARKET OR LIMIT)",
 		},
-		requiredOrderAmountFlag,
+		&cli.Float64Flag{
+			Name:  amountFlagName,
+			Usage: orderAmountUsage + ", required unless the quote amount is set",
+		},
+		&cli.Float64Flag{
+			Name:  quoteAmountFlagName,
+			Usage: orderQuoteAmountUsage,
+		},
 		&cli.Float64Flag{
 			Name:  priceFlagName,
 			Usage: orderPriceUsage,
@@ -1299,10 +1306,11 @@ func cancelBatchOrders(c *cli.Context) error {
 
 var cancelAllOrdersCommand = &cli.Command{
 	Name:   "cancelallorders",
-	Usage:  "cancels all orders for an exchange",
+	Usage:  "cancels all orders of an exchange asset",
 	Action: cancelAllOrders,
 	Flags: []cli.Flag{
 		requiredExchangeFlag,
+		requiredAssetFlag,
 	},
 }
 
@@ -1327,6 +1335,11 @@ var modifyOrderCommand = &cli.Command{
 }
 
 func cancelAllOrders(c *cli.Context) error {
+	assetType := strings.ToLower(c.String(assetFlagName))
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -1335,7 +1348,8 @@ func cancelAllOrders(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CancelAllOrders(c.Context, &gctrpc.CancelAllOrdersRequest{
-		Exchange: c.String(exchangeFlagName),
+		Exchange:  c.String(exchangeFlagName),
+		AssetType: assetType,
 	})
 	if err != nil {
 		return err

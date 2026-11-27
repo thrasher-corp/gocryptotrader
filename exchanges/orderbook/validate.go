@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -44,11 +45,11 @@ func validate(b *Book) error {
 	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
 		log.Warnf(log.OrderBook, bookLengthIssue, b.Exchange, b.Pair, b.Asset, len(b.Bids), len(b.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, isDsc, b.Exchange)
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, isDsc, b.Exchange, b.Asset)
 	if err != nil {
 		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, isAsc, b.Exchange)
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, isAsc, b.Exchange, b.Asset)
 	if err != nil {
 		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
@@ -56,11 +57,12 @@ func validate(b *Book) error {
 }
 
 // checkAlignment validates an orderbook side is sequential and does not contain any invalid data
-func checkAlignment(depth Levels, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
+func checkAlignment(depth Levels, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string, a asset.Item) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			switch {
 			case exch == "Bitfinex" && fundingRate: /* funding rate can be 0 it seems on Bitfinex */
+			case a == asset.Spread: // A spread's price is the difference between its legs' prices
 			default:
 				return ErrPriceZero
 			}

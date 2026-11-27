@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"golang.org/x/time/rate"
 )
 
 // Ratelimit intervals.
@@ -29,8 +30,6 @@ const (
 	getOrderHistory3MonthsEPL
 	getTransactionDetail3DaysEPL
 	getTransactionDetail3MonthsEPL
-	setTransactionDetail2YearIntervalEPL
-	getTransactionDetailLast2YearsEPL
 	cancelAllAfterCountdownEPL
 	getTradeAccountRateLimitEPL
 	orderPreCheckEPL
@@ -125,7 +124,6 @@ const (
 	getBorrowRepayHistoryEPL
 	newPositionBuilderEPL
 	setRiskOffsetAmountEPL
-	positionBuilderEPL
 	getGreeksEPL
 	getPMLimitationEPL
 	activateOptionEPL
@@ -207,7 +205,6 @@ const (
 	getPremiumHistoryEPL
 	getIndexTickersEPL
 	getOrderBookEPL
-	getOrderBookLiteEPL
 	getCandlesticksEPL
 	getTradesRequestEPL
 	get24HTotalVolumeEPL
@@ -248,7 +245,6 @@ const (
 	getInsuranceFundEPL
 	unitConvertEPL
 	optionTickBandsEPL
-	getIndexTickerEPL
 	getSupportCoinEPL
 	getTakerVolumeEPL
 	getMarginLendingRatioEPL
@@ -265,9 +261,7 @@ const (
 	getMarkPriceCandlesticksHistoryEPL
 	getEconomicCalendarEPL
 	getMyLeadTradersEPL
-	getEstimatedDeliveryPriceEPL
 
-	getAffiliateInviteesDetailEPL
 	getUserAffiliateRebateInformationEPL
 
 	rubikGetContractOpenInterestHistoryEPL
@@ -288,42 +282,214 @@ const (
 	getFiatDepositPaymentMethodsEPL
 
 	websocketRequestEPL
+
+	// Financial Product: ETH staking, SOL staking, Stable Rewards, OKUSD, Flexible loan and Dual investment
+	cancelETHStakingRedemptionEPL
+	getSOLStakingProductInfoEPL
+	purchaseSOLStakingEPL
+	redeemSOLStakingEPL
+	getSOLStakingBalanceEPL
+	getSOLStakingPurchaseRedeemHistoryEPL
+	getSOLStakingAPYHistoryEPL
+	getStableRewardsProductInfoEPL
+	getStableRewardsBalanceEPL
+	getStableRewardsAPYHistoryEPL
+	getOKUSDLimitsEPL
+	subscribeOKUSDEPL
+	redeemOKUSDEPL
+	getOKUSDAccountEPL
+	getOKUSDSubscriptionHistoryEPL
+	getOKUSDRedemptionHistoryEPL
+	getOKUSDRewardsHistoryEPL
+	getOKUSDAPRHistoryEPL
+	getFlexibleLoanBorrowableCurrenciesEPL
+	getFlexibleLoanCollateralAssetsEPL
+	getFlexibleLoanMaximumLoanAmountEPL
+	getFlexibleLoanMaximumCollateralRedeemAmountEPL
+	adjustFlexibleLoanCollateralEPL
+	borrowFlexibleLoanEPL
+	repayFlexibleLoanEPL
+	getFlexibleLoanEModeInfoEPL
+	getFlexibleLoanInfoEPL
+	getFlexibleLoanHistoryEPL
+	getFlexibleLoanAccruedInterestEPL
+	getDualInvestmentCurrencyPairsEPL
+	getDualInvestmentProductsEPL
+	requestDualInvestmentQuoteEPL
+	tradeDualInvestmentEPL
+	requestDualInvestmentRedeemQuoteEPL
+	redeemDualInvestmentEPL
+	getDualInvestmentOrderStateEPL
+	getDualInvestmentOrderHistoryEPL
+	// Funding Account
+	getAssetBillsHistoryEPL
+	getLockedTravelRuleDepositsEPL
+	unlockTravelRuleDepositEPL
+	getBuySellCurrenciesEPL
+	getBuySellCurrencyPairEPL
+	getBuySellQuoteEPL
+	placeBuySellTradeEPL
+	getBuySellTradeHistoryEPL
+
+	// Sub-account
+	createSubAccountEPL
+	createSubAccountAPIKeyEPL
+	getSubAccountAPIKeysEPL
+	deleteSubAccountAPIKeyEPL
+	// Order Book Trading > Trade
+	getOneClickRepayCurrencyListV2EPL
+	tradeOneClickRepayV2EPL
+	getOneClickRepayHistoryV2EPL
+	// Copy Trading
+	amendLeadingInstrumentsEPL
+	getUnrealisedProfitSharingDetailsEPL
+	getTotalUnrealisedProfitSharingEPL
+	amendProfitSharingRatioEPL
+	getCopyTradingAccountConfigurationEPL
+	getCopyTradingConfigurationEPL
+	getCopyTradersEPL
+
+	// Affiliate
+	getAffiliatePerformanceSummaryEPL
+	getInviteeDetailEPL
+	getInviteeListEPL
+	getAffiliateLinkListEPL
+	getCoInviterLinkListEPL
+	getSubAffiliateListEPL
+	// Market Data, Public Data and Trading Statistics
+	getRPIOrderBookEPL
+	getFullOrderBookEPL
+	getCallAuctionDetailsEPL
+	getEventContractSeriesEPL
+	getEventContractEventsEPL
+	getCorporateActionsEPL
+	getEventContractMarketsEPL
+	getEstimatedSettlementPriceEPL
+	getFuturesSettlementHistoryEPL
+	getMarkPriceCandlesticksEPL
+	getHistoricalMarketDataEPL
+	getMMInstrumentTypesEPL
+	getDeltaHedgeCurrenciesEPL
+	getContractLongShortAccountRatioEPL
+	getTopTradersContractLongShortPositionRatioEPL
+	getOpenInterestAndVolumeStrikeEPL
+	// Trading Account
+	getBillTypesEPL
+	setFeeTypeEPL
+	positionBuilderTrendGraphEPL
+	activateFeatureEPL
+	presetAccountModeSwitchEPL
+	precheckAccountModeSwitchEPL
+	setCollateralAssetsEPL
+	getCollateralAssetsEPL
+	movePositionsEPL
+	getMovePositionsHistoryEPL
+	setAutoEarnEPL
+	setSettleCurrencyEPL
+	setTradingConfigEPL
+	precheckSetDeltaNeutralEPL
+	increaseDemoAccountBalanceEPL
+	reduceDemoAccountBalanceEPL
+	getGLPTodayPerformanceEPL
+	getGLPHistoricalPerformanceEPL
+	getGLPV2OverviewEPL
+	getGLPV2AssessmentDetailsEPL
+	getGLPV2PerformanceHistoryEPL
+	// Block Trading
+	setRequestForQuoteMMPEPL
+	getRequestForQuoteMMPConfigEPL
+	cancelAllQuotesAfterCountdownEPL
+	getBlockTickerEPL
+	// Grid Trading
+	amendGridAlgoOrderBasicParametersEPL
+	addGridInvestmentEPL
+	getMaxGridQuantityEPL
+	copyGridAlgoOrderEPL
+
+	// DCA Trading
+	placeDCAAlgoOrderEPL
+	amendSpotDCABasicParametersEPL
+	stopDCAAlgoOrderEPL
+	getDCAAlgoOrderListEPL
+	getDCAAlgoOrderHistoryEPL
+	getDCASubOrdersEPL
+	addDCAInvestmentEPL
+	amendDCAReinvestmentEPL
+	amendDCATakeProfitEPL
+	getDCAPositionDetailsEPL
+	getDCACycleListEPL
+	addDCAMarginEPL
+	reduceDCAMarginEPL
+
+	// Signal bot trading
+	createSignalEPL
+	getSignalsEPL
+	createSignalBotEPL
+	cancelSignalBotsEPL
+	adjustSignalBotMarginBalanceEPL
+	amendSignalBotTakeProfitStopLossEPL
+	setSignalBotInstrumentsEPL
+	getActiveSignalBotsEPL
+	getSignalBotHistoryEPL
+	getSignalBotPositionHistoryEPL
+	closeSignalBotPositionEPL
+	placeSignalBotSubOrderEPL
+	cancelSignalBotSubOrderEPL
+
+	// Recurring Buy
+	amendRecurringBuyTimeEPL
+	amendRecurringBuyAmountEPL
+	addRecurringBuyInvestmentEPL
+	pauseRecurringBuyEPL
+	restartRecurringBuyEPL
+	amendRecurringBuyPriceRangeEPL
+
+	// Websocket connections
+	websocketConnectionEPL
+
+	// endpointLimitCount follows the last endpoint limit; keep it last
+	endpointLimitCount
 )
 
-var rateLimits = func() request.RateLimitDefinitions {
-	return request.RateLimitDefinitions{
+var rateLimits = newRateLimits()
+
+// newRateLimits returns OKX's rate limit definitions
+func newRateLimits() request.RateLimitDefinitions {
+	placeOrders := orderBudgetLimiter(300, orderBudgets[placeMultipleOrdersEPL])
+	cancelOrders := orderBudgetLimiter(300, orderBudgets[cancelMultipleOrdersEPL])
+	amendOrders := orderBudgetLimiter(300, orderBudgets[amendMultipleOrdersEPL])
+	cancelAlgos := orderBudgetLimiter(20, orderBudgets[cancelAlgoOrderEPL])
+	defs := request.RateLimitDefinitions{
 		// Trade Endpoints
-		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		placeMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 4, 1),
-		cancelOrderEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		cancelMultipleOrdersEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 15, 1), // OKX counts orders, not requests: 300 orders per 2 seconds at up to 20 a request
-		amendOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		amendMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 4, 1),
-		closePositionEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getOrderDetEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		getOrderListEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		getOrderHistory7DaysEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
-		getOrderHistory3MonthsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getTransactionDetail3DaysEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		getTransactionDetail3MonthsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		setTransactionDetail2YearIntervalEPL: request.NewRateLimitWithWeight(time.Hour*24, 5, 1),
-		getTransactionDetailLast2YearsEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		cancelAllAfterCountdownEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		getTradeAccountRateLimitEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		orderPreCheckEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		placeAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		cancelAlgoOrderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1), // OKX budgets 20 orders per 2 seconds; each request costs one slot here, whatever its order count
-		amendAlgoOrderEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAlgoOrderDetailEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAlgoOrderListEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getAlgoOrderHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getEasyConvertCurrencyListEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		placeEasyConvertEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		getEasyConvertHistoryEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		getOneClickRepayHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		oneClickRepayCurrencyListEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		tradeOneClickRepayEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		massCancelMMPOrderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		placeOrderEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		placeMultipleOrdersEPL:         request.GetRateLimiterWithWeight(placeOrders, 1), // Budgets orders: a request takes a token per order
+		cancelOrderEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		cancelMultipleOrdersEPL:        request.GetRateLimiterWithWeight(cancelOrders, 1), // Budgets orders: a request takes a token per order
+		amendOrderEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		amendMultipleOrdersEPL:         request.GetRateLimiterWithWeight(amendOrders, 1), // Budgets orders: a request takes a token per order
+		closePositionEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getOrderDetEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		getOrderListEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		getOrderHistory7DaysEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
+		getOrderHistory3MonthsEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getTransactionDetail3DaysEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
+		getTransactionDetail3MonthsEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		cancelAllAfterCountdownEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getTradeAccountRateLimitEPL:    request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		orderPreCheckEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		placeAlgoOrderEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelAlgoOrderEPL:             request.GetRateLimiterWithWeight(cancelAlgos, 1), // Budgets orders: a request takes a token per order
+		amendAlgoOrderEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAlgoOrderDetailEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAlgoOrderListEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAlgoOrderHistoryEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getEasyConvertCurrencyListEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		placeEasyConvertEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getEasyConvertHistoryEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getOneClickRepayHistoryEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		oneClickRepayCurrencyListEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		tradeOneClickRepayEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		massCancelMMPOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 
 		// Block Trading endpoints
 		getCounterpartiesEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -345,7 +511,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getRequestForQuotesEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		getQuotesEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		getTradesEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getTradesHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getTradesHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		optionInstrumentTradeFamilyEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		optionTradesEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getPublicTradesEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -354,9 +520,9 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getCurrenciesEPL:              request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getBalanceEPL:                 request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getNonTradableAssetsEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
-		getAccountAssetValuationEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		fundsTransferEPL:              request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		getFundsTransferStateEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getAccountAssetValuationEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		fundsTransferEPL:              request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		getFundsTransferStateEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
 		assetBillsDetailsEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getDepositAddressEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getDepositHistoryEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
@@ -381,7 +547,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// Account
 		getAccountBalanceEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getPositionsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getPositionsHistoryEPL:               request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
+		getPositionsHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getAccountAndPositionRiskEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getBillsDetailsEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
 		getBillsDetailArchiveEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -404,12 +570,11 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getMaximumWithdrawalsEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getAccountRiskStateEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getBorrowInterestAndLimitEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		manualBorrowOrRepayEPL:               request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		manualBorrowOrRepayEPL:               request.NewRateLimitWithWeight(threeSecondsInterval, 1, 1),
 		setAutoRepayEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		getBorrowRepayHistoryEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
 		newPositionBuilderEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		setRiskOffsetAmountEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		positionBuilderEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
 		getGreeksEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getPMLimitationEPL:                   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		activateOptionEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
@@ -418,10 +583,10 @@ var rateLimits = func() request.RateLimitDefinitions {
 
 		// Sub Account Endpoints
 
-		viewSubaccountListEPL:                             request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		viewSubaccountListEPL:                             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		resetSubAccountAPIKeyEPL:                          request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
-		getSubaccountTradingBalanceEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getSubaccountFundingBalanceEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getSubaccountTradingBalanceEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 6, 1),
+		getSubaccountFundingBalanceEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 6, 1),
 		getSubAccountMaxWithdrawalEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		historyOfSubaccountTransferEPL:                    request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		managedSubAccountTransferEPL:                      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
@@ -503,22 +668,20 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getPremiumHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexTickersEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getOrderBookEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
-		getOrderBookLiteEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 6, 1),
 		getCandlesticksEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getCandlestickHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexCandlesticksEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexCandlesticksHistoryEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getMarkPriceCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
-		getEconomicCalendarEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 5, 1),
+		getMarkPriceCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getEconomicCalendarEPL:             request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
 		// getIndexCandlesticksEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getMyLeadTradersEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getEstimatedDeliveryPriceEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getTradesRequestEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 100, 1),
-		get24HTotalVolumeEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
-		getExchangeRateRequestEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
-		getIndexComponentsEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getBlockTickersEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getBlockTradesEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMyLeadTradersEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTradesRequestEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 100, 1),
+		get24HTotalVolumeEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getExchangeRateRequestEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getIndexComponentsEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getBlockTickersEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getBlockTradesEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		// Spread trading related rate limiters
 		placeSpreadOrderEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -542,7 +705,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getInstrumentsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getDeliveryExerciseHistoryEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getOpenInterestEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
-		getFundingEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFundingEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getFundingRateHistoryEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getLimitPriceEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getOptionMarketDateEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
@@ -556,7 +719,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getInsuranceFundEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		unitConvertEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		optionTickBandsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
-		getIndexTickerEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		// Trading Data Endpoints
 
@@ -573,7 +735,6 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// Status Endpoints
 
 		getEventStatusEPL:                    request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
-		getAffiliateInviteesDetailEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getUserAffiliateRebateInformationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		rubikGetContractOpenInterestHistoryEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
@@ -594,5 +755,241 @@ var rateLimits = func() request.RateLimitDefinitions {
 
 		// This will fallback to the websocket connection specific rate limit
 		websocketRequestEPL: request.RateLimitNotRequired,
+
+		// Financial Product: ETH staking, SOL staking, Stable Rewards, OKUSD, Flexible loan and Dual investment
+		cancelETHStakingRedemptionEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		getSOLStakingProductInfoEPL:                     request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		purchaseSOLStakingEPL:                           request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		redeemSOLStakingEPL:                             request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
+		getSOLStakingBalanceEPL:                         request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getSOLStakingPurchaseRedeemHistoryEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getSOLStakingAPYHistoryEPL:                      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getStableRewardsProductInfoEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getStableRewardsBalanceEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getStableRewardsAPYHistoryEPL:                   request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getOKUSDLimitsEPL:                               request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		subscribeOKUSDEPL:                               request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		redeemOKUSDEPL:                                  request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getOKUSDAccountEPL:                              request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getOKUSDSubscriptionHistoryEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getOKUSDRedemptionHistoryEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getOKUSDRewardsHistoryEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getOKUSDAPRHistoryEPL:                           request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanBorrowableCurrenciesEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanCollateralAssetsEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanMaximumLoanAmountEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanMaximumCollateralRedeemAmountEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		adjustFlexibleLoanCollateralEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		borrowFlexibleLoanEPL:                           request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		repayFlexibleLoanEPL:                            request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		getFlexibleLoanEModeInfoEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanInfoEPL:                          request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanHistoryEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getFlexibleLoanAccruedInterestEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getDualInvestmentCurrencyPairsEPL:               request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getDualInvestmentProductsEPL:                    request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		requestDualInvestmentQuoteEPL:                   request.NewRateLimitWithWeight(time.Minute, 10, 1),
+		tradeDualInvestmentEPL:                          request.NewRateLimitWithWeight(time.Minute, 2, 1),
+		requestDualInvestmentRedeemQuoteEPL:             request.NewRateLimitWithWeight(time.Minute, 10, 1),
+		redeemDualInvestmentEPL:                         request.NewRateLimitWithWeight(time.Minute, 2, 1),
+		getDualInvestmentOrderStateEPL:                  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getDualInvestmentOrderHistoryEPL:                request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		// Funding Account
+		getAssetBillsHistoryEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getLockedTravelRuleDepositsEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		unlockTravelRuleDepositEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getBuySellCurrenciesEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getBuySellCurrencyPairEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		getBuySellQuoteEPL:             request.NewRateLimitWithWeight(oneSecondInterval, 10, 1),
+		placeBuySellTradeEPL:           request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
+		getBuySellTradeHistoryEPL:      request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+
+		// Sub-account
+		createSubAccountEPL:       request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		createSubAccountAPIKeyEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getSubAccountAPIKeysEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		deleteSubAccountAPIKeyEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		// Order Book Trading > Trade
+		getOneClickRepayCurrencyListV2EPL: request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		tradeOneClickRepayV2EPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getOneClickRepayHistoryV2EPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		// Copy Trading
+		amendLeadingInstrumentsEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getUnrealisedProfitSharingDetailsEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTotalUnrealisedProfitSharingEPL:    request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		amendProfitSharingRatioEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getCopyTradingAccountConfigurationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getCopyTradingConfigurationEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getCopyTradersEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+
+		// Affiliate
+		getAffiliatePerformanceSummaryEPL: request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getInviteeDetailEPL:               request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getInviteeListEPL:                 request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getAffiliateLinkListEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getCoInviterLinkListEPL:           request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		getSubAffiliateListEPL:            request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+		// Market Data, Public Data and Trading Statistics
+		getRPIOrderBookEPL:                             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getFullOrderBookEPL:                            request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getCallAuctionDetailsEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getEventContractSeriesEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getEventContractEventsEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getCorporateActionsEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		getEventContractMarketsEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getEstimatedSettlementPriceEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		getFuturesSettlementHistoryEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
+		getMarkPriceCandlesticksEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getHistoricalMarketDataEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getMMInstrumentTypesEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getDeltaHedgeCurrenciesEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getContractLongShortAccountRatioEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getTopTradersContractLongShortPositionRatioEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getOpenInterestAndVolumeStrikeEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		// Trading Account
+		getBillTypesEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		setFeeTypeEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		positionBuilderTrendGraphEPL:   request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
+		activateFeatureEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		presetAccountModeSwitchEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		precheckAccountModeSwitchEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		setCollateralAssetsEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getCollateralAssetsEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		movePositionsEPL:               request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getMovePositionsHistoryEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		setAutoEarnEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 2, 1),
+		setSettleCurrencyEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		setTradingConfigEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		precheckSetDeltaNeutralEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 1, 1),
+		increaseDemoAccountBalanceEPL:  request.GetRateLimiterWithWeight(rate.NewLimiter(rate.Inf, 1), 1), // OKX enforces its daily quota of increases itself
+		reduceDemoAccountBalanceEPL:    request.GetRateLimiterWithWeight(rate.NewLimiter(rate.Inf, 1), 1), // OKX sets no limit on reductions
+		getGLPTodayPerformanceEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getGLPHistoricalPerformanceEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getGLPV2OverviewEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getGLPV2AssessmentDetailsEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		getGLPV2PerformanceHistoryEPL:  request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		// Block Trading
+		setRequestForQuoteMMPEPL:         request.NewRateLimitWithWeight(tenSecondsInterval, 1, 1),
+		getRequestForQuoteMMPConfigEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		cancelAllQuotesAfterCountdownEPL: request.NewRateLimitWithWeight(oneSecondInterval, 1, 1),
+		getBlockTickerEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		// Grid Trading
+		amendGridAlgoOrderBasicParametersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		addGridInvestmentEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getMaxGridQuantityEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 5, 1),
+		copyGridAlgoOrderEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		// DCA Trading
+		placeDCAAlgoOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendSpotDCABasicParametersEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		stopDCAAlgoOrderEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDCAAlgoOrderListEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDCAAlgoOrderHistoryEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDCASubOrdersEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		addDCAInvestmentEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendDCAReinvestmentEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendDCATakeProfitEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDCAPositionDetailsEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getDCACycleListEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		addDCAMarginEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		reduceDCAMarginEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		// Signal bot trading
+		createSignalEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSignalsEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		createSignalBotEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelSignalBotsEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		adjustSignalBotMarginBalanceEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendSignalBotTakeProfitStopLossEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		setSignalBotInstrumentsEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getActiveSignalBotsEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSignalBotHistoryEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getSignalBotPositionHistoryEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
+		closeSignalBotPositionEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		placeSignalBotSubOrderEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		cancelSignalBotSubOrderEPL:          request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		// Recurring Buy
+		amendRecurringBuyTimeEPL:       request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendRecurringBuyAmountEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		addRecurringBuyInvestmentEPL:   request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		pauseRecurringBuyEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		restartRecurringBuyEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		amendRecurringBuyPriceRangeEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+
+		// Websocket connections: OKX allows 3 connection requests a second per IP, whatever the URL. Spacing them 400ms
+		// apart rather than 333ms keeps four arrivals out of any one second despite network jitter.
+		websocketConnectionEPL: request.NewRateLimitWithWeight(1200*time.Millisecond, 3, 1),
 	}
-}()
+	addOrderWeightedLimits(defs, map[request.EndpointLimit]*rate.Limiter{
+		placeMultipleOrdersEPL:  placeOrders,
+		cancelMultipleOrdersEPL: cancelOrders,
+		amendMultipleOrdersEPL:  amendOrders,
+		cancelAlgoOrderEPL:      cancelAlgos,
+	})
+	return defs
+}
+
+// orderBudgets holds the most orders a request carries to each endpoint limit
+// OKX budgets by order rather than by request
+var orderBudgets = map[request.EndpointLimit]int{
+	placeMultipleOrdersEPL:  maxOrdersPerBatch,
+	cancelMultipleOrdersEPL: maxOrdersPerBatch,
+	amendMultipleOrdersEPL:  maxOrdersPerBatch,
+	cancelAlgoOrderEPL:      maxCancelAlgosPerRequest,
+}
+
+// orderBudgetLimiter returns the limiter of an order budget OKX counts over 2
+// seconds, of which a request spends a token per order, sending them all at
+// once. Its burst holds one request's most orders and it refills the rest of
+// the budget over the 2 seconds, so no 2 seconds carry more orders than the
+// budget allows, however requests fall.
+func orderBudgetLimiter(budget, maxOrders int) *rate.Limiter {
+	return rate.NewLimiter(rate.Limit(float64(budget-maxOrders)/twoSecondsInterval.Seconds()), maxOrders)
+}
+
+// orderCountShift places an order count above every endpoint limit the const
+// block declares, so the limits orderWeightedEPL derives are distinct from
+// them and from each other
+const orderCountShift = 10
+
+// orderWeightedEPL returns the endpoint limit charging a request carrying the
+// given number of orders to epl's order budget: a token per order, reserved
+// together on every attempt, so a request its budget cannot cover takes none
+// of it. A lone order takes epl's own limit.
+func orderWeightedEPL(epl request.EndpointLimit, orders int) request.EndpointLimit {
+	if orders <= 1 {
+		return epl
+	}
+	return epl | request.EndpointLimit(orders)<<orderCountShift //nolint:gosec // Callers refuse more orders than a batch's documented maximum
+}
+
+// addOrderWeightedLimits defines the limit orderWeightedEPL derives for each
+// order count of each order budget, drawing on the limiter of the budget's
+// own endpoint limit
+func addOrderWeightedLimits(defs request.RateLimitDefinitions, limiters map[request.EndpointLimit]*rate.Limiter) {
+	for epl, maxOrders := range orderBudgets {
+		for orders := request.Weight(2); int(orders) <= maxOrders; orders++ {
+			defs[orderWeightedEPL(epl, int(orders))] = request.GetRateLimiterWithWeight(limiters[epl], orders)
+		}
+	}
+}
+
+// websocketControlLimiter returns a connection's limit on its login, subscribe
+// and unsubscribe requests, which OKX caps at 480 an hour per connection: a
+// burst of 20 lets a connection log in and subscribe at once, and the other
+// 460 refill over the hour, so no hour carries more than 480
+func websocketControlLimiter() *request.RateLimiterWithWeight {
+	return request.GetRateLimiterWithWeight(rate.NewLimiter(rate.Every(time.Hour/460), 20), 1)
+}
+
+// batchEndpointLimit returns the limit a batch place, cancel or amend request
+// carrying the given number of orders is charged to: OKX charges a lone order
+// sent to a batch endpoint to its single order endpoint's limit, and more
+// orders to the batch endpoint's order budget
+func batchEndpointLimit(single, batch request.EndpointLimit, orders int) request.EndpointLimit {
+	if orders == 1 {
+		return single
+	}
+	return orderWeightedEPL(batch, orders)
+}

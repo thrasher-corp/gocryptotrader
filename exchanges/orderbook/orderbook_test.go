@@ -112,6 +112,21 @@ func TestValidate(t *testing.T) {
 	b.Bids = []Level{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Validate()
 	require.ErrorIs(t, err, ErrPriceZero)
+
+	t.Run("spread books price zero", func(t *testing.T) {
+		t.Parallel()
+		spread := Book{
+			Exchange:          "TestExchange",
+			Asset:             asset.Spread,
+			Pair:              currency.NewPairWithDelimiter("BTC", "USDT_BTC-USDT-SWAP", currency.DashDelimiter),
+			ValidateOrderbook: true,
+			Bids:              []Level{{Price: 0, Amount: 1}, {Price: -1.5, Amount: 2}},
+			Asks:              []Level{{Price: 0, Amount: 3}, {Price: 0.5, Amount: 1}},
+		}
+		require.NoError(t, spread.Validate(), "a spread book must accept a zero price, the difference between its legs' prices")
+		spread.Asset = asset.Futures
+		require.ErrorIs(t, spread.Validate(), ErrPriceZero, "a book of another asset must still reject a zero price")
+	})
 }
 
 func TestTotalBidsAmount(t *testing.T) {
@@ -594,23 +609,26 @@ func TestReverse(t *testing.T) {
 func TestCheckAlignment(t *testing.T) {
 	t.Parallel()
 	itemWithFunding := Levels{{Amount: 1337, Price: 0, Period: 1337}}
-	err := checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Bitfinex")
+	err := checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Bitfinex", asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	err = checkAlignment(itemWithFunding, false, true, false, false, isDsc, "Bitfinex")
+	err = checkAlignment(itemWithFunding, false, true, false, false, isDsc, "Bitfinex", asset.Spot)
 	require.ErrorIs(t, err, ErrPriceZero)
 
-	err = checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, false, isDsc, "Binance", asset.Spot)
 	require.ErrorIs(t, err, ErrPriceZero)
+
+	err = checkAlignment(itemWithFunding, false, true, false, false, isDsc, "Okx", asset.Spread)
+	require.NoError(t, err, "a spread level must accept a zero price")
 
 	itemWithFunding[0].Price = 1337
-	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance", asset.Spot)
 	require.ErrorIs(t, err, errChecksumStringNotSet)
 
 	itemWithFunding[0].StrAmount = "1337.0000000"
 	itemWithFunding[0].StrPrice = "1337.0000000"
-	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, true, isDsc, "Binance", asset.Spot)
 	require.NoError(t, err)
 }
 

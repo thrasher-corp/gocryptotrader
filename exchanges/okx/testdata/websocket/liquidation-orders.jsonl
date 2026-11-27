@@ -1,0 +1,1 @@
+{"arg":{"channel":"liquidation-orders","instType":"SWAP"},"data":[{"details":[{"bkLoss":"0","bkPx":"0.2365","ccy":"","posSide":"short","side":"buy","sz":"2786","ts":"1795370514833"}],"instFamily":"WLD-USDT","instId":"WLD-USDT-SWAP","instType":"SWAP","uly":"WLD-USDT"}]}

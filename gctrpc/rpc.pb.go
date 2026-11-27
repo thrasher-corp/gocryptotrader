@@ -3703,6 +3703,7 @@ type SubmitOrderRequest struct {
 	AssetType     string                 `protobuf:"bytes,8,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
 	MarginType    string                 `protobuf:"bytes,9,opt,name=margin_type,json=marginType,proto3" json:"margin_type,omitempty"`
 	ClientOrderId string                 `protobuf:"bytes,10,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	QuoteAmount   float64                `protobuf:"fixed64,11,opt,name=quote_amount,json=quoteAmount,proto3" json:"quote_amount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3805,6 +3806,13 @@ func (x *SubmitOrderRequest) GetClientOrderId() string {
 		return x.ClientOrderId
 	}
 	return ""
+}
+
+func (x *SubmitOrderRequest) GetQuoteAmount() float64 {
+	if x != nil {
+		return x.QuoteAmount
+	}
+	return 0
 }
 
 type Trades struct {
@@ -4438,6 +4446,7 @@ func (x *CancelBatchOrdersResponse) GetOrders() []*Orders {
 type CancelAllOrdersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Exchange      string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	AssetType     string                 `protobuf:"bytes,2,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4475,6 +4484,13 @@ func (*CancelAllOrdersRequest) Descriptor() ([]byte, []int) {
 func (x *CancelAllOrdersRequest) GetExchange() string {
 	if x != nil {
 		return x.Exchange
+	}
+	return ""
+}
+
+func (x *CancelAllOrdersRequest) GetAssetType() string {
+	if x != nil {
+		return x.AssetType
 	}
 	return ""
 }
@@ -15009,7 +15025,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x19\n" +
 	"\border_id\x18\x02 \x01(\tR\aorderId\x12(\n" +
 	"\x04pair\x18\x03 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x14\n" +
-	"\x05asset\x18\x04 \x01(\tR\x05asset\"\xc0\x02\n" +
+	"\x05asset\x18\x04 \x01(\tR\x05asset\"\xe3\x02\n" +
 	"\x12SubmitOrderRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12(\n" +
 	"\x04pair\x18\x02 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x12\n" +
@@ -15024,7 +15040,8 @@ const file_rpc_proto_rawDesc = "" +
 	"\vmargin_type\x18\t \x01(\tR\n" +
 	"marginType\x12&\n" +
 	"\x0fclient_order_id\x18\n" +
-	" \x01(\tR\rclientOrderId\"e\n" +
+	" \x01(\tR\rclientOrderId\x12!\n" +
+	"\fquote_amount\x18\v \x01(\x01R\vquoteAmount\"e\n" +
 	"\x06Trades\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x10\n" +
@@ -15080,9 +15097,11 @@ const file_rpc_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"C\n" +
 	"\x19CancelBatchOrdersResponse\x12&\n" +
-	"\x06orders\x18\x01 \x03(\v2\x0e.gctrpc.OrdersR\x06orders\"4\n" +
+	"\x06orders\x18\x01 \x03(\v2\x0e.gctrpc.OrdersR\x06orders\"S\n" +
 	"\x16CancelAllOrdersRequest\x12\x1a\n" +
-	"\bexchange\x18\x01 \x01(\tR\bexchange\"W\n" +
+	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x1d\n" +
+	"\n" +
+	"asset_type\x18\x02 \x01(\tR\tassetType\"W\n" +
 	"\x17CancelAllOrdersResponse\x12&\n" +
 	"\x06orders\x18\x01 \x03(\v2\x0e.gctrpc.OrdersR\x06orders\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\"\x12\n" +
