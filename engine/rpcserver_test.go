@@ -47,6 +47,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -484,7 +485,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
-	err = em.Add(exch)
+	err = em.Add(testexch.OfflineIfMocked(exch))
 	require.NoError(t, err)
 
 	exch, err = em.NewExchangeByName("Binance")
@@ -502,7 +503,7 @@ func RPCTestSetup(t *testing.T) *Engine {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
-	err = em.Add(exch)
+	err = em.Add(testexch.OfflineIfMocked(exch))
 	require.NoError(t, err)
 
 	engerino.ExchangeManager = em

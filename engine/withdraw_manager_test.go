@@ -15,6 +15,7 @@ import (
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -28,16 +29,8 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	t.Helper()
 	em := NewExchangeManager()
 	b := new(okx.Exchange)
-	cfg, err := exchange.GetDefaultConfig(t.Context(), b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = b.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = em.Add(b)
-	require.NoError(t, err)
+	require.NoError(t, testexch.Setup(b), "testexch.Setup must not error")
+	require.NoError(t, em.Add(b), "Add must not error")
 
 	pm, err := setupPortfolioManager(em, 0, &portfolio.Base{Addresses: []portfolio.Address{}})
 	if err != nil {

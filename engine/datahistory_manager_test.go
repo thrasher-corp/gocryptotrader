@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestSetupDataHistoryManager(t *testing.T) {
@@ -931,7 +932,7 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		Enabled:      currency.Pairs{cp, cp2},
 		AssetEnabled: true,
 	}
-	err = em.Add(exch)
+	err = em.Add(testexch.OfflineIfMocked(exch))
 	require.NoError(t, err)
 
 	exch2, err := em.NewExchangeByName("Binance")
@@ -948,7 +949,7 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 
-	err = em.Add(exch2)
+	err = em.Add(testexch.OfflineIfMocked(exch2))
 	require.NoError(t, err)
 
 	j := &datahistoryjob.DataHistoryJob{

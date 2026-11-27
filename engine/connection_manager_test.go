@@ -7,6 +7,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
+// localConnectionMonitorConfig checks connectivity against loopback names, so started monitors make no DNS queries
+func localConnectionMonitorConfig() *config.ConnectionMonitorConfig {
+	return &config.ConnectionMonitorConfig{DNSList: []string{"127.0.0.1"}, PublicDomainList: []string{"localhost"}}
+}
+
 func TestSetupConnectionManager(t *testing.T) {
 	t.Parallel()
 	_, err := setupConnectionManager(nil)
@@ -22,7 +27,7 @@ func TestSetupConnectionManager(t *testing.T) {
 
 func TestConnectionMonitorIsRunning(t *testing.T) {
 	t.Parallel()
-	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(localConnectionMonitorConfig())
 	assert.NoError(t, err)
 
 	err = m.Start()
@@ -43,7 +48,7 @@ func TestConnectionMonitorIsRunning(t *testing.T) {
 
 func TestConnectionMonitorStart(t *testing.T) {
 	t.Parallel()
-	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(localConnectionMonitorConfig())
 	assert.NoError(t, err)
 
 	err = m.Start()
@@ -64,7 +69,7 @@ func TestConnectionMonitorStop(t *testing.T) {
 	err := connectionCheckerless.Stop()
 	assert.ErrorIs(t, err, errConnectionCheckerIsNil)
 
-	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(localConnectionMonitorConfig())
 	assert.NoError(t, err)
 
 	err = m.Start()
@@ -83,7 +88,7 @@ func TestConnectionMonitorStop(t *testing.T) {
 
 func TestConnectionMonitorIsOnline(t *testing.T) {
 	t.Parallel()
-	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})
+	m, err := setupConnectionManager(localConnectionMonitorConfig())
 	assert.NoError(t, err)
 
 	err = m.Start()

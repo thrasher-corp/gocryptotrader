@@ -5,17 +5,25 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"text/template"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/net/html"
@@ -423,10 +431,98 @@ func TestRunTemplateReplacesExistingFile(t *testing.T) {
 	}
 }
 
+// contributorsWithin calls GetContributorList and fails the test if it hasn't returned within ten seconds, so a pager
+// that never stops fails the test rather than holding it until go test's timeout
+func contributorsWithin(t *testing.T, repo string) ([]Contributor, error) {
+	t.Helper()
+	type result struct {
+		contributors []Contributor
+		err          error
+	}
+	done := make(chan result, 1)
+	go func() {
+		contributors, err := GetContributorList(t.Context(), repo, false)
+		done <- result{contributors, err}
+	}()
+	select {
+	case r := <-done:
+		return r.contributors, r.err
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "GetContributorList must return within ten seconds")
+		return nil, nil
+	}
+}
+
 func TestGetContributorList(t *testing.T) {
 	t.Parallel()
 
-	c, err := GetContributorList(t.Context(), DefaultRepo, true)
-	require.NoError(t, err, "GetContributorList must not error")
-	require.NotEmpty(t, c, "GetContributorList must not return empty list")
+	t.Run("pages until a short page", func(t *testing.T) {
+		t.Parallel()
+		full := make([]Contributor, defaultGithubAPIPerPageLimit)
+		for i := range full {
+			full[i] = Contributor{Login: fmt.Sprintf("contributor-%d", i+1), Contributions: 1}
+		}
+		last := []Contributor{{Login: "contributor-last", Contributions: 1}}
+		var (
+			mu    sync.Mutex
+			pages []string
+		)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/repos/thrasher-corp/gocryptotrader/contributors", r.URL.Path, "GetContributorList should request the contributors path")
+			assert.Equal(t, "100", r.URL.Query().Get("per_page"), "GetContributorList should request full pages")
+			mu.Lock()
+			pages = append(pages, r.URL.Query().Get("page"))
+			requests := len(pages)
+			mu.Unlock()
+			if requests > 2 {
+				http.Error(w, "more requests than pages", http.StatusTooManyRequests)
+				return
+			}
+			var page []Contributor
+			switch r.URL.Query().Get("page") {
+			case "1":
+				page = full
+			case "2":
+				page = last
+			default:
+				http.Error(w, "unexpected page", http.StatusBadRequest)
+				return
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(page), "encoding the page should not error")
+		}))
+		t.Cleanup(server.Close)
+		c, err := contributorsWithin(t, server.URL+"/repos/thrasher-corp/gocryptotrader")
+		require.NoError(t, err, "GetContributorList must not error")
+		assert.Equal(t, slices.Concat(full, last), c, "GetContributorList should return every page's contributors in order")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"1", "2"}, pages, "GetContributorList should request each page once and stop after the short page")
+	})
+
+	t.Run("GitHub error", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if requests.Add(1) > 1 {
+				http.Error(w, "more requests than the error", http.StatusTooManyRequests)
+				return
+			}
+			_, err := w.Write([]byte(`{"message":"API rate limit exceeded","status":"403"}`))
+			assert.NoError(t, err, "writing the error should not error")
+		}))
+		t.Cleanup(server.Close)
+		_, err := contributorsWithin(t, server.URL)
+		assert.ErrorContains(t, err, "API rate limit exceeded", "GetContributorList should return GitHub's error message")
+		assert.Equal(t, int32(1), requests.Load(), "GetContributorList should stop at GitHub's error")
+	})
+
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		if livetest.Mock {
+			t.Skip("calls the GitHub API; build with the mock_test_off tag to run it")
+		}
+		c, err := GetContributorList(t.Context(), DefaultRepo, true)
+		require.NoError(t, err, "GetContributorList must not error")
+		require.NotEmpty(t, c, "GetContributorList must not return empty list")
+	})
 }

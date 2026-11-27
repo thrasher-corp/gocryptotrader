@@ -20,6 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -117,6 +119,9 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 			// there is no need to load all exchanges for this test
 			botOne.Config.Exchanges[i].Enabled = false
 		}
+	}
+	if livetest.Mock {
+		botOne.ExchangeManager.Builder = testexch.OfflineBuilder{New: NewSupportedExchangeByName}
 	}
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
@@ -528,7 +533,7 @@ func TestUnloadExchange(t *testing.T) {
 func TestDryRunParamInteraction(t *testing.T) {
 	t.Parallel()
 	bot := &Engine{
-		ExchangeManager: NewExchangeManager(),
+		ExchangeManager: newTestExchangeManager(),
 		Settings:        Settings{},
 		Config: &config.Config{
 			Exchanges: []config.Exchange{
@@ -733,14 +738,16 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			exch, err := em.NewExchangeByName(name)
 			require.NoError(t, err, "NewExchangeByName must not error")
 
-			if isCITest() && slices.Contains(blockedCIExchanges, name) {
+			switch {
+			case livetest.Mock:
+				// Only a live run can download the exchange's pairs, and only that download needs the restrictions below
+				exch.SetDefaults()
+				exch.GetBase().Features.Supports.RESTCapabilities.AutoPairUpdates = false
+			case isCITest() && slices.Contains(blockedCIExchanges, name):
 				t.Skipf("skipping %s due to CI test restrictions", name)
-			}
-
-			if slices.Contains(unsupportedDefaultConfigExchanges, name) {
+			case slices.Contains(unsupportedDefaultConfigExchanges, name):
 				t.Skipf("skipping %s unsupported", name)
 			}
-
 			defaultCfg, err := exchange.GetDefaultConfig(t.Context(), exch)
 			require.NoError(t, err, "GetDefaultConfig must not error")
 			require.NotNil(t, defaultCfg)
@@ -847,7 +854,7 @@ func TestSetupExchanges(t *testing.T) {
 			e.Config.Exchanges = append(e.Config.Exchanges, *cfg)
 		}
 
-		e.ExchangeManager = NewExchangeManager()
+		e.ExchangeManager = newTestExchangeManager()
 		exchLoader(new(bitstamp.Exchange))
 		exchLoader(new(bitfinex.Exchange))
 		assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, e.Config.GetEnabledExchanges())

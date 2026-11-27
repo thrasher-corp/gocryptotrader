@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 func TestSetupLiveDataHandler(t *testing.T) {
@@ -30,7 +31,7 @@ func TestSetupLiveDataHandler(t *testing.T) {
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	bt.exchangeManager = engine.NewExchangeManager()
+	bt.exchangeManager = newExchangeManager()
 	err = bt.SetupLiveDataHandler(-1, -1, false, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
@@ -304,7 +305,7 @@ func TestFetchLatestData(t *testing.T) {
 	require.NoError(t, fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true), "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
-			exchange:                  f,
+			exchange:                  testexch.OfflineIfMocked(f),
 			exchangeName:              testExchange,
 			asset:                     asset.Spot,
 			pair:                      cp,
@@ -364,7 +365,7 @@ func TestLoadCandleData(t *testing.T) {
 	eba.Available = eba.Available.Add(cp)
 	eba.Enabled = eba.Enabled.Add(cp)
 	eba.AssetEnabled = true
-	l.exchange = exch
+	l.exchange = testexch.OfflineIfMocked(exch)
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
 	l.pair = cp
@@ -406,7 +407,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	require.NoError(t, err, "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
-			exchange:                  f,
+			exchange:                  testexch.OfflineIfMocked(f),
 			exchangeName:              testExchange,
 			asset:                     asset.Spot,
 			pair:                      cp,

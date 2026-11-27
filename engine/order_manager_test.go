@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -258,15 +259,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		t.Fatal(err)
 	}
 
-	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = exch.Setup(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, testexch.Setup(exch), "testexch.Setup must not error")
 	fakeExchange := omfExchange{
 		IBotExchange: exch,
 	}
@@ -551,9 +544,7 @@ func TestOrderManagerGracefulShutdownUsesBoundedContextWhenRuntimeCancelled(t *t
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err)
 
-	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
-	require.NoError(t, err)
-	require.NoError(t, exch.Setup(cfg))
+	require.NoError(t, testexch.Setup(exch), "testexch.Setup must not error")
 
 	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
 	fakeExchange := gracefulShutdownCtxExchange{
@@ -594,9 +585,7 @@ func TestOrderManagerStopCancelsOrdersOnShutdown(t *testing.T) {
 	exch, err := em.NewExchangeByName(testExchange)
 	require.NoError(t, err)
 
-	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
-	require.NoError(t, err)
-	require.NoError(t, exch.Setup(cfg))
+	require.NoError(t, testexch.Setup(exch), "testexch.Setup must not error")
 
 	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
 	fakeExchange := gracefulShutdownCtxExchange{

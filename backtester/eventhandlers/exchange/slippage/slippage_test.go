@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -23,9 +24,10 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	t.Parallel()
 	b := bitstamp.Exchange{}
 	b.SetDefaults()
+	exch := testexch.OfflineIfMocked(&b)
 
 	cp := currency.NewBTCUSD()
-	ob, err := b.UpdateOrderbook(t.Context(), cp, asset.Spot)
+	ob, err := exch.UpdateOrderbook(t.Context(), cp, asset.Spot)
 	require.NoError(t, err, "UpdateOrderbook must not error")
 
 	amountOfFunds := decimal.NewFromInt(1000)

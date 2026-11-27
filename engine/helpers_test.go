@@ -33,10 +33,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var testExchange = "Bitstamp"
+
+// newTestExchangeManager returns an exchange manager that, in mock runs, loads exchanges without their live APIs
+func newTestExchangeManager() *ExchangeManager {
+	m := NewExchangeManager()
+	if livetest.Mock {
+		m.Builder = testexch.OfflineBuilder{New: NewSupportedExchangeByName}
+	}
+	return m
+}
 
 func CreateTestBot(tb testing.TB) *Engine {
 	tb.Helper()
@@ -59,7 +70,7 @@ func CreateTestBot(tb testing.TB) *Engine {
 		},
 	}
 	bot := &Engine{
-		ExchangeManager: NewExchangeManager(),
+		ExchangeManager: newTestExchangeManager(),
 		Config: &config.Config{Exchanges: []config.Exchange{
 			{
 				Name:                    testExchange,
@@ -128,7 +139,7 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		},
 		{
 			Subsystem:    ConnectionManagerName,
-			Engine:       &Engine{Config: &config.Config{}},
+			Engine:       &Engine{Config: &config.Config{ConnectionMonitor: *localConnectionMonitorConfig()}},
 			EnableError:  nil,
 			DisableError: nil,
 		},
@@ -299,6 +310,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 func TestIsOnline(t *testing.T) {
 	t.Parallel()
 	e := CreateTestBot(t)
+	e.Config.ConnectionMonitor = *localConnectionMonitorConfig()
 	var err error
 	e.connectionManager, err = setupConnectionManager(&e.Config.ConnectionMonitor)
 	require.NoError(t, err, "setupConnectionManager must not error")
@@ -470,21 +482,37 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 
 func TestMapCurrenciesByExchange(t *testing.T) {
 	t.Parallel()
-	e := CreateTestBot(t)
-
 	pairs := []currency.Pair{
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
+	for _, tc := range []struct {
+		name      string
+		requested currency.Pairs
+		expected  map[string]currency.Pairs
+	}{
+		{
+			name:      "exchange without a requested pair is left out",
+			requested: currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1]},
+			expected:  map[string]currency.Pairs{testExchange: pairs},
+		},
+		{
+			name:      "each exchange maps to its requested pairs",
+			requested: currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1], currency.NewBTCUSDT()},
+			expected:  map[string]currency.Pairs{testExchange: pairs, "binance": {currency.NewBTCUSDT()}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := CreateTestBot(t)
+			exch, err := e.GetExchangeByName(testExchange)
+			require.NoError(t, err, "GetExchangeByName must not error")
+			available := currency.Pairs{pairs[1], pairs[0], currency.NewPair(currency.ETH, currency.USD)}
+			require.NoError(t, exch.GetBase().UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
 
-	result := e.MapCurrenciesByExchange(pairs, true, asset.Spot)
-	pairs, ok := result[testExchange]
-	if !ok {
-		t.Fatal("Unexpected result")
-	}
-
-	if len(pairs) != 2 {
-		t.Fatal("Unexpected result")
+			result := e.MapCurrenciesByExchange(tc.requested, true, asset.Spot)
+			assert.Equal(t, tc.expected, result, "MapCurrenciesByExchange should map only the requested pairs each exchange supports")
+		})
 	}
 }
 
@@ -1001,9 +1029,12 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		assert.ErrorIs(t, err, ErrExchangeNotFound, "NewExchangeByNameWithDefaults should error for an unknown exchange name")
 	})
 
-	// TestGetDefaultConfigurations builds every exchange's default config live, so one exchange covers this helper
+	// TestGetDefaultConfigurations builds every exchange's default config in mock runs, so one live exchange covers this helper
 	t.Run("live default config", func(t *testing.T) {
 		t.Parallel()
+		if livetest.Mock {
+			t.Skip("NewExchangeByNameWithDefaults downloads the exchange's pairs; build with the mock_test_off tag to run it")
+		}
 		exch, err := NewExchangeByNameWithDefaults(t.Context(), "bitstamp")
 		require.NoError(t, err, "NewExchangeByNameWithDefaults must not error")
 		assert.Equal(t, "bitstamp", strings.ToLower(exch.GetName()), "NewExchangeByNameWithDefaults should return the named exchange")
