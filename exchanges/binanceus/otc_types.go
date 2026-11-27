@@ -77,8 +77,8 @@ type OverTheCounterTradeOrdersResponse struct {
 	Rows  []OverTheCounterTradeOrderResponse `json:"rows"`
 }
 
-// OCBSTradeOrdersRequest holds the optional filters of an OCBS orders request
-type OCBSTradeOrdersRequest struct {
+// OneClickBuySellTradeOrdersRequest holds the optional filters of a One Click Buy/Sell orders request
+type OneClickBuySellTradeOrdersRequest struct {
 	OrderID   string
 	StartTime time.Time
 	EndTime   time.Time
@@ -86,14 +86,15 @@ type OCBSTradeOrdersRequest struct {
 	Limit     uint64 // Orders a page holds: 10 when zero, at most 100
 }
 
-// OCBSTradeOrdersResponse holds a page of OCBS orders and the number of orders matching the request
-type OCBSTradeOrdersResponse struct {
-	Total    uint64           `json:"total"`
-	DataList []OCBSTradeOrder `json:"dataList"`
+// OneClickBuySellTradeOrdersResponse holds a page of One Click Buy/Sell orders and the number of orders matching the
+// request
+type OneClickBuySellTradeOrdersResponse struct {
+	Total    uint64                      `json:"total"`
+	DataList []OneClickBuySellTradeOrder `json:"dataList"`
 }
 
-// OCBSTradeOrder holds an OCBS order, which buys crypto with fiat or sells it for fiat
-type OCBSTradeOrder struct {
+// OneClickBuySellTradeOrder holds a One Click Buy/Sell order, which buys crypto with fiat or sells it for fiat
+type OneClickBuySellTradeOrder struct {
 	QuoteID     string                    `json:"quoteId"`
 	OrderID     string                    `json:"orderId"`
 	OrderStatus OverTheCounterOrderStatus `json:"orderStatus"`

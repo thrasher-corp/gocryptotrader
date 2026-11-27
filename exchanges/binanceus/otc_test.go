@@ -283,44 +283,44 @@ func TestGetAllOverTheCounterTradeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAllOCBSTradeOrders(t *testing.T) {
+func TestGetAllOneClickBuySellTradeOrders(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1641806714000)
-	_, err := e.GetAllOCBSTradeOrders(t.Context(), &OCBSTradeOrdersRequest{StartTime: start, EndTime: start.Add(-time.Second)})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOCBSTradeOrders must reject a start after the end")
+	_, err := e.GetAllOneClickBuySellTradeOrders(t.Context(), &OneClickBuySellTradeOrdersRequest{StartTime: start, EndTime: start.Add(-time.Second)})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOneClickBuySellTradeOrders must reject a start after the end")
 
 	t.Run("sends the set filters", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
 			name string
-			req  *OCBSTradeOrdersRequest
+			req  *OneClickBuySellTradeOrdersRequest
 			exp  url.Values
 		}{
 			{name: "nil request", exp: url.Values{}},
-			{name: "end time alone", req: &OCBSTradeOrdersRequest{EndTime: start}, exp: url.Values{"endTime": {"1641806714000"}}},
+			{name: "end time alone", req: &OneClickBuySellTradeOrdersRequest{EndTime: start}, exp: url.Values{"endTime": {"1641806714000"}}},
 			{
 				name: "every filter",
-				req:  &OCBSTradeOrdersRequest{OrderID: "1000238000", StartTime: start, EndTime: start.Add(time.Hour), Page: 2, Limit: 100},
+				req:  &OneClickBuySellTradeOrdersRequest{OrderID: "1000238000", StartTime: start, EndTime: start.Add(time.Hour), Page: 2, Limit: 100},
 				exp:  url.Values{"orderId": {"1000238000"}, "startTime": {"1641806714000"}, "endTime": {"1641810314000"}, "page": {"2"}, "limit": {"100"}},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex := signedRequestExchange(t, http.MethodGet, "/sapi/v1/ocbs/orders", tc.exp, `{}`)
-				_, err := ex.GetAllOCBSTradeOrders(t.Context(), tc.req)
-				require.NoError(t, err, "GetAllOCBSTradeOrders must not error")
+				_, err := ex.GetAllOneClickBuySellTradeOrders(t.Context(), tc.req)
+				require.NoError(t, err, "GetAllOneClickBuySellTradeOrders must not error")
 			})
 		}
 	})
 
 	skipIfCredentialsUnset(t)
-	result, err := e.GetAllOCBSTradeOrders(t.Context(), nil)
-	require.NoError(t, err, "GetAllOCBSTradeOrders must not error")
-	require.NotNil(t, result, "GetAllOCBSTradeOrders must return a page of orders")
+	result, err := e.GetAllOneClickBuySellTradeOrders(t.Context(), nil)
+	require.NoError(t, err, "GetAllOneClickBuySellTradeOrders must not error")
+	require.NotNil(t, result, "GetAllOneClickBuySellTradeOrders must return a page of orders")
 	if mockTests {
-		exp := &OCBSTradeOrdersResponse{
+		exp := &OneClickBuySellTradeOrdersResponse{
 			Total: 2,
-			DataList: []OCBSTradeOrder{
+			DataList: []OneClickBuySellTradeOrder{
 				{
 					QuoteID:     "4e5446f2cc6f44ab86ab02abf19a7654",
 					OrderID:     "10090821212",
@@ -349,6 +349,6 @@ func TestGetAllOCBSTradeOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllOCBSTradeOrders should decode the total and every field of each order")
+		assert.Equal(t, exp, result, "GetAllOneClickBuySellTradeOrders should decode the total and every field of each order")
 	}
 }

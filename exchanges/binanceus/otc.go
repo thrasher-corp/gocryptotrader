@@ -109,9 +109,9 @@ func (e *Exchange) GetAllOverTheCounterTradeOrders(ctx context.Context, req *Ove
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/otc/orders", params, defaultRate, &resp)
 }
 
-// GetAllOCBSTradeOrders returns a page of the account's OCBS orders, which buy crypto with fiat or sell it for fiat. A
-// nil request returns the first page of 10 orders
-func (e *Exchange) GetAllOCBSTradeOrders(ctx context.Context, req *OCBSTradeOrdersRequest) (*OCBSTradeOrdersResponse, error) {
+// GetAllOneClickBuySellTradeOrders returns a page of the account's One Click Buy/Sell orders, which buy crypto with
+// fiat or sell it for fiat. A nil request returns the first page of 10 orders
+func (e *Exchange) GetAllOneClickBuySellTradeOrders(ctx context.Context, req *OneClickBuySellTradeOrdersRequest) (*OneClickBuySellTradeOrdersResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if req.OrderID != "" {
@@ -127,6 +127,6 @@ func (e *Exchange) GetAllOCBSTradeOrders(ctx context.Context, req *OCBSTradeOrde
 			params.Set("limit", strconv.FormatUint(req.Limit, 10))
 		}
 	}
-	var resp *OCBSTradeOrdersResponse
+	var resp *OneClickBuySellTradeOrdersResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/ocbs/orders", params, defaultRate, &resp)
 }

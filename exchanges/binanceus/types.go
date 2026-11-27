@@ -130,11 +130,11 @@ const (
 	CreditLineAlertTypeMarginCall      CreditLineAlertType = "MARGIN_CALL"
 )
 
-// OverTheCounterOrderStatus is the status of an over-the-counter or OCBS order
+// OverTheCounterOrderStatus is the status of an over-the-counter or One Click Buy/Sell order
 type OverTheCounterOrderStatus string
 
-// Over-the-counter order statuses, which OCBS orders report too. An order still being processed, as every newly placed
-// over-the-counter order is, reports PROCESS until it settles as SUCCESS or FAIL
+// Over-the-counter order statuses, which One Click Buy/Sell orders report too. An order still being processed, as every
+// newly placed over-the-counter order is, reports PROCESS until it settles as SUCCESS or FAIL
 const (
 	OverTheCounterOrderStatusProcess OverTheCounterOrderStatus = "PROCESS"
 	OverTheCounterOrderStatusSuccess OverTheCounterOrderStatus = "SUCCESS"

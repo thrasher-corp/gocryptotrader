@@ -1209,6 +1209,14 @@ func TestSendOnWebsocketAPIConnection(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("a typed-nil result", func(t *testing.T) {
+		t.Parallel()
+		conn := newFakeConnection()
+		conn.response = []byte(`{"id":"1","status":200,"result":{}}`)
+		var result *ServerTimeResponse
+		assert.Error(t, ex.sendOnWebsocketAPIConnection(t.Context(), conn, defaultRate, req, result), "sendOnWebsocketAPIConnection should error for a typed-nil result rather than take it for no result")
+	})
 }
 
 func TestIsRejectedKey(t *testing.T) {

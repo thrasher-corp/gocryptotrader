@@ -4,11 +4,13 @@ import (
 	"cmp"
 	"context"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -40,6 +42,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -129,8 +132,9 @@ func TestSetDefaults(t *testing.T) {
 	})
 }
 
+// TestSetup is not parallel: its previous configuration's rows load it through config.LoadConfig, which sets the global
+// logger, database and bank account settings
 func TestSetup(t *testing.T) {
-	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
 	cfg, err := ex.GetStandardConfig()
@@ -151,38 +155,331 @@ func TestSetup(t *testing.T) {
 	assert.Nil(t, ex.wsAPI.kept(), "Setup should forget a WebSocket API connection of an earlier setup")
 
 	t.Run("a previous version's configuration", func(t *testing.T) {
-		t.Parallel()
 		// The configuration a previous version saved, from upstream's test configuration, holds neither the WebSocket API
 		// endpoint nor subscriptions, as that version had no WebSocket API connection and ignored configured subscriptions
 		raw, err := os.ReadFile("testdata/previous_config.json")
 		require.NoError(t, err, "ReadFile must not error")
-		for _, tc := range []struct {
-			name          string
-			authenticated bool
-		}{
-			{name: "without authenticated websocket support"},
-			{name: "with authenticated websocket support", authenticated: true},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				var exch config.Exchange
-				require.NoError(t, json.Unmarshal(raw, &exch), "the previous configuration must decode")
-				exch.API.AuthenticatedWebsocketSupport = tc.authenticated
-				ex := new(Exchange)
-				ex.SetDefaults()
-				require.NoError(t, ex.Setup(&exch), "Setup must not error")
-				u, err := ex.API.Endpoints.GetURL(exchange.WebsocketTrade)
-				require.NoError(t, err, "GetURL must not error")
-				assert.Equal(t, websocketAPIURL, u, "a previous configuration should take the WebSocket API's default endpoint")
-				assert.Equal(t, websocketAPIURL, exch.API.Endpoints[exchange.WebsocketTrade.String()], "Setup should save the WebSocket API endpoint to the configuration")
-				channels := make([]string, len(exch.Features.Subscriptions))
-				for i, s := range exch.Features.Subscriptions {
-					channels[i] = s.Channel
-				}
-				assert.Equal(t, []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}, channels,
-					"a previous configuration should take the default subscriptions, the streams the previous version subscribed")
-			})
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		data, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+		require.NoError(t, err, "ReadFile must not error for the test configuration")
+		var saved map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(data, &saved), "the test configuration must decode")
+		var exchanges []json.RawMessage
+		require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "the test configuration's exchanges must decode")
+		at := slices.IndexFunc(exchanges, func(e json.RawMessage) bool {
+			var named struct {
+				Name string `json:"name"`
+			}
+			return json.Unmarshal(e, &named) == nil && named.Name == "Binanceus"
+		})
+		require.NotEqual(t, -1, at, "the test configuration must hold Binance.US")
+		var set func(t *testing.T, document json.RawMessage, value any, path ...string) json.RawMessage
+		set = func(t *testing.T, document json.RawMessage, value any, path ...string) json.RawMessage {
+			t.Helper()
+			var fields map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(document, &fields), "the previous configuration must decode")
+			if len(path) > 1 {
+				fields[path[0]] = set(t, fields[path[0]], value, path[1:]...)
+			} else {
+				encoded, err := json.Marshal(value)
+				require.NoError(t, err, "Marshal must not error for the value")
+				fields[path[0]] = encoded
+			}
+			out, err := json.Marshal(fields)
+			require.NoError(t, err, "Marshal must not error for the previous configuration")
+			return out
 		}
+		const defaultAPIURL, defaultStreamsURL = "https://api.binance.us", "wss://stream.binance.us:9443/stream"
+		for _, shape := range []struct {
+			name      string
+			endpoints map[exchange.URL]string
+			pairs     string
+			symbols   []string
+		}{
+			{
+				name:      "as saved",
+				endpoints: map[exchange.URL]string{exchange.RestSpot: defaultAPIURL, exchange.RestSpotSupplementary: defaultAPIURL, exchange.WebsocketSpot: defaultStreamsURL, exchange.WebsocketSpotSupplementary: defaultStreamsURL},
+				symbols:   []string{"btcusdt", "ethusdt", "ltcusdt", "adausdt"},
+			},
+			{
+				name: "configured endpoints and fewer enabled pairs",
+				endpoints: map[exchange.URL]string{
+					exchange.RestSpot:                   "https://rest.example.com/custom-rest",
+					exchange.RestSpotSupplementary:      "https://rest-supplementary.example.com/custom-rest",
+					exchange.WebsocketSpot:              "wss://streams.example.com/custom-stream",
+					exchange.WebsocketSpotSupplementary: "wss://streams-supplementary.example.com/custom-stream",
+				},
+				pairs:   "BTC-USDT,ADA-USDT",
+				symbols: []string{"btcusdt", "adausdt"},
+			},
+		} {
+			// Every combination of the exchange disabled, the websocket disabled, authenticated REST support, authenticated
+			// websocket support and credentials in place of the saved placeholders
+			for combination := range 32 {
+				exchangeDisabled, websocketDisabled, restAuthenticated, websocketAuthenticated, credentials := combination&1 != 0, combination&2 != 0, combination&4 != 0, combination&8 != 0, combination&16 != 0
+				name := []string{shape.name}
+				for _, setting := range []struct {
+					on   bool
+					name string
+				}{
+					{exchangeDisabled, "exchange disabled"},
+					{websocketDisabled, "websocket disabled"},
+					{restAuthenticated, "authenticated REST support"},
+					{websocketAuthenticated, "authenticated websocket support"},
+					{credentials, "credentials"},
+				} {
+					if setting.on {
+						name = append(name, setting.name)
+					}
+				}
+				t.Run(strings.Join(name, ", "), func(t *testing.T) {
+					endpoints := make(map[string]string, len(shape.endpoints)+1)
+					for endpoint, u := range shape.endpoints {
+						endpoints[endpoint.String()] = u
+					}
+					entry := set(t, raw, !exchangeDisabled, "enabled")
+					entry = set(t, entry, !websocketDisabled, "features", "enabled", "websocketAPI")
+					entry = set(t, entry, restAuthenticated, "api", "authenticatedSupport")
+					entry = set(t, entry, websocketAuthenticated, "api", "authenticatedWebsocketApiSupport")
+					entry = set(t, entry, endpoints, "api", "urlEndpoints")
+					if credentials {
+						entry = set(t, entry, map[string]string{"key": "mock-api-key", "secret": "mock-api-secret"}, "api", "credentials")
+					}
+					if shape.pairs != "" {
+						entry = set(t, entry, shape.pairs, "currencyPairs", "pairs", "spot", "enabled")
+					}
+					var exp config.Exchange
+					require.NoError(t, json.Unmarshal(entry, &exp), "the row's configuration must decode")
+					if !exchangeDisabled && !credentials {
+						// The loader turns authenticated support off while the credentials are the saved placeholders
+						exp.API.AuthenticatedSupport, exp.API.AuthenticatedWebsocketSupport = false, false
+					}
+					rowExchanges := slices.Clone(exchanges)
+					rowExchanges[at] = entry
+					exchangesData, err := json.Marshal(rowExchanges)
+					require.NoError(t, err, "Marshal must not error for the exchanges")
+					rowSaved := maps.Clone(saved)
+					rowSaved["exchanges"] = exchangesData
+					rowData, err := json.Marshal(rowSaved)
+					require.NoError(t, err, "Marshal must not error for the configuration")
+					path := filepath.Join(t.TempDir(), "config.json")
+					require.NoError(t, os.WriteFile(path, rowData, 0o600), "WriteFile must not error")
+
+					cfg := new(config.Config)
+					require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load the previous configuration")
+					exch, err := cfg.GetExchangeConfig("Binanceus")
+					require.NoError(t, err, "GetExchangeConfig must not error")
+					assert.Equal(t, &exp, exch, "LoadConfig should load the previous configuration as saved")
+					ex := new(Exchange)
+					ex.SetDefaults()
+					require.NoError(t, ex.Setup(exch), "Setup must not error")
+					if exchangeDisabled {
+						assert.False(t, ex.IsEnabled(), "Setup should leave a disabled exchange disabled")
+						return
+					}
+					assert.Equal(t, !websocketDisabled, ex.Websocket.IsEnabled(), "a previous configuration should keep its websocket setting")
+					for endpoint, u := range shape.endpoints {
+						got, err := ex.API.Endpoints.GetURL(endpoint)
+						require.NoErrorf(t, err, "GetURL must not error for %s", endpoint)
+						assert.Equalf(t, u, got, "a previous configuration should keep its %s endpoint", endpoint)
+					}
+					u, err := ex.API.Endpoints.GetURL(exchange.WebsocketTrade)
+					require.NoError(t, err, "GetURL must not error")
+					assert.Equal(t, websocketAPIURL, u, "a previous configuration should take the WebSocket API's default endpoint")
+					endpoints[exchange.WebsocketTrade.String()] = websocketAPIURL
+					assert.Equal(t, endpoints, exch.API.Endpoints, "Setup should save the WebSocket API's default endpoint beside the saved endpoints")
+					expURLs := []string{shape.endpoints[exchange.WebsocketSpot]}
+					if exp.API.AuthenticatedWebsocketSupport {
+						expURLs = append(expURLs, websocketAPIURL)
+					}
+					urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+					require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+					assert.ElementsMatch(t, expURLs, urls, "a previous configuration should set up the streams, and the WebSocket API only with authenticated websocket support")
+					assert.Equal(t, exp.API.AuthenticatedWebsocketSupport, ex.Websocket.CanUseAuthenticatedEndpoints(), "a previous configuration should let the websocket use authenticated endpoints only with authenticated websocket support")
+					channels := make([]string, len(exch.Features.Subscriptions))
+					for i, s := range exch.Features.Subscriptions {
+						channels[i] = s.Channel
+					}
+					assert.Equal(t, []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}, channels,
+						"a previous configuration should take the default subscriptions, the streams the previous version subscribed")
+					// The streams the previous version subscribed for each enabled pair
+					previousStreams := make([]string, 0, 4*len(shape.symbols))
+					for _, symbol := range shape.symbols {
+						for _, stream := range []string{"ticker", "trade", "kline_1m", "depth@100ms"} {
+							previousStreams = append(previousStreams, symbol+"@"+stream)
+						}
+					}
+					subs, err := ex.generateSubscriptions(t.Context())
+					require.NoError(t, err, "generateSubscriptions must not error")
+					assert.ElementsMatch(t, previousStreams, subs.QualifiedChannels(), "a previous configuration should subscribe the streams the previous version subscribed")
+				})
+			}
+		}
+	})
+
+	t.Run("sets up its connections", func(t *testing.T) {
+		// The endpoints are spelled out rather than taken from the package's constants, so a wrong default fails too
+		const streamsURL, apiURL = "wss://stream.binance.us:9443/stream", "wss://ws-api.binance.us:443/ws-api/v3"
+		const configuredStreamsURL, configuredAPIURL = "wss://streams.example.com/custom-stream", "wss://api.example.com/custom-ws-api"
+		for _, endpoints := range []struct {
+			name       string
+			configured map[exchange.URL]string
+			streams    string
+			api        string
+		}{
+			{name: "default endpoints", streams: streamsURL, api: apiURL},
+			{name: "configured endpoints", configured: map[exchange.URL]string{exchange.WebsocketSpot: configuredStreamsURL, exchange.WebsocketTrade: configuredAPIURL}, streams: configuredStreamsURL, api: configuredAPIURL},
+			{name: "a configured WebSocket API endpoint alone", configured: map[exchange.URL]string{exchange.WebsocketTrade: configuredAPIURL}, streams: streamsURL, api: configuredAPIURL},
+			{name: "a configured streams endpoint alone", configured: map[exchange.URL]string{exchange.WebsocketSpot: configuredStreamsURL}, streams: configuredStreamsURL, api: apiURL},
+			{name: "a configured supplementary websocket endpoint", configured: map[exchange.URL]string{exchange.WebsocketSpotSupplementary: "wss://supplementary.example.com/custom-stream"}, streams: streamsURL, api: apiURL},
+		} {
+			// Every combination of the websocket disabled, authenticated REST support, authenticated websocket support, no
+			// credentials and every subscription disabled
+			for combination := range 32 {
+				websocketDisabled, restAuthenticated, websocketAuthenticated, noCredentials, noSubscriptions := combination&1 != 0, combination&2 != 0, combination&4 != 0, combination&8 != 0, combination&16 != 0
+				name := []string{endpoints.name}
+				for _, setting := range []struct {
+					on   bool
+					name string
+				}{
+					{websocketDisabled, "websocket disabled"},
+					{restAuthenticated, "authenticated REST support"},
+					{websocketAuthenticated, "authenticated websocket support"},
+					{noCredentials, "no credentials"},
+					{noSubscriptions, "every subscription disabled"},
+				} {
+					if setting.on {
+						name = append(name, setting.name)
+					}
+				}
+				exp := []string{endpoints.streams}
+				if websocketAuthenticated {
+					exp = append(exp, endpoints.api)
+				}
+				t.Run(strings.Join(name, ", "), func(t *testing.T) {
+					t.Parallel()
+					ex := new(Exchange)
+					ex.SetDefaults()
+					// Accounts of its own keep SetupDefaults from registering the exchange in the global accounts store
+					ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+					t.Cleanup(func() { assert.NoError(t, ex.Shutdown(), "Shutdown should not error") })
+					cfg, err := ex.GetStandardConfig()
+					require.NoError(t, err, "GetStandardConfig must not error")
+					cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: !websocketDisabled}}
+					if noSubscriptions {
+						cfg.Features.Subscriptions = defaultSubscriptions.Clone()
+						for _, s := range cfg.Features.Subscriptions {
+							s.Enabled = false
+						}
+					}
+					cfg.API.AuthenticatedSupport = restAuthenticated
+					cfg.API.AuthenticatedWebsocketSupport = websocketAuthenticated
+					if !noCredentials {
+						cfg.API.Credentials.Key, cfg.API.Credentials.Secret = "mock-api-key", "mock-api-secret"
+					}
+					if endpoints.configured != nil {
+						cfg.API.Endpoints = make(map[string]string, len(endpoints.configured))
+						for endpoint, u := range endpoints.configured {
+							cfg.API.Endpoints[endpoint.String()] = u
+						}
+					}
+					// The connection kept from an earlier setup is closed, as Setup must forget it whatever its state, and
+					// the top of TestSetup forgets a connected one
+					kept := newFakeConnection()
+					require.NoError(t, kept.Shutdown(), "Shutdown must not error")
+					ex.wsAPI.set(kept, time.Second)
+					require.NoError(t, ex.Setup(cfg), "Setup must not error")
+					assert.NotNil(t, ex.orderbookSync, "Setup should set up the order book synchronisation")
+					urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+					require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+					assert.ElementsMatch(t, exp, urls, "Setup should set up the expected connections")
+					assert.Equal(t, websocketAuthenticated, ex.Websocket.CanUseAuthenticatedEndpoints(), "Setup should let the websocket use authenticated endpoints only with authenticated websocket support")
+					assert.Nil(t, ex.wsAPI.kept(), "Setup should forget a WebSocket API connection of an earlier setup")
+					// The manager refuses a second connection with the same URL and message filter
+					streams := ex.streamConnectionSetup(cfg)
+					streams.URL = endpoints.streams
+					assert.Error(t, ex.Websocket.SetupNewConnection(streams), "SetupNewConnection should refuse the streams' setup again")
+					if websocketAuthenticated {
+						api := ex.websocketAPIConnectionSetup(cfg)
+						api.URL = endpoints.api
+						assert.Error(t, ex.Websocket.SetupNewConnection(api), "SetupNewConnection should refuse the WebSocket API's setup again")
+					}
+				})
+			}
+		}
+	})
+
+	t.Run("keeps the WebSocket API connection when it sets up no connection", func(t *testing.T) {
+		ex := newWebsocketTestExchange(t)
+		// The configuration Setup is given again matches the exchange's own settings, which SetupDefaults applies before
+		// the websocket refuses a second setup
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		ex.Config.API.Credentials.Key, ex.Config.API.Credentials.Secret = "mock-api-key", "mock-api-secret"
+		ex.Config.API.AuthenticatedSupport, ex.Config.API.AuthenticatedWebsocketSupport = true, true
+		useMockWebsocket(t, ex, ex.websocketAPIConnectionSetup(ex.Config), websocketAPIMock)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		kept := ex.wsAPI.kept()
+		require.NotNil(t, kept, "the WebSocket API connection must be kept")
+		answers := func(when string) {
+			t.Helper()
+			assert.Samef(t, kept, ex.wsAPI.kept(), "Setup should keep the WebSocket API connection %s", when)
+			_, err := ex.WebsocketAPI().GetExchangeServerTime(t.Context())
+			assert.NoErrorf(t, err, "the WebSocket API connection should answer a public request %s", when)
+			_, err = ex.WebsocketAPI().GetAccount(t.Context())
+			assert.NoErrorf(t, err, "the WebSocket API connection should answer a signed request %s", when)
+		}
+		assert.Error(t, ex.Setup(nil), "Setup should error without a configuration")
+		answers("when it refuses a configuration")
+		assert.Error(t, ex.Setup(ex.Config), "Setup should error once the websocket is set up")
+		answers("when the websocket refuses a second setup")
+		disabled := *ex.Config
+		disabled.Enabled = false
+		require.NoError(t, ex.Setup(&disabled), "Setup must not error for a disabled exchange")
+		answers("when it only disables the exchange")
+	})
+
+	t.Run("synchronises order books for the websocket it sets up", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			ex := new(Exchange)
+			ex.SetDefaults()
+			ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+			cfg, err := ex.GetStandardConfig()
+			require.NoError(t, err, "GetStandardConfig must not error")
+			cfg.Name = t.Name()
+			cfg.Features = &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}}
+			require.NoError(t, ex.Setup(cfg), "Setup must not error")
+			// SetDefaults gives the exchange a new websocket, whose order books the next Setup must synchronise
+			require.NoError(t, ex.Shutdown(), "Shutdown must not error")
+			ex.SetDefaults()
+			ex.Name = cfg.Name
+			ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+			require.NoError(t, ex.Setup(cfg), "Setup must not error")
+			t.Cleanup(func() { assert.NoError(t, ex.Shutdown(), "Shutdown should not error") })
+			require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+			pair := currency.NewBTCUSDT()
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
+			require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: "btcusdt@depth@100ms", Asset: asset.Spot, Pairs: currency.Pairs{pair}}),
+				"AddSuccessfulSubscriptions must not error")
+			// The snapshot arrives 3 seconds after its request, which the order book synchronisation Setup builds sends 2
+			// seconds after the first update and waits up to 2 minutes for
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				select {
+				case <-r.Context().Done():
+					return nil, r.Context().Err()
+				case <-time.After(3 * time.Second):
+					return orderBookResponse(100), nil
+				}
+			})}), "SetHTTPClient must not error")
+			update := []byte(`{"stream":"btcusdt@depth@100ms","data":{"e":"depthUpdate","E":1641806714000,"s":"BTCUSDT","U":101,"u":101,"b":[["69999","3"]],"a":[]}}`)
+			require.NoError(t, ex.wsHandleData(t.Context(), nil, update), "wsHandleData must not error")
+			time.Sleep(10 * time.Second)
+			synctest.Wait()
+			id, err := ex.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+			require.NoError(t, err, "LastUpdateID must not error once the order book has synchronised")
+			assert.Equal(t, int64(101), id, "the order book should apply the update to the snapshot")
+		})
 	})
 }
 

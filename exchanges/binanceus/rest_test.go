@@ -285,6 +285,19 @@ func TestSendRequest(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("a typed-nil result", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			writeResponse(t, w, `{}`)
+		})
+		endpoint, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+		require.NoError(t, err, "GetURL must not error")
+		var result *ServerTimeResponse
+		assert.Error(t, ex.sendRequest(t.Context(), defaultRate, request.UnauthenticatedRequest, result, func() (*request.Item, error) {
+			return &request.Item{Method: http.MethodGet, Path: endpoint + "/api/v3/time"}, nil
+		}), "sendRequest should error for a typed-nil result rather than take it for no result")
+	})
 }
 
 func TestCheckNoData(t *testing.T) {
