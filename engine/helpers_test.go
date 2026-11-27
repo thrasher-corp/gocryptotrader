@@ -482,19 +482,38 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 
 func TestMapCurrenciesByExchange(t *testing.T) {
 	t.Parallel()
-	e := CreateTestBot(t)
-
 	pairs := []currency.Pair{
 		currency.NewBTCUSD(),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}
-	exch, err := e.GetExchangeByName(testExchange)
-	require.NoError(t, err, "GetExchangeByName must not error")
-	available := currency.Pairs{pairs[1], pairs[0], currency.NewPair(currency.ETH, currency.USD)}
-	require.NoError(t, exch.GetBase().UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
+	for _, tc := range []struct {
+		name      string
+		requested currency.Pairs
+		expected  map[string]currency.Pairs
+	}{
+		{
+			name:      "exchange without a requested pair is left out",
+			requested: currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1]},
+			expected:  map[string]currency.Pairs{testExchange: pairs},
+		},
+		{
+			name:      "each exchange maps to its requested pairs",
+			requested: currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1], currency.NewBTCUSDT()},
+			expected:  map[string]currency.Pairs{testExchange: pairs, "binance": {currency.NewBTCUSDT()}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := CreateTestBot(t)
+			exch, err := e.GetExchangeByName(testExchange)
+			require.NoError(t, err, "GetExchangeByName must not error")
+			available := currency.Pairs{pairs[1], pairs[0], currency.NewPair(currency.ETH, currency.USD)}
+			require.NoError(t, exch.GetBase().UpdatePairs(available, asset.Spot, false), "UpdatePairs must not error")
 
-	result := e.MapCurrenciesByExchange(currency.Pairs{pairs[0], currency.NewPair(currency.BTC, currency.JPY), pairs[1], currency.NewBTCUSDT()}, true, asset.Spot)
-	assert.Equal(t, map[string]currency.Pairs{testExchange: pairs, "binance": {currency.NewBTCUSDT()}}, result, "MapCurrenciesByExchange should map only the requested pairs each exchange supports")
+			result := e.MapCurrenciesByExchange(tc.requested, true, asset.Spot)
+			assert.Equal(t, tc.expected, result, "MapCurrenciesByExchange should map only the requested pairs each exchange supports")
+		})
+	}
 }
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
