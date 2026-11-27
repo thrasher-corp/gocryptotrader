@@ -725,6 +725,39 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 		})
 	}
 
+	for _, tc := range []struct {
+		name       string
+		configured subscription.List
+		exp        subscription.List
+	}{
+		{"context credentials", subscription.List{myTrades, myOrders, myWallet}, subscription.List{executions(subscription.MyOrdersChannel, true, true), balances}},
+		{"context credentials for Kraken's channel name", subscription.List{{Enabled: true, Channel: wsChannelBalances, Authenticated: true}}, subscription.List{{Enabled: true, Channel: wsChannelBalances, Authenticated: true, QualifiedChannel: wsChannelBalances}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.SetCredentials(nil)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ex.Features.Subscriptions = tc.configured.Clone()
+			got, err := ex.generatePrivateSubscriptions(t.Context())
+			require.NoError(t, err, "generatePrivateSubscriptions must not error without credentials")
+			assert.Empty(t, got, "generatePrivateSubscriptions should return nothing without credentials")
+			ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: testSecret})
+			got, err = ex.generatePrivateSubscriptions(ctx)
+			require.NoError(t, err, "generatePrivateSubscriptions must not error with context credentials")
+			assert.Len(t, got, len(tc.exp), "generatePrivateSubscriptions should generate each subscription once")
+			testsubs.EqualLists(t, tc.exp.Clone(), got)
+			for _, s := range got {
+				assert.Truef(t, s.Authenticated, "generatePrivateSubscriptions should keep the %s subscription authenticated", s.QualifiedChannel)
+			}
+			useTestCredentials(ex)
+			invalid := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: "not base64"})
+			got, err = ex.generatePrivateSubscriptions(invalid)
+			require.NoError(t, err, "generatePrivateSubscriptions must not error with invalid context credentials")
+			assert.Empty(t, got, "generatePrivateSubscriptions should return nothing for invalid context credentials, even with valid stored ones")
+		})
+	}
+
 	ex := newTestExchange(t)
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -2225,7 +2258,7 @@ func TestWebsocketProcessLevel3(t *testing.T) {
 	})
 }
 
-func TestGenerateLevel3Subscriptions(t *testing.T) { //nolint:tparallel // The subtests share ex, whose generators read the websocket state the test set up
+func TestGenerateLevel3Subscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	// The default order book subscription is XBT/USD's level 2 book, which the level 3 book cannot share
@@ -2241,6 +2274,7 @@ func TestGenerateLevel3Subscriptions(t *testing.T) { //nolint:tparallel // The s
 	require.NoError(t, err, "generateLevel3Subscriptions must not error")
 	level3 := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllOrdersChannel, QualifiedChannel: wsChannelLevel3, Levels: 10, Pairs: currency.Pairs{wsTestDOGEPair}}
 	testsubs.EqualLists(t, subscription.List{level3}, got)
+
 	// The cases share ex, whose generators read the websocket state the test set up
 	for name, generate := range map[string]func(context.Context) (subscription.List, error){
 		"generatePublicSubscriptions":  ex.generatePublicSubscriptions,
@@ -2254,6 +2288,27 @@ func TestGenerateLevel3Subscriptions(t *testing.T) { //nolint:tparallel // The s
 			}), "%s should leave out the level 3 and futures subscriptions", name)
 		})
 	}
+
+	t.Run("context credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.SetCredentials(nil)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.AllOrdersChannel, Levels: 10, Pairs: currency.Pairs{wsTestDOGEPair}}}
+		got, err := ex.generateLevel3Subscriptions(t.Context())
+		require.NoError(t, err, "generateLevel3Subscriptions must not error without credentials")
+		assert.Empty(t, got, "generateLevel3Subscriptions should return nothing without credentials")
+		ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: testSecret})
+		got, err = ex.generateLevel3Subscriptions(ctx)
+		require.NoError(t, err, "generateLevel3Subscriptions must not error with context credentials")
+		assert.Len(t, got, 1, "generateLevel3Subscriptions should generate the level 3 subscription once")
+		testsubs.EqualLists(t, subscription.List{level3.Clone()}, got)
+		useTestCredentials(ex)
+		invalid := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: "not base64"})
+		got, err = ex.generateLevel3Subscriptions(invalid)
+		require.NoError(t, err, "generateLevel3Subscriptions must not error with invalid context credentials")
+		assert.Empty(t, got, "generateLevel3Subscriptions should return nothing for invalid context credentials, even with valid stored ones")
+	})
 }
 
 func TestWebsocketConnect(t *testing.T) {

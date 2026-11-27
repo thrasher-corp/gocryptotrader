@@ -183,6 +183,56 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	for _, s := range ex.Features.Subscriptions {
 		assert.Emptyf(t, s.Pairs, "generateFuturesSubscriptions should not change the configured %s subscription", s.Channel)
 	}
+
+	type accountFeed struct{ channel, feed string }
+	for _, tc := range []struct {
+		name  string
+		feeds []accountFeed
+	}{
+		{"context credentials", []accountFeed{
+			{subscription.MyOrdersChannel, wsFuturesFeedOpenOrders},
+			{subscription.MyTradesChannel, wsFuturesFeedFills},
+			{subscription.MyWalletChannel, wsFuturesFeedBalances},
+			{wsFuturesFeedOpenPositions, wsFuturesFeedOpenPositions},
+			{wsFuturesFeedNotifications, wsFuturesFeedNotifications},
+		}},
+		{"context credentials for Kraken's feed names", []accountFeed{
+			{wsFuturesFeedOpenOrders, wsFuturesFeedOpenOrders},
+			{wsFuturesFeedFills, wsFuturesFeedFills},
+			{wsFuturesFeedBalances, wsFuturesFeedBalances},
+			{wsFuturesFeedOpenPositions, wsFuturesFeedOpenPositions},
+			{wsFuturesFeedNotifications, wsFuturesFeedNotifications},
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.SetCredentials(nil)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ex.Features.Subscriptions = subscription.List{}
+			exp := subscription.List{}
+			for _, f := range tc.feeds {
+				ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: f.channel, Authenticated: true})
+				exp = append(exp, futuresSubscription(f.channel, f.feed))
+			}
+			got, err := ex.generateFuturesSubscriptions(t.Context())
+			require.NoError(t, err, "generateFuturesSubscriptions must not error without credentials")
+			assert.Empty(t, got, "generateFuturesSubscriptions should leave out the account feeds without credentials")
+			ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: testSecret})
+			got, err = ex.generateFuturesSubscriptions(ctx)
+			require.NoError(t, err, "generateFuturesSubscriptions must not error with context credentials")
+			assert.Len(t, got, len(exp), "generateFuturesSubscriptions should generate each account feed once")
+			testsubs.EqualLists(t, exp, got)
+			for _, s := range got {
+				assert.Truef(t, s.Authenticated, "generateFuturesSubscriptions should keep the %s feed authenticated", s.QualifiedChannel)
+			}
+			useTestCredentials(ex)
+			invalid := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test-key", Secret: "not base64"})
+			got, err = ex.generateFuturesSubscriptions(invalid)
+			require.NoError(t, err, "generateFuturesSubscriptions must not error with invalid context credentials")
+			assert.Empty(t, got, "generateFuturesSubscriptions should leave out the account feeds for invalid context credentials, even with valid stored ones")
+		})
+	}
 }
 
 func TestValidateFuturesSubscriptions(t *testing.T) {
