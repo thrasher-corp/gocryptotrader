@@ -8,25 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-func TestFractionalDigits(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name     string
-		value    string
-		expected int
-	}{
-		{name: "integer", value: "12", expected: 0},
-		{name: "fraction", value: "12.34", expected: 2},
-		{name: "trailing zeroes", value: "12.3400", expected: 4},
-		{name: "small negative fraction", value: "-0.001", expected: 3},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.expected, fractionalDigits(tc.value), "fractionalDigits should count digits after the decimal point")
-		})
-	}
-}
-
 func TestAmountStepOrderIncrement(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

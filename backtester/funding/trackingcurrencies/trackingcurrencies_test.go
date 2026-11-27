@@ -193,7 +193,7 @@ func TestPairContainsUSD(t *testing.T) {
 		{
 			"btcusdc",
 			true,
-			currency.NewPair(currency.BTC, currency.USDC),
+			currency.NewBTCUSDC(),
 		},
 		{
 			"btctusd",

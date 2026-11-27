@@ -174,6 +174,34 @@ func BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback(b *testi
 	}
 }
 
+func TestFractionalDigits(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		text     string
+		expected int
+	}{
+		{name: "integer", text: "12"},
+		{name: "fraction", text: "12.34", expected: 2},
+		{name: "trailing zeroes", text: "12.3400", expected: 4},
+		{name: "small negative fraction", text: "-0.001", expected: 3},
+		{name: "whole number", text: "10"},
+		{name: "half", text: "0.5", expected: 1},
+		{name: "ten places", text: "84.9371054562", expected: 10},
+		{name: "binary residue", text: "0.30000000000000004", expected: 17},
+		{name: "eighteen places", text: "0.000000000000000001", expected: 18},
+		{name: "nineteen places", text: "0.0000000000000000001", expected: 19},
+		{name: "twenty places", text: "0.00000000000000000001", expected: 20},
+		{name: "zero fraction", text: "12.000", expected: 3},
+		{name: "leading point", text: ".50", expected: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, FractionalDigits(tc.text), "FractionalDigits should count the digits after the decimal point")
+		})
+	}
+}
+
 func TestDecimalFromFloat(t *testing.T) {
 	t.Parallel()
 	for value, exp := range map[float64]string{

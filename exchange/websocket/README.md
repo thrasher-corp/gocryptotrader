@@ -147,6 +147,22 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 }
 ```
 
+A connection setup can also set:
+
+- `SubscriptionsNotRequired`, to keep one connection open whether or not it has subscriptions, such as one carrying
+  requests; its subscriptions are generated and refreshed when `GenerateSubscriptions` is set, which a connection
+  carrying only requests can leave unset
+- `Optional`, so that failing to connect it, or losing one of its connections, leaves the other connections up; the
+  connection monitor retries it after the monitor delay, doubling the delay after each further failure up to a minute,
+  or the monitor delay when that is longer
+- `OnDisconnect`, called once each connection's reader stops and before a shutdown returns, to clear state kept for that
+  connection; retiring the setup's connections then waits for their readers while holding the manager's lock, so
+  neither the hook nor the setup's handler may call manager methods that take it, and the hook must not wait on a lock
+  their callers may hold
+
+`SubscribeToSetup` and `UnsubscribeFromSetup` add and remove subscriptions at runtime on the connections of the setup
+with a message filter.
+
 ## Donations
 
 <img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">

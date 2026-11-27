@@ -204,7 +204,7 @@ func TestEventManagerAdd(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	m := setupTestEventManager(t, em)
-	pair := currency.NewPair(currency.BTC, currency.USDC)
+	pair := currency.NewBTCUSDC()
 
 	_, err := m.Add("", "", EventConditionParams{}, pair, asset.Spot, "")
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted, "Add should return not started error when manager is stopped")
