@@ -88,7 +88,7 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
-		tickerBatchLastRequested:       make(map[key.ExchangeAsset]time.Time),
+		tickerBatchStates:              make(map[key.ExchangeAsset]*tickerBatchState),
 		currencyPairs:                  make(map[key.ExchangeAssetPair]*currencyPairSyncAgent),
 	}
 
@@ -253,6 +253,21 @@ func (m *SyncManager) get(k key.ExchangeAssetPair) *currencyPairSyncAgent {
 	return m.currencyPairs[k]
 }
 
+func (m *SyncManager) getTickerBatchState(k key.ExchangeAsset) *tickerBatchState {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+
+	if m.tickerBatchStates == nil {
+		m.tickerBatchStates = make(map[key.ExchangeAsset]*tickerBatchState)
+	}
+	state, ok := m.tickerBatchStates[k]
+	if !ok {
+		state = &tickerBatchState{}
+		m.tickerBatchStates[k] = state
+	}
+	return state
+}
+
 func newCurrencyPairSyncAgent(k key.ExchangeAssetPair) *currencyPairSyncAgent {
 	return &currencyPairSyncAgent{
 		Key:      k,
@@ -369,8 +384,8 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 	}
 
 	k := key.NewExchangeAssetPair(exchangeName, a, p)
-	c, exists := m.currencyPairs[k]
-	if !exists {
+	c := m.get(k)
+	if c == nil {
 		return fmt.Errorf("%w for %q %q %q %q %q",
 			errCouldNotSyncNewData,
 			k.Exchange,
@@ -554,21 +569,12 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 		var err error
 
 		if e.SupportsRESTTickerBatchUpdates() {
-			m.mux.Lock()
-			batchLastDone, ok := m.tickerBatchLastRequested[key.ExchangeAsset{
+			state := m.getTickerBatchState(key.ExchangeAsset{
 				Exchange: c.Key.Exchange,
 				Asset:    c.Key.Asset,
-			}]
-			if !ok {
-				m.tickerBatchLastRequested[key.ExchangeAsset{
-					Exchange: c.Key.Exchange,
-					Asset:    c.Key.Asset,
-				}] = time.Time{}
-			}
-			m.mux.Unlock()
-
-			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
-				m.mux.Lock()
+			})
+			state.mux.Lock()
+			if state.lastRequested.IsZero() || time.Since(state.lastRequested) > m.config.TimeoutREST {
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 				}
@@ -576,12 +582,10 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 				if err == nil {
 					result, err = e.GetCachedTicker(c.Pair, c.Key.Asset)
 				}
-				m.tickerBatchLastRequested[key.ExchangeAsset{
-					Exchange: c.Key.Exchange,
-					Asset:    c.Key.Asset,
-				}] = time.Now()
-				m.mux.Unlock()
+				state.lastRequested = time.Now()
+				state.mux.Unlock()
 			} else {
+				state.mux.Unlock()
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 				}

@@ -28,6 +28,12 @@ type currencyPairSyncAgent struct {
 	locks    []sync.Mutex
 }
 
+// tickerBatchState serialises batch ticker refreshes per exchange and asset.
+type tickerBatchState struct {
+	mux           sync.Mutex
+	lastRequested time.Time
+}
+
 // SyncManager stores the exchange currency pair syncer object
 type SyncManager struct {
 	initSyncCompleted              atomic.Bool
@@ -42,8 +48,8 @@ type SyncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            map[key.ExchangeAssetPair]*currencyPairSyncAgent
-	tickerBatchLastRequested map[key.ExchangeAsset]time.Time
+	currencyPairs     map[key.ExchangeAssetPair]*currencyPairSyncAgent
+	tickerBatchStates map[key.ExchangeAsset]*tickerBatchState
 
 	remoteConfig    *config.RemoteControlConfig
 	config          config.SyncManagerConfig
