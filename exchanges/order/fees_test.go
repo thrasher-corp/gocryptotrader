@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 func newTestFees(t *testing.T, amounts ...FeeAmount) Fees {
@@ -181,6 +182,115 @@ func TestFeesJSONRoundTrip(t *testing.T) {
 	var decoded container
 	require.NoError(t, json.Unmarshal([]byte(`{}`), &decoded), "Unmarshal must not error")
 	assert.False(t, decoded.Fees.IsReported(), "Unmarshal should leave omitted fees unreported")
+}
+
+func TestFeesMarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		fees   Fees
+		typ    byte
+		stored []byte
+	}{
+		{name: "not reported", fees: Fees{}, typ: bsonwire.TypeNull},
+		{name: "no fees", fees: newTestFees(t), typ: bsonwire.TypeEmbeddedDocument, stored: bsonwire.MarshalDocument()},
+		{
+			name:   "one currency",
+			fees:   newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.15}),
+			typ:    bsonwire.TypeEmbeddedDocument,
+			stored: bsonwire.MarshalDocument(bsonwire.Field{Key: "USDT", Value: "0.15"}),
+		},
+		{
+			name: "several currencies",
+			fees: newTestFees(t, FeeAmount{Currency: currency.NewCode("usdt"), Amount: -0.2}, FeeAmount{Currency: currency.BTC, Amount: 0.01}, FeeAmount{Currency: currency.ETH}),
+			typ:  bsonwire.TypeEmbeddedDocument,
+			stored: bsonwire.MarshalDocument(
+				bsonwire.Field{Key: "BTC", Value: "0.01"},
+				bsonwire.Field{Key: "ETH", Value: "0"},
+				bsonwire.Field{Key: "USDT", Value: "-0.2"},
+			),
+		},
+		{
+			name:   "amounts needing every digit",
+			fees:   newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 1e-12}, FeeAmount{Currency: currency.USDT, Amount: 0.30000000000000004}),
+			typ:    bsonwire.TypeEmbeddedDocument,
+			stored: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "0.000000000001"}, bsonwire.Field{Key: "USDT", Value: "0.30000000000000004"}),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			typ, data, err := tc.fees.MarshalBSONValue()
+			require.NoError(t, err, "MarshalBSONValue must not error")
+			assert.Equal(t, tc.typ, typ, "MarshalBSONValue should store the fees as the expected BSON type")
+			assert.Equal(t, tc.stored, data, "MarshalBSONValue should store each currency's amount")
+			f := newTestFees(t, FeeAmount{Currency: currency.LTC, Amount: 9})
+			require.NoError(t, f.UnmarshalBSONValue(typ, data), "UnmarshalBSONValue must not error")
+			assert.Equal(t, tc.fees, f, "UnmarshalBSONValue should read back the stored fees in place of those held")
+		})
+	}
+
+	t.Run("currency holding a NUL byte", func(t *testing.T) {
+		t.Parallel()
+		_, _, err := newTestFees(t, FeeAmount{Currency: currency.NewCode("BT\x00C"), Amount: 1}).MarshalBSONValue()
+		assert.ErrorIs(t, err, ErrInvalidFees, "MarshalBSONValue should reject a currency that cannot be a BSON document key")
+	})
+}
+
+func TestFeesUnmarshalBSONValue(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		typ  byte
+		data []byte
+		exp  Fees
+		err  error
+	}{
+		{name: "null", typ: bsonwire.TypeNull, exp: Fees{}},
+		{name: "empty document", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(), exp: Fees{reported: true}},
+		{
+			name: "lower-case currencies out of order",
+			typ:  bsonwire.TypeEmbeddedDocument,
+			data: bsonwire.MarshalDocument(bsonwire.Field{Key: "usdt", Value: "-0.2"}, bsonwire.Field{Key: "btc", Value: "0.01"}),
+			exp:  Fees{reported: true, amounts: []FeeAmount{{Currency: currency.BTC, Amount: 0.01}, {Currency: currency.USDT, Amount: -0.2}}},
+		},
+		{name: "string", typ: bsonwire.TypeString, data: bsonwire.MarshalString("BTC"), err: ErrInvalidFees},
+		{name: "integer", typ: bsonwire.TypeInt32, data: []byte{1, 0, 0, 0}, err: ErrInvalidFees},
+		{name: "array", typ: bsonwire.TypeArray, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "0", Value: "1"}), err: ErrInvalidFees},
+		{name: "null followed by bytes", typ: bsonwire.TypeNull, data: []byte{0}, err: ErrInvalidFees},
+		{name: "truncated document", typ: bsonwire.TypeEmbeddedDocument, data: []byte{5, 0}, err: ErrInvalidFees},
+		{
+			name: "non-string amount",
+			typ:  bsonwire.TypeEmbeddedDocument,
+			data: []byte{0x0E, 0x00, 0x00, 0x00, bsonwire.TypeInt32, 'B', 'T', 'C', 0x00, 0x01, 0x00, 0x00, 0x00, 0x00},
+			err:  ErrInvalidFees,
+		},
+		{name: "amount not a number", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "one"}), err: ErrInvalidFeeAmount},
+		{name: "empty amount", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC"}), err: ErrInvalidFeeAmount},
+		{name: "amount out of range", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "1e400"}), err: ErrInvalidFeeAmount},
+		{name: "NaN amount", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "NaN"}), err: ErrInvalidFeeAmount},
+		{name: "infinite amount", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "-Inf"}), err: ErrInvalidFeeAmount},
+		{name: "empty currency", typ: bsonwire.TypeEmbeddedDocument, data: bsonwire.MarshalDocument(bsonwire.Field{Value: "1"}), err: currency.ErrCurrencyCodeEmpty},
+		{
+			name: "duplicate currency in another case",
+			typ:  bsonwire.TypeEmbeddedDocument,
+			data: bsonwire.MarshalDocument(bsonwire.Field{Key: "BTC", Value: "1"}, bsonwire.Field{Key: "btc", Value: "2"}),
+			err:  ErrDuplicateFeeCurrency,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			held := newTestFees(t, FeeAmount{Currency: currency.LTC, Amount: 9})
+			f := held
+			err := f.UnmarshalBSONValue(tc.typ, tc.data)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "UnmarshalBSONValue must reject the stored value")
+				assert.Equal(t, held, f, "UnmarshalBSONValue should leave the fees alone on error")
+				return
+			}
+			require.NoError(t, err, "UnmarshalBSONValue must not error")
+			assert.Equal(t, tc.exp, f, "UnmarshalBSONValue should replace the fees with the decoded ones")
+		})
+	}
 }
 
 func TestFeesEqual(t *testing.T) {

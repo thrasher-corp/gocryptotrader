@@ -18,6 +18,22 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// deadlineGate pauses the first read of its deadline, which RateLimit makes after planning a request's wait and before
+// reserving it, so that a test can reserve the limiter in between as another holder of it can
+type deadlineGate struct {
+	context.Context  //nolint:containedctx // deadlineGate implements context.Context
+	reached, release chan struct{}
+	once             sync.Once
+}
+
+func (g *deadlineGate) Deadline() (time.Time, bool) {
+	g.once.Do(func() {
+		close(g.reached)
+		<-g.release
+	})
+	return g.Context.Deadline()
+}
+
 func TestRateLimit(t *testing.T) {
 	t.Parallel()
 
@@ -321,6 +337,95 @@ func TestRateLimit(t *testing.T) {
 				time.Sleep(500 * time.Millisecond)
 				assert.NoError(t, orders.RateLimit(WithWeight(WithDelayNotAllowed(t.Context()), 10)), "a cancelled batch should leave the whole budget once the first batch leaves the window")
 			})
+		})
+	})
+
+	t.Run("waits for its last token when another holder reserves the limiter after planning", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			weight  Weight
+			admitAt time.Duration
+		}{
+			{weight: 1, admitAt: 2 * time.Second},
+			{weight: 3, admitAt: 4 * time.Second},
+		} {
+			t.Run(fmt.Sprintf("weight %d", tc.weight), func(t *testing.T) {
+				t.Parallel()
+
+				synctest.Test(t, func(t *testing.T) {
+					shared := NewRateLimit(time.Second, 1)
+					start := time.Now()
+					require.True(t, shared.Allow(), "Allow must take the limiter's only token")
+					gate := &deadlineGate{Context: t.Context(), reached: make(chan struct{}), release: make(chan struct{})}
+					release := sync.OnceFunc(func() { close(gate.release) })
+					defer release()
+					errs := make(chan error, 1)
+					go func() { errs <- GetRateLimiterWithWeight(shared, tc.weight).RateLimit(gate) }()
+					select {
+					case <-gate.reached:
+					case <-time.After(time.Minute):
+						require.FailNow(t, "RateLimit must read the deadline before reserving its wait")
+					}
+					shared.ReserveN(start, 1)
+					release()
+					select {
+					case err := <-errs:
+						require.NoError(t, err, "RateLimit must not error")
+					case <-time.After(time.Minute):
+						require.FailNow(t, "RateLimit must return within a minute")
+					}
+					assert.Equal(t, tc.admitAt, time.Since(start), "RateLimit should wait for the last token it took, behind the one reserved after it planned")
+				})
+			})
+		}
+	})
+
+	t.Run("waits for the last token when rounding puts it after a zero-delay plan", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			// At this balance and rate the weight's whole deficit rounds to no wait, while taking its tokens one at a time
+			// leaves the last due a nanosecond later
+			shared := NewRateLimit(time.Second, 1)
+			require.True(t, shared.Allow(), "Allow must take the limiter's only token")
+			time.Sleep(90 * time.Millisecond)
+			shared.SetLimitAt(time.Now(), 1_910_000_000)
+			start := time.Now()
+			require.NoError(t, GetRateLimiterWithWeight(shared, 2).RateLimit(t.Context()), "RateLimit must not error")
+			assert.Equal(t, time.Nanosecond, time.Since(start), "RateLimit should wait for the last token it took")
+		})
+	})
+
+	t.Run("waits only until the last token when rounding puts it before the plan", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			// Two nanoseconds after the limiter's only token is taken, the weight's whole deficit rounds a nanosecond above
+			// the wait for its last token taken one at a time
+			limiter := NewRateLimit(time.Second, 1)
+			require.True(t, limiter.Allow(), "Allow must take the limiter's only token")
+			time.Sleep(2 * time.Nanosecond)
+			start := time.Now()
+			require.NoError(t, GetRateLimiterWithWeight(limiter, 2).RateLimit(t.Context()), "RateLimit must not error")
+			assert.Equal(t, 1_999_999_997*time.Nanosecond, time.Since(start), "RateLimit should wait only until the last token it took falls due")
+		})
+	})
+
+	t.Run("admits a request with window bookings at its booking", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			// Taking the weight's tokens one at a time leaves the last due a nanosecond after the planned send time
+			limiter, shared := NewRateLimit(time.Second, 3), NewWindowBudget(time.Second, 1)
+			require.True(t, limiter.Allow(), "Allow must take the limiter's only token")
+			time.Sleep(24 * time.Nanosecond)
+			require.NoError(t, GetRateLimiterWithShared(limiter, 3, shared).RateLimit(t.Context()), "RateLimit must not error")
+			admittedAt := time.Now()
+			rateLimitReservationMu.Lock()
+			booked := slices.Clone(shared.booked)
+			rateLimitReservationMu.Unlock()
+			require.Len(t, booked, 1, "RateLimit must book the request in the shared window")
+			assert.Zero(t, admittedAt.Sub(booked[0]), "RateLimit should admit the request at the time it booked in the window")
 		})
 	})
 
@@ -702,6 +807,67 @@ func TestRateLimitBarrier(t *testing.T) {
 				booked := len(budget.booked)
 				rateLimitReservationMu.Unlock()
 				assert.Equal(t, tc.booked, booked, "a group should book every participant's weight only when it is admitted")
+			})
+		}
+	})
+
+	t.Run("rejects the group when rounding leaves the last token due after a zero-delay plan", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name                   string
+			weightedFirst, windows bool
+		}{
+			{name: "weighted participant last on a shared window", windows: true},
+			{name: "weighted participant first without windows", weightedFirst: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				synctest.Test(t, func(t *testing.T) {
+					// At this balance and rate the weight's whole deficit rounds to no wait, while taking its tokens one at a
+					// time leaves the last due a nanosecond later
+					rounded, control := rate.NewLimiter(1, 2), rate.NewLimiter(1, 2)
+					require.True(t, rounded.AllowN(time.Now(), 2), "AllowN must take the limiter's tokens")
+					require.True(t, control.AllowN(time.Now(), 2), "AllowN must take the control limiter's tokens")
+					time.Sleep(90 * time.Millisecond)
+					rounded.SetLimitAt(time.Now(), 1_910_000_000)
+					control.SetLimitAt(time.Now(), 1_910_000_000)
+					var window *WindowBudget
+					if tc.windows {
+						window = NewWindowBudget(time.Hour, 2)
+					}
+					peer := GetRateLimiterWithShared(NewRateLimit(time.Second, 1), 1, window)
+					weighted := GetRateLimiterWithShared(rounded, 2, window)
+					first, last := peer, weighted
+					if tc.weightedFirst {
+						first, last = weighted, peer
+					}
+					ctxs, err := NewRateLimitBarrierContexts(t.Context(), 2)
+					require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+					errs := make(chan error, 1)
+					go func() { errs <- first.RateLimit(ctxs[0]) }()
+					synctest.Wait()
+					assert.ErrorIs(t, last.RateLimit(ctxs[1]), ErrDelayNotAllowed, "the last participant should be refused with the group")
+					select {
+					case err := <-errs:
+						assert.ErrorIs(t, err, ErrDelayNotAllowed, "the first participant should be refused with the group")
+					case <-time.After(time.Minute):
+						require.FailNow(t, "the first participant must return within a minute")
+					}
+					// Refusing gives the weighted participant's tokens back as cancelling the same reservations in reverse does
+					now := time.Now()
+					taken := []*rate.Reservation{control.ReserveN(now, 1), control.ReserveN(now, 1)}
+					taken[1].CancelAt(now)
+					taken[0].CancelAt(now)
+					assert.Equal(t, control.TokensAt(now), rounded.TokensAt(now), "a refused group should give back the weighted participant's tokens")
+					assert.Equal(t, 1.0, peer.limiter.Tokens(), "a refused group should leave the peer with its token")
+					if window != nil {
+						rateLimitReservationMu.Lock()
+						booked := len(window.booked)
+						rateLimitReservationMu.Unlock()
+						assert.Zero(t, booked, "a refused group should give back its window bookings")
+					}
+				})
 			})
 		}
 	})
@@ -1979,6 +2145,47 @@ func TestAdmitLocked(t *testing.T) {
 		require.ErrorIs(t, <-errs, ErrRateLimitBarrierRejected, "a participant cancelled after its reservation must reject the group")
 		assert.InDelta(t, 1, first.limiter.Tokens(), 0.001, "a rejected group should give back every reservation")
 		assert.InDelta(t, 1, second.limiter.Tokens(), 0.001, "a rejected group should give back every reservation")
+	})
+
+	t.Run("a participant whose last token falls due after admission rejects the group", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name          string
+			weightedFirst bool
+		}{
+			{name: "weighted participant last"},
+			{name: "weighted participant first", weightedFirst: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				synctest.Test(t, func(t *testing.T) {
+					// At this balance and rate the weight's whole deficit rounds to no wait, while taking its tokens one at a
+					// time leaves the last due a nanosecond later
+					rounded, control := rate.NewLimiter(1, 2), rate.NewLimiter(1, 2)
+					require.True(t, rounded.AllowN(time.Now(), 2), "AllowN must take the limiter's tokens")
+					require.True(t, control.AllowN(time.Now(), 2), "AllowN must take the control limiter's tokens")
+					time.Sleep(90 * time.Millisecond)
+					rounded.SetLimitAt(time.Now(), 1_910_000_000)
+					control.SetLimitAt(time.Now(), 1_910_000_000)
+					peer := NewRateLimitWithWeight(time.Hour, 1, 1)
+					participants := []*rateLimitBarrierParticipant{
+						{done: make(chan struct{}), limiter: peer, weight: 1},
+						{done: make(chan struct{}), limiter: GetRateLimiterWithWeight(rounded, 2), weight: 2},
+					}
+					if tc.weightedFirst {
+						slices.Reverse(participants)
+					}
+					require.ErrorIs(t, admit(&rateLimitBarrier{participants: participants}), ErrDelayNotAllowed, "admitLocked must reject the group")
+					now := time.Now()
+					taken := []*rate.Reservation{control.ReserveN(now, 1), control.ReserveN(now, 1)}
+					taken[1].CancelAt(now)
+					taken[0].CancelAt(now)
+					assert.Equal(t, control.TokensAt(now), rounded.TokensAt(now), "a rejected group should give back the participant's own reservation")
+					assert.InDelta(t, 1, peer.limiter.Tokens(), 0.001, "a rejected group should give back the reservations already taken")
+				})
+			})
+		}
 	})
 }
 

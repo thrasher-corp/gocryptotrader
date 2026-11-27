@@ -16,6 +16,8 @@ var (
 	_ bsonwire.ValueUnmarshaler = (*Status)(nil)
 	_ bsonwire.ValueMarshaler   = TimeInForce(0)
 	_ bsonwire.ValueUnmarshaler = (*TimeInForce)(nil)
+	_ bsonwire.ValueMarshaler   = Fees{}
+	_ bsonwire.ValueUnmarshaler = (*Fees)(nil)
 )
 
 // flags returns zero followed by every single-bit value from first to last

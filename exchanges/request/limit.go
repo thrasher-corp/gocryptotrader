@@ -304,27 +304,33 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	tn := time.Now()
 	finalDelay, plan := r.planLocked(tn, weight)
 
-	if finalDelay == 0 {
-		plan.reserveLocked(tn)
-		r.m.Unlock()
-		rateLimitReservationMu.Unlock()
-		return nil
-	}
+	if finalDelay != 0 {
+		if hasDelayNotAllowed(ctx) {
+			r.m.Unlock()
+			rateLimitReservationMu.Unlock()
+			return ErrDelayNotAllowed
+		}
 
-	if hasDelayNotAllowed(ctx) {
-		r.m.Unlock()
-		rateLimitReservationMu.Unlock()
-		return ErrDelayNotAllowed
-	}
-
-	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
-		r.m.Unlock()
-		rateLimitReservationMu.Unlock()
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+		if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
+			r.m.Unlock()
+			rateLimitReservationMu.Unlock()
+			return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+		}
 	}
 	reserved := plan.reserveLocked(tn)
+	if n := len(reserved.tokens); n != 0 && len(plan.bookings) == 0 {
+		// Another holder of the limiter can reserve it without rateLimitReservationMu, and rounding can put the last of a
+		// weighted request's tokens a few nanoseconds either side of the plan, so a request on its limiter alone waits for
+		// its last token. A request with window bookings keeps its planned wait, since sending it later than booked can put
+		// two sends in one rolling window
+		finalDelay = reserved.tokens[n-1].DelayFrom(tn)
+	}
 	r.m.Unlock()
 	rateLimitReservationMu.Unlock()
+
+	if finalDelay == 0 {
+		return nil
+	}
 
 	select {
 	case <-ctx.Done():
@@ -524,8 +530,15 @@ func (b *rateLimitBarrier) admitLocked() error {
 			cancelReservationsLocked(reservations, at)
 			return ErrDelayNotAllowed
 		}
-		reservations = append(reservations, plan.reserveLocked(at))
+		reserved := plan.reserveLocked(at)
 		participant.limiter.m.Unlock()
+		reservations = append(reservations, reserved)
+		if n := len(reserved.tokens); n != 0 && reserved.tokens[n-1].DelayFrom(at) != 0 {
+			// Another holder of the limiter can reserve it without rateLimitReservationMu, and rounding can leave a
+			// weighted participant's last token due after the admission time, so refuse the group if it would have to wait
+			cancelReservationsLocked(reservations, at)
+			return ErrDelayNotAllowed
+		}
 	}
 	for _, participant := range b.participants {
 		if contextDone(participant.done) {

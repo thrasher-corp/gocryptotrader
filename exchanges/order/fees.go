@@ -7,15 +7,19 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
-// Errors returned when building fees
+// Errors returned when building, storing or reading fees
 var (
 	ErrDuplicateFeeCurrency = errors.New("duplicate fee currency")
 	ErrInvalidFeeAmount     = errors.New("invalid fee amount")
+	ErrInvalidFees          = errors.New("invalid fees")
 )
 
 // FeeAmount is a fee in one currency. A positive Amount was charged and a negative Amount is a rebate.
@@ -95,6 +99,54 @@ func (f *Fees) UnmarshalJSON(data []byte) error {
 	var amounts []FeeAmount
 	if err := json.Unmarshal(data, &amounts); err != nil {
 		return err
+	}
+	fees, err := NewFees(amounts...)
+	if err != nil {
+		return err
+	}
+	*f = fees
+	return nil
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing fees that were not reported as null, and reported fees as a
+// document of each currency's amount as a string, which is empty when there are none
+func (f Fees) MarshalBSONValue() (typ byte, data []byte, err error) {
+	if !f.reported {
+		return bsonwire.TypeNull, nil, nil
+	}
+	fields := make([]bsonwire.Field, len(f.amounts))
+	for i, a := range f.amounts {
+		code := a.Currency.String()
+		if strings.IndexByte(code, 0) != -1 {
+			return 0, nil, fmt.Errorf("%w: currency %q holds a NUL byte, which ends a BSON document key", ErrInvalidFees, code)
+		}
+		fields[i] = bsonwire.Field{Key: code, Value: strconv.FormatFloat(a.Amount, 'f', -1, 64)}
+	}
+	return bsonwire.TypeEmbeddedDocument, bsonwire.MarshalDocument(fields...), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler, reading fees as MarshalBSONValue stores them: null as fees that
+// were not reported, and a document as a snapshot that must meet the rules of NewFees. The decoded fees replace any
+// held, and an error leaves them unchanged
+func (f *Fees) UnmarshalBSONValue(typ byte, data []byte) error {
+	if typ == bsonwire.TypeNull {
+		if len(data) != 0 {
+			return fmt.Errorf("%w: %w: BSON null followed by %d bytes", ErrInvalidFees, bsonwire.ErrLength, len(data))
+		}
+		*f = Fees{}
+		return nil
+	}
+	fields, err := bsonwire.UnmarshalDocument(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidFees, err)
+	}
+	amounts := make([]FeeAmount, len(fields))
+	for i, field := range fields {
+		amount, err := strconv.ParseFloat(field.Value, 64)
+		if err != nil {
+			return fmt.Errorf("%w: %q for currency %q: %w", ErrInvalidFeeAmount, field.Value, field.Key, err)
+		}
+		amounts[i] = FeeAmount{Currency: currency.NewCode(field.Key), Amount: amount}
 	}
 	fees, err := NewFees(amounts...)
 	if err != nil {
