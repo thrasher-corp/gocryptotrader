@@ -599,7 +599,7 @@ func bookUpdates(s *subscription.Subscription) (subscriptionType string, frequen
 
 // generateMarketDataSubscriptions returns the subscriptions the market data connections carry, each of Crypto.com's
 // channels once; each push is relayed to every asset its instrument trades as
-func (e *Exchange) generateMarketDataSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateMarketDataSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions(false)
 	if err != nil {
 		return nil, err
@@ -609,7 +609,7 @@ func (e *Exchange) generateMarketDataSubscriptions() (subscription.List, error) 
 
 // generateUserSubscriptions returns the subscriptions the user channels connection carries, each of Crypto.com's
 // channels once; expanding them leaves them all out unless the connection can be authenticated
-func (e *Exchange) generateUserSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateUserSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions(true)
 	if err != nil {
 		return nil, err

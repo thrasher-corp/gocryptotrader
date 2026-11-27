@@ -1010,7 +1010,7 @@ func TestRetryBookSubscription(t *testing.T) {
 					return tc.answer(ex, conn)
 				}
 				s := &subscription.Subscription{QualifiedChannel: recordedBookChannel}
-				require.True(t, ex.isConfiguredMarketDataChannel(s.QualifiedChannel), "the book channel must be configured, so that only the stop under test can end the retry")
+				require.True(t, ex.isConfiguredMarketDataChannel(t.Context(), s.QualifiedChannel), "the book channel must be configured, so that only the stop under test can end the retry")
 				if tc.held {
 					require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, s), "AddSuccessfulSubscriptions must not error")
 				}
@@ -2189,7 +2189,7 @@ func TestIsConfiguredMarketDataChannel(t *testing.T) {
 			ex := newTestExchange(t)
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			ex.Features.Subscriptions = tc.subs
-			assert.Equal(t, tc.exp, ex.isConfiguredMarketDataChannel(tc.channel), "isConfiguredMarketDataChannel should report whether the configured market data subscriptions name the channel")
+			assert.Equal(t, tc.exp, ex.isConfiguredMarketDataChannel(t.Context(), tc.channel), "isConfiguredMarketDataChannel should report whether the configured market data subscriptions name the channel")
 		})
 	}
 }

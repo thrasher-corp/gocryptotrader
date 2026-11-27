@@ -305,7 +305,7 @@ func TestGenerateUserSubscriptions(t *testing.T) {
 			ex := newTestExchange(t)
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			ex.Features.Subscriptions = tc.subs.Clone()
-			got, err := ex.generateUserSubscriptions()
+			got, err := ex.generateUserSubscriptions(t.Context())
 			require.NoError(t, err, "generateUserSubscriptions must not error")
 			testsubs.EqualLists(t, tc.exp, got)
 		})
@@ -325,7 +325,7 @@ func TestGenerateUserSubscriptions(t *testing.T) {
 			ex := newTestExchange(t)
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			ex.Features.Subscriptions = subscription.List{tc.sub}
-			_, err := ex.generateUserSubscriptions()
+			_, err := ex.generateUserSubscriptions(t.Context())
 			assert.ErrorIs(t, err, tc.err, "generateUserSubscriptions should refuse the subscription")
 		})
 	}
@@ -335,7 +335,7 @@ func TestGenerateUserSubscriptions(t *testing.T) {
 		ex := newTestExchange(t)
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		ex.Features.Subscriptions = defaultSubscriptions.Clone()
-		got, err := ex.generateUserSubscriptions()
+		got, err := ex.generateUserSubscriptions(t.Context())
 		require.NoError(t, err, "generateUserSubscriptions must not error without authentication")
 		assert.Empty(t, got, "generateUserSubscriptions should subscribe no user channels without authentication")
 	})
@@ -344,7 +344,7 @@ func TestGenerateUserSubscriptions(t *testing.T) {
 		t.Parallel()
 		ex := newTestExchange(t)
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel}}
-		_, err := ex.generateMarketDataSubscriptions()
+		_, err := ex.generateMarketDataSubscriptions(t.Context())
 		assert.ErrorIs(t, err, subscription.ErrNotSupported, "generateMarketDataSubscriptions should refuse a user channel")
 	})
 }

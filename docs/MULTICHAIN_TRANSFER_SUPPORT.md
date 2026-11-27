@@ -55,7 +55,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | COINUT | No | No | NA |
 | Cryptodotcom | Yes | Yes | |
 | Deribit | Yes | Yes | |
-| GateIO | Yes | Yes | |
+| Gate | Yes | Yes | |
 | Gemini | No | No | |
 | HitBTC | No | No | |
 | HTX | Yes | Yes | |

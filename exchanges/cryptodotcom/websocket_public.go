@@ -309,7 +309,7 @@ func (e *Exchange) retryBookSubscription(ctx context.Context, conn websocket.Con
 		if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
 			return
 		}
-		if !e.isConfiguredMarketDataChannel(s.QualifiedChannel) {
+		if !e.isConfiguredMarketDataChannel(ctx, s.QualifiedChannel) {
 			return
 		}
 		err := e.Websocket.SubscribeToChannels(ctx, conn, subscription.List{s})
@@ -331,8 +331,8 @@ func (e *Exchange) retryBookSubscription(ctx context.Context, conn websocket.Con
 
 // isConfiguredMarketDataChannel reports whether the configured market data subscriptions still name a qualified
 // channel; one that cannot be told is taken as not, so that a channel removed is not subscribed again
-func (e *Exchange) isConfiguredMarketDataChannel(channel string) bool {
-	subs, err := e.generateMarketDataSubscriptions()
+func (e *Exchange) isConfiguredMarketDataChannel(ctx context.Context, channel string) bool {
+	subs, err := e.generateMarketDataSubscriptions(ctx)
 	return err == nil && slices.ContainsFunc(subs, func(s *subscription.Subscription) bool { return s.QualifiedChannel == channel })
 }
 

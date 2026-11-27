@@ -130,7 +130,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Cryptodotcom | Yes | Yes | No |
 | Deribit | Yes | Yes | NA |
 | Coinbase | Yes | Yes | No|
-| GateIO | Yes | Yes | NA |
+| Gate | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | HTX | Yes | Yes | NA |
@@ -159,7 +159,7 @@ var Exchanges = []string{
     "coinut",
     "cryptodotcom",
     "deribit",
-    "gateio",
+    "gate",
     "gemini",
     "hitbtc",
     "htx",
@@ -713,7 +713,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 
 ```go
 // generateSubscriptions generates default subscription
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
     for _, s := range e.Features.Subscriptions {
         if s.Asset == asset.Empty {
             // Handle backwards compatibility with config without assets, all binance subs are spot

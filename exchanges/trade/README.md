@@ -73,7 +73,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | COINUT | Yes | Yes | No |
 | Cryptodotcom | Yes | Yes | No |
 | Deribit | Yes | Yes | Yes |
-| GateIO | Yes | Yes | No |
+| Gate | Yes | Yes | No |
 | Gemini | Yes | Yes | Yes |
 | HitBTC | Yes | Yes | Yes |
 | HTX | Yes | Yes | No |

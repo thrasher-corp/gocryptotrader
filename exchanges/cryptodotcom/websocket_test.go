@@ -308,7 +308,7 @@ func newSubscriptionLimitsExchange(t *testing.T, venue *websocketVenue) (ex *Exc
 		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must store the enabled pairs")
 		ex.websocketRequestID.Store(math.MaxInt64 - 1000)
 	})
-	generated, genErr := ex.generateMarketDataSubscriptions()
+	generated, genErr := ex.generateMarketDataSubscriptions(t.Context())
 	require.NoError(t, genErr, "generateMarketDataSubscriptions must not error")
 	require.Len(t, generated, 880, "every enabled pair must generate its channels")
 	return ex, qualifiedChannels(generated), err
@@ -1179,7 +1179,7 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 			ex := newTestExchange(t)
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			ex.Features.Subscriptions = tc.subs
-			got, err := ex.generateMarketDataSubscriptions()
+			got, err := ex.generateMarketDataSubscriptions(t.Context())
 			require.NoError(t, err, "generateMarketDataSubscriptions must not error")
 			exp := make(subscription.List, len(tc.exp))
 			for i, x := range tc.exp {
@@ -1226,7 +1226,7 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 					t.Parallel()
 					ex := newTestExchange(t)
 					ex.Features.Subscriptions = subs
-					_, err := ex.generateMarketDataSubscriptions()
+					_, err := ex.generateMarketDataSubscriptions(t.Context())
 					assert.ErrorIs(t, err, tc.err, "generateMarketDataSubscriptions should refuse the subscription")
 				})
 			}
@@ -1236,7 +1236,7 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 	t.Run("the default subscriptions", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestExchange(t)
-		got, err := ex.generateMarketDataSubscriptions()
+		got, err := ex.generateMarketDataSubscriptions(t.Context())
 		require.NoError(t, err, "generateMarketDataSubscriptions must not error for the default subscriptions")
 		channel := map[string]func(instrument string) string{
 			subscription.TickerChannel:    func(instrument string) string { return "ticker." + instrument },

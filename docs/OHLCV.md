@@ -79,7 +79,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Coinut         |             |
 | Cryptodotcom   | Y           |
 | Deribit        | Y            |
-| GateIO         | Y           |
+| Gate           | Y           |
 | Gemini         |             |
 | HitBTC         | Y           |
 | HTX            | Y           |
