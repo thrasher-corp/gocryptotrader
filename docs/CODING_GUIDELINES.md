@@ -217,6 +217,11 @@ Migration code lives in [config/versions](../config/versions), with each version
 - When no migration is needed, explain why existing configurations remain compatible and whether retaining their previous behaviour is intentional.
 - Preserve explicit user choices. Apply default-changing migrations only to configurations that can be reliably identified as using the previous defaults.
 
+### Default Subscriptions
+
+- An exchange set up with no saved subscriptions saves the default subscriptions its `SetDefaults` sets into its configuration and reads them from there afterwards, so later changes to those defaults never reach that configuration. When a change adds, removes or alters them, add a migration for that exchange that replaces saved subscriptions still matching the previous defaults, the whole list or single entries, with the new ones and restores the previous defaults on downgrade, as the Bitstamp and Binance migrations in [config/versions](../config/versions) do for whole lists. Upgrade the exchange's saved subscriptions in `config_example.json` and `testdata/configtest.json` as the migration would.
+- Customised lists that such a migration leaves alone can still lose data. If the change makes data depend on subscriptions a customised list may lack, such as the order books of an asset the exchange newly supports over websocket, which the engine then no longer polls over REST while the websocket stays connected, keep that data flowing: for example, add the asset's enabled default subscriptions at runtime, without saving them, when the saved list has no market data subscription for the asset, enabled or not, so that a disabled one opts the asset out.
+
 ### Migration Guards
 
 - Before adding a guard that skips migration, identify the downstream dependency it protects and whether the affected entry can reach that code path. A disabled entry must not block migration solely because its channel exists.
