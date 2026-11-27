@@ -462,6 +462,8 @@ var defaultExcludedHeaders = []string{
 	"Rest-Key",
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
+	"Bfx-Apikey",
+	"X-Bfx-Apikey",
 	"X-Auth",
 }
 

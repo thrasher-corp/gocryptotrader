@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 41005,
-    "bytes": 10277414,
+    "allocs": 41154,
+    "bytes": 10311771,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Bitstamp's perpetual contracts in testdata/configtest.json, gave medians from 41005 to 41034. 0.4% is about 164 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts, Bitstamp's perpetual contracts and Bitfinex's perpetuals in testdata/configtest.json, gave medians from 41154 to 41178. 0.4% is about 165 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -160,6 +160,14 @@
   "encoding/json.BenchmarkUnmarshal": {
     "allocs": 18,
     "bytes": 648
+  },
+  "encoding/json.BenchmarkUnmarshalTuple/book_update": {
+    "allocs": 1,
+    "bytes": 32
+  },
+  "encoding/json.BenchmarkUnmarshalTuple/order": {
+    "allocs": 6,
+    "bytes": 248
   },
   "exchange/order/limits.BenchmarkAmountStepCommonBaseIncrement": {
     "allocs": 64,
