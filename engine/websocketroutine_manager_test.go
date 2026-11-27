@@ -651,7 +651,7 @@ func testWebsocketManager(connects *atomic.Int32) (*websocket.Manager, error) {
 			return nil
 		},
 		Subscriber:            func(subscription.List) error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		DefaultURL:            "wss://example.com",
 		RunningURL:            "wss://example.com",
 	})
@@ -811,7 +811,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 				Features:              &protocol.Features{},
 				Connector:             tc.connector,
 				Subscriber:            tc.subscriber,
-				GenerateSubscriptions: func() (subscription.List, error) { return tc.subscriptions, nil },
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) { return tc.subscriptions, nil },
 				DefaultURL:            "wss://example.com",
 				RunningURL:            "wss://example.com",
 			}))

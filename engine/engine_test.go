@@ -918,7 +918,7 @@ func (b *refusedSubscriptionsBuilder) NewExchangeByName(name string) (exchange.I
 	if err != nil {
 		return nil, err
 	}
-	ws.GenerateSubs = func() (subscription.List, error) {
+	ws.GenerateSubs = func(context.Context) (subscription.List, error) {
 		return subscription.List{{Channel: subscription.TickerChannel}}, nil
 	}
 	ws.Subscriber = func(subscription.List) error { return errors.New("refused") }
