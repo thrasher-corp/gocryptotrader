@@ -512,8 +512,8 @@ func (s *Storage) UpdateCurrencies() error {
 // SeedForeignExchangeRatesByCurrencies seeds the foreign exchange rates by
 // currencies supplied
 func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return nil
 	}
@@ -537,7 +537,7 @@ func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, er
 // GetDefaultForeignExchangeRates returns foreign exchange rates based off
 // default fiat currencies.
 func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
-	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
+	if !s.updaterRunning.Load() || !s.hasRates() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -548,8 +548,8 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 
 // SeedDefaultForeignExchangeRates seeds the default foreign exchange rates
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
@@ -562,9 +562,20 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	return s.updateExchangeRates(rates)
 }
 
+// hasRates reports whether rates are cached. With the cache empty it waits for any refresh in flight to end and checks
+// again, reporting false only when that second check finds the cache empty
+func (s *Storage) hasRates() bool {
+	if s.fxRates.HasData() {
+		return true
+	}
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
+	return s.fxRates.HasData()
+}
+
 // GetExchangeRates returns storage seeded exchange rates
 func (s *Storage) GetExchangeRates() (Conversions, error) {
-	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
+	if !s.updaterRunning.Load() || !s.hasRates() {
 		err := s.SeedForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -575,8 +586,8 @@ func (s *Storage) GetExchangeRates() (Conversions, error) {
 
 // SeedForeignExchangeRates seeds the foreign exchange rates from storage config currencies
 func (s *Storage) SeedForeignExchangeRates() error {
-	s.fxRates.mtx.Lock()
-	defer s.fxRates.mtx.Unlock()
+	s.fxRefreshMtx.Lock()
+	defer s.fxRefreshMtx.Unlock()
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
@@ -589,6 +600,8 @@ func (s *Storage) SeedForeignExchangeRates() error {
 }
 
 func (s *Storage) updateExchangeRates(m map[string]float64) error {
+	s.fxRates.mtx.Lock()
+	defer s.fxRates.mtx.Unlock()
 	return s.fxRates.Update(m)
 }
 
@@ -722,7 +735,7 @@ func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	if !s.fxRates.HasData() {
+	if !s.hasRates() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return 0, err
@@ -742,7 +755,7 @@ func (s *Storage) GetStorageRate(from, to Code) (float64, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	if !s.fxRates.HasData() {
+	if !s.hasRates() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return 0, err
@@ -758,7 +771,7 @@ func (s *Storage) NewConversion(from, to Code) (Conversion, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	if !s.fxRates.HasData() {
+	if !s.hasRates() {
 		err := storage.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return Conversion{}, err
