@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -453,7 +454,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		if mockTests {
 			t.Skip("The deleted order's totals are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		deletion := expiredOrderDeletion(t)
 		require.NoError(t, ex.processOrderEvent(t.Context(), deletion.event, &deletion.data, deletion.pair, deletion.asset), "processOrderEvent must not error")
@@ -1318,7 +1319,7 @@ func TestHandleWebsocketAccountOrder(t *testing.T) {
 		if mockTests {
 			t.Skip("The deleted order's totals are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		frame := []byte(`{"event":"order_deleted","event_id":"live-deletion","pre_event_id":null,"order_source":"orderbook"}`)
 		require.NoError(t, ex.handleWSAccountOrder(t.Context(), frame, orderEventDeleted, []byte(`{"id":1,"amount_str":"0.5","amount_at_create":"1"}`), spotPair, asset.Spot), "handleWSAccountOrder must not error")
@@ -1335,7 +1336,7 @@ func TestHandleKeyedOrderEvent(t *testing.T) {
 		if mockTests {
 			t.Skip("The deleted order's totals are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		require.NoError(t, ex.handleKeyedOrderEvent(t.Context(), orderEventsKey, expiredOrderDeletion(t), false, ""), "handleKeyedOrderEvent must not error")
 		waitForOrderTotalFetches(t, ex)
@@ -1352,7 +1353,7 @@ func TestFlushKeptOrderEvents(t *testing.T) {
 		if mockTests {
 			t.Skip("The deleted order's totals are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		ex.keepOrderEvent(orderEventsKey, expiredOrderDeletion(t))
 		done, last, err := ex.flushKeptOrderEvents(t.Context(), orderEventsKey, "live-deletion")
@@ -1373,7 +1374,7 @@ func TestRetryKeptOrderEvents(t *testing.T) {
 		if mockTests {
 			t.Skip("The deleted order's totals are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		ex.keepOrderEvent(orderEventsKey, expiredOrderDeletion(t))
 		require.NoError(t, ex.retryKeptOrderEvents(t.Context()), "retryKeptOrderEvents must not error")
@@ -1417,7 +1418,7 @@ func TestRecoverOrderEvents(t *testing.T) {
 		if mockTests {
 			t.Skip("The account's order events are read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		// A recovered deletion fetches its order's totals, and a day of them is read one at a time, so the fetches are only
 		// waited for once the test's context has ended them
@@ -1950,7 +1951,7 @@ func TestFetchOrderTotals(t *testing.T) {
 		if mockTests {
 			t.Skip("The order is read from the live API")
 		}
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ex, api := newAuthenticatedTestInstance(t)
 		deletion := expiredOrderDeletion(t)
 		ex.fetchOrderTotals(t.Context(), &order.Detail{Exchange: ex.Name, OrderID: "1", Pair: deletion.pair, AssetType: deletion.asset, Status: order.PartiallyCancelled}, decimal.NewFromInt(1))

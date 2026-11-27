@@ -47,7 +47,7 @@ import (
 
 func TestGetWebsocketToken(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	token, err := e.GetWebsocketToken(t.Context())
 	require.NoError(t, err, "GetWebsocketToken must not error")
 	if mockTests {

@@ -6,11 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestGetAccountBalances(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	balances, err := e.GetAccountBalances(t.Context())
 	require.NoError(t, err, "GetAccountBalances must not error")
 	// The API sends lower case currency codes
@@ -29,7 +30,7 @@ func TestGetAccountBalance(t *testing.T) {
 	_, err := e.GetAccountBalance(t.Context(), currency.EMPTYCODE)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAccountBalance should error on an empty currency")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	// The API sends lower case currency codes
 	btc := AccountBalanceResponse{Currency: currency.NewCode("btc"), Total: 1.5, Available: 1.25, Reserved: 0.25}
 	balance, err := e.GetAccountBalance(t.Context(), currency.BTC)

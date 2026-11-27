@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -163,7 +164,7 @@ func accountSubscribeRequests(key string) []any {
 
 func TestCreateSubscribeKey(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	result, err := e.CreateSubscribeKey(t.Context())
 	require.NoError(t, err, "CreateSubscribeKey must not error")
 	if mockTests {
@@ -182,7 +183,7 @@ func TestRefreshSubscribeKey(t *testing.T) {
 	})
 	t.Run("a key the account created", func(t *testing.T) {
 		t.Parallel()
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		key := testSubscribeKey
 		if !mockTests {
 			key = createLiveSubscribeKey(t)
@@ -202,7 +203,7 @@ func TestCloseSubscribeKey(t *testing.T) {
 	})
 	t.Run("a key the account created", func(t *testing.T) {
 		t.Parallel()
-		skipLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		key := testSubscribeKey
 		if !mockTests {
 			key = createLiveSubscribeKey(t)
@@ -755,7 +756,7 @@ func TestWebsocketAccountSubscriptionsSerialised(t *testing.T) {
 
 func TestWebsocketAccountSubscribe(t *testing.T) {
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	subs := subscription.List{
 		{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 		{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},

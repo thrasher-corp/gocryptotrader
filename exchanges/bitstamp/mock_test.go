@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -29,4 +30,30 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+// TestRecordingSkipsMockOnlySubtests checks that the tests whose mocked subtests change the account send no request
+// through e while it records. It runs serially, as recording changes the exchange every test shares
+func TestRecordingSkipsMockOnlySubtests(t *testing.T) {
+	sent := testexch.RequestsWhileRecording(t, e, map[string]func(*testing.T){
+		"TestCreateContact":                        TestCreateContact,
+		"TestCreateExtendedPublicKeyRegistration":  TestCreateExtendedPublicKeyRegistration,
+		"TestCreateInstantConvertAddress":          TestCreateInstantConvertAddress,
+		"TestCreateSatoshiTest":                    TestCreateSatoshiTest,
+		"TestCryptoWithdrawal":                     TestCryptoWithdrawal,
+		"TestEarnSubscribe":                        TestEarnSubscribe,
+		"TestEarnUnsubscribe":                      TestEarnUnsubscribe,
+		"TestRejectCryptoDeposit":                  TestRejectCryptoDeposit,
+		"TestRevokeAllAPIKeys":                     TestRevokeAllAPIKeys,
+		"TestRevokeExtendedPublicKeyRegistration":  TestRevokeExtendedPublicKeyRegistration,
+		"TestRippleIOUWithdrawal":                  TestRippleIOUWithdrawal,
+		"TestSetEarnSubscriptionSetting":           TestSetEarnSubscriptionSetting,
+		"TestSubmitCounterpartyInfo":               TestSubmitCounterpartyInfo,
+		"TestTransferFromMainAccount":              TestTransferFromMainAccount,
+		"TestUpdateCryptoDepositOriginator":        TestUpdateCryptoDepositOriginator,
+		"TestWithdrawCryptocurrencyFunds":          TestWithdrawCryptocurrencyFunds,
+		"TestWithdrawFiatFunds":                    TestWithdrawFiatFunds,
+		"TestWithdrawFiatFundsToInternationalBank": TestWithdrawFiatFundsToInternationalBank,
+	}, "api")
+	assert.Empty(t, sent, "These tests should send no request through e while it records")
 }

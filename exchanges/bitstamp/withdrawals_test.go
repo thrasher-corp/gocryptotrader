@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -160,7 +161,7 @@ func TestGetWithdrawalRequests(t *testing.T) {
 	}
 	t.Run("valid request", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		requests, err := e.GetWithdrawalRequests(t.Context(), &WithdrawalRequestsRequest{TimeDelta: 24 * time.Hour, Limit: 10})
 		require.NoError(t, err, "GetWithdrawalRequests must not error")
 		if !mockTests {
@@ -207,7 +208,7 @@ func TestOpenBankWithdrawal(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.OpenBankWithdrawal(t.Context(), &BankWithdrawalRequest{
 			Amount:          1e12,
 			AccountCurrency: currency.EUR,
@@ -229,7 +230,7 @@ func TestCancelWithdrawal(t *testing.T) {
 	_, err := e.CancelWithdrawal(t.Context(), 0)
 	assert.ErrorIs(t, err, errWithdrawalIDRequired, "CancelWithdrawal should error without an ID")
 
-	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	resp, err := e.CancelWithdrawal(t.Context(), 1)
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "CancelWithdrawal should error for an unknown withdrawal")
@@ -245,7 +246,7 @@ func TestGetFiatWithdrawalStatus(t *testing.T) {
 	_, err := e.GetFiatWithdrawalStatus(t.Context(), 0)
 	assert.ErrorIs(t, err, errWithdrawalIDRequired, "GetFiatWithdrawalStatus should error without an ID")
 
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	resp, err := e.GetFiatWithdrawalStatus(t.Context(), 1)
 	if !mockTests {
 		assert.ErrorIs(t, err, errAPIResponse, "GetFiatWithdrawalStatus should error for an unknown withdrawal")
@@ -275,7 +276,7 @@ func TestCryptoWithdrawal(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.CryptoWithdrawal(t.Context(), &CryptoWithdrawalRequest{
@@ -295,7 +296,7 @@ func TestCryptoWithdrawal(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		// More bitcoin than will ever exist, so no account holds it
 		_, err := e.CryptoWithdrawal(t.Context(), &CryptoWithdrawalRequest{Currency: currency.BTC, Network: "bitcoin", Amount: 21000001, Address: core.BitcoinDonationAddress})
 		requireRefusedOnMerits(t, err, invalidAddressLength, belowMinimumAmount)
@@ -322,7 +323,7 @@ func TestRippleIOUWithdrawal(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.RippleIOUWithdrawal(t.Context(), &RippleIOUWithdrawalRequest{Currency: currency.USD, Amount: 123, Address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B"})
@@ -334,7 +335,7 @@ func TestRippleIOUWithdrawal(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.RippleIOUWithdrawal(t.Context(), &RippleIOUWithdrawalRequest{Currency: currency.USD, Amount: 1e12, Address: "unlisted"})
 		requireRefusedOnMerits(t, err, belowMinimumAmount)
 	})

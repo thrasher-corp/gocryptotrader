@@ -38,7 +38,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
@@ -170,23 +169,6 @@ func newTestServerExchange(t *testing.T, handler http.Handler, wrap ...func(http
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(ep.String(), server.URL), "SetRunningURL must not error for %s", ep)
 	}
 	return ex
-}
-
-// skipLiveWithoutCredentials skips a live test of a private method when no credentials are set
-func skipLiveWithoutCredentials(t *testing.T) {
-	t.Helper()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-}
-
-// skipLiveUnlessCanManipulate skips a live test that changes the account unless credentials are set and
-// canManipulateRealOrders allows it
-func skipLiveUnlessCanManipulate(t *testing.T) {
-	t.Helper()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
 }
 
 // requireRefusedOnMerits requires a live request built to be refused to be refused by LBank with one of codes, which

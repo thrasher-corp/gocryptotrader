@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestCreateInstantConvertAddress(t *testing.T) {
@@ -16,7 +17,7 @@ func TestCreateInstantConvertAddress(t *testing.T) {
 	})
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked address is not created live, as the API would sell deposits to it")
 		}
 		resp, err := e.CreateInstantConvertAddress(t.Context(), currency.USD, "BECH32")
@@ -28,7 +29,7 @@ func TestCreateInstantConvertAddress(t *testing.T) {
 		if mockTests {
 			t.Skip("The request is built for the live API to refuse")
 		}
-		skipIfLiveWithoutCredentials(t, canManipulateRealOrders)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 		_, err := e.CreateInstantConvertAddress(t.Context(), unlistedCurrency, "BECH32")
 		requireRefusedOnMerits(t, err, invalidAddressFormat)
 	})
@@ -36,7 +37,7 @@ func TestCreateInstantConvertAddress(t *testing.T) {
 
 func TestGetInstantConvertAddressInfo(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	info, err := e.GetInstantConvertAddressInfo(t.Context(), "")
 	require.NoError(t, err, "GetInstantConvertAddressInfo must not error")
 	if mockTests {

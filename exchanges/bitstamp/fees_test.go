@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 func TestGetTradingFees(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	fees, err := e.GetTradingFees(t.Context())
 	require.NoError(t, err, "GetTradingFees must not error")
 	require.NotEmpty(t, fees, "GetTradingFees must return fees")
@@ -47,7 +48,7 @@ func TestGetTradingFee(t *testing.T) {
 		_, err := e.getTradingFee(t.Context(), &exchange.FeeBuilder{})
 		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "getTradingFee should error without a pair")
 
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		ctx := t.Context()
 		for _, tc := range []struct {
 			name    string
@@ -122,7 +123,7 @@ func TestGetTradingFee(t *testing.T) {
 
 func TestGetWithdrawalFees(t *testing.T) { //nolint:tparallel // The networks' cases go through the package exchange the calls above use, so they run in order
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 	fees, err := e.GetWithdrawalFees(t.Context())
 	require.NoError(t, err, "GetWithdrawalFees must not error")
 	require.NotEmpty(t, fees, "GetWithdrawalFees must return fees")

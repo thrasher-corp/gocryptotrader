@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"weak"
@@ -540,6 +542,129 @@ func TestMockHTTPServerNewClient(t *testing.T) {
 		noTransport := &mockHTTPServer{client: &http.Client{Transport: http.NewFileTransport(http.Dir(t.TempDir()))}}
 		_, err := noTransport.newClient()
 		assert.ErrorIs(t, err, errMockHTTPTransport, "newClient should error when the server's client has no *http.Transport")
+	})
+}
+
+type closeCounter struct {
+	io.Reader
+	closes int
+	err    error
+}
+
+func (c *closeCounter) Close() error {
+	c.closes++
+	return c.err
+}
+
+func TestRefusingTransportRoundTrip(t *testing.T) {
+	t.Parallel()
+	errClose := errors.New("close failed")
+	for _, tc := range []struct {
+		name    string
+		method  string
+		url     string
+		body    io.Reader
+		want    string
+		wantErr error
+	}{
+		{name: "no body", method: http.MethodGet, url: "http://127.0.0.1/api/time", want: "GET /api/time"},
+		{name: "body closed", method: http.MethodPost, url: "http://127.0.0.1/api/order", body: &closeCounter{Reader: strings.NewReader("a=1")}, want: "POST /api/order"},
+		{name: "body that fails to close", method: http.MethodDelete, url: "http://127.0.0.1/api/order", body: &closeCounter{Reader: strings.NewReader("a=1"), err: errClose}, want: "DELETE /api/order", wantErr: errClose},
+		{name: "typed nil body", method: http.MethodPut, url: "http://127.0.0.1/api/file", body: (*os.File)(nil), want: "PUT /api/file", wantErr: os.ErrInvalid},
+		{name: "query left out and escaping kept", method: http.MethodHead, url: "http://127.0.0.1/api/a%2Fb?c=d", want: "HEAD /api/a%2Fb"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := new(refusingTransport)
+			req, err := http.NewRequestWithContext(t.Context(), tc.method, tc.url, tc.body)
+			require.NoError(t, err, "NewRequestWithContext must not error")
+			resp, err := r.RoundTrip(req) //nolint:bodyclose // A refused request has no response, as the assertion below checks
+			assert.ErrorIs(t, err, errRecordingRequestRefused, "RoundTrip should refuse the request")
+			if tc.wantErr != nil {
+				assert.ErrorIs(t, err, tc.wantErr, "RoundTrip should return the body's close error too")
+			}
+			assert.Nil(t, resp, "RoundTrip should return no response")
+			assert.Equal(t, []string{tc.want}, r.sent, "RoundTrip should keep the request's method and escaped path")
+			if c, ok := tc.body.(*closeCounter); ok {
+				assert.Equal(t, 1, c.closes, "RoundTrip should close the request body once")
+			}
+		})
+	}
+}
+
+func TestRequestsWhileRecording(t *testing.T) {
+	t.Parallel()
+	newMockExchange := func(t *testing.T) (*binance.Exchange, string, func(context.Context, string, string) error) {
+		t.Helper()
+		e := new(binance.Exchange)
+		require.NoError(t, Setup(e), "Setup must not error")
+		require.NoError(t, MockHTTPInstance(e, "api", "v3"), "MockHTTPInstance must not error")
+		mockURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+		require.NoError(t, err, "GetURL must not error")
+		return e, mockURL, func(ctx context.Context, method, path string) error {
+			return e.Requester.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+				// The connection is closed after the answer, so the case leaves none open to the shared mock server
+				return &request.Item{Method: method, Path: mockURL + path, Headers: map[string]string{"Connection": "close"}, HTTPRecording: e.HTTPRecording}, nil
+			}, request.UnauthenticatedRequest)
+		}
+	}
+	assertRestored := func(t *testing.T, e *binance.Exchange, mockURL string, send func(context.Context, string, string) error) {
+		t.Helper()
+		assert.False(t, e.HTTPRecording, "HTTPRecording should be cleared once the caller ends")
+		restoredURL, err := e.API.Endpoints.GetURL(exchange.RestSpot)
+		require.NoError(t, err, "GetURL must not error")
+		assert.Equal(t, mockURL, restoredURL, "the running URL should keep its whole path postfix")
+		// The recording here has no routes, so the mock server answers every path with not found and this message
+		err = send(t.Context(), http.MethodGet, "/time")
+		assert.ErrorIs(t, err, request.ErrBadStatus, "a request should reach the mock server again")
+		assert.ErrorContains(t, err, "There is no mock data available in file", "the answer should come from the mock server")
+	}
+
+	t.Run("tests sending requests", func(t *testing.T) {
+		t.Parallel()
+		e, mockURL, send := newMockExchange(t)
+		var ran atomic.Int32
+		var sent []string
+		// Not parallel, as the checks below need the caller and its cleanup to have finished
+		t.Run("caller", func(t *testing.T) {
+			sent = RequestsWhileRecording(t, e, map[string]func(*testing.T){
+				"no request": func(t *testing.T) { //nolint:thelper // A test the helper runs, not a helper
+					t.Parallel()
+					ran.Add(1)
+				},
+				"parallel requests": func(t *testing.T) { //nolint:thelper // A test the helper runs, not a helper
+					t.Parallel()
+					ran.Add(1)
+					assert.True(t, e.HTTPRecording, "HTTPRecording should be set while a parallel test runs")
+					for _, method := range []string{http.MethodPost, http.MethodPost, http.MethodDelete} {
+						assert.ErrorIs(t, send(t.Context(), method, "/order"), errRecordingRequestRefused, "each request should be refused")
+					}
+				},
+				"serial request": func(t *testing.T) { //nolint:thelper // A test the helper runs, not a helper
+					ran.Add(1)
+					assert.True(t, e.HTTPRecording, "HTTPRecording should be set while a serial test runs")
+					assert.ErrorIs(t, send(t.Context(), http.MethodGet, "/time"), errRecordingRequestRefused, "the request should be refused")
+				},
+			}, "api", "v3")
+			assert.True(t, e.HTTPRecording, "HTTPRecording should stay set until the caller ends")
+			assert.ErrorIs(t, send(t.Context(), http.MethodGet, "/time"), errRecordingRequestRefused, "requests should be refused until the caller ends")
+		})
+		assert.Equal(t, int32(3), ran.Load(), "RequestsWhileRecording should run each test once")
+		// The serial test runs while the parallel ones wait for the loop running them to end
+		assert.Equal(t, []string{"GET /api/v3/time", "POST /api/v3/order", "POST /api/v3/order", "DELETE /api/v3/order"}, sent, "RequestsWhileRecording should return every request sent, in order")
+		assertRestored(t, e, mockURL, send)
+	})
+
+	t.Run("no tests", func(t *testing.T) {
+		t.Parallel()
+		e, mockURL, send := newMockExchange(t)
+		// Not parallel, as the checks below need the caller and its cleanup to have finished
+		t.Run("caller", func(t *testing.T) {
+			assert.Empty(t, RequestsWhileRecording(t, e, nil, "api", "v3"), "RequestsWhileRecording should return no request")
+			assert.True(t, e.HTTPRecording, "HTTPRecording should stay set until the caller ends")
+			assert.ErrorIs(t, send(t.Context(), http.MethodGet, "/time"), errRecordingRequestRefused, "requests should be refused until the caller ends")
+		})
+		assertRestored(t, e, mockURL, send)
 	})
 }
 

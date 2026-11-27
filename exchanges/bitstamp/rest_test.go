@@ -56,15 +56,6 @@ func parseRFC3339(t *testing.T, s string) time.Time {
 	return tm
 }
 
-// skipIfLiveWithoutCredentials skips authenticated tests when live testing without credentials, or without permission
-// to manipulate orders when canManipulateOrders is supplied
-func skipIfLiveWithoutCredentials(t *testing.T, canManipulateOrders ...bool) {
-	t.Helper()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateOrders...)
-	}
-}
-
 // refusedRegardlessOfRequest matches the replies the API documents for refusing a request whatever it asks: failed
 // authentication, missing permissions, unverified or restricted accounts and API keys, rate limits, unavailable or failing
 // services, and the reply to an unknown endpoint
@@ -177,7 +168,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
 	t.Run("account balances", func(t *testing.T) {
 		t.Parallel()
-		skipIfLiveWithoutCredentials(t)
+		sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
 		var resp []AccountBalanceResponse
 		require.NoError(t, e.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/v2/account_balances/", nil, nil, &resp), "SendAuthenticatedHTTPRequest must not error")
 		assert.NotEmpty(t, resp, "SendAuthenticatedHTTPRequest should decode the balances")
