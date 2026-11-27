@@ -126,6 +126,12 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return ErrRequestSystemIsNil
 	}
 	if r.disableRateLimiter.Load() {
+		// Disabling the limiter skips the wait, not the check that the endpoint has a limiter
+		if r.limiter != nil {
+			if err := common.NilGuard(r.limiter[e]); err != nil {
+				return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+			}
+		}
 		return WaitForRateLimitBarrier(ctx)
 	}
 	if err := common.NilGuard(r.limiter); err != nil {
@@ -182,7 +188,7 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 		rateLimitReservationMu.Unlock()
 		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", requiredDelay, context.DeadlineExceeded)
 	}
-	_, finalDelay := r.reserveLocked(tn)
+	reserved, finalDelay := r.reserveLocked(tn)
 	r.m.Unlock()
 	rateLimitReservationMu.Unlock()
 
@@ -192,6 +198,19 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		// The caller is abandoning the request, so give back what CancelAt can
+		// return rather than make later requests wait for it. That is not always
+		// everything: reservations whose time has passed, and capacity later
+		// reservations were scheduled against, stay spent, and rounding between
+		// a weighted request's per-token reservation times can hold some back
+		// even when nothing else is pending. Cancel at the current time: once
+		// another request has advanced the limiter past tn, CancelAt(tn) can wind
+		// its clock back so the next refill counts that time again.
+		rateLimitReservationMu.Lock()
+		r.m.Lock()
+		cancelAll(reserved, time.Now())
+		r.m.Unlock()
+		rateLimitReservationMu.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil

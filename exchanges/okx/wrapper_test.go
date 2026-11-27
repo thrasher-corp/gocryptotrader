@@ -384,7 +384,6 @@ func newIsolatedExchange(t *testing.T) *Exchange {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	if mockTests {
 		require.NoError(t, testexch.MockHTTPInstance(ex, "api/v5/"), "MockHTTPInstance must not error")
-		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	}
 	return ex
 }

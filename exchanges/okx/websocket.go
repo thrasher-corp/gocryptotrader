@@ -344,7 +344,7 @@ func (e *Exchange) setupWebsocket(exch *config.Exchange) error {
 			ResponseMaxLimit:      websocketResponseMaxLimit,
 			ConnectionRateLimiter: websocketControlLimiter,
 			Connector:             e.wsConnect,
-			GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(c.filter) },
+			GenerateSubscriptions: func(ctx context.Context) (subscription.List, error) { return e.generateSubscriptions(ctx, c.filter) },
 			Subscriber:            e.Subscribe,
 			Unsubscriber:          e.Unsubscribe,
 			Handler:               e.wsHandleData,
@@ -1297,7 +1297,7 @@ func (k subscriptionKey) GetQualifiedChannel() string {
 
 // generateSubscriptions returns the configured subscriptions served by the
 // connection the message filter selects, each keyed by its argument
-func (e *Exchange) generateSubscriptions(connection string) (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context, connection string) (subscription.List, error) {
 	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, s := range e.Features.Subscriptions {
 		if s.QualifiedChannel != "" {

@@ -1611,7 +1611,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		s.Asset = asset.Spot
 		s.Pairs = pairs
 	}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 
@@ -1620,7 +1620,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}...)
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 }

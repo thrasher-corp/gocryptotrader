@@ -1326,12 +1326,12 @@ func TestHandleSubscription(t *testing.T) {
 		conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
 		require.NoError(t, ex.Websocket.TrackTestConnection(publicConnection, conn), "TrackTestConnection must not error")
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{mainPair}}}
-		tracked, err := ex.generateSubscriptions(publicConnection)
+		tracked, err := ex.generateSubscriptions(t.Context(), publicConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		require.Len(t, tracked, 1, "generateSubscriptions must generate the ticker subscription")
 		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, tracked[0]), "AddSuccessfulSubscriptions must not error")
 		require.NoError(t, conn.Subscriptions().Add(tracked[0]), "the connection must hold the subscription")
-		equivalent, err := ex.generateSubscriptions(publicConnection)
+		equivalent, err := ex.generateSubscriptions(t.Context(), publicConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		require.NotSame(t, tracked[0], equivalent[0], "the equivalent must be another subscription")
 		require.NoError(t, ex.handleSubscription(t.Context(), conn, operationUnsubscribe, equivalent), "handleSubscription must not error")
@@ -1727,7 +1727,7 @@ func TestChunkRequests(t *testing.T) {
 		t.Parallel()
 		ex := new(Exchange)
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
-		subs, err := ex.generateSubscriptions(publicConnection)
+		subs, err := ex.generateSubscriptions(t.Context(), publicConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		var checked int
 		for _, sub := range subs {
@@ -1808,7 +1808,7 @@ func TestChunkRequests(t *testing.T) {
 				ex := new(Exchange)
 				require.NoError(t, testexch.Setup(ex), "Setup must not error")
 				ex.Features.Subscriptions = tc.subs
-				subs, err := ex.generateSubscriptions(businessConnection)
+				subs, err := ex.generateSubscriptions(t.Context(), businessConnection)
 				require.NoError(t, err, "generateSubscriptions must not error")
 				require.Len(t, subs, len(tc.subs), "each configured subscription must be generated")
 				reqs, err := ex.chunkRequests(nil, subs, operationSubscribe)
@@ -2368,7 +2368,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			ex.Features.Subscriptions = subs
 			got := map[string][]string{}
 			for _, connection := range []string{publicConnection, publicLoginConnection, privateConnection, businessConnection, businessLoginConnection} {
-				generated, err := ex.generateSubscriptions(connection)
+				generated, err := ex.generateSubscriptions(t.Context(), connection)
 				require.NoErrorf(t, err, "generateSubscriptions must not error for %s", connection)
 				for _, s := range generated {
 					got[connection] = append(got[connection], s.QualifiedChannel)
@@ -2386,7 +2386,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		t.Helper()
 		got := map[string][]string{}
 		for _, connection := range []string{publicConnection, publicLoginConnection, privateConnection, businessConnection, businessLoginConnection} {
-			subs, err := ex.generateSubscriptions(connection)
+			subs, err := ex.generateSubscriptions(t.Context(), connection)
 			require.NoErrorf(t, err, "generateSubscriptions must not error for %s", connection)
 			for _, s := range subs {
 				got[connection] = append(got[connection], s.Asset.String()+" "+s.QualifiedChannel)
@@ -2457,7 +2457,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 				ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Params: tc.params}}
 				if tc.exp == "" {
-					_, err := ex.generateSubscriptions(tc.connection)
+					_, err := ex.generateSubscriptions(t.Context(), tc.connection)
 					require.ErrorIs(t, err, errSubscriptionParameter, "generateSubscriptions must refuse a subscription without the argument OKX requires")
 					return
 				}
@@ -2477,12 +2477,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 			{Enabled: true, Channel: channelAccount, Params: map[string]any{"ccy": "USDT"}},
 			{Enabled: true, Channel: channelAccount, Params: map[string]any{"ccy": "USDT", "extraParams": `{"updateInterval":"0"}`}},
 		}
-		subs, err := ex.generateSubscriptions(privateConnection)
+		subs, err := ex.generateSubscriptions(t.Context(), privateConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		require.Len(t, subs, 2, "generateSubscriptions must generate both account subscriptions")
 		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, subs[0]), "AddSuccessfulSubscriptions must not error")
 		assert.Nil(t, ex.Websocket.GetSubscription(subs[1]), "a subscription differing only in its parameters should not find the tracked one")
-		regenerated, err := ex.generateSubscriptions(privateConnection)
+		regenerated, err := ex.generateSubscriptions(t.Context(), privateConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		assert.Same(t, subs[0], ex.Websocket.GetSubscription(regenerated[0]), "the subscription generated again should find the tracked one")
 		assert.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, subs[1]), "a subscription differing only in its parameters should be tracked beside the other")
@@ -2494,7 +2494,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
 		configured := &subscription.Subscription{Enabled: true, Channel: channelTickers, Asset: asset.Spot, Pairs: currency.Pairs{mainPair}, QualifiedChannel: `{"channel":"tickers","instId":"BTC-USDT"}`}
 		ex.Features.Subscriptions = subscription.List{configured}
-		subs, err := ex.generateSubscriptions(publicConnection)
+		subs, err := ex.generateSubscriptions(t.Context(), publicConnection)
 		require.NoError(t, err, "generateSubscriptions must not error")
 		require.Len(t, subs, 1, "generateSubscriptions must generate the expanded subscription")
 		require.NotSame(t, configured, subs[0], "the generated subscription must be a copy")
@@ -2610,7 +2610,7 @@ func TestChannelScopeName(t *testing.T) {
 				require.NoError(t, testexch.Setup(tracked), "Test exchange setup must succeed")
 				tracked.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				tracked.Features.Subscriptions = subscription.List{sub}
-				got, err := tracked.generateSubscriptions(channelConnection(name))
+				got, err := tracked.generateSubscriptions(t.Context(), channelConnection(name))
 				require.NoError(t, err, "Symbol subscription expansion must succeed")
 				require.Len(t, got, 1, "Explicit single instrument must produce one subscription")
 				assert.JSONEq(t, fmt.Sprintf(`{"channel":%q,"instId":%q}`, name, pair), got[0].QualifiedChannel, "symbol channels should name the chosen exchange channel and the subscribed instrument")
@@ -2882,7 +2882,7 @@ func TestIsAssetChannel(t *testing.T) {
 				require.NoError(t, err, "channelName must not error")
 				ex.Websocket.SetCanUseAuthenticatedEndpoints(requiresLogin(name))
 				ex.Features.Subscriptions = subscription.List{sub}
-				subs, err := ex.generateSubscriptions(channelConnection(name))
+				subs, err := ex.generateSubscriptions(t.Context(), channelConnection(name))
 				require.NoError(t, err, "asset subscription expansion must succeed")
 				require.Len(t, subs, 1, "all enabled instruments must share one asset subscription")
 				assert.JSONEq(t, fmt.Sprintf(`{"channel":%q,"instType":"SWAP"}`, name), subs[0].QualifiedChannel, "asset channels should omit instrument-specific arguments")
@@ -2896,12 +2896,12 @@ func TestPublicLiquidationSubscriptionCycle(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "setup must succeed")
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: channelLiquidationOrders, Asset: asset.PerpetualSwap}}
-	public, err := ex.generateSubscriptions(publicConnection)
+	public, err := ex.generateSubscriptions(t.Context(), publicConnection)
 	require.NoError(t, err, "public subscription expansion must succeed")
 	require.Len(t, public, 1, "all enabled swap instruments must share one subscription")
 	require.False(t, public[0].Authenticated, "liquidation observations must use public data")
 	require.JSONEq(t, `{"channel":"liquidation-orders","instType":"SWAP"}`, public[0].QualifiedChannel, "subscription must match the documented asset scope")
-	private, err := ex.generateSubscriptions(privateConnection)
+	private, err := ex.generateSubscriptions(t.Context(), privateConnection)
 	require.NoError(t, err, "private subscription expansion must succeed")
 	require.Empty(t, private, "liquidation observations must not require credentials")
 

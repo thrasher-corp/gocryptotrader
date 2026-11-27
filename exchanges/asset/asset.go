@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // Public errors related to assets
@@ -45,6 +46,8 @@ const (
 	Spread
 	Options
 	OptionCombo
+	Stock
+	ETF
 	// All asset const must come immediately after all valid assets for method `IsValid`
 	All
 )
@@ -71,10 +74,12 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	linearContract         = "linearcontract"
+	stock                  = "stock"
+	etf                    = "etf"
 	all                    = "all"
 )
 
-var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
+var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread, Stock, ETF}
 
 // Supported returns a list of supported asset types
 func Supported() Items {
@@ -124,6 +129,10 @@ func (a Item) String() string {
 		return futureCombo
 	case LinearContract:
 		return linearContract
+	case Stock:
+		return stock
+	case ETF:
+		return etf
 	case All:
 		return all
 	default:
@@ -264,6 +273,30 @@ func (a Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
 
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Item as its string
+func (a Item) MarshalBSONValue() (typ byte, data []byte, err error) {
+	return bsonwire.TypeString, bsonwire.MarshalString(a.String()), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. An Item without a string of its own is stored as an empty
+// string, and reads back as Empty.
+func (a *Item) UnmarshalBSONValue(typ byte, data []byte) error {
+	str, err := bsonwire.UnmarshalString(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrNotSupported, err)
+	}
+	if str == "" {
+		*a = Empty
+		return nil
+	}
+	i, err := New(str)
+	if err != nil {
+		return err
+	}
+	*a = i
+	return nil
+}
+
 // New takes an input matches to relevant package assets
 func New(input string) (Item, error) {
 	switch input = strings.ToLower(input); input {
@@ -307,6 +340,10 @@ func New(input string) (Item, error) {
 		return FutureCombo, nil
 	case linearContract:
 		return LinearContract, nil
+	case stock:
+		return Stock, nil
+	case etf:
+		return ETF, nil
 	case all:
 		return All, nil
 	default:

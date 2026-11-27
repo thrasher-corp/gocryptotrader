@@ -37,9 +37,6 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(e, "api/v5/"); err != nil {
 		log.Fatalf("Okx MockHTTPInstance error: %s", err)
 	}
-	if err := e.DisableRateLimiter(); err != nil {
-		log.Fatalf("Okx DisableRateLimiter error: %s", err)
-	}
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret", ClientID: "mock-passphrase"})

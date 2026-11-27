@@ -22,11 +22,13 @@ func TestGetFilteredHeader(t *testing.T) {
 	resp := &http.Response{Request: &http.Request{Header: http.Header{}}}
 	resp.Request.Header.Set("Key", "RiskyVals")
 	resp.Request.Header.Set("X-Mbx-Apikey", "secret-key")
+	resp.Request.Header.Set("X-Auth", "BITSTAMP secret-key")
 	resp.Request.Header.Set("Accept", "application/json")
 
 	fMap := GetFilteredHeader(resp, items)
 	assert.Empty(t, fMap.Get("Key"), "excluded header Key should be cleared")
 	assert.Empty(t, fMap.Get("X-Mbx-Apikey"), "excluded header X-Mbx-Apikey should be cleared")
+	assert.Empty(t, fMap.Get("X-Auth"), "excluded header X-Auth should be cleared")
 	assert.Equal(t, "application/json", fMap.Get("Accept"), "non-excluded header should survive")
 }
 
@@ -224,8 +226,6 @@ func TestCheckJSON(t *testing.T) {
 }
 
 func TestHTTPRecord(t *testing.T) {
-	t.Parallel()
-
 	service := "mockhttprecord"
 	serviceDir := filepath.Join("..", service)
 	outputDirPath := filepath.Join("..", service, "testdata")
@@ -250,7 +250,8 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 	require.NotNil(t, content, "Marshal must not return nil")
 
-	makeResponse := func(method, rawURL string, body []byte) *http.Response {
+	makeResponse := func(t *testing.T, method, rawURL string, body []byte) *http.Response {
+		t.Helper()
 		parsed, parseErr := url.Parse(rawURL)
 		require.NoError(t, parseErr)
 		resp := &http.Response{
@@ -271,15 +272,17 @@ func TestHTTPRecord(t *testing.T) {
 		}
 		return resp
 	}
-	callRecord := func(method, rawURL string, body []byte) error {
-		resp := makeResponse(method, rawURL, body)
+	callRecord := func(t *testing.T, method, rawURL string, body []byte) error {
+		t.Helper()
+		resp := makeResponse(t, method, rawURL, body)
 		defer func() {
 			require.NoError(t, resp.Body.Close())
 		}()
 		return HTTPRecord(resp, service, content, 4)
 	}
 
-	assertRouteMethodLen := func(path, method string, expected int) {
+	assertRouteMethodLen := func(t *testing.T, path, method string, expected int) {
+		t.Helper()
 		finalPayload, readErr := os.ReadFile(filePath)
 		require.NoError(t, readErr, "Read final mock file must not error")
 		var finalMock VCRMock
@@ -290,25 +293,28 @@ func TestHTTPRecord(t *testing.T) {
 	}
 
 	// Base GET entry for route initialisation coverage.
-	err = callRecord(http.MethodGet, "https://api.abc.com/test/base", nil)
+	err = callRecord(t, http.MethodGet, "https://api.abc.com/test/base", nil)
 	require.NoError(t, err)
 
 	// For write methods, repeated same request should overwrite existing record.
-	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
-		for range 2 {
-			err = callRecord(method, "https://api.abc.com/test/payload", content)
-			require.NoError(t, err, "HTTPRecord must not error")
-		}
-		assertRouteMethodLen("/test/payload", method, 1)
+	// Cases share the recorded mock file and run in order
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch} {
+		t.Run(method, func(t *testing.T) {
+			for range 2 {
+				err := callRecord(t, method, "https://api.abc.com/test/payload", content)
+				require.NoError(t, err, "HTTPRecord must not error")
+			}
+			assertRouteMethodLen(t, "/test/payload", method, 1)
+		})
 	}
 
 	// Shape mismatch should return an explicit error.
-	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", content)
+	err = callRecord(t, http.MethodPost, "https://api.abc.com/test/mismatch", content)
 	require.NoError(t, err, "HTTPRecord must not error")
 	objectBody := []byte(`{"foo":"bar"}`)
-	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", objectBody)
+	err = callRecord(t, http.MethodPost, "https://api.abc.com/test/mismatch", objectBody)
 	require.ErrorIs(t, err, errMismatchedJSONBodyShape)
-	assertRouteMethodLen("/test/mismatch", http.MethodPost, 1)
+	assertRouteMethodLen(t, "/test/mismatch", http.MethodPost, 1)
 
 	existingMockBadParams := VCRMock{
 		Routes: map[string]map[string][]HTTPResponse{
@@ -328,10 +334,10 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
 
 	invalidBody := []byte(`{invalid json`)
-	err = callRecord(http.MethodPost, "", invalidBody)
+	err = callRecord(t, http.MethodPost, "", invalidBody)
 	require.Error(t, err, "HTTPRecord must error for invalid request body JSON")
 
-	err = callRecord(http.MethodPost, "", nil)
+	err = callRecord(t, http.MethodPost, "", nil)
 	require.Error(t, err, "HTTPRecord must error for invalid stored BodyParams JSON")
 
 	existingMockBadParams.Routes[""]["ABC"] = []HTTPResponse{
@@ -345,7 +351,7 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
 
-	err = callRecord("ABC", "", nil)
+	err = callRecord(t, "ABC", "", nil)
 	require.ErrorContains(t, err, "unhandled request method")
 
 	existingMockBadParams.Routes[""][http.MethodPost] = []HTTPResponse{
@@ -383,7 +389,7 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
 
-	err = callRecord(http.MethodPost, "/test/unknown-shape", []byte(`null`))
+	err = callRecord(t, http.MethodPost, "/test/unknown-shape", []byte(`null`))
 	require.ErrorIs(t, err, errUnsupportedJSONBodyShape)
 
 	mockData, err = json.Marshal(&VCRMock{
@@ -401,11 +407,11 @@ func TestHTTPRecord(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
-	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[invalid`)), "HTTPRecord must error for invalid array JSON")
+	require.Error(t, callRecord(t, http.MethodPost, "/test/array-err", []byte(`[invalid`)), "HTTPRecord must error for invalid array JSON")
 
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
-	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[{}]`)), "HTTPRecord must error for invalid array JSON")
+	require.Error(t, callRecord(t, http.MethodPost, "/test/array-err", []byte(`[{}]`)), "HTTPRecord must error for invalid array JSON")
 }
 
 func TestIsExcluded(t *testing.T) {

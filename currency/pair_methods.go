@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -67,6 +68,55 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 // MarshalJSON conforms type to the marshaler interface
 func (p Pair) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
+}
+
+// Field names of a pair's BSON document
+const (
+	bsonPairBase      = "b"
+	bsonPairDelimiter = "d"
+	bsonPairQuote     = "q"
+)
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the pair as the document {b: base, d: delimiter, q: quote}.
+// Pairs are stored in bulk, so the field names are single letters and an empty field is left out: a pair without a
+// delimiter has no d, and the empty pair is the empty document. Each code is stored as Code.String, keeping its case,
+// so {"pair.b": "BTC", "pair.q": "USDT"} finds BTC-USDT whatever its delimiter.
+func (p Pair) MarshalBSONValue() (typ byte, data []byte, err error) {
+	fields := make([]bsonwire.Field, 0, 3)
+	for _, f := range []bsonwire.Field{
+		{Key: bsonPairBase, Value: p.Base.String()},
+		{Key: bsonPairDelimiter, Value: p.Delimiter},
+		{Key: bsonPairQuote, Value: p.Quote.String()},
+	} {
+		if f.Value != "" {
+			fields = append(fields, f)
+		}
+	}
+	return bsonwire.TypeEmbeddedDocument, bsonwire.MarshalDocument(fields...), nil
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler, reading the document MarshalBSONValue stores. A missing field
+// reads as empty.
+func (p *Pair) UnmarshalBSONValue(typ byte, data []byte) error {
+	fields, err := bsonwire.UnmarshalDocument(typ, data)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCreatingPair, err)
+	}
+	var base, delimiter, quote string
+	for _, f := range fields {
+		switch f.Key {
+		case bsonPairBase:
+			base = f.Value
+		case bsonPairDelimiter:
+			delimiter = f.Value
+		case bsonPairQuote:
+			quote = f.Value
+		default:
+			return fmt.Errorf("%w: unexpected field %q", ErrCreatingPair, f.Key)
+		}
+	}
+	*p = Pair{Base: NewCode(base), Delimiter: delimiter, Quote: NewCode(quote)}
+	return nil
 }
 
 // Format changes the currency based on user preferences overriding the default

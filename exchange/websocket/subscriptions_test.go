@@ -25,7 +25,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	ws.Subscriber = currySimpleSub(ws)
 	ws.Unsubscriber = currySimpleUnsub(ws)
 
-	subs, err := ws.GenerateSubs()
+	subs, err := ws.GenerateSubs(t.Context())
 	require.NoError(t, err, "Generating test subscriptions must not error")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.NoError(t, ws.UnsubscribeChannels(t.Context(), nil, nil), "Unsubscribing from nil should not error")
@@ -86,7 +86,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	multiEmpty := NewManager()
 	multiEmpty.useMultiConnectionManagement = true
 
-	subs, err = amazingCandidate.GenerateSubscriptions()
+	subs, err = amazingCandidate.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "Generating test subscriptions must not error")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
@@ -257,6 +257,43 @@ func TestCheckSubscriptions(t *testing.T) {
 	}
 	err = ws.checkSubscriptions(conn, subscription.List{{}})
 	assert.ErrorContains(t, err, "nil pointer: Websocket.subscriptions", "nil store for a specific connection should error correctly")
+
+	t.Run("effective connection subscription limit", func(t *testing.T) {
+		t.Parallel()
+		// Each row's limits leave the connection with a limit of 2
+		for _, tc := range []struct {
+			name             string
+			managerLimit     int
+			maxSubscriptions int
+		}{
+			{"setup limit above manager limit", 1, 2},
+			{"setup limit below manager limit", 4, 2},
+			{"no manager limit", 0, 2},
+			{"no setup limit", 2, 0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				m.useMultiConnectionManagement = true
+				m.MaxSubscriptionsPerConnection = tc.managerLimit
+				conn := &fakeConnection{subscriptions: subscription.NewStore()}
+				m.trackConnection(conn, &websocket{setup: &ConnectionSetup{MaxSubscriptions: tc.maxSubscriptions}, subscriptions: subscription.NewStore()})
+
+				err := m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}})
+				assert.NoError(t, err, "checkSubscriptions should allow up to the connection subscription limit")
+
+				err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}, {Channel: "three"}})
+				assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error past the connection subscription limit")
+
+				require.NoError(t, conn.subscriptions.Add(&subscription.Subscription{Channel: "existing"}), "Add must not error")
+				err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}})
+				assert.NoError(t, err, "checkSubscriptions should allow subscriptions filling an occupied connection to its limit")
+
+				err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}})
+				assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should count the connection's subscriptions against its limit")
+			})
+		}
+	})
 }
 
 func TestUpdateChannelSubscriptions(t *testing.T) {
@@ -617,7 +654,7 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 		newConcurrentSubscription("flush", 0),
 		newConcurrentSubscription("flush", 1),
 	}
-	manager.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) {
+	manager.connectionManager[0].setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 		return expected, nil
 	}
 
@@ -676,7 +713,7 @@ func TestFlushChannels(t *testing.T) {
 
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
 
@@ -691,11 +728,11 @@ func TestFlushChannels(t *testing.T) {
 
 	require.NoError(t, w.FlushChannels(t.Context()), "FlushChannels must not error")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
-	err = w.FlushChannels(t.Context())                                                    // error on full subscribeToChannels
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
+	err = w.FlushChannels(t.Context())                                                                   // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return nil, nil } // No subs to sub
 
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotRemoved)
 
@@ -710,7 +747,7 @@ func TestFlushChannels(t *testing.T) {
 	assert.NoError(t, w.FlushChannels(t.Context()), "FlushChannels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
-	subs, err := w.GenerateSubs()
+	subs, err := w.GenerateSubs(t.Context())
 	require.NoError(t, err, "GenerateSubs must not error")
 	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels(t.Context())
@@ -769,7 +806,7 @@ func TestFlushChannels(t *testing.T) {
 	// Unsubscribe what's already subscribed. No subscriptions left over, which then forces the shutdown and removal
 	// of the connection from management.
 	w.features.Subscribe = true
-	w.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	w.connectionManager[0].setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return nil, nil }
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
 
 	w.connectionManager[0].setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
@@ -1060,6 +1097,34 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 		assert.Equal(t, 3, ws.subscriptions.Len())
 		assert.Len(t, ws.connections, 2) // 2 per conn -> 2 conns
+	})
+
+	t.Run("Scale Up uses connection subscription limit", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name         string
+			managerLimit int
+		}{
+			{"setup limit above manager limit", 2},
+			{"setup limit below manager limit", 5},
+			{"no manager limit", 0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m, ws := setup(t, true)
+				m.MaxSubscriptionsPerConnection = tc.managerLimit
+				ws.setup.MaxSubscriptions = 3
+
+				subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}, {Channel: "D"}, {Channel: "E"}, {Channel: "F"}}
+				require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subs[:5]))
+				require.Len(t, ws.connections, 2, "new connections must be batched by the connection subscription limit")
+				assert.Equal(t, 3, ws.connections[0].Subscriptions().Len(), "first connection should be filled to the connection subscription limit")
+
+				require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subs))
+				require.Len(t, ws.connections, 2, "existing connections must be filled to the connection subscription limit before connecting")
+				assert.Equal(t, 3, ws.connections[1].Subscriptions().Len(), "second connection should take the new subscription")
+			})
+		}
 	})
 
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
@@ -1430,7 +1495,7 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 			connectorCalls++
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{subA, subB}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -1487,7 +1552,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 			connectorCalls++
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{realA, trackedA, realB, trackedB}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -1548,7 +1613,7 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 		Connector: func(ctx context.Context, conn Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{realSub, trackedSub}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -1825,6 +1890,55 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	_, err = m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
 	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
+
+	t.Run("effective connection subscription limit", func(t *testing.T) {
+		t.Parallel()
+		// Each row's limits leave the connection with a limit of 3
+		for _, tc := range []struct {
+			name             string
+			managerLimit     int
+			maxSubscriptions int
+		}{
+			{"setup limit above manager limit", 1, 3},
+			{"setup limit below manager limit", 5, 3},
+			{"no manager limit", 0, 3},
+			{"no setup limit", 3, 0},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				m := NewManager()
+				m.useMultiConnectionManagement = true
+				m.MaxSubscriptionsPerConnection = tc.managerLimit
+				var subscribed []subscription.List
+				ws := &websocket{
+					setup: &ConnectionSetup{
+						MaxSubscriptions: tc.maxSubscriptions,
+						Subscriber: func(_ context.Context, _ Connection, s subscription.List) error {
+							subscribed = append(subscribed, s)
+							return nil
+						},
+					},
+					subscriptions: subscription.NewStore(),
+				}
+				store := subscription.NewStore()
+				require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}), "Add must not error")
+				conn := &fakeConnection{subscriptions: store}
+				m.trackConnection(conn, ws)
+
+				a, b, last := &subscription.Subscription{Channel: "A"}, &subscription.Subscription{Channel: "B"}, &subscription.Subscription{Channel: "C"}
+				remaining, err := m.subscribeToConnection(t.Context(), conn, subscription.List{a, b, last})
+				require.NoError(t, err, "subscribeToConnection must not error within the connection subscription limit")
+				assert.Equal(t, subscription.List{last}, remaining, "should return subscriptions past the connection subscription limit")
+				assert.Equal(t, 3, store.Len(), "store should be filled to the connection subscription limit")
+				assert.Equal(t, []subscription.List{{a, b}}, subscribed, "should send only the subscriptions that fit")
+
+				remaining, err = m.subscribeToConnection(t.Context(), conn, subscription.List{last})
+				require.NoError(t, err, "subscribeToConnection must not error on a full connection")
+				assert.Equal(t, subscription.List{last}, remaining, "should return every subscription when the connection is full")
+				assert.Len(t, subscribed, 1, "should not call the subscriber once the connection is full")
+			})
+		}
+	})
 }
 
 var errSubscriptionRejected = errors.New("subscription rejected")
@@ -2003,7 +2117,7 @@ func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
 		Connector: func(ctx context.Context, conn Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			enabledMu.Lock()
 			defer enabledMu.Unlock()
 			return enabled, nil
