@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 39976,
-    "bytes": 9963232,
+    "allocs": 41005,
+    "bytes": 10277414,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in October 2026, with MEXC in testdata/configtest.json, gave medians from 39976 to 40013. 0.4% is about 160 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Bitstamp's perpetual contracts in testdata/configtest.json, gave medians from 41005 to 41034. 0.4% is about 164 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -116,6 +116,18 @@
   "currency.BenchmarkGetCrypto": {
     "allocs": 1,
     "bytes": 48
+  },
+  "currency.BenchmarkMatch/delimited": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/lower": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "currency.BenchmarkMatch/upper": {
+    "allocs": 0,
+    "bytes": 0
   },
   "currency.BenchmarkNewCode": {
     "allocs": 1,
@@ -136,6 +148,10 @@
   "currency.BenchmarkRemovePairsByFilter": {
     "allocs": 0,
     "bytes": 0
+  },
+  "currency.BenchmarkStorePairs": {
+    "allocs": 7103,
+    "bytes": 739666
   },
   "dispatch.BenchmarkSubscribe": {
     "allocs": 0,
@@ -190,16 +206,16 @@
     "bytes": 240
   },
   "exchanges/binance.BenchmarkWsHandleData/Depth": {
-    "allocs": 10,
-    "bytes": 416
+    "allocs": 8,
+    "bytes": 400
   },
   "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
     "allocs": 9,
     "bytes": 74782
   },
   "exchanges/binance.BenchmarkWsHandleData/Kline": {
-    "allocs": 6,
-    "bytes": 616
+    "allocs": 5,
+    "bytes": 608
   },
   "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
     "allocs": 5,
@@ -210,12 +226,12 @@
     "bytes": 464
   },
   "exchanges/binance.BenchmarkWsHandleData/Ticker": {
-    "allocs": 7,
-    "bytes": 672
+    "allocs": 6,
+    "bytes": 664
   },
   "exchanges/binance.BenchmarkWsHandleData/Trade": {
-    "allocs": 2,
-    "bytes": 40
+    "allocs": 1,
+    "bytes": 32
   },
   "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
     "allocs": 2,
@@ -229,11 +245,35 @@
     "allocs": 2,
     "bytes": 28800
   },
-  "exchanges/gateio.BenchmarkMessageID": {
+  "exchanges/gate.BenchmarkMessageID": {
     "allocs": 1,
     "bytes": 32
   },
-  "exchanges/gateio.BenchmarkTimeInForceFromString": {
+  "exchanges/gate.BenchmarkTimeInForceFromString": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=16/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=16/indexed=true": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=2660/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=2660/indexed=true": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=400/indexed=false": {
+    "allocs": 0,
+    "bytes": 0
+  },
+  "exchanges/htx.BenchmarkWebsocketSubscriptionKeyLookup/subscriptions=400/indexed=true": {
     "allocs": 0,
     "bytes": 0
   },
@@ -532,6 +572,16 @@
   "exchanges/request.BenchmarkRedactEncodedValues/signed": {
     "allocs": 1,
     "bytes": 128
+  },
+  "exchanges/sharedtestvalues.BenchmarkNewTestWebsocket": {
+    "allocs": 15,
+    "bytes": 13552
+  },
+  "internal/testing/exchange.BenchmarkSetup": {
+    "allocs": 6071,
+    "bytes": 1035671,
+    "allocs_tolerance": 0.0005,
+    "reason": "the median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians of 6071 allocs/op, with single samples from 6070 to 6073. 0.05% is three allocations above the budget, which covers that range"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,

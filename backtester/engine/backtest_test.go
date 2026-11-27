@@ -3,8 +3,10 @@ package engine
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"uuid"
@@ -38,6 +40,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -48,6 +52,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
+	"github.com/thrasher-corp/goose"
 )
 
 const testExchange = "binanceus"
@@ -124,6 +129,159 @@ func TestSetupFromConfig(t *testing.T) {
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.NoError(t, err)
+
+	// newCSVTask returns a backtester holding its own mock OKX exchange and a strategy config for one pair whose
+	// candles come from a CSV file, so setup sends no requests
+	newCSVTask := func(t *testing.T, a asset.Item, cp currency.Pair) (*BackTest, *config.Config) {
+		t.Helper()
+		task, err := NewBacktester()
+		require.NoError(t, err, "NewBacktester must not error")
+		require.NoError(t, task.exchangeManager.Add(newMockOKX(t)), "adding the mock OKX exchange must not error")
+		t.Cleanup(func() {
+			if task.orderManager != nil && task.orderManager.IsRunning() {
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		})
+		csvPath := filepath.Join(t.TempDir(), "candles.csv")
+		require.NoError(t, os.WriteFile(csvPath, []byte("1609459200,1,10,10,10,10\n1609459260,1,10,10,10,10\n"), 0o600), "writing the candles must not error")
+		return task, &config.Config{
+			DataSettings: config.DataSettings{
+				Interval: gctkline.OneMin,
+				DataType: common.CandleStr,
+				CSVData:  &config.CSVData{FullPath: csvPath},
+			},
+			StrategySettings: config.StrategySettings{Name: dollarcostaverage.Name, DisableUSDTracking: true},
+			CurrencySettings: []config.CurrencySettings{{
+				ExchangeName: testExchange,
+				Asset:        a,
+				Base:         cp.Base,
+				Quote:        cp.Quote,
+				MakerFee:     &decimal.Zero,
+				TakerFee:     &decimal.Zero,
+				SpotDetails:  &config.SpotDetails{InitialQuoteFunds: &leet},
+			}},
+		}
+	}
+
+	t.Run("a strategy pair the exchange doesn't list matches after setup", func(t *testing.T) {
+		t.Parallel()
+		cp := currency.NewPair(currency.NewCode("GCTTEST"), currency.USDT)
+		task, cfg := newCSVTask(t, asset.Spot, cp)
+		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		exch, err := task.exchangeManager.GetExchangeByName(testExchange)
+		require.NoError(t, err, "GetExchangeByName must not error")
+		enabled, err := exch.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		assert.True(t, enabled.Contains(cp, true), "SetupFromConfig should enable the strategy's pair")
+		matched, err := exch.MatchSymbolWithAvailablePairs("GCTTEST-USDT", asset.Spot, true)
+		require.NoError(t, err, "SetupFromConfig must leave the strategy's pair matchable")
+		assert.Equal(t, "GCTTEST-USDT", matched.String(), "the strategy's pair should match in the exchange's format")
+	})
+
+	t.Run("USD tracking enables each tracking pair", func(t *testing.T) {
+		t.Parallel()
+		task, cfg := newCSVTask(t, asset.Spot, currency.NewPair(currency.ETH, currency.BTC))
+		cfg.StrategySettings.DisableUSDTracking = false
+		exch, err := task.exchangeManager.GetExchangeByName(testExchange)
+		require.NoError(t, err, "GetExchangeByName must not error")
+		ethusdt := currency.NewPairWithDelimiter("ETH", "USDT", currency.DashDelimiter)
+		btcusdt := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
+		pm := &exch.GetBase().CurrencyPairs
+		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{ethusdt, btcusdt}, false), "StorePairs must not error for available pairs")
+		require.NoError(t, pm.StorePairs(asset.Spot, currency.Pairs{btcusdt}, true), "StorePairs must not error for enabled pairs")
+		require.NoError(t, task.SetupFromConfig(cfg, "", "", false), "SetupFromConfig must not error")
+		enabled, err := exch.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err, "GetEnabledPairs must not error")
+		for _, cp := range []currency.Pair{ethusdt, btcusdt} {
+			assert.Truef(t, enabled.Contains(cp, true), "SetupFromConfig should enable tracking pair %s", cp)
+		}
+	})
+
+	t.Run("a strategy asset the exchange doesn't support", func(t *testing.T) {
+		t.Parallel()
+		task, cfg := newCSVTask(t, asset.Binary, currency.NewBTCUSDT())
+		assert.ErrorIs(t, task.SetupFromConfig(cfg, "", "", false), asset.ErrNotSupported, "SetupFromConfig should refuse an asset the exchange doesn't support")
+	})
+
+	t.Run("a PostgreSQL task's setup does not switch the driver under a SQLite load", func(t *testing.T) {
+		t.Parallel()
+		cp := currency.NewBTCUSDT()
+		start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		dbConfig := database.Config{
+			Enabled:  true,
+			Driver:   database.DBSQLite3,
+			Database: "setup.db",
+		}
+		dataPath := t.TempDir()
+		seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
+		exch, err := engine.NewExchangeManager().NewExchangeByName("binanceus")
+		require.NoError(t, err, "NewExchangeByName must not error")
+		exch.SetDefaults()
+
+		postgresTask := &config.Config{DataSettings: config.DataSettings{
+			Interval:     gctkline.OneHour,
+			DatabaseData: &config.DatabaseData{Config: database.Config{Enabled: true, Driver: database.DBPostgreSQL}},
+		}}
+		loadsDone := make(chan struct{})
+		setupsDone := make(chan struct{})
+		go func() {
+			defer close(setupsDone)
+			for {
+				select {
+				case <-loadsDone:
+					return
+				default:
+				}
+				task, err := NewBacktester()
+				if !assert.NoError(t, err, "NewBacktester should not error") {
+					return
+				}
+				// The task stops for want of a strategy, after setting up its database manager and starting its order manager
+				assert.ErrorIs(t, task.SetupFromConfig(postgresTask, "", "", false), base.ErrStrategyNotFound, "SetupFromConfig should fail for want of a strategy")
+				assert.NotNil(t, task.databaseManager, "SetupFromConfig should set up the task's database manager")
+				assert.NoError(t, task.orderManager.Stop(), "order manager Stop should not error")
+			}
+		}()
+		t.Cleanup(func() {
+			close(loadsDone)
+			select {
+			case <-setupsDone:
+			case <-time.After(time.Minute):
+				assert.Fail(t, "PostgreSQL task setups should stop")
+			}
+		})
+
+		loadErrs := make(chan []error, 1)
+		go func() {
+			var errs []error
+			for range 200 {
+				loader := &BackTest{Reports: &report.Data{}, shutdown: make(chan struct{})}
+				var err error
+				if loader.databaseManager, err = engine.SetupDatabaseConnectionManager(&dbConfig); err == nil {
+					_, err = loader.loadData(&config.Config{DataSettings: config.DataSettings{
+						DataType: common.CandleStr,
+						Interval: gctkline.OneHour,
+						DatabaseData: &config.DatabaseData{
+							Config:    dbConfig,
+							StartDate: start,
+							EndDate:   start.Add(time.Hour),
+							Path:      dataPath,
+						},
+					}}, exch, cp, asset.Spot, false)
+				}
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+			loadErrs <- errs
+		}()
+		select {
+		case errs := <-loadErrs:
+			assert.Empty(t, errs, "SQLite loads should not query with the PostgreSQL task's driver")
+		case <-time.After(time.Minute):
+			require.FailNow(t, "SQLite loads must finish beside the PostgreSQL task's setups")
+		}
+	})
 }
 
 // newMockOKX returns an OKX exchange whose REST requests reach a local server, so that a test does not
@@ -337,6 +495,98 @@ func TestLoadDataDatabase(t *testing.T) {
 	if err != nil && !strings.Contains(err.Error(), "unable to retrieve data from GoCryptoTrader database") {
 		t.Error(err)
 	}
+}
+
+func TestLoadDataDatabaseConcurrently(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewBTCUSDT()
+	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	dbConfig := database.Config{
+		Enabled:  true,
+		Driver:   database.DBSQLite3,
+		Database: "concurrent.db",
+	}
+	dataPath := t.TempDir()
+	seedCandleDatabase(t, dataPath, &dbConfig, cp, start)
+
+	em := engine.NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+
+	loads := make(chan error, 16)
+	var wg sync.WaitGroup
+	for range cap(loads) {
+		wg.Go(func() {
+			bt := &BackTest{Reports: &report.Data{}, shutdown: make(chan struct{})}
+			var err error
+			if bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&dbConfig); err != nil {
+				loads <- err
+				return
+			}
+			cfg := &config.Config{
+				DataSettings: config.DataSettings{
+					DataType: common.CandleStr,
+					Interval: gctkline.OneHour,
+					DatabaseData: &config.DatabaseData{
+						Config:    dbConfig,
+						StartDate: start,
+						EndDate:   start.Add(time.Hour),
+						Path:      dataPath,
+					},
+				},
+			}
+			_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
+			loads <- err
+		})
+	}
+	loadsFinished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(loadsFinished)
+	}()
+	select {
+	case <-loadsFinished:
+	case <-time.After(time.Minute):
+		require.FailNow(t, "concurrent database loads must finish")
+	}
+	close(loads)
+	for err := range loads {
+		assert.NoError(t, err, "concurrent database loads should not interfere")
+	}
+}
+
+// seedCandleDatabase migrates the SQLite database cfg names in dataPath and stores one hourly candle at start
+func seedCandleDatabase(t *testing.T, dataPath string, cfg *database.Config, pair currency.Pair, start time.Time) {
+	t.Helper()
+	locked := make(chan struct{})
+	go func() {
+		databaseLoadMu.Lock()
+		close(locked)
+	}()
+	select {
+	case <-locked:
+	case <-time.After(time.Minute):
+		require.FailNow(t, "seedCandleDatabase must take the database load mutex within a minute")
+	}
+	defer databaseLoadMu.Unlock()
+	database.DB.DataPath = dataPath
+	require.NoError(t, database.DB.SetConfig(cfg), "SetConfig must not error")
+	m, err := engine.SetupDatabaseConnectionManager(cfg)
+	require.NoError(t, err, "SetupDatabaseConnectionManager must not error")
+	require.NoError(t, m.Start(&sync.WaitGroup{}), "Start must not error")
+	defer func() { assert.NoError(t, m.Stop(), "Stop should not error") }()
+	err = goose.Run("up", database.DB.SQL, repository.GetSQLDialect(), filepath.Join("..", "..", "database", "migrations"), "")
+	require.NoError(t, err, "goose.Run must not error")
+	require.NoError(t, exchangeDB.InsertMany([]exchangeDB.Details{{Name: testExchange}}), "InsertMany must not error")
+	_, err = gctkline.StoreInDatabase(&gctkline.Item{
+		Exchange: testExchange,
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Interval: gctkline.OneHour,
+		Candles:  []gctkline.Candle{{Time: start, Open: 1, High: 1, Low: 1, Close: 1, Volume: 1}},
+	}, true)
+	require.NoError(t, err, "StoreInDatabase must not error")
 }
 
 func TestLoadDataLive(t *testing.T) {
@@ -1390,6 +1640,22 @@ func TestLiveLoop(t *testing.T) {
 	assert.NoError(t, <-liveCheckErr)
 }
 
+func TestLiveCheckStopsDataCheckerWhenRunFails(t *testing.T) {
+	t.Parallel()
+	dc := &dataChecker{eventTimeout: time.Hour, dataCheckInterval: time.Millisecond}
+	bt := &BackTest{shutdown: make(chan struct{}), LiveDataHandler: dc}
+	require.NoError(t, dc.Start(), "Start must not error")
+	checked := make(chan error, 1)
+	go func() { checked <- bt.liveCheck() }()
+	select {
+	case err := <-checked:
+		require.ErrorIs(t, err, errNotSetup, "liveCheck must return Run's error")
+	case <-time.After(time.Second * 5):
+		require.FailNow(t, "liveCheck must return when Run fails")
+	}
+	assert.False(t, dc.IsRunning(), "liveCheck should stop the data checker when Run fails")
+}
+
 func TestSetExchangeCredentials(t *testing.T) {
 	t.Parallel()
 	err := setExchangeCredentials(nil, nil)
@@ -1803,4 +2069,82 @@ func TestProcessSingleDataEvent(t *testing.T) {
 
 	err = bt.processSingleDataEvent(ev, collateral)
 	assert.NoError(t, err)
+}
+
+func TestEnableStrategyPair(t *testing.T) {
+	t.Parallel()
+
+	requestFormat := &currency.PairFormat{Uppercase: true}
+	configFormat := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	ltcusdt := currency.NewPair(currency.LTC, currency.USDT)
+	newManager := func(t *testing.T, ps *currency.PairStore) *currency.PairsManager {
+		t.Helper()
+		pm := new(currency.PairsManager)
+		require.NoError(t, pm.Store(asset.Spot, ps), "Store must not error")
+		return pm
+	}
+
+	t.Run("adds a new pair", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{Available: currency.Pairs{currency.NewBTCUSDT()}, RequestFormat: requestFormat, ConfigFormat: configFormat})
+		require.NoError(t, enableStrategyPair(pm, asset.Spot, currency.NewPairWithDelimiter("ltc", "usdt", currency.DashDelimiter)), "enableStrategyPair must not error")
+		assert.NoError(t, pm.IsAssetEnabled(asset.Spot), "enableStrategyPair should enable the asset")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "BTCUSDT,LTCUSDT", available.Join(), "enableStrategyPair should add the pair in the request format")
+		enabled, err := pm.GetPairs(asset.Spot, true)
+		require.NoError(t, err, "GetPairs must not error for enabled pairs")
+		assert.Equal(t, "LTCUSDT", enabled.Join(), "enableStrategyPair should enable the pair")
+		matched, err := pm.Match("LTCUSDT", asset.Spot)
+		require.NoError(t, err, "Match must find the strategy's pair")
+		assert.Equal(t, "LTCUSDT", matched.String(), "Match should return the strategy's pair")
+	})
+
+	t.Run("enables an available pair once", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{
+			Available:     currency.Pairs{currency.NewBTCUSDT(), ltcusdt},
+			Enabled:       currency.Pairs{ltcusdt},
+			RequestFormat: requestFormat,
+			ConfigFormat:  configFormat,
+		})
+		for range 2 {
+			require.NoError(t, enableStrategyPair(pm, asset.Spot, currency.NewBTCUSDT()), "enableStrategyPair must not error")
+		}
+		assert.NoError(t, pm.IsAssetEnabled(asset.Spot), "enableStrategyPair should enable the asset")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "BTCUSDT,LTCUSDT", available.Join(), "enableStrategyPair should leave the available pairs unchanged")
+		enabled, err := pm.GetPairs(asset.Spot, true)
+		require.NoError(t, err, "GetPairs must not error for enabled pairs")
+		assert.Equal(t, "LTCUSDT,BTCUSDT", enabled.Join(), "enableStrategyPair should add the pair to the enabled pairs once")
+	})
+
+	t.Run("formats with the exchange's request format", func(t *testing.T) {
+		t.Parallel()
+		pm := &currency.PairsManager{
+			UseGlobalFormat: true,
+			RequestFormat:   &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+			ConfigFormat:    configFormat,
+		}
+		require.NoError(t, pm.Store(asset.Spot, &currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFormat}), "Store must not error")
+		require.NoError(t, enableStrategyPair(pm, asset.Spot, ltcusdt), "enableStrategyPair must not error")
+		available, err := pm.GetPairs(asset.Spot, false)
+		require.NoError(t, err, "GetPairs must not error for available pairs")
+		assert.Equal(t, "LTC_USDT", available.Join(), "enableStrategyPair should use the global request format")
+	})
+
+	t.Run("refuses an asset without a request format", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{Available: currency.Pairs{currency.NewBTCUSDT()}})
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Spot, ltcusdt), currency.ErrPairFormatIsNil, "enableStrategyPair should refuse an asset without a request format")
+	})
+
+	t.Run("refuses an asset without a pair store", func(t *testing.T) {
+		t.Parallel()
+		pm := newManager(t, &currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFormat})
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Futures, ltcusdt), asset.ErrNotSupported, "enableStrategyPair should refuse an asset without a pair store")
+		pm = &currency.PairsManager{Pairs: currency.FullStore{asset.Futures: nil}}
+		assert.ErrorIs(t, enableStrategyPair(pm, asset.Futures, ltcusdt), asset.ErrNotSupported, "enableStrategyPair should refuse a nil pair store")
+	})
 }

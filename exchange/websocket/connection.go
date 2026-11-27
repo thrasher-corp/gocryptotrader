@@ -75,6 +75,10 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// MaxSubscriptions is the most subscriptions each connection made from this setup can hold, for endpoints whose
+	// limit differs from the manager's. Zero uses the manager's MaxSubscriptionsPerConnection. Multi-connection
+	// management only; SetupNewConnection rejects a positive value otherwise.
+	MaxSubscriptions int
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -84,7 +88,7 @@ type ConnectionSetup struct {
 	Connector func(ctx context.Context, conn Connection) error
 	// GenerateSubscriptions is a function that will be called to generate a
 	// list of subscriptions to be made to the exchange's websocket server.
-	GenerateSubscriptions func() (subscription.List, error)
+	GenerateSubscriptions func(ctx context.Context) (subscription.List, error)
 	// Subscriber is a function that will be called to send subscription
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.

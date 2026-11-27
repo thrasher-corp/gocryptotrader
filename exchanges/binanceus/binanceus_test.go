@@ -90,12 +90,8 @@ func TestGetExchangeInfo(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	r, err := e.UpdateTicker(t.Context(), testPairMapping, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	if r.Pair.Base != currency.BTC && r.Pair.Quote != currency.USDT {
-		t.Error("Binanceus UpdateTicker() invalid pair values")
-	}
+	require.NoError(t, err, "UpdateTicker must not error")
+	assert.Truef(t, r.Pair.Equal(testPairMapping), "UpdateTicker should return pair %s", testPairMapping)
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -181,6 +177,78 @@ func TestGetFeeByType(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+
+	t.Run("fills trade ID from API response", func(t *testing.T) {
+		t.Parallel()
+		const raw = `{
+		"symbol": "BTCUSD",
+		"orderId": 12345,
+		"orderListId": -1,
+		"clientOrderId": "testOrder123",
+		"transactTime": 1507725176595,
+		"price": "0.00000000",
+		"origQty": "3.00000000",
+		"executedQty": "3.00000000",
+		"cummulativeQuoteQty": "301.00000000",
+		"status": "FILLED",
+		"timeInForce": "GTC",
+		"type": "MARKET",
+		"side": "BUY",
+		"fills": [
+			{
+				"price": "100.00000000",
+				"qty": "1.00000000",
+				"commission": "0.10000000",
+				"commissionAsset": "USD",
+				"tradeId": 56
+			},
+			{
+				"price": "100.50000000",
+				"qty": "2.00000000",
+				"commission": "0.20100000",
+				"commissionAsset": "USD",
+				"tradeId": 57
+			}
+		]
+	}`
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+		var requests atomic.Int64
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+			assert.Equal(t, "/api/v3/order", r.URL.Path, "path should match the new order endpoint")
+			_, err := w.Write([]byte(raw))
+			assert.NoError(t, err, "response should be written")
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      currency.NewBTCUSD(),
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Market,
+			Amount:    3,
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+		exp := []order.TradeHistory{
+			{Price: 100, Amount: 1, Fee: 0.1, FeeAsset: "USD", Exchange: ex.Name, TID: "56"},
+			{Price: 100.5, Amount: 2, Fee: 0.201, FeeAsset: "USD", Exchange: ex.Name, TID: "57"},
+		}
+		assert.Equal(t, exp, resp.Trades, "SubmitOrder should keep each fill's trade ID")
+
+		d := &order.Detail{Exchange: ex.Name, OrderID: resp.OrderID, Trades: resp.Trades}
+		cp := d.Copy()
+		require.NoError(t, d.UpdateOrderFromDetail(&cp), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, exp, d.Trades, "fills should stay distinct when the order is merged with a copy of itself")
+	})
+
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 	orderSubmission := &order.Submit{
 		Pair: currency.Pair{
@@ -646,6 +714,14 @@ func TestGetSubaccountInformation(t *testing.T) {
 	t.Parallel()
 	var resp SubAccount
 	require.NoError(t, json.Unmarshal([]byte(subaccountItemJSON), &resp), "Unmarshal SubAccount must not error")
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `{"success":true,"subAccounts":[{"email":"sub@example.com"}]}`)
+		subaccounts, err := ex.GetSubaccountInformation(t.Context(), 0, 0, "", "")
+		require.NoError(t, err, "GetSubaccountInformation must not error")
+		require.Len(t, subaccounts, 1, "GetSubaccountInformation must return one sub-account")
+		assert.Equal(t, "sub@example.com", subaccounts[0].Email, "GetSubaccountInformation should decode the email")
+	})
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
 	if err != nil {
@@ -686,10 +762,34 @@ func TestGetSubaccountTransferHistory(t *testing.T) {
 	_, err := e.GetSubaccountTransferHistory(t.Context(), "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errNotValidEmailAddress)
 
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `{"success":true,"transfers":[{"asset":"BTC","qty":"2"}]}`)
+		transfers, err := ex.GetSubaccountTransferHistory(t.Context(), "sub@example.com", 0, 0, 0, 0)
+		require.NoError(t, err, "GetSubaccountTransferHistory must not error")
+		require.Len(t, transfers, 1, "GetSubaccountTransferHistory must return one transfer")
+		assert.Equal(t, uint64(2), transfers[0].Qty, "GetSubaccountTransferHistory should decode the quantity")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err = e.GetSubaccountTransferHistory(t.Context(), "example@golang.org", 0, 0, 0, 0)
 	assert.Error(t, err, "GetSubaccountTransferHistory should return an error on a bogus email")
+}
+
+func newMockedExchange(t *testing.T, response string) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+	return ex
 }
 
 func TestExecuteSubAccountTransfer(t *testing.T) {
@@ -887,6 +987,15 @@ func TestCancelOpenOrdersForSymbol(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelOpenOrdersForSymbol(t.Context(), "")
 	assert.ErrorIs(t, err, errMissingCurrencySymbol)
+
+	t.Run("mocked response decodes", func(t *testing.T) {
+		t.Parallel()
+		ex := newMockedExchange(t, `[{"symbol":"BTCUSDT","orderId":7}]`)
+		orders, err := ex.CancelOpenOrdersForSymbol(t.Context(), "BTCUSDT")
+		require.NoError(t, err, "CancelOpenOrdersForSymbol must not error")
+		require.Len(t, orders, 1, "CancelOpenOrdersForSymbol must return one order")
+		assert.Equal(t, uint64(7), orders[0].OrderID, "CancelOpenOrdersForSymbol should decode the order ID")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -1871,6 +1980,50 @@ func TestProcessUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
+}
+
+func TestSynchroniseWebsocketOrderbook(t *testing.T) {
+	t.Parallel()
+	// With no pairs set, each job fails before it sends a request
+	e := &Exchange{obm: &orderbookManager{jobs: make(chan job, maxWSOrderbookJobs)}}
+	e.Websocket = sharedtestvalues.NewTestWebsocket()
+	requireStopped := func(msg string) {
+		t.Helper()
+		stopped := make(chan struct{})
+		go func() {
+			e.Websocket.Wg.Wait()
+			close(stopped)
+		}()
+		select {
+		case <-stopped:
+		case <-time.After(time.Second * 5):
+			require.FailNow(t, msg)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	e.SynchroniseWebsocketOrderbook(ctx)
+	for range 2 {
+		e.obm.jobs <- job{}
+		require.Eventually(t, func() bool { return len(e.obm.jobs) == 0 }, time.Second*5, time.Millisecond, "SynchroniseWebsocketOrderbook must keep taking jobs")
+	}
+	cancel()
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context ends")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	e.SynchroniseWebsocketOrderbook(ctx)
+	requireStopped("SynchroniseWebsocketOrderbook must stop when its context has ended")
+	require.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook must drain pending jobs when its context has ended")
+
+	for range cap(e.obm.jobs) {
+		e.obm.jobs <- job{}
+	}
+	close(e.Websocket.ShutdownC)
+	e.SynchroniseWebsocketOrderbook(t.Context())
+	requireStopped("SynchroniseWebsocketOrderbook must stop when the websocket shuts down")
+	assert.Empty(t, e.obm.jobs, "SynchroniseWebsocketOrderbook should drain pending jobs when the websocket shuts down")
 }
 
 func TestWebsocketOrderExecutionReport(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestMatchURLVals(t *testing.T) {
+func TestMatchURLVals(t *testing.T) { //nolint:tparallel // Cases share their url.Values inputs and run in order
 	t.Parallel()
 	testVal, testVal2, testVal3, emptyVal := url.Values{}, url.Values{}, url.Values{}, url.Values{}
 	testVal.Add("test", "test")
@@ -20,24 +20,40 @@ func TestMatchURLVals(t *testing.T) {
 	nonceVal1.Add("nonce", "012349723587")
 	nonceVal2.Add("nonce", "9327373874")
 
+	signVal1, signVal2 := url.Values{}, url.Values{}
+	signVal1.Add("sign", "8c1b0f6e")
+	signVal2.Add("sign", "41a9d2c7")
+
+	// Recordings blank api_key, so a recorded request matches whichever key a test sends
+	apiKeyVal1, apiKeyVal2 := url.Values{}, url.Values{}
+	apiKeyVal1.Add("api_key", "")
+	apiKeyVal2.Add("api_key", "mock-api-key")
+
 	tests := []struct {
-		a   url.Values
-		b   url.Values
-		exp bool
+		name string
+		a    url.Values
+		b    url.Values
+		exp  bool
 	}{
-		{testVal, emptyVal, false},
-		{emptyVal, testVal, false},
-		{testVal, testVal2, false},
-		{testVal2, testVal, false},
-		{testVal, testVal3, false},
-		{nonceVal1, testVal2, false},
-		{emptyVal, emptyVal, true},
-		{testVal, testVal, true},
-		{nonceVal1, nonceVal2, true},
+		{"values against no values", testVal, emptyVal, false},
+		{"no values against values", emptyVal, testVal, false},
+		{"different keys", testVal, testVal2, false},
+		{"different keys reversed", testVal2, testVal, false},
+		{"different values for a key", testVal, testVal3, false},
+		{"nonce against another key", nonceVal1, testVal2, false},
+		{"no values against no values", emptyVal, emptyVal, true},
+		{"same values", testVal, testVal, true},
+		{"different nonces", nonceVal1, nonceVal2, true},
+		{"sign against another key", signVal1, testVal, false},
+		{"different signs", signVal1, signVal2, true},
+		{"blank api_key against another key", apiKeyVal1, testVal, false},
+		{"blank api_key against a set one", apiKeyVal1, apiKeyVal2, true},
 	}
 	for _, tc := range tests {
-		got := MatchURLVals(tc.a, tc.b)
-		assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
+		t.Run(tc.name, func(t *testing.T) {
+			got := MatchURLVals(tc.a, tc.b)
+			assert.Equalf(t, tc.exp, got, "MatchURLVals should return correctly for (%q, %q)", tc.a, tc.b)
+		})
 	}
 }
 
@@ -176,6 +192,21 @@ func TestDeriveURLValsFromJSONArray(t *testing.T) {
 			assert.True(t, MatchURLVals(values[i], val), "MatchURLVals should be true")
 		})
 	}
+}
+
+func TestDeriveURLValsFromJSONArrayOfScalars(t *testing.T) {
+	t.Parallel()
+	// Lists of order IDs are sent as arrays of strings, whose elements are matched by their JSON text
+	values, err := DeriveURLValsFromJSONArray([]byte(`["1", 2, true, null]`))
+	require.NoError(t, err, "DeriveURLValsFromJSONArray must not error for an array of scalars")
+	exp := []url.Values{{"": {`"1"`}}, {"": {"2"}}, {"": {"true"}}, {"": {"null"}}}
+	assert.Equal(t, exp, values, "DeriveURLValsFromJSONArray should key each scalar's JSON text by an empty string")
+
+	request, err := DeriveURLValsFromJSONArray([]byte(`[1,"2",true,null]`))
+	require.NoError(t, err, "DeriveURLValsFromJSONArray must not error for an array of scalars")
+	assert.False(t, MatchURLVals(values[0], request[0]), "a string should not match the same number")
+	assert.False(t, MatchURLVals(values[1], request[1]), "a number should not match the same string")
+	assert.True(t, MatchURLVals(values[2], request[2]), "the same scalar should match")
 }
 
 func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {

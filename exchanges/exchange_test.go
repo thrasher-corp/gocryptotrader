@@ -1158,7 +1158,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
 	require.NoError(t, err, "Websocket.Setup must not error")
@@ -1189,7 +1189,7 @@ func TestShutdownWebsocket(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(subscription.List) error { return nil },
 	})
 	require.NoError(t, err, "Websocket.Setup must not error")
@@ -1214,7 +1214,7 @@ func TestShutdownWebsocket(t *testing.T) {
 			DefaultURL:            "ws://something.com",
 			RunningURL:            "ws://something.com",
 			Connector:             func() error { dials.Add(1); return nil },
-			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 			Subscriber:            func(subscription.List) error { return nil },
 		})
 		require.NoError(t, err, "Websocket.Setup must not error")
@@ -1911,6 +1911,8 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: websocketFuturesURL, Expected: WebsocketFutures},
 		{Endpoint: websocketFuturesPrivateURL, Expected: WebsocketFuturesPrivate},
+		{Endpoint: websocketCoinMarginedPrivateURL, Expected: WebsocketCoinMarginedPrivate},
+		{Endpoint: websocketUSDTMarginedPrivateURL, Expected: WebsocketUSDTMarginedPrivate},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
 		{Endpoint: edgeCase1URL, Expected: EdgeCase1},
 		{Endpoint: edgeCase2URL, Expected: EdgeCase2},
@@ -3046,6 +3048,18 @@ func TestWebsocketModifyOrder(t *testing.T) {
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 	err := (&Base{}).WebsocketCancelOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketCancelBatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketCancelAllOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 

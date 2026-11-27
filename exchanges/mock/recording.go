@@ -163,7 +163,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						break
 					}
 				}
-			case http.MethodPost, http.MethodDelete, http.MethodPut:
+			case http.MethodPost, http.MethodDelete, http.MethodPut, http.MethodPatch:
 				for i := range mockResponses {
 					cType, ok := mockResponses[i].Headers[contentType]
 
@@ -462,6 +462,7 @@ var defaultExcludedHeaders = []string{
 	"Rest-Key",
 	"Apiauth-Key",
 	"X-Bapi-Api-Key",
+	"X-Auth",
 }
 
 var defaultExcludedVariables = []string{
@@ -473,6 +474,7 @@ var defaultExcludedVariables = []string{
 	"account_number",
 	"username",
 	"apiKey",
+	"api_key",
 }
 
 // Exclusion defines a list of items to be excluded from the main mock output

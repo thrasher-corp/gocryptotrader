@@ -512,7 +512,7 @@ func (e *Exchange) UpdateLocalBuffer(ctx context.Context, wsdp *WebsocketDepthSt
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (e *Exchange) GenerateSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateSubscriptions(_ context.Context) (subscription.List, error) {
 	channels := []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions subscription.List
 
@@ -620,17 +620,19 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	e.Websocket.Wg.Go(func() {
 		for {
 			select {
+			case <-ctx.Done():
 			case <-e.Websocket.ShutdownC:
-				for {
-					select {
-					case <-e.obm.jobs:
-					default:
-						return
-					}
-				}
 			case j := <-e.obm.jobs:
 				if err := e.processJob(ctx, j.Pair); err != nil {
 					log.Errorf(log.WebsocketMgr, "%s processing websocket orderbook error: %v", e.Name, err)
+				}
+				continue
+			}
+			for { // Discard pending jobs on cancellation or websocket shutdown.
+				select {
+				case <-e.obm.jobs:
+				default:
+					return
 				}
 			}
 		}

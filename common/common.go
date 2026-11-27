@@ -66,6 +66,7 @@ var (
 	ErrNilPointer                = errors.New("nil pointer")
 	ErrEmptyParams               = errors.New("empty parameters")
 	ErrParameterRequired         = errors.New("parameter is required")
+	ErrInvalidPeriod             = errors.New("invalid period")
 	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse                = errors.New("no response")
 	ErrInvalidResponse           = errors.New("invalid response")
@@ -342,18 +343,6 @@ func ExtractPortOrDefault(host string) int {
 	return portInt
 }
 
-// GetURIPath returns the path of a URL given a URI
-func GetURIPath(uri string) string {
-	urip, err := url.Parse(uri)
-	if err != nil {
-		return ""
-	}
-	if urip.RawQuery != "" {
-		return urip.Path + "?" + urip.RawQuery
-	}
-	return urip.Path
-}
-
 // GetExecutablePath returns the executables launch path
 func GetExecutablePath() (string, error) {
 	ex, err := os.Executable()
@@ -614,6 +603,15 @@ func StartEndTimeCheck(start, end time.Time) error {
 	}
 
 	return nil
+}
+
+// StartEndTimeCheckSkipZero checks a time range with StartEndTimeCheck when both its start and end are set, and returns
+// nil when either is zero, for requests whose start and end are optional
+func StartEndTimeCheckSkipZero(start, end time.Time) error {
+	if start.IsZero() || end.IsZero() {
+		return nil
+	}
+	return StartEndTimeCheck(start, end)
 }
 
 // GenerateRandomString generates a random string provided a length and list of Character types { SmallLetters, CapitalLetters, NumberCharacters}.

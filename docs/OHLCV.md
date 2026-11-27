@@ -78,10 +78,10 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Coinbase Pro   | Y           |
 | Coinut         |             |
 | Deribit        | Y            |
-| GateIO         | Y           |
+| Gate           | Y           |
 | Gemini         |             |
 | HitBTC         | Y           |
-| Huobi          | Y           |
+| HTX            | Y           |
 | Kraken         | Y           |
 | Kucoin         | Y           |
 | lBank          | Y           |

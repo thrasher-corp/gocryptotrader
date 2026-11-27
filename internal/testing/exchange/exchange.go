@@ -3,6 +3,7 @@ package exchange
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,54 +11,108 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
-// Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
-func Setup(e exchange.IBotExchange, verbose ...bool) error {
-	cfg := &config.Config{}
+var errCopyingExchangeConfig = errors.New("error copying exchange config")
 
+// testConfig is shared by every Setup call, so its result must not be modified
+var testConfig = sync.OnceValues(loadTestConfig)
+
+func loadTestConfig() (*config.Config, error) {
 	root, err := testutils.RootPathFromCWD()
+	if err != nil {
+		return nil, err
+	}
+	cfg := &config.Config{}
+	if err := cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
+		return nil, fmt.Errorf("LoadConfig() error: %w", err)
+	}
+	return cfg, nil
+}
+
+func copyExchangeConfig(src *config.Exchange) (*config.Exchange, error) {
+	// Currencies and pairs are cloned because a JSON round trip re-parses them from strings, which can change them
+	rest := *src
+	rest.BaseCurrencies, rest.CurrencyPairs = nil, nil
+	data, err := json.Marshal(&rest)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errCopyingExchangeConfig, err)
+	}
+	c := new(config.Exchange)
+	if err := json.Unmarshal(data, c); err != nil {
+		return nil, fmt.Errorf("%w: %w", errCopyingExchangeConfig, err)
+	}
+	c.BaseCurrencies = slices.Clone(src.BaseCurrencies)
+	if src.CurrencyPairs != nil {
+		c.CurrencyPairs = new(currency.PairsManager)
+		c.CurrencyPairs.Load(src.CurrencyPairs)
+	}
+	return c, nil
+}
+
+// Setup takes an empty exchange instance, sets it up with its own copy of its testdata/configtest.json config and
+// attaches a NewTestWebsocket
+func Setup(e exchange.IBotExchange, verbose ...bool) error {
+	return SetupWithConfig(e, func(exchConf *config.Exchange) {
+		if len(verbose) > 0 {
+			exchConf.Verbose = verbose[0]
+		}
+	})
+}
+
+// SetupWithConfig is Setup with configure applied to the exchange's own copy of its test config before the exchange is
+// set up, such as to turn on useSandbox
+func SetupWithConfig(e exchange.IBotExchange, configure func(*config.Exchange)) error {
+	cfg, err := testConfig()
 	if err != nil {
 		return err
 	}
-
-	if err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
-		return fmt.Errorf("LoadConfig() error: %w", err)
-	}
 	e.SetDefaults()
 	eName := e.GetName()
-	exchConf, err := cfg.GetExchangeConfig(eName)
+	shared, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
-	if len(verbose) > 0 {
-		exchConf.Verbose = verbose[0]
+	exchConf, err := copyExchangeConfig(shared)
+	if err != nil {
+		return fmt.Errorf("%s %w", eName, err)
+	}
+	if configure != nil {
+		configure(exchConf)
 	}
 
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	// Assigned before Setup so SetupDefaults does not register the exchange in the global accounts store, which never
+	// releases it
+	b.Accounts = accounts.MustNewAccounts(b)
 
 	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
-
-	b.Accounts = accounts.MustNewAccounts(b)
 
 	return nil
 }
@@ -65,16 +120,73 @@ func Setup(e exchange.IBotExchange, verbose ...bool) error {
 // httpMockFile is a consistent path under each exchange to find the mock server definitions
 const httpMockFile = "testdata/http.json"
 
-// MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
-// It is expected to be run once,  since http requests do not often tangle with each other
-func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
-	serverPath, newClient, err := mock.NewVCRServer(httpMockFile)
+var errMockHTTPTransport = errors.New("mock HTTP server client has no *http.Transport to copy")
+
+// mockHTTPServers holds the VCR server for each recording, keyed by the recording's absolute path, so that a test
+// binary decodes each recording and starts its server once rather than on every MockHTTPInstance call
+var (
+	mockHTTPServersMu sync.Mutex
+	mockHTTPServers   = make(map[string]func() (*mockHTTPServer, error))
+)
+
+// mockHTTPServer is a VCR server shared by every exchange mocked from the same recording; its handlers only read the
+// recording, so one server can serve them all
+type mockHTTPServer struct {
+	url    string
+	client *http.Client
+}
+
+// getMockHTTPServer returns the VCR server for the recording at path, starting it on first use
+func getMockHTTPServer(path string) (*mockHTTPServer, error) {
+	abs, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("error starting NewVCRServer: %w", err)
+		return nil, fmt.Errorf("error resolving mock HTTP recording path %q: %w", path, err)
 	}
+	mockHTTPServersMu.Lock()
+	start, ok := mockHTTPServers[abs]
+	if !ok {
+		start = sync.OnceValues(func() (*mockHTTPServer, error) {
+			serverURL, client, err := mock.NewVCRServer(abs)
+			if err != nil {
+				return nil, err
+			}
+			return &mockHTTPServer{url: serverURL, client: client}, nil
+		})
+		mockHTTPServers[abs] = start
+	}
+	mockHTTPServersMu.Unlock()
+	return start()
+}
+
+// newClient returns a client for the server with a copy of its client's transport, since a requester refuses a client
+// that another requester uses and changes the settings of its client's transport
+func (s *mockHTTPServer) newClient() (*http.Client, error) {
+	t, ok := s.client.Transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("%w: %T", errMockHTTPTransport, s.client.Transport)
+	}
+	return &http.Client{Transport: t.Clone()}, nil
+}
+
+// MockHTTPInstance takes an existing Exchange instance and attaches it to the mock http server for its package's
+// recording, which every instance mocked from that recording shares
+// It disables the exchange's rate limiter, since requests to the local server need no throttling
+func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
+	s, err := getMockHTTPServer(httpMockFile)
+	if err != nil {
+		return fmt.Errorf("error getting mock HTTP server: %w", err)
+	}
+	newClient, err := s.newClient()
+	if err != nil {
+		return fmt.Errorf("error creating mock HTTP client: %w", err)
+	}
+	serverPath := s.url
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	if err := b.DisableRateLimiter(); err != nil && !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		return fmt.Errorf("error disabling rate limiter: %w", err)
+	}
 	if err := b.SetHTTPClient(newClient); err != nil {
 		return fmt.Errorf("error setting HTTP client: %w", err)
 	}
@@ -98,12 +210,13 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 	return nil
 }
 
-// MockWsInstance creates a new Exchange instance with a mock websocket instance and HTTP server
+// MockWebsocketInstance creates a new Exchange instance with a mock websocket instance and HTTP server
 // It accepts an exchange package type argument and a http.HandlerFunc
 // See CurryWsMockUpgrader for a convenient way to curry t and a ws mock function
 // It is expected to be run from any WS tests which need a specific response function
 // No default subscriptions will be run since they disrupt unit tests
-func MockWsInstance[T any, PT interface {
+// The websocket is disabled and shut down, and the mock's handlers awaited, when the test ends
+func MockWebsocketInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
 }](tb testing.TB, h http.HandlerFunc, verbose ...bool) *T {
@@ -112,11 +225,13 @@ func MockWsInstance[T any, PT interface {
 	e := PT(new(T))
 	require.NoError(tb, Setup(e, verbose...), "Test exchange Setup must not error")
 
-	s := httptest.NewTestServer(tb, h)
+	var handlers mockHandlers
+	s := httptest.NewTestServer(tb, handlers.track(tb, h))
 	s.Start()
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	// Mock sockets exercise authenticated requests on both legacy and managed connections.
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
@@ -129,10 +244,91 @@ func MockWsInstance[T any, PT interface {
 	b.Features.Subscriptions = subscription.List{}
 	b.Websocket.SetSubscriptionsNotRequired()
 
+	// The test server's Close neither closes a hijacked connection nor waits for its handler, so without this the mock
+	// handler would keep running with this tb after the test ends. Registered before Connect, so a failed connection's
+	// monitor stops too
+	w := b.Websocket
+	tb.Cleanup(func() {
+		stopped := handlers.stop()
+		if err := w.Disable(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrAlreadyDisabled, "Websocket Disable should not error")
+		}
+		if err := w.Shutdown(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Websocket Shutdown should not error")
+		}
+		select {
+		case <-stopped:
+		case <-time.After(mockHandlerTimeout):
+			assert.Fail(tb, "Mock handlers should return once the websocket is shut down")
+		}
+	})
+
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	return e
+}
+
+// mockHandlerTimeout bounds the wait for a mock server's handlers once its websocket has been shut down
+const mockHandlerTimeout = time.Minute
+
+// mockHandlers counts a mock server's running handlers, so that a test can wait for them before it ends
+type mockHandlers struct {
+	mu      sync.Mutex
+	running int
+	// idle is nil until stop is called, and is closed once no handler is running
+	idle chan struct{}
+}
+
+// track returns h wrapped to count as running until it returns; requests arriving after stop are refused
+func (m *mockHandlers) track(tb testing.TB, h http.HandlerFunc) http.HandlerFunc {
+	tb.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		m.mu.Lock()
+		if m.idle != nil {
+			m.mu.Unlock()
+			http.Error(w, "mock server has stopped", http.StatusServiceUnavailable)
+			return
+		}
+		m.running++
+		m.mu.Unlock()
+		defer m.done()
+		// The test server reports a panic through tb only after this handler has returned, which can be after the test
+		// has ended, so it is reported here instead
+		defer func() {
+			p := recover()
+			if p == nil {
+				return
+			}
+			if p != http.ErrAbortHandler {
+				assert.Failf(tb, "Mock handler should not panic", "%v\n%s", p, debug.Stack())
+			}
+			panic(http.ErrAbortHandler)
+		}()
+		h(w, r)
+	}
+}
+
+func (m *mockHandlers) done() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.running--
+	if m.running == 0 && m.idle != nil {
+		close(m.idle)
+	}
+}
+
+// stop refuses further requests and returns a channel that is closed once every running handler has returned
+func (m *mockHandlers) stop() <-chan struct{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.idle == nil {
+		m.idle = make(chan struct{})
+		if m.running == 0 {
+			close(m.idle)
+		}
+	}
+	return m.idle
 }
 
 // FixtureError contains an error and the message that caused it
@@ -194,23 +390,34 @@ func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExc
 
 var (
 	setupWsMutex sync.Mutex
-	setupWsOnce  = make(map[exchange.IBotExchange]bool)
+	// Weak keys let an exchange be collected once its tests drop it
+	setupWsOnce = make(map[weak.Pointer[exchange.Base]]bool)
 )
 
-// SetupWs is a helper function to connect both auth and normal websockets
+// forgetWebsocketSetup drops a collected exchange's entry, which would otherwise stay for the life of the test binary
+func forgetWebsocketSetup(key weak.Pointer[exchange.Base]) {
+	setupWsMutex.Lock()
+	defer setupWsMutex.Unlock()
+	delete(setupWsOnce, key)
+}
+
+// SetupWebsocket is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
 // It's up to the test to skip if it requires creds, though
-func SetupWs(tb testing.TB, e exchange.IBotExchange) {
+// It expects to be the first to connect the exchange's websocket: the relay it installs is not synchronised with the
+// readers or monitor of an earlier connection
+func SetupWebsocket(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
 	setupWsMutex.Lock()
 	defer setupWsMutex.Unlock()
 
-	if setupWsOnce[e] {
+	b := e.GetBase()
+	key := weak.Make(b)
+	if setupWsOnce[key] {
 		return
 	}
 
-	b := e.GetBase()
 	w, err := b.GetWebsocket()
 	if err != nil || !b.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
@@ -223,10 +430,13 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	b.Features.Subscriptions = subscription.List{}
 	w.SetSubscriptionsNotRequired()
 
+	// Installed before Connect, which starts the readers, so that a frame handled while connecting reaches the relay
+	// the test reads
+	w.DataHandler = stream.NewRelay(100000)
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
-	w.DataHandler = stream.NewRelay(100000)
-	setupWsOnce[e] = true
+	setupWsOnce[key] = true
+	runtime.AddCleanup(b, forgetWebsocketSetup, key)
 }
 
 var (

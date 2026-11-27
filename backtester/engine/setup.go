@@ -44,6 +44,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
+// databaseLoadMu serialises loading data from the database, as every backtest's database manager connects, and
+// later closes, the one global database connection. SetupFromConfig takes it too to set up a task's manager, as that
+// rewrites the global database config whose driver a load's queries read
+var databaseLoadMu sync.Mutex
+
 // NewBacktester returns a new BackTest instance
 func NewBacktester() (*BackTest, error) {
 	bt := &BackTest{
@@ -77,7 +82,9 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return fmt.Errorf("%w %v min interval size of %v", gctkline.ErrInvalidInterval, cfg.DataSettings.Interval, gctkline.FifteenSecond)
 	}
 	if cfg.DataSettings.DatabaseData != nil {
+		databaseLoadMu.Lock()
 		bt.databaseManager, err = engine.SetupDatabaseConnectionManager(&cfg.DataSettings.DatabaseData.Config)
+		databaseLoadMu.Unlock()
 		if err != nil {
 			return err
 		}
@@ -146,6 +153,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				}
 
 				var dc *gctconfig.Exchange
+				// GetDefaultConfig also updates the tradable pairs that Setup loads from dc, for exchanges supporting
+				// auto pair updates
 				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
@@ -155,10 +164,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
 
 				err = exch.Setup(dc)
-				if err != nil {
-					return err
-				}
-				err = exch.UpdateTradablePairs(context.TODO())
 				if err != nil {
 					return err
 				}
@@ -181,16 +186,12 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		}
 
 		exchBase := exch.GetBase()
-		exchangeAsset, ok := exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset]
-		if !ok {
-			return fmt.Errorf("%v %v %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, asset.ErrNotSupported)
+		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote)
+		if err = enableStrategyPair(&exchBase.CurrencyPairs, cfg.CurrencySettings[i].Asset, cp); err != nil {
+			err = fmt.Errorf("error enabling %s %s pair %s: %w", cfg.CurrencySettings[i].ExchangeName, cfg.CurrencySettings[i].Asset, cp, err)
+			return err
 		}
-		exchangeAsset.AssetEnabled = true
-		cp := currency.NewPair(cfg.CurrencySettings[i].Base, cfg.CurrencySettings[i].Quote).Format(*exchangeAsset.RequestFormat)
-		exchangeAsset.Available = exchangeAsset.Available.Add(cp)
-		exchangeAsset.Enabled = exchangeAsset.Enabled.Add(cp)
 		exchBase.Verbose = verbose
-		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
 	portfolioRisk := &risk.Risk{
@@ -441,9 +442,11 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			if err != nil {
 				return err
 			}
-			exchBase := exch.GetBase()
-			exchangeAsset := exchBase.CurrencyPairs.Pairs[trackingPairs[i].Asset] // no ok as handled earlier
-			exchangeAsset.Enabled = exchangeAsset.Enabled.Add(currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote))
+			cp := currency.NewPair(trackingPairs[i].Base, trackingPairs[i].Quote)
+			if enableErr := exch.GetBase().CurrencyPairs.EnablePair(trackingPairs[i].Asset, cp); enableErr != nil && !errors.Is(enableErr, currency.ErrPairAlreadyEnabled) {
+				err = fmt.Errorf("error enabling %s %s tracking pair %s: %w", trackingPairs[i].Exchange, trackingPairs[i].Asset, cp, enableErr)
+				return err
+			}
 		}
 	}
 
@@ -478,6 +481,27 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	cfg.PrintSetting()
 
 	return nil
+}
+
+// enableStrategyPair enables a strategy's asset and pair through the pair manager, as a pair added to a pair store's
+// available pairs directly is missing from the symbol index
+func enableStrategyPair(pm *currency.PairsManager, a asset.Item, pair currency.Pair) error {
+	ps, err := pm.Get(a)
+	if err != nil {
+		return err
+	}
+	if ps == nil {
+		return fmt.Errorf("%v pair store is nil: %w", a, asset.ErrNotSupported)
+	}
+	pFmt, err := pm.GetFormat(a, true)
+	if err != nil {
+		return err
+	}
+	pair = pair.Format(pFmt)
+	ps.AssetEnabled = true
+	ps.Available = ps.Available.Add(pair)
+	ps.Enabled = ps.Enabled.Add(pair)
+	return pm.Store(a, ps)
 }
 
 func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {
@@ -775,6 +799,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if cfg.DataSettings.DatabaseData.Path == "" {
 			cfg.DataSettings.DatabaseData.Path = filepath.Join(gctcommon.GetDefaultDataDir(runtime.GOOS), "database")
 		}
+		databaseLoadMu.Lock()
+		defer databaseLoadMu.Unlock()
 		gctdatabase.DB.DataPath = cfg.DataSettings.DatabaseData.Path
 		err = gctdatabase.DB.SetConfig(&cfg.DataSettings.DatabaseData.Config)
 		if err != nil {

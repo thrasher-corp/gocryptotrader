@@ -5,17 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -52,14 +50,9 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		pathing := strings.Split(path, "/")
-		dirPathing := pathing[:len(pathing)-1]
-		dir := strings.Join(dirPathing, "/")
-		err = common.CreateDir(dir)
-		if err != nil {
-			return "", nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", nil, fmt.Errorf("error reading mock recording %q: %w", path, err)
 		}
-
 		data, jErr := json.MarshalIndent(mockFile, "", " ")
 		if jErr != nil {
 			return "", nil, jErr
@@ -131,7 +124,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 			MessageWriteJSON(w, http.StatusOK, payload)
 			return
 
-		case http.MethodPost, http.MethodPut:
+		case http.MethodPost, http.MethodPut, http.MethodPatch:
 			switch r.Header.Get(contentType) {
 			case applicationURLEncoded:
 				readBody, err := io.ReadAll(r.Body)
@@ -281,37 +274,19 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			data = mockData[i].BodyParams
 		}
 
-		mockVals := url.Values{}
+		var mockVals url.Values
+		var err error
 		if data != "" && json.Valid([]byte(data)) {
 			if getJSONBodyShape(data) != jsonBodyObject {
 				continue
 			}
-			dataMap := make(map[string]any)
-			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
-				return nil, err
-			}
-
-			for k, v := range dataMap {
-				switch val := v.(type) {
-				case string:
-					mockVals.Add(k, val)
-				case bool:
-					mockVals.Add(k, strconv.FormatBool(val))
-				case float64:
-					mockVals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
-				case map[string]any, []any, nil:
-					mockVals.Add(k, fmt.Sprintf("%v", val))
-				default:
-					log.Println(reflect.TypeOf(val))
-					log.Fatal("unhandled type please add as needed")
-				}
-			}
+			// Recorded values are derived exactly as request bodies are, so nested arrays and objects compare as JSON
+			mockVals, err = DeriveURLValsFromJSONMap([]byte(data))
 		} else {
-			var err error
 			mockVals, err = url.ParseQuery(data)
-			if err != nil {
-				return nil, err
-			}
+		}
+		if err != nil {
+			return nil, err
 		}
 
 		if MatchURLVals(mockVals, requestVals) {
