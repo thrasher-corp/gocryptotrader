@@ -64,6 +64,7 @@ var (
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 	errFailedToAuthenticate                 = errors.New("failed to authenticate")
+	errTrafficTimeout                       = errors.New("traffic timeout")
 )
 
 // Websocket functionality list and state consts
@@ -97,6 +98,7 @@ type Manager struct {
 	features                      *protocol.Features
 	m                             sync.Mutex
 	connectionManagerMu           sync.RWMutex
+	downSince                     time.Time
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
@@ -165,6 +167,7 @@ type websocket struct {
 	setup         *ConnectionSetup
 	subscriptions *subscription.Store
 	connections   []Connection
+	downSince     time.Time
 }
 
 var globalReporter Reporter
@@ -532,9 +535,12 @@ func (m *Manager) connect(ctx context.Context) error {
 			return fmt.Errorf("%v Error connecting %w", m.exchangeName, err)
 		}
 		m.setState(connectedState)
-
-		m.Wg.Add(1)
-		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
+		defer func() {
+			// Must reportConnectionRestored before starting monitorTraffic to avoid a new connection loss race
+			m.reportConnectionRestored(ctx)
+			m.Wg.Add(1)
+			go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
+		}()
 
 		subs, err := m.GenerateSubs() // regenerate state on new connection
 		if err != nil {
@@ -707,7 +713,92 @@ func (m *Manager) connect(ctx context.Context) error {
 	m.Wg.Add(1)
 	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
+	m.reportConnectionsRestored(ctx)
+
 	return subscriptionError
+}
+
+// reportConnectionsLost marks every setup that has connections down.
+// Informs DataHandler consumers of the outage.
+func (m *Manager) reportConnectionsLost(ctx context.Context, reason error) {
+	var reports []ConnectionLost
+	now := time.Now()
+	m.connectionManagerMu.Lock()
+	if m.useMultiConnectionManagement {
+		for _, ws := range m.connectionManager {
+			if ws == nil || ws.setup == nil || len(ws.connections) == 0 || !ws.downSince.IsZero() {
+				continue
+			}
+			ws.downSince = now
+			reports = append(reports, ConnectionLost{
+				URL:           ws.setup.URL,
+				MessageFilter: ws.setup.MessageFilter,
+				Subscriptions: ws.subscriptions.List(),
+				Err:           reason,
+			})
+		}
+	} else if m.downSince.IsZero() {
+		m.downSince = now
+		reports = append(reports, ConnectionLost{
+			URL:           m.defaultURL,
+			Subscriptions: m.subscriptions.List(),
+			Err:           reason,
+		})
+	}
+	m.connectionManagerMu.Unlock()
+
+	for _, report := range reports {
+		if err := m.DataHandler.Send(ctx, report); err != nil {
+			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection down: %s", m.exchangeName, err)
+		}
+	}
+}
+
+// reportConnectionsRestored reports every lost setup that has connections again.
+// Informs DataHandler consumers of the restoration.
+func (m *Manager) reportConnectionsRestored(ctx context.Context) {
+	now := time.Now()
+	var reports []ConnectionRestored
+	m.connectionManagerMu.Lock()
+	for _, ws := range m.connectionManager {
+		if ws == nil || ws.setup == nil || ws.downSince.IsZero() || len(ws.connections) == 0 {
+			continue
+		}
+		reports = append(reports, ConnectionRestored{
+			URL:           ws.setup.URL,
+			MessageFilter: ws.setup.MessageFilter,
+			Subscriptions: ws.subscriptions.List(),
+			Downtime:      now.Sub(ws.downSince),
+		})
+		ws.downSince = time.Time{}
+	}
+	m.connectionManagerMu.Unlock()
+	for _, report := range reports {
+		if err := m.DataHandler.Send(ctx, report); err != nil {
+			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
+		}
+	}
+}
+
+// reportConnectionRestored reports the single-connection websocket restored.
+// Informs DataHandler consumers of the restoration.
+func (m *Manager) reportConnectionRestored(ctx context.Context) {
+	m.connectionManagerMu.Lock()
+	if m.downSince.IsZero() {
+		m.connectionManagerMu.Unlock()
+		return
+	}
+	downSince := m.downSince
+	m.downSince = time.Time{}
+	m.connectionManagerMu.Unlock()
+	report := ConnectionRestored{
+		URL:           m.defaultURL,
+		Subscriptions: m.subscriptions.List(),
+		Downtime:      time.Since(downSince),
+	}
+	if err := m.DataHandler.Send(ctx, report); err != nil {
+		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
+	}
 }
 
 // createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
@@ -799,6 +890,17 @@ func (m *Manager) Enable(ctx context.Context) error {
 func (m *Manager) Shutdown() error {
 	m.m.Lock()
 	defer m.m.Unlock()
+	return m.shutdown()
+}
+
+// shutdownLost reports the connections lost and shuts them down under one hold of m.m, so a Connect cannot report them
+// restored in between
+func (m *Manager) shutdownLost(ctx context.Context, reason error) error {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if m.IsConnected() {
+		m.reportConnectionsLost(ctx, reason)
+	}
 	return m.shutdown()
 }
 
@@ -1159,7 +1261,7 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 		if errors.Is(err, errConnectionFault) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
-				if shutdownErr := m.Shutdown(); shutdownErr != nil {
+				if shutdownErr := m.shutdownLost(ctx, err); shutdownErr != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", m.exchangeName, shutdownErr)
 				}
 			} else {
@@ -1172,8 +1274,10 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 				log.Errorln(log.WebsocketMgr, connectErr)
 			}
 		}
-		if err := m.DataHandler.Send(ctx, err); err != nil {
-			log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor data handler err: %s", m.exchangeName, err)
+		if !errors.Is(err, errConnectionFault) {
+			if err := m.DataHandler.Send(ctx, err); err != nil {
+				log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor data handler err: %s", m.exchangeName, err)
+			}
 		}
 	case <-t.C:
 		if m.verbose {
@@ -1208,11 +1312,11 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
 // the connection is shutdown and will be reconnected by the connectionMonitor routine.
-func (m *Manager) monitorTraffic(context.Context) func() bool {
+func (m *Manager) monitorTraffic(ctx context.Context) func() bool {
 	return func() bool {
 		return m.observeTraffic(time.After(m.trafficTimeout), func() {
 			go func() {
-				if err := m.Shutdown(); err != nil {
+				if err := m.shutdownLost(ctx, errTrafficTimeout); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
 				}
 			}()

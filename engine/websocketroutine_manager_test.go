@@ -189,6 +189,15 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}
+	// Serial like the rest of this test, which shares one routine manager across its calls
+	t.Run("connection lost is returned as an error", func(t *testing.T) {
+		err := m.websocketDataHandler(exchName, websocket.ConnectionLost{URL: "wss://ws.bitstamp.net", Err: errExpectedTestError})
+		assert.ErrorIs(t, err, errExpectedTestError, "a lost connection should be returned as an error")
+	})
+	t.Run("connection restored is not an error", func(t *testing.T) {
+		err := m.websocketDataHandler(exchName, websocket.ConnectionRestored{URL: "wss://ws.bitstamp.net", Downtime: time.Second})
+		assert.NoError(t, err, "a restored connection should not be returned as an error")
+	})
 	err = m.websocketDataHandler(exchName, websocket.FundingData{})
 	if err != nil {
 		t.Error(err)

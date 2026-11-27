@@ -351,6 +351,10 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
+	case websocket.ConnectionLost:
+		return fmt.Errorf("exchange %s websocket connection %s lost: %w", exchName, d.URL, d.Err)
+	case websocket.ConnectionRestored:
+		log.Infof(log.WebsocketMgr, "%s websocket connection %s restored after %s", exchName, d.URL, d.Downtime)
 	case []accounts.Change, accounts.Change:
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
