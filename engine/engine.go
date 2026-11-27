@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -199,7 +198,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	if flagSet["withdrawcachesize"] {
 		withdraw.CacheSize = b.Settings.WithdrawCacheSize
-		withdraw.Cache = cache.New(withdraw.CacheSize)
+		withdraw.Cache.SetCapacity(withdraw.CacheSize)
 	}
 
 	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {

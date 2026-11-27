@@ -1,7 +1,9 @@
 package cache
 
 import (
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,4 +126,125 @@ func TestAdd_MutexReleaseOnPanic(t *testing.T) {
 	lruCache.m.Unlock()
 	lruCache.Add("key", "val")
 	assert.Equal(t, "val", lruCache.Get("key"), "Get should return the value added after the panic")
+}
+
+func TestSetCapacity(t *testing.T) {
+	t.Parallel()
+	t.Run("preserve recent entries when shrinking and growing", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		c.Add("a", 1)
+		c.Add("b", 2)
+		c.Add("c", 3)
+		require.Equal(t, 1, c.Get("a"), "Get must promote the oldest entry")
+		c.SetCapacity(2)
+		assert.False(t, c.Contains("b"), "shrinking should evict the least recently used entry")
+		assert.Equal(t, uint64(2), c.Len(), "shrinking should honour the new capacity")
+		c.SetCapacity(4)
+		c.Add("d", 4)
+		c.Add("e", 5)
+		assert.Equal(t, 1, c.Get("a"), "growing should retain previous entries")
+		assert.Equal(t, uint64(4), c.Len(), "growing should admit more entries")
+		c.SetCapacity(0)
+		assert.Zero(t, c.Len(), "zero capacity should empty the cache")
+		c.Add("f", 6)
+		assert.Nil(t, c.Get("f"), "zero capacity should not retain new entries")
+		c.SetCapacity(1)
+		c.Add("g", 7)
+		assert.Equal(t, 7, c.Get("g"), "growing from zero should restore caching")
+	})
+	t.Run("shrink several entries to a smaller positive capacity", func(t *testing.T) {
+		t.Parallel()
+		c := New(5)
+		for i, k := range []string{"a", "b", "c", "d", "e"} {
+			c.Add(k, i)
+		}
+		require.Equal(t, 0, c.Get("a"), "Get must promote the oldest entry")
+		c.SetCapacity(2)
+		require.Equal(t, uint64(2), c.Len(), "shrinking must evict entries down to the new capacity")
+		for _, k := range []string{"b", "c", "d"} {
+			assert.Falsef(t, c.Contains(k), "shrinking should evict least recently used entry %s", k)
+		}
+		c.Add("f", 5)
+		assert.False(t, c.Contains("e"), "the next Add should evict the least recently used survivor")
+		assert.True(t, c.Contains("a"), "the next Add should retain the most recently used survivor")
+		assert.True(t, c.Contains("f"), "the next Add should retain the new entry")
+	})
+	t.Run("resize an empty cache", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		c.SetCapacity(2)
+		require.Zero(t, c.Len(), "resizing an empty cache must leave it empty")
+		c.Add("a", 1)
+		c.Add("b", 2)
+		require.Equal(t, uint64(2), c.Len(), "Len must report entries up to the new capacity")
+		c.Add("c", 3)
+		assert.False(t, c.Contains("a"), "the next Add should evict the oldest entry at the new capacity")
+		assert.True(t, c.Contains("b"), "the next Add should retain the newer entry")
+		assert.True(t, c.Contains("c"), "the next Add should retain the new entry")
+		assert.Equal(t, uint64(2), c.Len(), "Len should not exceed the new capacity")
+	})
+	for _, tc := range []struct {
+		name        string
+		capacity    uint64
+		entries     uint64
+		newCapacity uint64
+	}{
+		{name: "disable an empty cache", capacity: 3, newCapacity: 0},
+		{name: "grow an empty cache", capacity: 3, newCapacity: 7},
+		{name: "shrink a partly filled cache", capacity: 8, entries: 5, newCapacity: 2},
+		{name: "shrink a partly filled cache by one entry", capacity: 8, entries: 5, newCapacity: 4},
+		{name: "disable a partly filled cache", capacity: 8, entries: 5, newCapacity: 0},
+		{name: "grow a partly filled cache", capacity: 8, entries: 5, newCapacity: 9},
+		{name: "grow a full cache", capacity: 3, entries: 3, newCapacity: 7},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := New(tc.capacity)
+			for i := range tc.entries {
+				c.Add(i, i)
+			}
+			c.SetCapacity(tc.newCapacity)
+			kept := min(tc.entries, tc.newCapacity)
+			assert.Equal(t, kept, c.Len(), "SetCapacity should keep the most recent entries that fit")
+			for i := range tc.entries {
+				assert.Equalf(t, i >= tc.entries-kept, c.Contains(i), "SetCapacity should keep only the most recent entries that fit, entry %d", i)
+			}
+			c.Clear()
+			for i := range tc.newCapacity + 1 {
+				c.Add(tc.entries+i, i)
+			}
+			assert.Equal(t, tc.newCapacity, c.Len(), "Add should fill the cleared cache to the new capacity")
+		})
+	}
+
+	t.Run("concurrent reads writes and capacity changes", func(t *testing.T) {
+		t.Parallel()
+		c := New(3)
+		var workers sync.WaitGroup
+		for worker := range 4 {
+			workers.Go(func() {
+				for i := range 100 {
+					c.Add(worker, i)
+					c.Get(worker)
+					c.SetCapacity(uint64(i % 4))
+				}
+			})
+		}
+		// Wait with a deadline so a leaked lock fails this test instead of hanging the package. The repeated resize
+		// covers an unchanged capacity on every run, and the length is sent back so t is not used after a timeout.
+		finalLen := make(chan uint64, 1)
+		go func() {
+			workers.Wait()
+			c.SetCapacity(1)
+			c.SetCapacity(1)
+			finalLen <- c.Len()
+		}()
+		select {
+		case n := <-finalLen:
+			assert.Equal(t, uint64(1), n, "the final resizes should keep exactly one entry")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "workers and the final resize must release the cache lock within 5 seconds")
+		}
+	})
 }

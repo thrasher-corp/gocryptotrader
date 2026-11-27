@@ -880,7 +880,11 @@ func TestValidateSettingsWithdrawCacheSize(t *testing.T) {
 
 	for _, size := range []uint64{1, 3, 26} {
 		withdraw.Cache = cache.New(oldSize)
+		original := withdraw.Cache
+		original.Add("retained", "withdrawal")
 		validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: size}, FlagSet{"withdrawcachesize": true})
+		assert.Same(t, original, withdraw.Cache, "resizing should retain the cache pointer")
+		assert.Equal(t, "withdrawal", withdraw.Cache.Get("retained"), "resizing should retain cached withdrawals")
 		assert.Equal(t, size, withdraw.CacheSize, "CacheSize should take the flag's value")
 		for i := range size + 1 {
 			withdraw.Cache.Add(i, i)
