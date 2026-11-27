@@ -676,15 +676,16 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 	}
 
 	orderDetail := &order.Detail{
-		Amount:          o.OriginalAmount,
-		Date:            o.Timestamp.Time(),
-		Exchange:        e.Name,
-		OrderID:         strconv.FormatInt(o.ID, 10),
-		Side:            side,
-		Price:           o.Price,
-		RemainingAmount: o.RemainingAmount,
-		Pair:            o.Symbol,
-		ExecutedAmount:  o.ExecutedAmount,
+		Amount:               o.OriginalAmount,
+		Date:                 o.Timestamp.Time(),
+		Exchange:             e.Name,
+		OrderID:              strconv.FormatInt(o.ID, 10),
+		Side:                 side,
+		Price:                o.Price,
+		RemainingAmount:      o.RemainingAmount,
+		Pair:                 o.Symbol,
+		ExecutedAmount:       o.ExecutedAmount,
+		AverageExecutedPrice: o.AverageExecutionPrice,
 	}
 
 	switch {
@@ -700,13 +701,21 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 	// API docs discrepancy. Example contains prefixed "exchange "
 	// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-	orderType := strings.Replace(o.Type, "exchange ", "", 1)
+	orderType, isSpot := strings.CutPrefix(o.Type, "exchange ")
 	if orderType == "trailing-stop" {
 		orderDetail.Type = order.TrailingStop
 	} else {
 		orderDetail.Type, err = order.StringToOrderType(orderType)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+		}
+	}
+	// The exchange prefix distinguishes spot orders from margin orders on the same symbol.
+	// ID lookups can return either market regardless of the incoming asset; leave unknown types unclassified.
+	if orderDetail.Type != order.UnknownType {
+		orderDetail.AssetType = asset.Margin
+		if isSpot {
+			orderDetail.AssetType = asset.Spot
 		}
 	}
 
@@ -739,7 +748,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	for i := range resp {
-		if resp[i].OrderID != id {
+		if resp[i].ID != id {
 			continue
 		}
 		var o *order.Detail
@@ -754,7 +763,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	for i := range resp {
-		if resp[i].OrderID != id {
+		if resp[i].ID != id {
 			continue
 		}
 		var o *order.Detail
