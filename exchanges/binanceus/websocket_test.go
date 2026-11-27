@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -595,7 +596,69 @@ func TestProcessDepthUpdate(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "an event without level changes should still move the book's update ID on")
 
 	require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"s":"ETHUSDT","U":1,"u":1}`)), "processDepthUpdate must not error for a pair that is not enabled")
+	assert.Zero(t, ex.depthUpdateIDs.last(key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.Spot}), "processDepthUpdate should pass on no event of a pair that is not enabled")
 	assert.Error(t, ex.processDepthUpdate(t.Context(), []byte(`{"s":1}`)), "processDepthUpdate should error for a payload that does not decode")
+
+	t.Run("applies each side's levels to its side of the book", func(t *testing.T) {
+		t.Parallel()
+		ex := newStreamTestExchange(t)
+		ex.orderbookSync = ex.newOrderbookSync(func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			return &orderbook.Book{
+				Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 100, LastUpdated: time.UnixMilli(1794465804000),
+				Bids: orderbook.Levels{{Price: 70000, Amount: 1}, {Price: 69990, Amount: 2}, {Price: 69980, Amount: 5}},
+				Asks: orderbook.Levels{{Price: 70010, Amount: 1}, {Price: 70020, Amount: 2}, {Price: 70030, Amount: 6}},
+			}, nil
+		}, 0, 30*time.Second)
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":101,"u":101,"b":[["70000","0.5"],["69995","4"],["69990","0"]],"a":[]}`)), "processDepthUpdate must not error for a bid-only event")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465805412,"s":"BTCUSDT","U":102,"u":102,"b":[],"a":[["70010","0"],["70015","3"],["70020","2.5"]]}`)), "processDepthUpdate must not error for an ask-only event")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465805919,"s":"BTCUSDT","U":103,"u":103,"b":[["69995","4.5"],["69985","1"]],"a":[["70015","0"],["70025","2"]]}`)), "processDepthUpdate must not error for a two-sided event")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465806427,"s":"BTCUSDT","U":104,"u":105,"b":[["70020","1"]],"a":[["70020","0"]]}`)), "processDepthUpdate must not error for an event moving a price to the bids")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465806935,"s":"BTCUSDT","U":106,"u":106,"b":[["70027","1.5"]],"a":[["70025","0"]]}`)), "processDepthUpdate must not error for an event adding a bid above the price of an ask it removes")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465807441,"s":"BTCUSDT","U":107,"u":107,"b":[["70027","0"]],"a":[["70024","2"]]}`)), "processDepthUpdate must not error for an event adding an ask below the price of a bid it removes")
+		require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465807943,"s":"BTCUSDT","U":108,"u":109,"b":[["70020","0"]],"a":[["70020","3"]]}`)), "processDepthUpdate must not error for an event moving a price to the asks")
+		require.Eventually(t, func() bool {
+			id, err := ex.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
+			return err == nil && id == 109
+		}, 5*time.Second, 10*time.Millisecond, "the events following the snapshot must be applied")
+		book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error")
+		assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}}, book.Bids, "the events' bid levels should change, add and remove the book's bids")
+		assert.Equal(t, orderbook.Levels{{Price: 70020, Amount: 3}, {Price: 70024, Amount: 2}, {Price: 70030, Amount: 6}}, book.Asks, "the events' ask levels should change, add and remove the book's asks")
+		assert.Equal(t, time.UnixMilli(1794465807943), book.LastUpdated, "the book should take the last event's time")
+	})
+
+	t.Run("a gap between events synchronises the book again from a new snapshot", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ex := newStreamTestExchange(t)
+			var fetches atomic.Int32
+			ex.orderbookSync = ex.newOrderbookSync(func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				book := &orderbook.Book{
+					Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 100, LastUpdated: time.UnixMilli(1794465804000),
+					Bids: orderbook.Levels{{Price: 70000, Amount: 1}}, Asks: orderbook.Levels{{Price: 70010, Amount: 1}},
+				}
+				if fetches.Add(1) > 1 {
+					// The new snapshot holds the update the gap left out
+					book.LastUpdateID, book.Bids = 103, orderbook.Levels{{Price: 70000, Amount: 4}}
+				}
+				return book, nil
+			}, 0, 30*time.Second)
+			for _, event := range []string{
+				`{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":101,"u":101,"b":[],"a":[["70010","2"]]}`,
+				`{"e":"depthUpdate","E":1794465805919,"s":"BTCUSDT","U":103,"u":103,"b":[],"a":[["70010","3"]]}`,
+				`{"e":"depthUpdate","E":1794465806427,"s":"BTCUSDT","U":104,"u":104,"b":[],"a":[["70010","4"]]}`,
+			} {
+				require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(event)), "processDepthUpdate must not error")
+				synctest.Wait()
+			}
+			book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, int64(104), book.LastUpdateID, "the book should reach the last event's update ID")
+			assert.Equal(t, int32(2), fetches.Load(), "a gap should synchronise the book again from a new snapshot")
+			assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 4}}, book.Bids, "the book should take the levels of the snapshot fetched after the gap")
+			assert.Equal(t, orderbook.Levels{{Price: 70010, Amount: 4}}, book.Asks, "the book should apply the last event to the new snapshot")
+		})
+	})
 }
 
 func TestProcessOrderbookUpdate(t *testing.T) {
@@ -652,6 +715,63 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 			return err == nil && id == 108
 		}, 5*time.Second, 10*time.Millisecond, "events overlapping each other while a snapshot is fetched should bring the book to the last event's update ID")
 		assert.Equal(t, int32(1), fetches.Load(), "events overlapping each other should not need another snapshot")
+	})
+
+	t.Run("a gap synchronises the book again from a new snapshot", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name             string
+			queued           bool
+			firstID, finalID int64
+		}{
+			{name: "an event of one update once the book is synchronised", firstID: 103, finalID: 103},
+			{name: "an event of several updates once the book is synchronised", firstID: 103, finalID: 104},
+			{name: "an event of one update while the first snapshot is fetched", queued: true, firstID: 103, finalID: 103},
+			{name: "an event of several updates while the first snapshot is fetched", queued: true, firstID: 103, finalID: 104},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) {
+					ex := newStreamTestExchange(t)
+					release := make(chan struct{})
+					var fetches atomic.Int32
+					ex.orderbookSync = ex.newOrderbookSync(func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+						book := &orderbook.Book{
+							Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 100, LastUpdated: time.Now(),
+							Bids: orderbook.Levels{{Price: 1, Amount: 1}}, Asks: orderbook.Levels{{Price: 2, Amount: 1}},
+						}
+						if fetches.Add(1) > 1 {
+							// The new snapshot holds the update the gap left out
+							book.LastUpdateID, book.Bids = tc.finalID, orderbook.Levels{{Price: 1, Amount: 4}}
+							return book, nil
+						}
+						select {
+						case <-release:
+							return book, nil
+						case <-ctx.Done():
+							return nil, ctx.Err()
+						}
+					}, 0, 30*time.Second)
+					if !tc.queued {
+						close(release)
+					}
+					require.NoError(t, ex.processOrderbookUpdate(t.Context(), 101, update(101)), "the event following the snapshot must not error")
+					synctest.Wait()
+					require.NoError(t, ex.processOrderbookUpdate(t.Context(), tc.firstID, update(tc.finalID)), "an event after a gap must not error")
+					if tc.queued {
+						close(release)
+					}
+					synctest.Wait()
+					require.NoError(t, ex.processOrderbookUpdate(t.Context(), tc.finalID+1, update(tc.finalID+1)), "the next event must not error")
+					synctest.Wait()
+					book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+					require.NoError(t, err, "GetOrderbook must not error")
+					assert.Equal(t, tc.finalID+1, book.LastUpdateID, "the book should reach the next event's update ID")
+					assert.Equal(t, int32(2), fetches.Load(), "a gap should synchronise the book again from a new snapshot")
+					assert.Equal(t, orderbook.Levels{{Price: 1, Amount: 4}}, book.Bids, "the book should take the levels of the snapshot fetched after the gap")
+				})
+			})
+		}
 	})
 }
 

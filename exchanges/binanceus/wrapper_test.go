@@ -146,6 +146,9 @@ func TestSetup(t *testing.T) {
 
 	ex = new(Exchange)
 	ex.SetDefaults()
+	// Accounts of its own keep SetupDefaults from registering the exchange in the global accounts store
+	ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+	t.Cleanup(func() { assert.NoError(t, ex.Shutdown(), "Shutdown should not error") })
 	cfg, err = ex.GetStandardConfig()
 	require.NoError(t, err, "GetStandardConfig must not error")
 	cfg.API.AuthenticatedWebsocketSupport = true
@@ -273,6 +276,9 @@ func TestSetup(t *testing.T) {
 					assert.Equal(t, &exp, exch, "LoadConfig should load the previous configuration as saved")
 					ex := new(Exchange)
 					ex.SetDefaults()
+					// Accounts of its own keep SetupDefaults from registering the exchange in the global accounts store
+					ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+					t.Cleanup(func() { assert.NoError(t, ex.Shutdown(), "Shutdown should not error") })
 					require.NoError(t, ex.Setup(exch), "Setup must not error")
 					if exchangeDisabled {
 						assert.False(t, ex.IsEnabled(), "Setup should leave a disabled exchange disabled")
@@ -335,9 +341,11 @@ func TestSetup(t *testing.T) {
 			{name: "a configured supplementary websocket endpoint", configured: map[exchange.URL]string{exchange.WebsocketSpotSupplementary: "wss://supplementary.example.com/custom-stream"}, streams: streamsURL, api: apiURL},
 		} {
 			// Every combination of the websocket disabled, authenticated REST support, authenticated websocket support, no
-			// credentials and every subscription disabled
-			for combination := range 32 {
+			// credentials and every subscription disabled, with the WebSocket API connection kept from an earlier setup closed,
+			// connected with a User Data Stream, or connected with its User Data Stream unsubscribed
+			for combination := range 96 {
 				websocketDisabled, restAuthenticated, websocketAuthenticated, noCredentials, noSubscriptions := combination&1 != 0, combination&2 != 0, combination&4 != 0, combination&8 != 0, combination&16 != 0
+				keptSubscribed, keptUnsubscribed := combination/32 == 1, combination/32 == 2
 				name := []string{endpoints.name}
 				for _, setting := range []struct {
 					on   bool
@@ -348,6 +356,8 @@ func TestSetup(t *testing.T) {
 					{websocketAuthenticated, "authenticated websocket support"},
 					{noCredentials, "no credentials"},
 					{noSubscriptions, "every subscription disabled"},
+					{keptSubscribed, "a connected WebSocket API connection with a User Data Stream kept"},
+					{keptUnsubscribed, "a connected WebSocket API connection with its User Data Stream unsubscribed kept"},
 				} {
 					if setting.on {
 						name = append(name, setting.name)
@@ -384,10 +394,23 @@ func TestSetup(t *testing.T) {
 							cfg.API.Endpoints[endpoint.String()] = u
 						}
 					}
-					// The connection kept from an earlier setup is closed, as Setup must forget it whatever its state, and
-					// the top of TestSetup forgets a connected one
 					kept := newFakeConnection()
-					require.NoError(t, kept.Shutdown(), "Shutdown must not error")
+					// The earlier setup configured the account of a connected kept connection
+					account := &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"}
+					switch {
+					case keptSubscribed:
+						ex.SetCredentials(account)
+						ex.userData.expect("kept", account)
+						ex.userData.recordResponse("kept", []byte(`{"result":{"subscriptionId":1}}`))
+						recorded, ok := ex.userData.credentials(1)
+						require.True(t, ok, "the kept connection's User Data Stream subscription must be recorded")
+						require.True(t, ex.isConfiguredAccount(recorded), "the kept connection's User Data Stream subscription must be the configured account's")
+					case keptUnsubscribed:
+						ex.SetCredentials(account)
+						ex.userData.setWanted(false)
+					default:
+						require.NoError(t, kept.Shutdown(), "Shutdown must not error")
+					}
 					ex.wsAPI.set(kept, time.Second)
 					require.NoError(t, ex.Setup(cfg), "Setup must not error")
 					assert.NotNil(t, ex.orderbookSync, "Setup should set up the order book synchronisation")
