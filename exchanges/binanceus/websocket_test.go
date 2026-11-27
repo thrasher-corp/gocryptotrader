@@ -627,6 +627,134 @@ func TestProcessDepthUpdate(t *testing.T) {
 		assert.Equal(t, time.UnixMilli(1794465807943), book.LastUpdated, "the book should take the last event's time")
 	})
 
+	t.Run("applies each event's levels as it arrives", func(t *testing.T) {
+		t.Parallel()
+		steps := []struct {
+			name       string
+			event      string
+			updateID   int64
+			eventTime  int64
+			bids, asks orderbook.Levels
+		}{
+			{
+				name: "a bid-only event", event: `{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":101,"u":101,"b":[["70000","0.5"],["69995","4"],["69990","0"]],"a":[]}`, updateID: 101, eventTime: 1794465804911,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70010, Amount: 1}, {Price: 70020, Amount: 2}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an ask-only event", event: `{"e":"depthUpdate","E":1794465805412,"s":"BTCUSDT","U":102,"u":102,"b":[],"a":[["70010","0"],["70015","3"],["70020","2.5"]]}`, updateID: 102, eventTime: 1794465805412,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70015, Amount: 3}, {Price: 70020, Amount: 2.5}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "a two-sided event", event: `{"e":"depthUpdate","E":1794465805919,"s":"BTCUSDT","U":103,"u":103,"b":[["69995","4.5"],["69985","1"]],"a":[["70015","0"],["70025","2"]]}`, updateID: 103, eventTime: 1794465805919,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70020, Amount: 2.5}, {Price: 70025, Amount: 2}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event moving a price to the bids", event: `{"e":"depthUpdate","E":1794465806427,"s":"BTCUSDT","U":104,"u":105,"b":[["70020","1"]],"a":[["70020","0"]]}`, updateID: 105, eventTime: 1794465806427,
+				bids: orderbook.Levels{{Price: 70020, Amount: 1}, {Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70025, Amount: 2}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event adding a bid above the price of an ask it removes", event: `{"e":"depthUpdate","E":1794465806935,"s":"BTCUSDT","U":106,"u":106,"b":[["70027","1.5"]],"a":[["70025","0"]]}`, updateID: 106, eventTime: 1794465806935,
+				bids: orderbook.Levels{{Price: 70027, Amount: 1.5}, {Price: 70020, Amount: 1}, {Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event adding an ask below the price of a bid it removes", event: `{"e":"depthUpdate","E":1794465807441,"s":"BTCUSDT","U":107,"u":107,"b":[["70027","0"]],"a":[["70024","2"]]}`, updateID: 107, eventTime: 1794465807441,
+				bids: orderbook.Levels{{Price: 70020, Amount: 1}, {Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70024, Amount: 2}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event moving a price to the asks", event: `{"e":"depthUpdate","E":1794465807943,"s":"BTCUSDT","U":108,"u":109,"b":[["70020","0"]],"a":[["70020","3"]]}`, updateID: 109, eventTime: 1794465807943,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69985, Amount: 1}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70020, Amount: 3}, {Price: 70024, Amount: 2}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event with more bids than asks", event: `{"e":"depthUpdate","E":1794465808450,"s":"BTCUSDT","U":110,"u":110,"b":[["69990","2"],["69985","0"]],"a":[["70024","1"]]}`, updateID: 110, eventTime: 1794465808450,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.5}, {Price: 69995, Amount: 4.5}, {Price: 69990, Amount: 2}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70020, Amount: 3}, {Price: 70024, Amount: 1}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event with more asks than bids", event: `{"e":"depthUpdate","E":1794465808957,"s":"BTCUSDT","U":111,"u":111,"b":[["70000","0.75"]],"a":[["70020","0"],["70022","1.5"]]}`, updateID: 111, eventTime: 1794465808957,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.75}, {Price: 69995, Amount: 4.5}, {Price: 69990, Amount: 2}, {Price: 69980, Amount: 5}},
+				asks: orderbook.Levels{{Price: 70022, Amount: 1.5}, {Price: 70024, Amount: 1}, {Price: 70030, Amount: 6}},
+			},
+			{
+				name: "an event that only removes levels", event: `{"e":"depthUpdate","E":1794465809464,"s":"BTCUSDT","U":112,"u":112,"b":[["69980","0"]],"a":[["70030","0"]]}`, updateID: 112, eventTime: 1794465809464,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.75}, {Price: 69995, Amount: 4.5}, {Price: 69990, Amount: 2}},
+				asks: orderbook.Levels{{Price: 70022, Amount: 1.5}, {Price: 70024, Amount: 1}},
+			},
+			{
+				name: "an event of six bids", event: `{"e":"depthUpdate","E":1794465809971,"s":"BTCUSDT","U":113,"u":113,"b":[["69999.99","0.00098"],["69999.98","0.00098"],["69997.53","1.23456"],["69996.07","0.00351"],["69994.21","3"],["69993.84","0.5"]],"a":[]}`, updateID: 113, eventTime: 1794465809971,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.75}, {Price: 69999.99, Amount: 0.00098}, {Price: 69999.98, Amount: 0.00098}, {Price: 69997.53, Amount: 1.23456}, {Price: 69996.07, Amount: 0.00351}, {Price: 69995, Amount: 4.5}, {Price: 69994.21, Amount: 3}, {Price: 69993.84, Amount: 0.5}, {Price: 69990, Amount: 2}},
+				asks: orderbook.Levels{{Price: 70022, Amount: 1.5}, {Price: 70024, Amount: 1}},
+			},
+			{
+				name: "an event removing a level the book does not hold", event: `{"e":"depthUpdate","E":1794465810478,"s":"BTCUSDT","U":114,"u":114,"b":[["69970","0"],["69975.5","2"]],"a":[]}`, updateID: 114, eventTime: 1794465810478,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.75}, {Price: 69999.99, Amount: 0.00098}, {Price: 69999.98, Amount: 0.00098}, {Price: 69997.53, Amount: 1.23456}, {Price: 69996.07, Amount: 0.00351}, {Price: 69995, Amount: 4.5}, {Price: 69994.21, Amount: 3}, {Price: 69993.84, Amount: 0.5}, {Price: 69990, Amount: 2}, {Price: 69975.5, Amount: 2}},
+				asks: orderbook.Levels{{Price: 70022, Amount: 1.5}, {Price: 70024, Amount: 1}},
+			},
+			{
+				name: "an event overlapping the last one", event: `{"e":"depthUpdate","E":1794465810985,"s":"BTCUSDT","U":113,"u":115,"b":[["69990","3"],["69975.5","0"]],"a":[["70024","0.5"]]}`, updateID: 115, eventTime: 1794465810985,
+				bids: orderbook.Levels{{Price: 70000, Amount: 0.75}, {Price: 69999.99, Amount: 0.00098}, {Price: 69999.98, Amount: 0.00098}, {Price: 69997.53, Amount: 1.23456}, {Price: 69996.07, Amount: 0.00351}, {Price: 69995, Amount: 4.5}, {Price: 69994.21, Amount: 3}, {Price: 69993.84, Amount: 0.5}, {Price: 69990, Amount: 3}},
+				asks: orderbook.Levels{{Price: 70022, Amount: 1.5}, {Price: 70024, Amount: 0.5}},
+			},
+		}
+		for i, step := range steps {
+			t.Run(step.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newStreamTestExchange(t)
+				t.Cleanup(func() { assert.NoError(t, ex.Requester.Shutdown(), "Shutdown should not error") })
+				ex.orderbookSync = ex.newOrderbookSync(func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+					return &orderbook.Book{
+						Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 100, LastUpdated: time.UnixMilli(1794465804000),
+						Bids: orderbook.Levels{{Price: 70000, Amount: 1}, {Price: 69990, Amount: 2}, {Price: 69980, Amount: 5}},
+						Asks: orderbook.Levels{{Price: 70010, Amount: 1}, {Price: 70020, Amount: 2}, {Price: 70030, Amount: 6}},
+					}, nil
+				}, 0, 30*time.Second)
+				// Each step sends every event up to its own, one at a time, to an exchange of its own, so it can run alone
+				for _, applied := range steps[:i+1] {
+					require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(applied.event)), "processDepthUpdate must not error")
+					require.Eventuallyf(t, func() bool {
+						id, err := ex.Websocket.Orderbook.LastUpdateID(currency.NewBTCUSDT(), asset.Spot)
+						return err == nil && id == applied.updateID
+					}, 5*time.Second, 10*time.Millisecond, "the event ending at update %d must be applied", applied.updateID)
+				}
+				book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+				require.NoError(t, err, "GetOrderbook must not error")
+				assert.Equal(t, step.bids, book.Bids, "the book should hold the expected bids after the event")
+				assert.Equal(t, step.asks, book.Asks, "the book should hold the expected asks after the event")
+				assert.Equal(t, time.UnixMilli(step.eventTime), book.LastUpdated, "the book should take the event's time")
+			})
+		}
+	})
+
+	t.Run("an event spanning the snapshot applies all its levels", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ex := newStreamTestExchange(t)
+			t.Cleanup(func() { assert.NoError(t, ex.Requester.Shutdown(), "Shutdown should not error") })
+			ex.orderbookSync = ex.newOrderbookSync(func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				return &orderbook.Book{
+					Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 101, LastUpdated: time.UnixMilli(1794465805000),
+					Bids: orderbook.Levels{{Price: 70000, Amount: 1}, {Price: 69990, Amount: 2}},
+					Asks: orderbook.Levels{{Price: 70010, Amount: 1}, {Price: 70020, Amount: 2}},
+				}, nil
+			}, 0, 30*time.Second)
+			// The snapshot is fetched once the event has arrived, and stamped on receipt after the event's time
+			require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":100,"u":102,"b":[["69990","3"],["69985","1"]],"a":[["70010","0"],["70015","1"]]}`)), "processDepthUpdate must not error")
+			synctest.Wait()
+			book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, int64(102), book.LastUpdateID, "the book should take the event's last update ID")
+			assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 1}, {Price: 69990, Amount: 3}, {Price: 69985, Amount: 1}}, book.Bids, "the book should apply every bid of the event spanning the snapshot")
+			assert.Equal(t, orderbook.Levels{{Price: 70015, Amount: 1}, {Price: 70020, Amount: 2}}, book.Asks, "the book should apply every ask of the event spanning the snapshot")
+			assert.Equal(t, time.UnixMilli(1794465804911), book.LastUpdated, "the book should take the event's time")
+		})
+	})
+
 	t.Run("a gap between events synchronises the book again from a new snapshot", func(t *testing.T) {
 		t.Parallel()
 		synctest.Test(t, func(t *testing.T) {
@@ -638,25 +766,66 @@ func TestProcessDepthUpdate(t *testing.T) {
 					Bids: orderbook.Levels{{Price: 70000, Amount: 1}}, Asks: orderbook.Levels{{Price: 70010, Amount: 1}},
 				}
 				if fetches.Add(1) > 1 {
-					// The new snapshot holds the update the gap left out
-					book.LastUpdateID, book.Bids = 103, orderbook.Levels{{Price: 70000, Amount: 4}}
+					// The new snapshot holds the gap's event and is received after the next event's time
+					book.LastUpdateID, book.LastUpdated = 103, time.UnixMilli(1794465806500)
+					book.Bids, book.Asks = orderbook.Levels{{Price: 70000, Amount: 4}}, orderbook.Levels{{Price: 70010, Amount: 3}}
 				}
 				return book, nil
 			}, 0, 30*time.Second)
 			for _, event := range []string{
 				`{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":101,"u":101,"b":[],"a":[["70010","2"]]}`,
 				`{"e":"depthUpdate","E":1794465805919,"s":"BTCUSDT","U":103,"u":103,"b":[],"a":[["70010","3"]]}`,
-				`{"e":"depthUpdate","E":1794465806427,"s":"BTCUSDT","U":104,"u":104,"b":[],"a":[["70010","4"]]}`,
+			} {
+				require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(event)), "processDepthUpdate must not error")
+				synctest.Wait()
+			}
+			book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error once the gap's snapshot is loaded")
+			assert.Equal(t, int64(103), book.LastUpdateID, "a gap should synchronise the book again before the next event")
+			assert.Equal(t, int32(2), fetches.Load(), "a gap should fetch a new snapshot before the next event")
+			assert.Equal(t, orderbook.Levels{{Price: 70010, Amount: 3}}, book.Asks, "the book should take the asks of the snapshot fetched after the gap")
+			require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(`{"e":"depthUpdate","E":1794465806427,"s":"BTCUSDT","U":104,"u":104,"b":[],"a":[["70010","4"]]}`)), "processDepthUpdate must not error")
+			synctest.Wait()
+			book, err = ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			assert.Equal(t, int64(104), book.LastUpdateID, "the book should reach the last event's update ID")
+			assert.Equal(t, int32(2), fetches.Load(), "a gap should synchronise the book again from a new snapshot")
+			assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 4}}, book.Bids, "the book should take the levels of the snapshot fetched after the gap")
+			assert.Equal(t, orderbook.Levels{{Price: 70010, Amount: 4}}, book.Asks, "the book should apply the last event to the new snapshot")
+			assert.Equal(t, time.UnixMilli(1794465806427), book.LastUpdated, "the book should take the last event's time")
+		})
+	})
+
+	t.Run("a snapshot behind the event after a gap takes that event's levels", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ex := newStreamTestExchange(t)
+			t.Cleanup(func() { assert.NoError(t, ex.Requester.Shutdown(), "Shutdown should not error") })
+			var fetches atomic.Int32
+			ex.orderbookSync = ex.newOrderbookSync(func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				book := &orderbook.Book{
+					Exchange: ex.Name, Pair: p, Asset: a, LastUpdateID: 100, LastUpdated: time.UnixMilli(1794465804000),
+					Bids: orderbook.Levels{{Price: 70000, Amount: 1}}, Asks: orderbook.Levels{{Price: 70010, Amount: 1}},
+				}
+				if fetches.Add(1) > 1 {
+					// The new snapshot holds the update the gap left out, but not the event after the gap
+					book.LastUpdateID, book.Bids, book.Asks = 102, orderbook.Levels{{Price: 70000, Amount: 4}}, orderbook.Levels{{Price: 70010, Amount: 2}}
+				}
+				return book, nil
+			}, 0, 30*time.Second)
+			for _, event := range []string{
+				`{"e":"depthUpdate","E":1794465804911,"s":"BTCUSDT","U":101,"u":101,"b":[],"a":[["70010","2"]]}`,
+				`{"e":"depthUpdate","E":1794465805919,"s":"BTCUSDT","U":103,"u":104,"b":[["69990","1"]],"a":[["70010","3"]]}`,
 			} {
 				require.NoError(t, ex.processDepthUpdate(t.Context(), []byte(event)), "processDepthUpdate must not error")
 				synctest.Wait()
 			}
 			book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Spot)
 			require.NoError(t, err, "GetOrderbook must not error")
-			assert.Equal(t, int64(104), book.LastUpdateID, "the book should reach the last event's update ID")
+			assert.Equal(t, int64(104), book.LastUpdateID, "the book should apply the event after the gap to the new snapshot")
 			assert.Equal(t, int32(2), fetches.Load(), "a gap should synchronise the book again from a new snapshot")
-			assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 4}}, book.Bids, "the book should take the levels of the snapshot fetched after the gap")
-			assert.Equal(t, orderbook.Levels{{Price: 70010, Amount: 4}}, book.Asks, "the book should apply the last event to the new snapshot")
+			assert.Equal(t, orderbook.Levels{{Price: 70000, Amount: 4}, {Price: 69990, Amount: 1}}, book.Bids, "the book should add the bids of the event after the gap to the new snapshot")
+			assert.Equal(t, orderbook.Levels{{Price: 70010, Amount: 3}}, book.Asks, "the book should apply the asks of the event after the gap to the new snapshot")
 		})
 	})
 }
@@ -863,6 +1032,13 @@ func TestCheckPendingUpdate(t *testing.T) {
 	assert.False(t, skip, "an event spanning the snapshot should be applied")
 	_, err = checkPendingUpdate(100, 102, update)
 	assert.ErrorIs(t, err, orderbookmanager.ErrOrderbookSnapshotOutdated, "an event starting after the snapshot's next update should need a new snapshot")
+
+	t.Run("an event ending before the snapshot's last update is skipped", func(t *testing.T) {
+		t.Parallel()
+		skip, err := checkPendingUpdate(100, 90, &orderbook.Update{Pair: currency.NewBTCUSDT(), Asset: asset.Spot, UpdateID: 95})
+		require.NoError(t, err, "checkPendingUpdate must not error for an event the snapshot covers")
+		assert.True(t, skip, "an event ending before the snapshot's last update should be skipped")
+	})
 }
 
 func TestProcessPartialDepth(t *testing.T) {

@@ -342,10 +342,11 @@ func TestSetup(t *testing.T) {
 		} {
 			// Every combination of the websocket disabled, authenticated REST support, authenticated websocket support, no
 			// credentials and every subscription disabled, with the WebSocket API connection kept from an earlier setup closed,
-			// connected with a User Data Stream, or connected with its User Data Stream unsubscribed
-			for combination := range 96 {
+			// connected with a User Data Stream, connected with its User Data Stream unsubscribed, connected with no account
+			// configured, or connected carrying the configured account's and other accounts' User Data Streams and requests
+			for combination := range 160 {
 				websocketDisabled, restAuthenticated, websocketAuthenticated, noCredentials, noSubscriptions := combination&1 != 0, combination&2 != 0, combination&4 != 0, combination&8 != 0, combination&16 != 0
-				keptSubscribed, keptUnsubscribed := combination/32 == 1, combination/32 == 2
+				keptSubscribed, keptUnsubscribed, keptWithoutAccount, keptShared := combination/32 == 1, combination/32 == 2, combination/32 == 3, combination/32 == 4
 				name := []string{endpoints.name}
 				for _, setting := range []struct {
 					on   bool
@@ -358,6 +359,8 @@ func TestSetup(t *testing.T) {
 					{noSubscriptions, "every subscription disabled"},
 					{keptSubscribed, "a connected WebSocket API connection with a User Data Stream kept"},
 					{keptUnsubscribed, "a connected WebSocket API connection with its User Data Stream unsubscribed kept"},
+					{keptWithoutAccount, "a connected WebSocket API connection with no account configured kept"},
+					{keptShared, "a connected WebSocket API connection carrying several accounts' User Data Streams kept"},
 				} {
 					if setting.on {
 						name = append(name, setting.name)
@@ -394,9 +397,28 @@ func TestSetup(t *testing.T) {
 							cfg.API.Endpoints[endpoint.String()] = u
 						}
 					}
-					kept := newFakeConnection()
-					// The earlier setup configured the account of a connected kept connection
+					kept, limit := newFakeConnection(), time.Second
+					// The account an earlier setup configured, for the connected kept connections that have one
 					account := &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"}
+					if keptWithoutAccount || keptShared {
+						// An earlier authenticated setup of the exchange leaves its configuration, the flag and any account it
+						// configured in place through SetDefaults, and kept its connection with the limit this configuration gives
+						earlier := *cfg
+						earlier.API.Endpoints = maps.Clone(cfg.API.Endpoints)
+						earlier.API.AuthenticatedWebsocketSupport = true
+						earlier.API.Credentials.Key, earlier.API.Credentials.Secret = "", ""
+						if keptShared {
+							earlier.API.Credentials.Key, earlier.API.Credentials.Secret = account.Key, account.Secret
+						}
+						features := *cfg.Features
+						features.Enabled.Websocket, features.Subscriptions = true, cfg.Features.Subscriptions.Clone()
+						earlier.Features = &features
+						require.NoError(t, ex.Setup(&earlier), "Setup must not error for the earlier configuration")
+						earlierRequester := ex.Requester
+						t.Cleanup(func() { assert.NoError(t, earlierRequester.Shutdown(), "Shutdown should not error") })
+						ex.SetDefaults()
+						limit = websocketAPIResponseLimit(cfg)
+					}
 					switch {
 					case keptSubscribed:
 						ex.SetCredentials(account)
@@ -408,10 +430,24 @@ func TestSetup(t *testing.T) {
 					case keptUnsubscribed:
 						ex.SetCredentials(account)
 						ex.userData.setWanted(false)
+					case keptShared:
+						ex.SetCredentials(account)
+						ex.userData.expect("kept", account)
+						ex.userData.recordResponse("kept", []byte(`{"result":{"subscriptionId":0}}`))
+						ex.userData.expect("other", &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
+						ex.userData.recordResponse("other", []byte(`{"result":{"subscriptionId":1}}`))
+						ex.userData.expect("another", &accounts.Credentials{Key: "another-api-key", Secret: "another-api-secret"})
+						ex.userData.recordResponse("another", []byte(`{"result":{"subscriptionId":2}}`))
+						ex.userData.expect("awaited", &accounts.Credentials{Key: "awaited-api-key", Secret: "awaited-api-secret"})
+						ex.userData.expect("abandoned", &accounts.Credentials{Key: "abandoned-api-key", Secret: "abandoned-api-secret"})
+						ex.userData.returned("abandoned")
+						_, ok := ex.userData.credentials(2)
+						require.True(t, ok, "subscription 2 must be recorded on the kept connection")
+					case keptWithoutAccount:
 					default:
 						require.NoError(t, kept.Shutdown(), "Shutdown must not error")
 					}
-					ex.wsAPI.set(kept, time.Second)
+					ex.wsAPI.set(kept, limit)
 					require.NoError(t, ex.Setup(cfg), "Setup must not error")
 					assert.NotNil(t, ex.orderbookSync, "Setup should set up the order book synchronisation")
 					urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
