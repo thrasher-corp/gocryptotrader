@@ -2,7 +2,9 @@ package currency
 
 import (
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +20,72 @@ func TestGetDefaultExchangeRates(t *testing.T) {
 				val)
 		}
 	}
+
+	t.Run("stopped updater with configured currencies wider than defaults returns only default pairs", func(t *testing.T) {
+		s, mock := newCountingStorage(t, time.Hour)
+		s.fiatCurrencies = Currencies{USD, EUR, CAD}
+		s.defaultFiatCurrencies = Currencies{USD, EUR}
+		s.updaterRunning.Store(false)
+
+		got, err := s.GetDefaultForeignExchangeRates()
+		require.NoError(t, err, "GetDefaultForeignExchangeRates must not error with updater stopped")
+		_, err = findConversionRate(got, USD, EUR)
+		assert.NoError(t, err, "GetDefaultForeignExchangeRates should include default pairs")
+		_, err = findConversionRate(got, USD, CAD)
+		assert.Error(t, err, "GetDefaultForeignExchangeRates should not include configured-only pairs")
+		assert.Equal(t, int64(1), mock.calls.Load(), "GetDefaultForeignExchangeRates should call the provider once")
+	})
+
+	t.Run("stopped updater waits for in-flight refresh then makes its own request", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			seedBefore bool
+			seedDuring bool
+		}{
+			{name: "cached rates", seedBefore: true},
+			{name: "empty cache, in-flight refresh succeeds", seedDuring: true},
+			{name: "empty cache, in-flight refresh fails"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				s, mock := newCountingStorage(t, time.Hour)
+				s.fiatCurrencies = Currencies{USD, EUR, CAD}
+				s.defaultFiatCurrencies = Currencies{USD, EUR}
+				s.updaterRunning.Store(false)
+				if tc.seedBefore {
+					require.NoError(t, s.updateExchangeRates(map[string]float64{"USDEUR": 0.5}), "updateExchangeRates must not error")
+				}
+
+				s.fxRefreshMtx.Lock()
+				type readResult struct {
+					rates Conversions
+					err   error
+				}
+				done := make(chan readResult, 1)
+				go func() {
+					got, getErr := s.GetDefaultForeignExchangeRates()
+					done <- readResult{rates: got, err: getErr}
+				}()
+				waitForBlockedReader(t, "SeedDefaultForeignExchangeRates")
+				assert.Zero(t, mock.calls.Load(), "getter should wait for the in-flight refresh before calling the provider")
+
+				if tc.seedDuring {
+					require.NoError(t, s.updateExchangeRates(map[string]float64{"USDEUR": 0.5}), "updateExchangeRates must not error")
+				}
+				s.fxRefreshMtx.Unlock()
+
+				select {
+				case res := <-done:
+					require.NoError(t, res.err, "GetDefaultForeignExchangeRates must not error after in-flight refresh")
+					rate, rateErr := findConversionRate(res.rates, USD, EUR)
+					require.NoError(t, rateErr, "USD/EUR must be present")
+					assert.Equal(t, 1.0, rate, "GetDefaultForeignExchangeRates should return the rate from its own request")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "GetDefaultForeignExchangeRates must finish once the refresh releases fxRefreshMtx")
+				}
+				assert.Equal(t, int64(1), mock.calls.Load(), "GetDefaultForeignExchangeRates should make its own provider request")
+			})
+		}
+	})
 }
 
 func TestGetExchangeRates(t *testing.T) {
@@ -32,6 +100,57 @@ func TestGetExchangeRates(t *testing.T) {
 				val)
 		}
 	}
+
+	t.Run("stopped updater waits for in-flight refresh then makes its own request", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			seedBefore bool
+			seedDuring bool
+		}{
+			{name: "cached rates", seedBefore: true},
+			{name: "empty cache, in-flight refresh succeeds", seedDuring: true},
+			{name: "empty cache, in-flight refresh fails"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				s, mock := newCountingStorage(t, time.Hour)
+				s.fiatCurrencies = Currencies{USD, EUR, CAD}
+				s.defaultFiatCurrencies = Currencies{USD, EUR}
+				s.updaterRunning.Store(false)
+				if tc.seedBefore {
+					require.NoError(t, s.updateExchangeRates(map[string]float64{"USDEUR": 0.5, "USDCAD": 0.5}), "updateExchangeRates must not error")
+				}
+
+				s.fxRefreshMtx.Lock()
+				type readResult struct {
+					rates Conversions
+					err   error
+				}
+				done := make(chan readResult, 1)
+				go func() {
+					got, getErr := s.GetExchangeRates()
+					done <- readResult{rates: got, err: getErr}
+				}()
+				waitForBlockedReader(t, "SeedForeignExchangeRates")
+				assert.Zero(t, mock.calls.Load(), "getter should wait for the in-flight refresh before calling the provider")
+
+				if tc.seedDuring {
+					require.NoError(t, s.updateExchangeRates(map[string]float64{"USDEUR": 0.5, "USDCAD": 0.5}), "updateExchangeRates must not error")
+				}
+				s.fxRefreshMtx.Unlock()
+
+				select {
+				case res := <-done:
+					require.NoError(t, res.err, "GetExchangeRates must not error after in-flight refresh")
+					rate, rateErr := findConversionRate(res.rates, USD, CAD)
+					require.NoError(t, rateErr, "USD/CAD must be present")
+					assert.Equal(t, 1.0, rate, "GetExchangeRates should return the rate from its own request")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "GetExchangeRates must finish once the refresh releases fxRefreshMtx")
+				}
+				assert.Equal(t, int64(1), mock.calls.Load(), "GetExchangeRates should make its own provider request")
+			})
+		}
+	})
 }
 
 func TestUpdateBaseCurrency(t *testing.T) {

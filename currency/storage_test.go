@@ -250,6 +250,244 @@ func TestStorageUpdaterFailedInitialSeed(t *testing.T) {
 	require.NoError(t, err, "GetDefaultForeignExchangeRates must not error once rates are cached")
 	assert.NotEmpty(t, rates, "GetDefaultForeignExchangeRates should return the cached rates")
 	assert.Equal(t, int64(4), mock.calls.Load(), "reads should use the cache once a seed has succeeded")
+
+	t.Run("cold readers use in-flight refresh rates", func(t *testing.T) {
+		readers := []struct {
+			name string
+			read func(s *Storage) (float64, error)
+		}{
+			{
+				name: "GetExchangeRates",
+				read: func(s *Storage) (float64, error) {
+					r, readErr := s.GetExchangeRates()
+					if readErr != nil {
+						return 0, readErr
+					}
+					return findConversionRate(r, USD, CAD)
+				},
+			},
+			{
+				name: "GetDefaultForeignExchangeRates",
+				read: func(s *Storage) (float64, error) {
+					r, readErr := s.GetDefaultForeignExchangeRates()
+					if readErr != nil {
+						return 0, readErr
+					}
+					return findConversionRate(r, USD, CAD)
+				},
+			},
+			{
+				name: "ConvertCurrency",
+				read: func(s *Storage) (float64, error) {
+					return s.ConvertCurrency(1, USD, CAD)
+				},
+			},
+			{
+				name: "GetStorageRate",
+				read: func(s *Storage) (float64, error) {
+					return s.GetStorageRate(USD, CAD)
+				},
+			},
+			{
+				name: "NewConversion",
+				read: func(s *Storage) (float64, error) {
+					conv, readErr := s.NewConversion(USD, CAD)
+					if readErr != nil {
+						return 0, readErr
+					}
+					return conv.GetRate()
+				},
+			},
+		}
+
+		for _, tc := range readers {
+			t.Run(tc.name, func(t *testing.T) {
+				resume := make(chan struct{})
+				release := sync.OnceFunc(func() { close(resume) })
+				t.Cleanup(release)
+				rs, _ := newCountingStorage(t, time.Hour)
+				rs.fiatCurrencies = Currencies{USD, EUR, CAD}
+				rs.defaultFiatCurrencies = Currencies{USD, EUR}
+				var rMock *channelControlledMockProvider
+				rs.fiatExchangeMarkets, rMock = newChannelControlledMockProvider(make(chan struct{}, 1), resume, map[string]float64{"USDEUR": 1.25, "USDCAD": 1.5})
+				rs.updaterRunning.Store(true)
+
+				var wg sync.WaitGroup
+				t.Cleanup(func() {
+					release()
+					done := make(chan struct{})
+					go func() { wg.Wait(); close(done) }()
+					select {
+					case <-done:
+					case <-time.After(5 * time.Second):
+						assert.Fail(t, "refresh and reader goroutines should finish once the provider answers")
+					}
+				})
+
+				refreshDone := make(chan error, 1)
+				wg.Go(func() { refreshDone <- rs.SeedForeignExchangeRates() })
+				select {
+				case <-rMock.called:
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "refresh must call the provider")
+				}
+
+				type readResult struct {
+					rate float64
+					err  error
+				}
+				readDone := make(chan readResult, 1)
+				wg.Go(func() {
+					rate, readErr := tc.read(rs)
+					readDone <- readResult{rate: rate, err: readErr}
+				})
+				waitForBlockedReader(t, "hasRates")
+
+				release()
+				select {
+				case refreshErr := <-refreshDone:
+					require.NoError(t, refreshErr, "refresh must not error")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "refresh must finish once released")
+				}
+				select {
+				case res := <-readDone:
+					require.NoError(t, res.err, "reader must use the published rates without error")
+					assert.Equal(t, 1.5, res.rate, "reader should return the rate published by the in-flight refresh")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "reader must finish once the refresh completes")
+				}
+				assert.Equal(t, int64(1), rMock.calls.Load(), "reader should not call the provider after the in-flight refresh publishes")
+				cadRate, rateErr := rs.fxRates.GetRate(USD, CAD)
+				require.NoError(t, rateErr, "USD/CAD must remain cached")
+				assert.Equal(t, 1.5, cadRate, "USD/CAD should keep the refresh's rate")
+			})
+		}
+	})
+
+	t.Run("cold readers retry seed when in-flight refresh fails", func(t *testing.T) {
+		readers := []struct {
+			name string
+			read func(s *Storage) (float64, error)
+		}{
+			{
+				name: "GetExchangeRates",
+				read: func(s *Storage) (float64, error) {
+					r, readErr := s.GetExchangeRates()
+					if readErr != nil {
+						return 0, readErr
+					}
+					return findConversionRate(r, USD, EUR)
+				},
+			},
+			{
+				name: "GetDefaultForeignExchangeRates",
+				read: func(s *Storage) (float64, error) {
+					r, readErr := s.GetDefaultForeignExchangeRates()
+					if readErr != nil {
+						return 0, readErr
+					}
+					return findConversionRate(r, USD, EUR)
+				},
+			},
+			{
+				name: "ConvertCurrency",
+				read: func(s *Storage) (float64, error) {
+					return s.ConvertCurrency(1, USD, EUR)
+				},
+			},
+			{
+				name: "GetStorageRate",
+				read: func(s *Storage) (float64, error) {
+					return s.GetStorageRate(USD, EUR)
+				},
+			},
+		}
+
+		for _, tc := range readers {
+			for _, failRetry := range []bool{false, true} {
+				suffix := "succeeds"
+				if failRetry {
+					suffix = "fails"
+				}
+				t.Run(tc.name+"/retry_"+suffix, func(t *testing.T) {
+					rs, rMock := newCountingStorage(t, time.Hour)
+					rMock.fail.Store(true)
+					rs.updaterRunning.Store(true)
+					rs.fxRefreshMtx.Lock()
+					type readResult struct {
+						rate float64
+						err  error
+					}
+					done := make(chan readResult, 1)
+					go func() {
+						rate, readErr := tc.read(rs)
+						done <- readResult{rate: rate, err: readErr}
+					}()
+					waitForBlockedReader(t, "hasRates")
+					rMock.fail.Store(failRetry)
+					rs.fxRefreshMtx.Unlock()
+					select {
+					case res := <-done:
+						if failRetry {
+							require.ErrorIs(t, res.err, errCountingMockProvider, "reader must return the provider error when its own seed fails")
+						} else {
+							require.NoError(t, res.err, "reader must retry its own seed when the in-flight refresh leaves the cache empty")
+							assert.Equal(t, 1.0, res.rate, "reader should return the rate from its own seed")
+						}
+					case <-time.After(5 * time.Second):
+						require.FailNow(t, "reader must finish once the refresh releases fxRefreshMtx")
+					}
+					assert.Equal(t, int64(1), rMock.calls.Load(), "reader should call the provider once for its own seed")
+				})
+			}
+		}
+	})
+
+	t.Run("ConvertCurrency and GetStorageRate return provider rate with no refresh in flight", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			read func(s *Storage) (float64, error)
+			want float64
+		}{
+			{
+				name: "ConvertCurrency",
+				read: func(s *Storage) (float64, error) {
+					return s.ConvertCurrency(2, USD, EUR)
+				},
+				want: 2.0,
+			},
+			{
+				name: "GetStorageRate",
+				read: func(s *Storage) (float64, error) {
+					return s.GetStorageRate(USD, EUR)
+				},
+				want: 1.0,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				rs, rMock := newCountingStorage(t, time.Hour)
+				rs.updaterRunning.Store(true)
+				type readResult struct {
+					rate float64
+					err  error
+				}
+				done := make(chan readResult, 1)
+				go func() {
+					rate, readErr := tc.read(rs)
+					done <- readResult{rate: rate, err: readErr}
+				}()
+				select {
+				case res := <-done:
+					require.NoError(t, res.err, "cold reader must not error when provider succeeds")
+					assert.Equal(t, tc.want, res.rate, "cold reader should return the provider rate")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "cold reader must return within deadline when no refresh is in flight")
+				}
+				assert.Equal(t, int64(1), rMock.calls.Load(), "cold reader should call the provider once")
+			})
+		}
+	})
 }
 
 func TestStorageUpdaterTickRefreshesRates(t *testing.T) {
@@ -445,11 +683,17 @@ func TestSeedForeignExchangeRatesByCurrencies(t *testing.T) {
 	})
 }
 
+// waitForBlockedReader polls the process-wide stack dump for fnName waiting on a mutex;
+// tests calling it must remain serial so concurrent cases do not satisfy each other's wait
 func waitForBlockedReader(t *testing.T, fnName string) {
 	t.Helper()
 	buf := make([]byte, 1<<16)
-	require.Eventually(t, func() bool {
+	require.Eventuallyf(t, func() bool {
 		n := runtime.Stack(buf, true)
+		for n == len(buf) {
+			buf = make([]byte, 2*len(buf))
+			n = runtime.Stack(buf, true)
+		}
 		for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
 			if strings.Contains(g, fnName) && strings.Contains(g, "Mutex).Lock") {
 				return true
@@ -511,150 +755,4 @@ func findConversionRate(rates Conversions, from, to Code) (float64, error) {
 		}
 	}
 	return 0, fmt.Errorf("missing %s%s rate", from, to)
-}
-
-func TestColdReadersWaitForInFlightRefresh(t *testing.T) {
-	readers := []struct {
-		name string
-		read func(s *Storage) (float64, error)
-	}{
-		{
-			name: "GetExchangeRates",
-			read: func(s *Storage) (float64, error) {
-				rates, err := s.GetExchangeRates()
-				if err != nil {
-					return 0, err
-				}
-				return findConversionRate(rates, USD, CAD)
-			},
-		},
-		{
-			name: "GetDefaultForeignExchangeRates",
-			read: func(s *Storage) (float64, error) {
-				rates, err := s.GetDefaultForeignExchangeRates()
-				if err != nil {
-					return 0, err
-				}
-				return findConversionRate(rates, USD, CAD)
-			},
-		},
-		{
-			name: "ConvertCurrency",
-			read: func(s *Storage) (float64, error) {
-				return s.ConvertCurrency(1, USD, CAD)
-			},
-		},
-		{
-			name: "GetStorageRate",
-			read: func(s *Storage) (float64, error) {
-				return s.GetStorageRate(USD, CAD)
-			},
-		},
-		{
-			name: "NewConversion",
-			read: func(s *Storage) (float64, error) {
-				conv, err := s.NewConversion(USD, CAD)
-				if err != nil {
-					return 0, err
-				}
-				return conv.GetRate()
-			},
-		},
-	}
-
-	for _, tc := range readers {
-		t.Run(tc.name+"/uses in-flight refresh rates", func(t *testing.T) {
-			resume := make(chan struct{})
-			release := sync.OnceFunc(func() { close(resume) })
-			t.Cleanup(release)
-			s, _ := newCountingStorage(t, time.Hour)
-			s.fiatCurrencies = Currencies{USD, EUR, CAD}
-			s.defaultFiatCurrencies = Currencies{USD, EUR}
-			var mock *channelControlledMockProvider
-			s.fiatExchangeMarkets, mock = newChannelControlledMockProvider(make(chan struct{}, 1), resume, map[string]float64{"USDEUR": 1.25, "USDCAD": 1.5})
-			s.updaterRunning.Store(true)
-
-			var wg sync.WaitGroup
-			t.Cleanup(func() {
-				release()
-				wg.Wait()
-			})
-
-			refreshDone := make(chan error, 1)
-			wg.Go(func() { refreshDone <- s.SeedForeignExchangeRates() })
-			select {
-			case <-mock.called:
-			case <-time.After(5 * time.Second):
-				require.FailNow(t, "refresh must call the provider")
-			}
-
-			type readResult struct {
-				rate float64
-				err  error
-			}
-			readDone := make(chan readResult, 1)
-			wg.Go(func() {
-				rate, err := tc.read(s)
-				readDone <- readResult{rate: rate, err: err}
-			})
-			waitForBlockedReader(t, "hasRates")
-
-			release()
-			select {
-			case err := <-refreshDone:
-				require.NoError(t, err, "refresh must not error")
-			case <-time.After(5 * time.Second):
-				require.FailNow(t, "refresh must finish once released")
-			}
-			select {
-			case res := <-readDone:
-				require.NoError(t, res.err, "reader must use the published rates without error")
-				assert.Equal(t, 1.5, res.rate, "reader should return the rate published by the in-flight refresh")
-			case <-time.After(5 * time.Second):
-				require.FailNow(t, "reader must finish once the refresh completes")
-			}
-			assert.Equal(t, int64(1), mock.calls.Load(), "reader must not call the provider after the in-flight refresh publishes")
-			cadRate, err := s.fxRates.GetRate(USD, CAD)
-			require.NoError(t, err, "USD/CAD must remain cached")
-			assert.Equal(t, 1.5, cadRate, "USD/CAD should keep the refresh's rate")
-		})
-	}
-
-	t.Run("GetExchangeRates retries seed when in-flight refresh fails", func(t *testing.T) {
-		s, mock := newCountingStorage(t, time.Hour)
-		mock.fail.Store(true)
-		s.updaterRunning.Store(true)
-		s.fxRefreshMtx.Lock()
-		done := make(chan error, 1)
-		go func() {
-			_, err := s.GetExchangeRates()
-			done <- err
-		}()
-		waitForBlockedReader(t, "hasRates")
-		mock.fail.Store(false)
-		s.fxRefreshMtx.Unlock()
-		select {
-		case err := <-done:
-			require.NoError(t, err, "GetExchangeRates must retry its own seed when the in-flight refresh leaves the cache empty")
-		case <-time.After(5 * time.Second):
-			require.FailNow(t, "GetExchangeRates must finish once the refresh releases fxRefreshMtx")
-		}
-		assert.Equal(t, int64(1), mock.calls.Load(), "GetExchangeRates should call the provider once for its own seed")
-	})
-
-	t.Run("stopped updater getters still refresh after an in-flight refresh", func(t *testing.T) {
-		s, mock := newCountingStorage(t, time.Hour)
-		s.fiatCurrencies = Currencies{USD, EUR, CAD}
-		s.defaultFiatCurrencies = Currencies{USD, EUR}
-		s.updaterRunning.Store(false)
-
-		rates, err := s.GetExchangeRates()
-		require.NoError(t, err, "GetExchangeRates must not error with updater stopped")
-		_, err = findConversionRate(rates, USD, CAD)
-		assert.NoError(t, err, "GetExchangeRates should request configured currencies")
-
-		_, err = s.GetDefaultForeignExchangeRates()
-		require.NoError(t, err, "GetDefaultForeignExchangeRates must not error with updater stopped")
-		assert.Equal(t, int64(2), mock.calls.Load(), "each getter should make its own provider request when the updater is stopped")
-	})
 }
