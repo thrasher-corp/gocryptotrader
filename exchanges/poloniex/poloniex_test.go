@@ -1878,7 +1878,7 @@ func TestKillSwitch(t *testing.T) {
 	_, err := e.KillSwitch(t.Context(), 0)
 	require.ErrorIs(t, err, errInvalidTimeout)
 
-	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests)
+	sharedtestvalues.SkipLiveTestIfCredentialsUnset(t, e, mockTests, canManipulateRealOrders)
 	result, err := e.KillSwitch(generateContext(t), time.Second*30)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
