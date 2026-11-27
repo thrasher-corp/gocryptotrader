@@ -1,0 +1,2874 @@
+package binance
+
+import (
+	"bufio"
+	"bytes"
+	"cmp"
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
+
+// fixtureLines returns the lines of a websocket fixture file
+func fixtureLines(tb testing.TB, path string) [][]byte {
+	tb.Helper()
+	f, err := os.Open(path)
+	require.NoErrorf(tb, err, "Open must not error for %s", path)
+	defer f.Close()
+	var lines [][]byte
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		lines = append(lines, append([]byte(nil), s.Bytes()...))
+	}
+	require.NoError(tb, s.Err(), "Scanner must not error")
+	return lines
+}
+
+// newTestExchange returns an exchange set up from the test configuration under the test's name, so stores it writes
+// do not collide with other tests'. In mock tests its REST requests go to the shared mock server and it signs with the
+// placeholder credentials
+func newTestExchange(tb testing.TB) *Exchange {
+	tb.Helper()
+	ex := new(Exchange)
+	require.NoError(tb, testexch.Setup(ex), "Setup must not error")
+	ex.Name = tb.Name()
+	if mockTests {
+		require.NoError(tb, testexch.MockHTTPInstance(ex), "MockHTTPInstance must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	} else if apiCredentials.Key != "" && apiCredentials.Secret != "" {
+		ex.API.AuthenticatedSupport = true
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials(apiCredentials)
+	}
+	return ex
+}
+
+// useMockWebsocket replaces the exchange's websocket connections with one built from setup and served by mock, which
+// the connection monitor does not reconnect within the test
+func useMockWebsocket(tb testing.TB, ex *Exchange, setup *websocket.ConnectionSetup, mock mockws.WsMockFunc) {
+	tb.Helper()
+	s := httptest.NewTestServer(tb, mockws.CurryWsMockUpgrader(tb, mock))
+	s.Start()
+	setup.URL = "ws" + strings.TrimPrefix(s.URL, "http")
+	useWebsocket(tb, ex, setup)
+}
+
+// useWebsocket replaces the exchange's websocket connections with one built from setup, which the connection monitor
+// does not reconnect within the test
+func useWebsocket(tb testing.TB, ex *Exchange, setup *websocket.ConnectionSetup) {
+	tb.Helper()
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(tb, ex.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         ex.Config,
+		Features:                               &ex.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                              ex.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 1024,
+	}), "Websocket Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	require.NoError(tb, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
+	tb.Cleanup(func() {
+		if ex.Websocket.IsConnected() {
+			assert.NoError(tb, shutdownWithin(ex), "Shutdown should not error")
+		}
+	})
+}
+
+// errShutdownStalled is returned when a websocket shutdown does not return in time, as one waiting on a reader that a
+// handler left blocked never does
+var errShutdownStalled = errors.New("websocket shutdown stalled")
+
+// shutdownWithin shuts the websocket down and reports a shutdown still running after 30 s, so a test whose handler
+// blocks a reader fails instead of waiting for go test's timeout
+func shutdownWithin(ex *Exchange) error {
+	done := make(chan error, 1)
+	go func() { done <- ex.Websocket.Shutdown() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("%w after 30s", errShutdownStalled)
+	}
+}
+
+// handleFramesWithin hands each frame to handler in turn and returns the first error, or one when a frame's handling has
+// not returned after 30 s, so a test whose handler blocks fails instead of waiting for go test's timeout, while a slow
+// run that keeps making progress does not. Its worker keeps no testing.T, which a handler returning after the test has
+// ended would otherwise fail
+func handleFramesWithin(ctx context.Context, handler func(context.Context, websocket.Connection, []byte) error, frames [][]byte) error {
+	handled := make(chan error, len(frames))
+	go func() {
+		for _, frame := range frames {
+			err := handler(ctx, nil, frame)
+			if err != nil {
+				err = fmt.Errorf("%w handling %s", err, frame)
+			}
+			handled <- err
+			if err != nil {
+				return
+			}
+		}
+	}()
+	for range frames {
+		select {
+		case err := <-handled:
+			if err != nil {
+				return err
+			}
+		case <-time.After(30 * time.Second):
+			return errors.New("handler stalled: a frame was not handled within 30s")
+		}
+	}
+	return nil
+}
+
+// returnWithin calls fn and returns its error, or one when fn has not returned after 30 s, so a test whose order book
+// synchronisation blocks the call fails instead of waiting for go test's timeout. fn runs on a goroutine of its own, so
+// it must not use testing.T
+func returnWithin(fn func() error) error {
+	done := make(chan error, 1)
+	go func() { done <- fn() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(30 * time.Second):
+		return errors.New("call stalled: it did not return within 30s")
+	}
+}
+
+// drainRelayed empties the data handler's queue and returns how many payloads it held, and whether they were one of
+// each type in want, in that order. Relay.Send has queued a payload by the time it returns, so the queue holds all a
+// handler relayed
+func drainRelayed(ex *Exchange, want ...reflect.Type) (relayed int, asWanted bool) {
+	asWanted = true
+	for {
+		select {
+		case p := <-ex.Websocket.DataHandler.C:
+			if relayed >= len(want) || reflect.TypeOf(p.Data) != want[relayed] {
+				asWanted = false
+			}
+			relayed++
+		default:
+			return relayed, asWanted && relayed == len(want)
+		}
+	}
+}
+
+// newBenchmarkExchange returns an exchange set up from the test configuration under the benchmark's name, with the
+// authenticated websocket support and placeholder credentials that storing streamed balances needs. Unlike
+// newTestExchange's, its REST requests are not mocked, as setting that up logs, and a benchmark must not write to its
+// output
+func newBenchmarkExchange(b *testing.B) *Exchange {
+	b.Helper()
+	ex := new(Exchange)
+	require.NoError(b, testexch.Setup(ex), "Setup must not error")
+	ex.Name = b.Name()
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	return ex
+}
+
+// BenchmarkWebsocketHandleData measures each message type separately, so a regression names its handler. Each runs on
+// an exchange of its own, named after it, so that no case's book or stored state carries into another's
+func BenchmarkWebsocketHandleData(b *testing.B) {
+	market := fixtureLines(b, "testdata/wsSpot.jsonl")
+	userData := fixtureLines(b, "testdata/wsSpotUserData.jsonl")
+	for _, tc := range []struct {
+		name      string
+		line      []byte
+		userData  bool
+		tradeFeed bool
+		// The types of the payloads handling the message relays, in order
+		relays []reflect.Type
+	}{
+		{name: "Ticker", line: market[1], relays: []reflect.Type{reflect.TypeFor[*ticker.Price]()}},
+		{name: "Kline", line: market[2], relays: []reflect.Type{reflect.TypeFor[kline.Item]()}},
+		// The test configuration leaves the trade feed off, under which a trade is dropped before it is decoded
+		{name: "Trade", line: market[0], tradeFeed: true, relays: []reflect.Type{reflect.TypeFor[[]trade.Data]()}},
+		{name: "PartialDepth", line: market[4], relays: []reflect.Type{reflect.TypeFor[*orderbook.Depth]()}},
+		{name: "BalanceUpdate", line: userData[2], userData: true, relays: []reflect.Type{reflect.TypeFor[*WebsocketBalanceUpdate]()}},
+		// An OCO order list's status relays the event and the order list as the order GCT tracks
+		{name: "ListStatus", line: userData[8], userData: true, relays: []reflect.Type{reflect.TypeFor[*WebsocketListStatus](), reflect.TypeFor[*order.Detail]()}},
+		{name: "ExecutionReport", line: userData[3], userData: true, relays: []reflect.Type{reflect.TypeFor[*order.Detail]()}},
+		{name: "OutboundAccountPosition", line: userData[0], userData: true, relays: []reflect.Type{reflect.TypeFor[accounts.SubAccounts]()}},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			ex := newBenchmarkExchange(b)
+			if tc.tradeFeed {
+				ex.Features.Enabled.TradeFeed = true
+				ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+			}
+			handle := ex.wsHandleData
+			if tc.userData {
+				// The fixture's events are the spot account's subscription 0
+				ex.userData.expect("spot", asset.Spot)
+				ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
+				handle = ex.wsHandleSpotAPIData
+			}
+			ctx := b.Context()
+			for b.Loop() {
+				require.NoError(b, handle(ctx, nil, tc.line), "handling the message must not error")
+				if relayed, asWanted := drainRelayed(ex, tc.relays...); !asWanted {
+					b.Fatalf("handling the message must relay one payload of each of %v, in order, not %d payloads", tc.relays, relayed)
+				}
+			}
+		})
+	}
+
+	b.Run("Depth", func(b *testing.B) {
+		ex := newBenchmarkExchange(b)
+		pair, err := ex.MatchSymbolWithAvailablePairs("BTCUSDT", asset.Spot, false)
+		require.NoError(b, err, "MatchSymbolWithAvailablePairs must not error")
+		frame := market[6]
+		const firstUpdateID, finalUpdateID = 101096708651, 101096708675
+		prefix, suffix, ok := bytes.Cut(frame, []byte(`"U":101096708651,"u":101096708675`))
+		require.True(b, ok, "the fixture's diff depth frame must carry its update IDs")
+		// The book synchronises from a snapshot just before the frame, holding the levels it changes, so the frame and
+		// each one after it apply to the book as a stream's next event does
+		useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+			return &orderbook.Book{
+				Exchange:     ex.Name,
+				Pair:         pair,
+				Asset:        asset.Spot,
+				Bids:         orderbook.Levels{{Price: 86104, Amount: 0.02991}},
+				Asks:         orderbook.Levels{{Price: 86104.04, Amount: 1}},
+				LastUpdateID: firstUpdateID - 1,
+				LastUpdated:  time.UnixMilli(1791284980500),
+			}, nil
+		})
+		ctx := b.Context()
+		require.NoError(b, ex.wsHandleData(ctx, nil, frame), "wsHandleData must not error for the first diff depth frame")
+		// The snapshot and the frame are each relayed as the book
+		var relayed int
+		require.Eventually(b, func() bool {
+			n, _ := drainRelayed(ex)
+			relayed += n
+			last, err := ex.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+			return err == nil && last == finalUpdateID && relayed == 2
+		}, 30*time.Second, 10*time.Millisecond, "the book must synchronise from the snapshot")
+
+		// Each frame takes the update IDs after the last one's, written into one buffer, so that only handling it allocates
+		book := []reflect.Type{reflect.TypeFor[*orderbook.Depth]()}
+		buf := make([]byte, 0, len(frame)+8)
+		last := int64(finalUpdateID)
+		for b.Loop() {
+			buf = append(append(buf[:0], prefix...), `"U":`...)
+			buf = strconv.AppendInt(buf, last+1, 10)
+			last += finalUpdateID - firstUpdateID + 1
+			buf = strconv.AppendInt(append(buf, `,"u":`...), last, 10)
+			buf = append(buf, suffix...)
+			require.NoError(b, ex.wsHandleData(ctx, nil, buf), "wsHandleData must not error")
+			if relayed, asWanted := drainRelayed(ex, book...); !asWanted {
+				b.Fatalf("wsHandleData must relay the updated book once, not %d payloads", relayed)
+			}
+		}
+	})
+}
+
+func TestStreamPayloads(t *testing.T) { //nolint:tparallel // the frames decode in the fixture's order, so they run in order while the test runs in parallel
+	t.Parallel()
+	exp := []struct {
+		stream  string
+		payload any
+	}{
+		{"btcusdt@trade", &TradeStream{
+			EventType:    "trade",
+			EventTime:    types.Time(time.UnixMilli(1791284980615)),
+			Symbol:       "BTCUSDT",
+			TradeID:      6739446511,
+			Price:        86104.02,
+			Quantity:     0.00011,
+			TradeTime:    types.Time(time.UnixMilli(1791284980614)),
+			IsBuyerMaker: true,
+			Ignore:       true,
+		}},
+		{"btcusdt@ticker", &TickerStream{
+			EventType:                   "24hrTicker",
+			EventTime:                   types.Time(time.UnixMilli(1791284981016)),
+			Symbol:                      "BTCUSDT",
+			PriceChange:                 156.02,
+			PriceChangePercent:          0.182,
+			WeightedAveragePrice:        85748.34072691,
+			PreviousClosePrice:          85948,
+			LastPrice:                   86104.02,
+			LastQuantity:                0.00011,
+			BestBidPrice:                86104.01,
+			BestBidQuantity:             7.31683,
+			BestAskPrice:                86104.02,
+			BestAskQuantity:             5.55365,
+			OpenPrice:                   85948,
+			HighPrice:                   86725.12,
+			LowPrice:                    84972.01,
+			TotalTradedBaseAssetVolume:  13625.56497,
+			TotalTradedQuoteAssetVolume: 1168369587.644197,
+			StatisticsOpenTime:          types.Time(time.UnixMilli(1791198581003)),
+			StatisticsCloseTime:         types.Time(time.UnixMilli(1791284981003)),
+			FirstTradeID:                6736717189,
+			LastTradeID:                 6739446511,
+			TotalNumberOfTrades:         2729323,
+		}},
+		{"btcusdt@kline_1m", &KlineStream{
+			EventType: "kline",
+			EventTime: types.Time(time.UnixMilli(1791284982042)),
+			Symbol:    "BTCUSDT",
+			Kline: SpotCandle{
+				StartTime:                types.Time(time.UnixMilli(1791284940000)),
+				CloseTime:                types.Time(time.UnixMilli(1791284999999)),
+				Symbol:                   "BTCUSDT",
+				Interval:                 "1m",
+				FirstTradeID:             6739444698,
+				LastTradeID:              6739446515,
+				OpenPrice:                86118.01,
+				ClosePrice:               86104.02,
+				HighPrice:                86118.01,
+				LowPrice:                 86104.01,
+				BaseAssetVolume:          4.97348,
+				NumberOfTrades:           1818,
+				QuoteAssetVolume:         428264.1671163,
+				TakerBuyBaseAssetVolume:  2.19449,
+				TakerBuyQuoteAssetVolume: 188961.5203966,
+				Ignore:                   123456,
+			},
+		}},
+		{"btcusdt@kline_1s", &KlineStream{
+			EventType: "kline",
+			EventTime: types.Time(time.UnixMilli(1791284981014)),
+			Symbol:    "BTCUSDT",
+			Kline: SpotCandle{
+				StartTime:                types.Time(time.UnixMilli(1791284980000)),
+				CloseTime:                types.Time(time.UnixMilli(1791284980999)),
+				Symbol:                   "BTCUSDT",
+				Interval:                 "1s",
+				FirstTradeID:             6739446508,
+				LastTradeID:              6739446511,
+				OpenPrice:                86104.01,
+				ClosePrice:               86104.02,
+				HighPrice:                86104.03,
+				LowPrice:                 86104,
+				BaseAssetVolume:          0.00835,
+				NumberOfTrades:           4,
+				IsClosed:                 true,
+				QuoteAssetVolume:         718.968509,
+				TakerBuyBaseAssetVolume:  0.00255,
+				TakerBuyQuoteAssetVolume: 219.565251,
+				Ignore:                   123456,
+			},
+		}},
+		{"btcusdt@depth5", &WebsocketPartialDepth{
+			LastUpdateID: 101096708675,
+			Bids:         orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.31683}, {Price: 86104, Amount: 0.02991}},
+			Asks:         orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.55365}, {Price: 86104.03, Amount: 0.00072}},
+		}},
+		{"btcusdt@depth10@100ms", &WebsocketPartialDepth{
+			LastUpdateID: 101096708778,
+			Bids:         orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
+			Asks:         orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}},
+		}},
+		{"btcusdt@depth@100ms", &DiffDepthStream{
+			EventType:     "depthUpdate",
+			EventTime:     types.Time(time.UnixMilli(1791284980512)),
+			Symbol:        "BTCUSDT",
+			FirstUpdateID: 101096708651,
+			FinalUpdateID: 101096708675,
+			Bids:          orderbook.LevelsArrayPriceAmount{{Price: 86104, Amount: 0.02991}},
+			Asks:          orderbook.LevelsArrayPriceAmount{{Price: 86104.04, Amount: 1}},
+		}},
+		{"btcusdt@depth@100ms", &DiffDepthStream{
+			EventType:     "depthUpdate",
+			EventTime:     types.Time(time.UnixMilli(1791284980612)),
+			Symbol:        "BTCUSDT",
+			FirstUpdateID: 101096708676,
+			FinalUpdateID: 101096708700,
+			Bids:          orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.316}, {Price: 86103.5, Amount: 0}},
+			Asks:          orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.5}},
+		}},
+		{"btcusdt@depth@100ms", &DiffDepthStream{
+			EventType:     "depthUpdate",
+			EventTime:     types.Time(time.UnixMilli(1791284980712)),
+			Symbol:        "BTCUSDT",
+			FirstUpdateID: 101096708701,
+			FinalUpdateID: 101096708778,
+			Bids:          orderbook.LevelsArrayPriceAmount{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
+			Asks:          orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.05, Amount: 0.12}},
+		}},
+	}
+	lines := fixtureLines(t, "testdata/wsSpot.jsonl")
+	require.Len(t, lines, len(exp), "fixture must have one frame per expected payload")
+	// The frames decode in the fixture's order, so each also checks that a decode keeps nothing from the frames before
+	for i, line := range lines {
+		t.Run("frame "+strconv.Itoa(i)+" of "+exp[i].stream, func(t *testing.T) {
+			name, err := jsonparser.GetString(line, "stream")
+			require.NoErrorf(t, err, "frame %d must have a stream", i)
+			require.Equalf(t, exp[i].stream, name, "frame %d must be from the expected stream", i)
+			data, _, _, err := jsonparser.Get(line, "data")
+			require.NoErrorf(t, err, "frame %d must have data", i)
+			got := reflect.New(reflect.TypeOf(exp[i].payload).Elem()).Interface()
+			require.NoErrorf(t, json.Unmarshal(data, got), "Unmarshal must not error for frame %d", i)
+			assert.Equalf(t, exp[i].payload, got, "frame %d of %s should decode every field", i, name)
+		})
+	}
+}
+
+func TestWebsocketHandleData(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	ex.Features.Enabled.TradeFeed = true
+	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+	// Diff depth frames only wait for a snapshot here; TestProcessDepthUpdate synchronises them
+	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+		return nil, errTestNoSnapshot
+	})
+	for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, line), "wsHandleData must not error for %s", line)
+	}
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	exp := []any{
+		[]trade.Data{{
+			Exchange:     t.Name(),
+			CurrencyPair: pair,
+			AssetType:    asset.Spot,
+			Side:         order.Sell,
+			TID:          "6739446511",
+			Price:        86104.02,
+			Amount:       0.00011,
+			Timestamp:    time.UnixMilli(1791284980614),
+		}},
+		&ticker.Price{
+			Last:                       86104.02,
+			LastSize:                   0.00011,
+			VolumeWeightedAveragePrice: 85748.34072691,
+			High:                       86725.12,
+			Low:                        84972.01,
+			Bid:                        86104.01,
+			BidSize:                    7.31683,
+			Ask:                        86104.02,
+			AskSize:                    5.55365,
+			BaseVolume:                 13625.56497,
+			QuoteVolume:                1168369587.644197,
+			Open:                       85948,
+			PercentChange24Hour:        0.182,
+			Close:                      85948,
+			Pair:                       pair,
+			ExchangeName:               t.Name(),
+			AssetType:                  asset.Spot,
+			LastUpdated:                time.UnixMilli(1791284981016),
+		},
+		kline.Item{
+			Exchange: t.Name(),
+			Pair:     pair,
+			Asset:    asset.Spot,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:             time.UnixMilli(1791284940000),
+				Open:             86118.01,
+				High:             86118.01,
+				Low:              86104.01,
+				Close:            86104.02,
+				Volume:           4.97348,
+				ValidationIssues: kline.PartialCandle,
+			}},
+		},
+		kline.Item{
+			Exchange: t.Name(),
+			Pair:     pair,
+			Asset:    asset.Spot,
+			Interval: kline.ThousandMilliseconds,
+			Candles: []kline.Candle{{
+				Time:   time.UnixMilli(1791284980000),
+				Open:   86104.01,
+				High:   86104.03,
+				Low:    86104,
+				Close:  86104.02,
+				Volume: 0.00835,
+			}},
+		},
+	}
+	// The cases take ex's relayed payloads in turn, so they run in order
+	for i := range exp {
+		t.Run("payload "+strconv.Itoa(i), func(t *testing.T) {
+			require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold payload %d", i)
+			got := (<-ex.Websocket.DataHandler.C).Data
+			assert.Equalf(t, exp[i], got, "relayed payload %d should match", i)
+		})
+	}
+	stored, err := ticker.GetTicker(t.Name(), pair, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, exp[1], stored, "the ticker should be stored as it was relayed")
+
+	// The partial depth payloads load snapshots, which the order book relays
+	for range 2 {
+		require.NotEmpty(t, ex.Websocket.DataHandler.C, "relay must hold the order book snapshots")
+		<-ex.Websocket.DataHandler.C
+	}
+	assert.Empty(t, ex.Websocket.DataHandler.C, "relay should hold nothing else")
+	book, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, int64(101096708778), book.LastUpdateID, "the last partial depth payload should be the book")
+	assert.Equal(t, orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}}, book.Bids, "bids should be the last payload's")
+	assert.Equal(t, orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}}, book.Asks, "asks should be the last payload's")
+
+	t.Run("rejects frames it cannot handle", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.TradeFeed = true
+		for _, tc := range []struct {
+			name string
+			msg  string
+			err  error
+		}{
+			{name: "no stream", msg: `{"data":{"e":"trade"}}`, err: errUnhandledMessage},
+			{name: "no data", msg: `{"stream":"btcusdt@trade"}`, err: errUnhandledMessage},
+			{name: "unknown channel", msg: `{"stream":"btcusdt@aggTrade","data":{"e":"aggTrade"}}`, err: errUnhandledMessage},
+			{name: "unknown kline interval", msg: `{"stream":"btcusdt@kline_2s","data":{"e":"kline","s":"BTCUSDT","k":{"i":"2s"}}}`, err: kline.ErrInvalidInterval},
+			{name: "unknown symbol", msg: `{"stream":"moonusdt@ticker","data":{"e":"24hrTicker","s":"MOONUSDT"}}`, err: currency.ErrPairNotFound},
+			{name: "unknown partial depth symbol", msg: `{"stream":"moonusdt@depth5","data":{"lastUpdateId":1}}`, err: currency.ErrPairNotFound},
+			{name: "unknown diff depth symbol", msg: `{"stream":"moonusdt@depth","data":{"e":"depthUpdate","s":"MOONUSDT","U":1,"u":2}}`, err: currency.ErrPairNotFound},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.ErrorIs(t, ex.wsHandleData(t.Context(), nil, []byte(tc.msg)), tc.err, "wsHandleData should return the expected error")
+			})
+		}
+		// The cases share ex in order, so each also checks that a rejected frame leaves nothing for the next
+		for _, tc := range []struct{ name, msg string }{
+			{"undecodable trade", `{"stream":"btcusdt@trade","data":"bad"}`},
+			{"undecodable ticker", `{"stream":"btcusdt@ticker","data":"bad"}`},
+			{"undecodable kline", `{"stream":"btcusdt@kline_1m","data":"bad"}`},
+			{"undecodable diff depth", `{"stream":"btcusdt@depth","data":"bad"}`},
+			{"undecodable partial depth", `{"stream":"btcusdt@depth5","data":"bad"}`},
+			{"undecodable server shutdown", `{"stream":"!serverShutdown","data":"bad"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.Errorf(t, ex.wsHandleData(t.Context(), nil, []byte(tc.msg)), "wsHandleData should reject %s", tc.msg)
+			})
+		}
+	})
+
+	t.Run("does not relay a disabled pair's payloads", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.TradeFeed = true
+		ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+		ethusdt := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), ethusdt}, false), "StorePairs must not error")
+		// Without a synchronisation a diff depth frame that reached it would error
+		ex.orderbookSync = nil
+		for _, msg := range []string{
+			`{"stream":"ethusdt@trade","data":{"e":"trade","s":"ETHUSDT","t":1,"p":"1","q":"1"}}`,
+			`{"stream":"ethusdt@ticker","data":{"e":"24hrTicker","s":"ETHUSDT","c":"1"}}`,
+			`{"stream":"ethusdt@kline_1m","data":{"e":"kline","s":"ETHUSDT","k":{"i":"1m"}}}`,
+			`{"stream":"ethusdt@depth5","data":{"lastUpdateId":1,"bids":[["1","1"]],"asks":[["2","1"]]}}`,
+			`{"stream":"ethusdt@depth@100ms","data":{"e":"depthUpdate","s":"ETHUSDT","U":1,"u":2,"b":[["1","1"]],"a":[]}}`,
+		} {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData must not error for a disabled pair's %s", msg)
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "a disabled pair's payloads should not be relayed")
+	})
+}
+
+func TestHandleServerShutdown(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	setup := ex.spotStreamConnectionSetup(ex.Config)
+	setup.SubscriptionsNotRequired = true
+	useMockWebsocket(t, ex, setup, func(testing.TB, []byte, *gws.Conn) error { return nil })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, []byte(`{"stream":"!serverShutdown","data":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleData must not error for serverShutdown")
+	assert.Eventually(t, func() bool { return !ex.Websocket.IsConnected() }, 30*time.Second, 10*time.Millisecond, "serverShutdown should disconnect, so the connection monitor reconnects")
+}
+
+func TestProcessOrderbookUpdate(t *testing.T) {
+	t.Parallel()
+	err := new(Exchange).processOrderbookUpdate(t.Context(), 1, &orderbook.Update{})
+	assert.ErrorIs(t, err, errOrderbookSyncNotSetUp, "processOrderbookUpdate should require the order book synchronisation")
+
+	t.Run("event overlapping the book", func(t *testing.T) {
+		t.Parallel()
+		// Spot applies an event that starts within the book and ends after it, while the derivatives procedures need each
+		// event to chain to the last by pu, so a new snapshot is taken instead
+		for a, applied := range map[asset.Item]bool{asset.Spot: true, asset.USDTMarginedFutures: false} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				var fetches atomic.Int32
+				useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+					if fetches.Add(1) > 1 {
+						// Later snapshots fail, so a resynchronisation cannot reload the book an overlapping derivatives event
+						// invalidates before the test reads it
+						return nil, errTestNoSnapshot
+					}
+					return &orderbook.Book{
+						Exchange: ex.Name, Pair: p, Asset: a, Bids: orderbook.Levels{{Price: 100, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+						LastUpdateID: 100, LastUpdated: spotDepthFrameTime(100),
+					}, nil
+				})
+				pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+				ctx := t.Context()
+				update := func(finalUpdateID int64) *orderbook.Update {
+					return &orderbook.Update{
+						UpdateID: finalUpdateID, UpdateTime: spotDepthFrameTime(finalUpdateID), Asset: a, Pair: pair,
+						Bids: orderbook.Levels{{Price: 100, Amount: float64(finalUpdateID)}},
+					}
+				}
+				require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 101, update(105)) }), "processOrderbookUpdate must not error")
+				require.Eventually(t, func() bool {
+					id, err := ex.Websocket.Orderbook.LastUpdateID(pair, a)
+					return err == nil && id == 105
+				}, 30*time.Second, 10*time.Millisecond, "the book must synchronise")
+
+				require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 103, update(110)) }), "processOrderbookUpdate must not error for an overlapping event")
+				got, err := storedOrderbookState(ex, pair, a)
+				if !applied {
+					assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an overlapping derivatives event should invalidate the book")
+					return
+				}
+				require.NoError(t, err, "an overlapping spot event must leave the book valid")
+				exp := &orderbookState{
+					Bids: orderbook.Levels{{Price: 100, Amount: 110}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+					LastUpdateID: 110, LastUpdated: spotDepthFrameTime(110),
+				}
+				assert.Equal(t, exp, got, "an overlapping spot event should apply")
+				assert.Equal(t, int32(1), fetches.Load(), "an overlapping spot event should not take a new snapshot")
+			})
+		}
+	})
+}
+
+func TestCheckSpotPendingUpdate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		firstUpdateID int64
+		finalUpdateID int64
+		skip          bool
+		err           error
+	}{
+		{name: "ends before the snapshot", firstUpdateID: 90, finalUpdateID: 99, skip: true},
+		{name: "ends at the snapshot", firstUpdateID: 95, finalUpdateID: 100, skip: true},
+		{name: "spans the snapshot", firstUpdateID: 95, finalUpdateID: 110},
+		{name: "follows the snapshot", firstUpdateID: 101, finalUpdateID: 110},
+		{name: "starts after a gap", firstUpdateID: 102, finalUpdateID: 110, err: orderbookmanager.ErrOrderbookSnapshotOutdated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			skip, err := checkSpotPendingUpdate(100, tc.firstUpdateID, &orderbook.Update{UpdateID: tc.finalUpdateID, Asset: asset.Spot})
+			assert.ErrorIsf(t, err, tc.err, "checkSpotPendingUpdate should return the expected error for an event that %s", tc.name)
+			assert.Equalf(t, tc.skip, skip, "checkSpotPendingUpdate should decide whether to skip an event that %s", tc.name)
+		})
+	}
+}
+
+func TestCheckPendingUpdate(t *testing.T) {
+	t.Parallel()
+	// An event ending at the snapshot's update ID is already in a spot snapshot, while the derivatives procedures apply it
+	for a, exp := range map[asset.Item]bool{
+		asset.Spot:                true,
+		asset.USDTMarginedFutures: false,
+		asset.CoinMarginedFutures: false,
+		asset.Options:             false,
+	} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			skip, err := checkPendingUpdate(100, 95, &orderbook.Update{UpdateID: 100, Asset: a})
+			require.NoErrorf(t, err, "checkPendingUpdate must not error for a %s event", a)
+			assert.Equalf(t, exp, skip, "checkPendingUpdate should follow the %s procedure", a)
+		})
+	}
+	_, err := checkPendingUpdate(100, 102, &orderbook.Update{UpdateID: 110, Asset: asset.Spot})
+	assert.ErrorIs(t, err, orderbookmanager.ErrOrderbookSnapshotOutdated, "checkPendingUpdate should reject a spot event after a gap")
+	_, err = checkPendingUpdate(100, 102, &orderbook.Update{UpdateID: 110, Asset: asset.Options})
+	assert.ErrorIs(t, err, orderbookmanager.ErrOrderbookSnapshotOutdated, "checkPendingUpdate should reject an options event after a gap")
+}
+
+func TestOrderbookSnapshotLimit(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		a         asset.Item
+		limit     uint64
+		limitRate func(uint64) request.EndpointLimit
+		cost      endpointCost
+	}{
+		{asset.Spot, 1000, spotOrderbookLimit, endpointCost{spotIPPool, 50}},
+		{asset.USDTMarginedFutures, 1000, usdtMarginedFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
+		{asset.CoinMarginedFutures, 1000, coinMarginedFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
+		// Options orders share a 400 a minute pool, so their snapshots take the deepest book at the least weight
+		{asset.Options, 50, optionsOrderbookLimit, endpointCost{optionsIPPool, 2}},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			limit := orderbookSnapshotLimit(tc.a)
+			assert.Equalf(t, tc.limit, limit, "orderbookSnapshotLimit should give the %s snapshot depth", tc.a)
+			assert.Equalf(t, tc.cost, endpointCosts[tc.limitRate(limit)], "the %s snapshot should cost its documented weight", tc.a)
+		})
+	}
+}
+
+func TestFetchOrderbookSnapshot(t *testing.T) { //nolint:tparallel // The cases share ex and its server in order
+	t.Parallel()
+	ex := newDerivativesTestExchange(t)
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var limit, body string
+		switch r.URL.Path {
+		case "/api/v3/depth":
+			limit, body = "1000", `{"lastUpdateId":101096708690,"bids":[["86104.01000000","7.31683000"]],"asks":[["86104.02000000","5.55365000"]]}`
+		case "/fapi/v1/depth", "/dapi/v1/depth":
+			limit, body = "1000", `{"lastUpdateId":1027024,"E":1589436922972,"T":1589436922959,"bids":[["4.00000000","431.00000000"]],"asks":[["4.00000200","12.00000000"]]}`
+		case "/eapi/v1/depth":
+			limit, body = "50", `{"T":1762866729358,"lastUpdateId":42788078000,"bids":[["3645.000","1.00"]],"asks":[["3675.000","5.00"]]}`
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		assert.Equalf(t, limit, r.URL.Query().Get("limit"), "%s should request the snapshot depth", r.URL.Path)
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "Write should not error")
+	}))
+	srv.Start()
+	for _, u := range []exchange.URL{exchange.RestSpotSupplementary, exchange.RestUSDTMargined, exchange.RestCoinMargined, exchange.RestOptions} {
+		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(u.String(), srv.URL), "SetRunningURL must not error for %s", u)
+	}
+	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+
+	// The cases share ex and its server in order, so each also checks that a fetch keeps nothing from the last
+	for _, tc := range []struct {
+		a    asset.Item
+		pair currency.Pair
+		exp  *orderbook.Book
+	}{
+		{asset.Spot, currency.NewBTCUSDT(), &orderbook.Book{Bids: orderbook.Levels{{Price: 86104.01, Amount: 7.31683}}, Asks: orderbook.Levels{{Price: 86104.02, Amount: 5.55365}}, LastUpdateID: 101096708690}},
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT(), &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
+		{asset.CoinMarginedFutures, testCoinMarginedFuturesPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
+		{asset.Options, testOptionsPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 3645, Amount: 1}}, Asks: orderbook.Levels{{Price: 3675, Amount: 5}}, LastUpdateID: 42788078000, LastUpdated: time.UnixMilli(1762866729358)}},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			book, err := ex.fetchOrderbookSnapshot(t.Context(), tc.pair, tc.a)
+			require.NoErrorf(t, err, "fetchOrderbookSnapshot must not error for %s", tc.a)
+			if tc.a == asset.Spot {
+				// The spot snapshot carries no time, so it is stamped when it arrives
+				assert.WithinDuration(t, time.Now(), book.LastUpdated, time.Minute, "the spot snapshot should be stamped with its arrival time")
+				book.LastUpdated = time.Time{}
+			}
+			tc.exp.Exchange, tc.exp.Pair, tc.exp.Asset, tc.exp.ValidateOrderbook = ex.Name, tc.pair, tc.a, ex.ValidateOrderbook
+			assert.Equalf(t, tc.exp, book, "fetchOrderbookSnapshot should convert the %s snapshot", tc.a)
+		})
+	}
+	_, err := ex.fetchOrderbookSnapshot(t.Context(), currency.EMPTYPAIR, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "fetchOrderbookSnapshot should return the spot request's error")
+	_, err = ex.fetchOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Margin)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "fetchOrderbookSnapshot should reject an asset without diff depth streams")
+}
+
+// spotDepthStreams generates diff depth frames the way Binance's streams send them: each continues its symbol's chain
+// of update IDs and sets the bid at price 100 to its final update ID, so a book shows which frame it has reached. A
+// snapshot is the book at the latest frame generated
+type spotDepthStreams struct {
+	mu   sync.Mutex
+	last map[string]int64
+}
+
+func newSpotDepthStreams() *spotDepthStreams {
+	return &spotDepthStreams{last: make(map[string]int64)}
+}
+
+// spotDepthFrameTime is the event time of the frame ending at an update ID
+func spotDepthFrameTime(finalUpdateID int64) time.Time {
+	return time.UnixMilli(1791284980000 + finalUpdateID)
+}
+
+// lastLocked returns a symbol's latest final update ID; its chain starts at 1000
+func (s *spotDepthStreams) lastLocked(symbol string) int64 {
+	if _, ok := s.last[symbol]; !ok {
+		s.last[symbol] = 1000
+	}
+	return s.last[symbol]
+}
+
+// frame returns the next frame of a symbol's stream
+func (s *spotDepthStreams) frame(symbol string) []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	first := s.lastLocked(symbol) + 1
+	final := first + 4
+	s.last[symbol] = final
+	return fmt.Appendf(nil, `{"stream":%q,"data":{"e":"depthUpdate","E":%d,"s":%q,"U":%d,"u":%d,"b":[["100","%d"]],"a":[]}}`,
+		strings.ToLower(symbol)+"@depth@100ms", spotDepthFrameTime(final).UnixMilli(), symbol, first, final, final)
+}
+
+// skip moves a symbol's stream on without frames, as it moves on while frames are lost or the stream is unsubscribed
+func (s *spotDepthStreams) skip(symbol string, updates int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.last[symbol] = s.lastLocked(symbol) + updates
+}
+
+// finalUpdateID returns the final update ID of a symbol's latest frame
+func (s *spotDepthStreams) finalUpdateID(symbol string) int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastLocked(symbol)
+}
+
+// snapshotJSON returns a REST snapshot of a symbol's book
+func (s *spotDepthStreams) snapshotJSON(symbol string) []byte {
+	last := s.finalUpdateID(symbol)
+	return fmt.Appendf(nil, `{"lastUpdateId":%d,"bids":[["100","%d"],["99","1"]],"asks":[["101","1"]]}`, last, last)
+}
+
+// snapshotBook returns a snapshot of a pair's book as the order book synchronisation takes it
+func (s *spotDepthStreams) snapshotBook(ex *Exchange, p currency.Pair, a asset.Item) *orderbook.Book {
+	last := s.finalUpdateID(p.Base.String() + p.Quote.String())
+	return &orderbook.Book{
+		Exchange:     ex.Name,
+		Pair:         p,
+		Asset:        a,
+		Bids:         orderbook.Levels{{Price: 100, Amount: float64(last)}, {Price: 99, Amount: 1}},
+		Asks:         orderbook.Levels{{Price: 101, Amount: 1}},
+		LastUpdateID: last,
+		LastUpdated:  spotDepthFrameTime(last),
+	}
+}
+
+// expectedState returns a symbol's book once it follows its stream to the latest frame
+func (s *spotDepthStreams) expectedState(symbol string) *orderbookState {
+	last := s.finalUpdateID(symbol)
+	return &orderbookState{
+		Bids:         orderbook.Levels{{Price: 100, Amount: float64(last)}, {Price: 99, Amount: 1}},
+		Asks:         orderbook.Levels{{Price: 101, Amount: 1}},
+		LastUpdateID: last,
+		LastUpdated:  spotDepthFrameTime(last),
+	}
+}
+
+// syncSpotBook sends frames of a pair's stream until its book follows them, then one more frame. The snapshot alone can
+// match the stream while its synchronisation still applies the frames queued behind it, so the book must also reach the
+// update ID of a frame sent after it, which the snapshot alone cannot
+func syncSpotBook(t *testing.T, ex *Exchange, streams *spotDepthStreams, pair currency.Pair) {
+	t.Helper()
+	symbol := pair.Base.String() + pair.Quote.String()
+	followsStream := func() bool {
+		book, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		return err == nil && book.LastUpdateID == streams.finalUpdateID(symbol)
+	}
+	require.Eventually(t, func() bool {
+		return ex.wsHandleData(t.Context(), nil, streams.frame(symbol)) == nil && followsStream()
+	}, 30*time.Second, 10*time.Millisecond, "the book must synchronise with its stream")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame(symbol)}), "wsHandleData must not error for the frame after the book synchronised")
+	require.Eventually(t, followsStream, 30*time.Second, 10*time.Millisecond, "the book must take the frame after its synchronisation")
+}
+
+func TestProcessDepthUpdate(t *testing.T) {
+	t.Parallel()
+	t.Run("sync", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		// The snapshot falls inside the second frame, so the first frame is dropped and the second applied
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			return &orderbook.Book{
+				Exchange:     ex.Name,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31683}, {Price: 86104, Amount: 0.02991}, {Price: 86103.5, Amount: 0.5}},
+				Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.55365}, {Price: 86104.03, Amount: 0.00072}},
+				LastUpdateID: 101096708690,
+				LastUpdated:  time.UnixMilli(1791284980650),
+			}, nil
+		})
+		var depthFrames [][]byte
+		for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
+			if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
+				depthFrames = append(depthFrames, line)
+			}
+		}
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, depthFrames), "handling all diff depth frames must return")
+		var got *orderbookState
+		require.Eventually(t, func() bool {
+			var err error
+			got, err = storedOrderbookState(ex, pair, asset.Spot)
+			return err == nil && got.LastUpdateID == 101096708778
+		}, 30*time.Second, 10*time.Millisecond, "the order book must synchronise to the last frame")
+		exp := &orderbookState{
+			Bids:         orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}},
+			Asks:         orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}, {Price: 86104.05, Amount: 0.12}},
+			LastUpdateID: 101096708778,
+			LastUpdated:  time.UnixMilli(1791284980712),
+		}
+		assert.Equal(t, exp, got, "the book should be the snapshot with the frames after it applied")
+	})
+
+	t.Run("resyncs after gap", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		resync := make(chan struct{})
+		useTestOrderbookSync(ex, func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			if fetches.Add(1) == 2 {
+				// The second snapshot waits, so the test sees the book while it is resynchronised
+				select {
+				case <-resync:
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		require.Equal(t, int32(1), fetches.Load(), "the first synchronisation must take one snapshot")
+
+		// Frames lost in transit leave a gap in the update IDs
+		streams.skip("BTCUSDT", 10)
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("BTCUSDT")}), "wsHandleData must not error for a frame after a gap")
+		_, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a gap should invalidate the book")
+		require.Eventually(t, func() bool { return fetches.Load() == 2 }, 30*time.Second, 10*time.Millisecond, "a gap must start a new synchronisation")
+		close(resync)
+		syncSpotBook(t, ex, streams, pair)
+		assert.Equal(t, int32(2), fetches.Load(), "the gap should take one new snapshot")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "the resynchronised book must be stored")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the resynchronised book should follow its stream")
+	})
+
+	t.Run("retries failed snapshot", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			if fetches.Add(1) == 1 {
+				return nil, errTestNoSnapshot
+			}
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		assert.Equal(t, int32(2), fetches.Load(), "a failed snapshot should be fetched again for a following frame")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "the synchronised book must be stored")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "the book should follow its stream after a failed snapshot")
+	})
+
+	t.Run("drops stale events", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+		syncSpotBook(t, ex, streams, pair)
+		older, latest := streams.frame("BTCUSDT"), streams.frame("BTCUSDT")
+		// Both frames apply, then arrive again late; a late event ends at or before the book's update ID, and Binance's
+		// procedure ignores it
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{older, latest, latest, older}), "handling the events and their late repeats must return")
+		got, err := storedOrderbookState(ex, pair, asset.Spot)
+		require.NoError(t, err, "late events must leave the book valid")
+		assert.Equal(t, streams.expectedState("BTCUSDT"), got, "late events should leave the book as its stream left it")
+		assert.Equal(t, int32(1), fetches.Load(), "late events should not take a new snapshot")
+	})
+
+	t.Run("loads quiet book", func(t *testing.T) {
+		t.Parallel()
+		// One event, then a snapshot newer than it, then nothing for a while: Binance's procedure sets the book to the
+		// snapshot rather than withholding it until an event follows it, and the next event applies to it
+		ex := newTestExchange(t)
+		streams := newSpotDepthStreams()
+		var fetches atomic.Int32
+		useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return streams.snapshotBook(ex, p, a), nil
+		})
+		pair := currency.NewPairWithDelimiter("DOGE", "USDT", "-")
+		first := streams.frame("DOGEUSDT")
+		streams.skip("DOGEUSDT", 2)
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{first}), "wsHandleData must not error")
+		require.Eventually(t, func() bool {
+			got, err := storedOrderbookState(ex, pair, asset.Spot)
+			return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
+		}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
+		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("DOGEUSDT")}), "wsHandleData must not error")
+		// The snapshot is published before its synchronisation applies the events queued behind it, which an event
+		// arriving in between joins, so the event can apply just after it is handled
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			got, err := storedOrderbookState(ex, pair, asset.Spot)
+			require.NoError(c, err, "the book must stay valid")
+			assert.Equal(c, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
+		}, 30*time.Second, 10*time.Millisecond, "the event following the snapshot should apply to it")
+		assert.Equal(t, int32(1), fetches.Load(), "the book should load from one snapshot")
+	})
+}
+
+// spotDepthServer serves spot diff depth streams over websocket and their snapshots over REST, as Binance does: each
+// subscribed stream sends a frame every 20ms, and a resubscribed stream resumes after the updates it missed
+type spotDepthServer struct {
+	streams *spotDepthStreams
+	done    chan struct{}
+
+	mu         sync.Mutex
+	conns      map[*gws.Conn]*spotDepthConn
+	subscribed common.Seen[string]
+	fetches    map[string]int
+	hold       chan struct{}
+	held       int
+}
+
+// spotDepthConn is a connection's subscribed symbols
+type spotDepthConn struct {
+	writeMu sync.Mutex
+	symbols []string
+}
+
+func newSpotDepthServer(t *testing.T) *spotDepthServer {
+	t.Helper()
+	s := &spotDepthServer{
+		streams:    newSpotDepthStreams(),
+		done:       make(chan struct{}),
+		conns:      make(map[*gws.Conn]*spotDepthConn),
+		subscribed: make(common.Seen[string]),
+		fetches:    make(map[string]int),
+	}
+	t.Cleanup(func() { close(s.done) })
+	return s
+}
+
+// use connects an exchange's spot diff depth streams, at most maxSubscriptions a connection, to the server
+func (s *spotDepthServer) use(t *testing.T, ex *Exchange, maxSubscriptions int) {
+	t.Helper()
+	rest := httptest.NewTestServer(t, http.HandlerFunc(s.serveSnapshot))
+	rest.Start()
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), rest.URL), "SetRunningURL must not error")
+	if !mockTests {
+		// MockHTTPInstance has already disabled the limiter in mock tests
+		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	}
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}}
+
+	streams := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, s.handleRequest))
+	streams.Start()
+	setup := ex.spotStreamConnectionSetup(ex.Config)
+	setup.URL = "ws" + strings.TrimPrefix(streams.URL, "http")
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = websocket.NewManager()
+	// A book relays each update queued behind its snapshot together once the snapshot loads, and a full relay fails
+	// the synchronisation, so the relay holds what a stalled test run can queue rather than the test default
+	ex.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
+	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         ex.Config,
+		Features:                               &ex.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: maxSubscriptions,
+	}), "Websocket Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	require.NoError(t, ex.Websocket.SetupNewConnection(setup), "SetupNewConnection must not error")
+	t.Cleanup(func() {
+		if ex.Websocket.IsConnected() {
+			assert.NoError(t, shutdownWithin(ex), "Shutdown should not error")
+		}
+	})
+	useTestOrderbookSync(ex, ex.fetchOrderbookSnapshot)
+	// The relay is drained so it never blocks the readers
+	relay := ex.Websocket.DataHandler
+	go func() {
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-relay.C:
+			}
+		}
+	}()
+}
+
+// handleRequest answers SUBSCRIBE and UNSUBSCRIBE requests and streams a connection's subscribed symbols
+func (s *spotDepthServer) handleRequest(tb testing.TB, msg []byte, w *gws.Conn) error {
+	tb.Helper()
+	var req WebsocketPayloadRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	c, ok := s.conns[w]
+	if !ok {
+		c = new(spotDepthConn)
+		s.conns[w] = c
+		go s.stream(w, c)
+	}
+	for _, stream := range req.Params {
+		name, _, _ := strings.Cut(stream, "@")
+		symbol := strings.ToUpper(name)
+		if req.Method != wsSubscribeMethod {
+			c.symbols = slices.DeleteFunc(c.symbols, func(s string) bool { return s == symbol })
+			continue
+		}
+		if s.subscribed.CheckAndRecord(symbol) {
+			s.streams.skip(symbol, 1000)
+		}
+		c.symbols = append(c.symbols, symbol)
+	}
+	s.mu.Unlock()
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%q}`, req.ID))
+}
+
+// stream sends a frame of each of a connection's symbols every 20ms until the connection or the test ends
+func (s *spotDepthServer) stream(w *gws.Conn, c *spotDepthConn) {
+	frameTicker := time.NewTicker(20 * time.Millisecond)
+	defer frameTicker.Stop()
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-frameTicker.C:
+		}
+		s.mu.Lock()
+		frames := make([][]byte, len(c.symbols))
+		for i, symbol := range c.symbols {
+			frames[i] = s.streams.frame(symbol)
+		}
+		s.mu.Unlock()
+		for _, frame := range frames {
+			c.writeMu.Lock()
+			err := w.WriteMessage(gws.TextMessage, frame)
+			c.writeMu.Unlock()
+			if err != nil {
+				return
+			}
+		}
+	}
+}
+
+// serveSnapshot answers a REST order book snapshot request, once holdSnapshots releases it if it is holding them
+func (s *spotDepthServer) serveSnapshot(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	s.mu.Lock()
+	s.fetches[symbol]++
+	hold := s.hold
+	if hold != nil {
+		s.held++
+	}
+	s.mu.Unlock()
+	if hold != nil {
+		select {
+		case <-hold:
+		case <-r.Context().Done():
+			return
+		}
+	}
+	_, _ = w.Write(s.streams.snapshotJSON(symbol))
+}
+
+// holdSnapshots makes snapshot requests wait, as they do behind a busy rate limiter, until the returned func is called
+func (s *spotDepthServer) holdSnapshots() (release func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	hold := make(chan struct{})
+	s.hold = hold
+	return func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.hold = nil
+		close(hold)
+	}
+}
+
+// heldSnapshots returns how many snapshot requests have been held
+func (s *spotDepthServer) heldSnapshots() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.held
+}
+
+// snapshotFetches returns how many snapshots of each pair were requested
+func (s *spotDepthServer) snapshotFetches(pairs currency.Pairs) map[currency.Pair]int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	fetches := make(map[currency.Pair]int, len(pairs))
+	for _, p := range pairs {
+		fetches[p] = s.fetches[p.Base.String()+p.Quote.String()]
+	}
+	return fetches
+}
+
+// requireBooksFollow waits until every pair's book follows its stream beyond the update IDs in after, and returns the
+// books' update IDs. A book follows when its bid at 100 is its last update ID, the frame that set it
+func requireBooksFollow(t *testing.T, ex *Exchange, pairs currency.Pairs, after map[currency.Pair]int64) map[currency.Pair]int64 {
+	t.Helper()
+	updateIDs := make(map[currency.Pair]int64, len(pairs))
+	require.Eventually(t, func() bool {
+		for _, p := range pairs {
+			book, err := ex.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+			if err != nil || len(book.Bids) == 0 || book.Bids[0].Amount != float64(book.LastUpdateID) || book.LastUpdateID <= after[p] {
+				return false
+			}
+			updateIDs[p] = book.LastUpdateID
+		}
+		return true
+	}, 30*time.Second, 10*time.Millisecond, "every book must follow its stream")
+	return updateIDs
+}
+
+// spotDepthTestPairs returns n spot pairs, all available and the first enabled of them enabled
+func spotDepthTestPairs(t *testing.T, ex *Exchange, n, enabled int) currency.Pairs {
+	t.Helper()
+	pairs := make(currency.Pairs, n)
+	for i := range pairs {
+		pairs[i] = currency.NewPairWithDelimiter(fmt.Sprintf("COIN%02d", i), "USDT", "-")
+	}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error for the available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs[:enabled], true), "StorePairs must not error for the enabled pairs")
+	return pairs
+}
+
+func TestSpotOrderbookSyncAcrossConnections(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	srv := newSpotDepthServer(t)
+	pairs := spotDepthTestPairs(t, ex, 12, 8)
+	srv.use(t, ex, 4)
+	orderbookSync := ex.orderbookSync
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	updateIDs := requireBooksFollow(t, ex, pairs[:8], nil)
+	exp := make(map[currency.Pair]int, len(pairs))
+	for _, p := range pairs[:8] {
+		exp[p] = 1
+	}
+	require.Equal(t, exp, srv.snapshotFetches(pairs[:8]), "each book must synchronise from one snapshot")
+
+	// Four more streams need a third connection, whose connector must leave the other books alone
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error")
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+	requireBooksFollow(t, ex, pairs[:8], updateIDs)
+	requireBooksFollow(t, ex, pairs[8:], nil)
+	for _, p := range pairs[8:] {
+		exp[p] = 1
+	}
+	assert.Equal(t, exp, srv.snapshotFetches(pairs), "opening a connection should not fetch the other connections' books again")
+	assert.Same(t, orderbookSync, ex.orderbookSync, "connections should share the one order book synchronisation")
+}
+
+func TestSpotOrderbookSyncAfterReconnect(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	srv := newSpotDepthServer(t)
+	pairs := spotDepthTestPairs(t, ex, 4, 4)
+	srv.use(t, ex, 1024)
+	release := srv.holdSnapshots()
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	require.Eventually(t, func() bool { return srv.heldSnapshots() == len(pairs) }, 30*time.Second, 10*time.Millisecond, "every book must wait for a snapshot")
+
+	// Shutting down while snapshots are pending, then reconnecting to streams that moved on, must not leave a book
+	// without synchronisation
+	require.NoError(t, shutdownWithin(ex), "Shutdown must not error")
+	release()
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	// The outdated snapshot loads when it arrives, so a book follows its stream once it is past the updates the
+	// reconnection skipped
+	reconnected := make(map[currency.Pair]int64, len(pairs))
+	for _, p := range pairs {
+		reconnected[p] = srv.streams.finalUpdateID(p.Base.String() + p.Quote.String())
+	}
+	requireBooksFollow(t, ex, pairs, reconnected)
+	for p, fetches := range srv.snapshotFetches(pairs) {
+		assert.Equalf(t, 2, fetches, "%s should synchronise again from one new snapshot after the outdated one", p)
+	}
+}
+
+func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
+	for status, exp := range map[string]order.Status{
+		"NEW":              order.New,
+		"PENDING_NEW":      order.Pending,
+		"PARTIALLY_FILLED": order.PartiallyFilled,
+		"FILLED":           order.Filled,
+		"CANCELED":         order.Cancelled,
+		"PENDING_CANCEL":   order.PendingCancel,
+		"REJECTED":         order.Rejected,
+		"EXPIRED":          order.Expired,
+		"EXPIRED_IN_MATCH": order.Expired,
+	} {
+		t.Run(subtestName(status), func(t *testing.T) {
+			t.Parallel()
+			got, err := stringToOrderStatus(status)
+			require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
+			assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)
+		})
+	}
+	_, err := stringToOrderStatus("LOL")
+	assert.ErrorIs(t, err, errUnknownOrderStatus, "stringToOrderStatus should reject an unknown status")
+}
+
+// expectedSpotSubscriptions returns the subscriptions of the enabled spot pairs for channels, keyed by stream name
+func expectedSpotSubscriptions(tb testing.TB, ex *Exchange, channels ...*subscription.Subscription) subscription.List {
+	tb.Helper()
+	pairs, err := ex.GetEnabledPairs(asset.Spot)
+	require.NoError(tb, err, "GetEnabledPairs must not error")
+	exp := make(subscription.List, 0, len(channels)*len(pairs))
+	for _, p := range pairs {
+		for _, c := range channels {
+			sub := c.Clone()
+			sub.Asset = asset.Spot
+			sub.Pairs = currency.Pairs{p}
+			sub.QualifiedChannel = strings.ToLower(p.Base.String()+p.Quote.String()) + "@" + c.QualifiedChannel
+			exp = append(exp, sub)
+		}
+	}
+	return exp
+}
+
+func TestAddDefaultDerivativesSubscriptions(t *testing.T) {
+	t.Parallel()
+	derivatives := []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options}
+	// A configuration saved before subscriptions had assets has empty ones, which mean spot
+	assets := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options, asset.All, asset.Empty}
+	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, subscription.MyOrdersChannel, "markPrice", "MYORDERS"}
+	saved := func(t *testing.T, features *config.FeaturesConfig) string {
+		t.Helper()
+		b, err := json.Marshal(features.Subscriptions)
+		require.NoError(t, err, "Marshal must encode the saved subscriptions")
+		return string(b)
+	}
+	type testCase struct {
+		name     string
+		features *config.FeaturesConfig
+		defaults []asset.Item
+	}
+	tests := make([]testCase, 0, 9+len(assets)*len(channels)*4)
+	tests = append(tests,
+		testCase{"no features", nil, nil},
+		testCase{"no subscriptions", &config.FeaturesConfig{}, nil},
+		testCase{"an empty subscription list", &config.FeaturesConfig{Subscriptions: subscription.List{}}, nil},
+		testCase{
+			"a spot ticker given twice",
+			&config.FeaturesConfig{Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+			}},
+			derivatives,
+		},
+		testCase{
+			"my orders beside a USDⓈ-M ticker",
+			&config.FeaturesConfig{Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel},
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel},
+			}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+		testCase{
+			"USDⓈ-M ticker of one pair",
+			&config.FeaturesConfig{Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}},
+			}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+		testCase{
+			"USDⓈ-M order book of one pair at 5 levels with parameters",
+			&config.FeaturesConfig{Subscriptions: subscription.List{{
+				Enabled:  true,
+				Asset:    asset.USDTMarginedFutures,
+				Channel:  subscription.OrderbookChannel,
+				Pairs:    currency.Pairs{testUSDTMarginedFuturesPair},
+				Levels:   5,
+				Interval: kline.HundredMilliseconds,
+				Params:   map[string]any{"param": "value", "nested": map[string]any{"param": "value"}},
+			}}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+		testCase{
+			"USDⓈ-M candles at 5 minutes",
+			&config.FeaturesConfig{Subscriptions: subscription.List{
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+			}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+		testCase{
+			"disabled USDⓈ-M subscription without a channel",
+			&config.FeaturesConfig{Subscriptions: subscription.List{{Asset: asset.USDTMarginedFutures}}},
+			[]asset.Item{asset.CoinMarginedFutures, asset.Options},
+		},
+	)
+	// A subscription keeps out the defaults of its derivatives asset, or of every one for all assets, whatever its channel
+	// and flags, unless it is a myOrders subscription, whose channel the generators match exactly
+	for _, a := range assets {
+		for _, channel := range channels {
+			defaults := derivatives
+			if channel != subscription.MyOrdersChannel {
+				defaults = slices.DeleteFunc(slices.Clone(derivatives), func(d asset.Item) bool { return a == asset.All || d == a })
+			}
+			for _, enabled := range []bool{true, false} {
+				for _, authenticated := range []bool{false, true} {
+					name := cmp.Or(a.String(), "no asset") + " " + channel
+					if !enabled {
+						name = "disabled " + name
+					}
+					if authenticated {
+						name += " flagged as authenticated"
+					}
+					tests = append(tests, testCase{
+						name:     name,
+						features: &config.FeaturesConfig{Subscriptions: subscription.List{{Enabled: enabled, Authenticated: authenticated, Asset: a, Channel: channel}}},
+						defaults: defaults,
+					})
+				}
+			}
+		}
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var before string
+			if tc.features != nil {
+				before = saved(t, tc.features)
+			}
+			ex := new(Exchange)
+			exch := &config.Exchange{Features: tc.features}
+			ex.addDefaultDerivativesSubscriptions(exch)
+			exp := subscription.List{}
+			for _, s := range defaultSubscriptions {
+				if slices.Contains(tc.defaults, s.Asset) {
+					exp = append(exp, s.Clone())
+				}
+			}
+			testsubs.EqualLists(t, exp, ex.Features.Subscriptions)
+			if tc.features != nil {
+				assert.JSONEq(t, before, saved(t, exch.Features), "addDefaultDerivativesSubscriptions should leave the saved subscriptions as they are")
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		disabled []asset.Item
+	}{
+		{"every derivatives asset disabled in the configuration gains its defaults", derivatives},
+		{"options disabled alone in the configuration gains its defaults", []asset.Item{asset.Options}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pairs := new(currency.PairsManager)
+			for _, a := range derivatives {
+				require.NoErrorf(t, pairs.Store(a, &currency.PairStore{AssetEnabled: !slices.Contains(tc.disabled, a)}), "Store must not error for %s", a)
+			}
+			features := &config.FeaturesConfig{Subscriptions: subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}}
+			before := saved(t, features)
+			ex := new(Exchange)
+			exch := &config.Exchange{CurrencyPairs: pairs, Features: features}
+			ex.addDefaultDerivativesSubscriptions(exch)
+			exp := subscription.List{}
+			for _, s := range defaultSubscriptions {
+				if slices.Contains(derivatives, s.Asset) {
+					exp = append(exp, s.Clone())
+				}
+			}
+			testsubs.EqualLists(t, exp, ex.Features.Subscriptions)
+			assert.JSONEq(t, before, saved(t, exch.Features), "addDefaultDerivativesSubscriptions should leave the saved subscriptions as they are")
+		})
+	}
+}
+
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	subs, err := ex.generateSubscriptions(t.Context())
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, expectedSpotSubscriptions(
+		t, ex,
+		&subscription.Subscription{Channel: subscription.CandlesChannel, QualifiedChannel: "kline_1m", Interval: kline.OneMin},
+		&subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: "depth@100ms", Interval: kline.HundredMilliseconds},
+		&subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker"},
+		&subscription.Subscription{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade"},
+	), subs)
+
+	// Subscriptions without an asset are spot's, and the other assets' are left to their own connections
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel},
+		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
+		{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.OneDay},
+	}
+	subs, err = ex.generateSubscriptions(t.Context())
+	require.NoError(t, err, "generateSubscriptions must not error")
+	testsubs.EqualLists(t, expectedSpotSubscriptions(
+		t, ex,
+		&subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker"},
+		&subscription.Subscription{Channel: subscription.CandlesChannel, QualifiedChannel: "kline_1d", Interval: kline.OneDay},
+	), subs)
+
+	// A subscription that cannot be expanded leaves the others, as partial generation
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+		{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.TwoDay},
+	}
+	subs, err = ex.generateSubscriptions(t.Context())
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateSubscriptions must report partial generation")
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must report the failed subscription's error")
+	testsubs.EqualLists(t, expectedSpotSubscriptions(
+		t, ex,
+		&subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker"},
+	), subs)
+
+	// Partial depth would overwrite the books diff depth keeps, so only the diff depth subscription is made
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Levels: 20, Interval: kline.HundredMilliseconds},
+		{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+	}
+	subs, err = ex.generateSubscriptions(t.Context())
+	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateSubscriptions must report partial generation")
+	require.ErrorIs(t, err, errOrderbookSubscriptionConflict, "generateSubscriptions must report the conflicting order book subscription")
+	testsubs.EqualLists(t, expectedSpotSubscriptions(
+		t, ex,
+		&subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: "depth@100ms", Interval: kline.HundredMilliseconds},
+	), subs)
+
+	// Each asset's user data stream already carries its orders, so MyOrdersChannel has no stream of its own
+	for _, tc := range []struct {
+		name string
+		a    asset.Item
+	}{
+		{"my orders without an asset", asset.Empty},
+		{"my orders spot", asset.Spot},
+		{"my orders all assets", asset.All},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			testEx := newTestExchange(t)
+			testEx.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			testEx.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: tc.a, Authenticated: true}}
+			generated, err := testEx.generateSubscriptions(t.Context())
+			require.NoErrorf(t, err, "generateSubscriptions must not error for %s", tc.name)
+			assert.Emptyf(t, generated, "generateSubscriptions should generate no stream for %s", tc.name)
+		})
+	}
+
+	// Spot disabled leaves nothing to subscribe to, so the connection is not made
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+	subs, err = ex.generateSubscriptions(t.Context())
+	require.NoError(t, err, "generateSubscriptions must not error with spot disabled")
+	assert.Empty(t, subs, "generateSubscriptions should generate nothing with spot disabled")
+}
+
+func TestOneOrderbookSubscription(t *testing.T) {
+	t.Parallel()
+	// Subscriptions arrive expanded, with one pair each
+	btc, eth := currency.Pairs{currency.NewBTCUSDT()}, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}
+	tickerSub := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: btc, QualifiedChannel: "btcusdt@ticker"}
+	diff := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth@100ms"}
+	diffEverySecond := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, QualifiedChannel: "btcusdt@depth"}
+	partial5 := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, Levels: 5, QualifiedChannel: "btcusdt@depth5"}
+	partial20 := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, Levels: 20, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth20@100ms"}
+	otherPairDiff := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: eth, Interval: kline.HundredMilliseconds, QualifiedChannel: "ethusdt@depth@100ms"}
+	// The cases share the subscriptions above, so they run in order, and each also checks that a call leaves them as
+	// they were for the next
+	for _, tc := range []struct {
+		name     string
+		subs     subscription.List
+		exp      subscription.List
+		conflict bool
+	}{
+		{name: "no order book", subs: subscription.List{tickerSub}, exp: subscription.List{tickerSub}},
+		{name: "partial depth alone", subs: subscription.List{partial5, tickerSub}, exp: subscription.List{partial5, tickerSub}},
+		{name: "depths of different pairs", subs: subscription.List{partial5, otherPairDiff}, exp: subscription.List{partial5, otherPairDiff}},
+		{name: "diff depth after partial depth", subs: subscription.List{partial20, tickerSub, diff, otherPairDiff}, exp: subscription.List{tickerSub, diff, otherPairDiff}, conflict: true},
+		{name: "two diff depths", subs: subscription.List{diff, diffEverySecond}, exp: subscription.List{diff}, conflict: true},
+		{name: "two partial depths", subs: subscription.List{partial5, partial20}, exp: subscription.List{partial5}, conflict: true},
+		{name: "two partial depths, the deeper first", subs: subscription.List{partial20, partial5}, exp: subscription.List{partial20.Clone()}, conflict: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := oneOrderbookSubscription(tc.subs)
+			assert.Equalf(t, tc.exp, got, "oneOrderbookSubscription should keep one order book subscription for each pair with %s", tc.name)
+			if tc.conflict {
+				assert.ErrorIsf(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the conflict with %s", tc.name)
+			} else {
+				assert.NoErrorf(t, err, "oneOrderbookSubscription should not error with %s", tc.name)
+			}
+		})
+	}
+	// Every two settings an asset's book takes, in both orders, and every order of two diff and two partial books, for
+	// each asset, so that neither depth, speed, asset nor the previous book alone decides the choice
+	spotBookStreams := map[derivativesBookSetting]string{
+		{0, 0}: "depth", {0, kline.HundredMilliseconds}: "depth@100ms", {5, 0}: "depth5", {5, kline.HundredMilliseconds}: "depth5@100ms",
+		{10, 0}: "depth10", {10, kline.HundredMilliseconds}: "depth10@100ms", {20, 0}: "depth20", {20, kline.HundredMilliseconds}: "depth20@100ms",
+	}
+	spotBookSettings := make([]derivativesBookSetting, 0, len(spotBookStreams))
+	for _, levels := range []int{0, 5, 10, 20} {
+		spotBookSettings = append(spotBookSettings, derivativesBookSetting{levels, 0}, derivativesBookSetting{levels, kline.HundredMilliseconds})
+	}
+	for _, tc := range []struct {
+		a        asset.Item
+		settings []derivativesBookSetting
+		streams  map[derivativesBookSetting]string
+		four     []derivativesBookSetting
+	}{
+		{asset.Spot, spotBookSettings, spotBookStreams, []derivativesBookSetting{{0, 0}, {0, kline.HundredMilliseconds}, {5, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.USDTMarginedFutures, derivativesBookSettings(asset.USDTMarginedFutures), derivativesBookStreams, []derivativesBookSetting{{0, kline.HundredMilliseconds}, {0, kline.FiveHundredMilliseconds}, {5, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.CoinMarginedFutures, derivativesBookSettings(asset.CoinMarginedFutures), derivativesBookStreams, []derivativesBookSetting{{0, 0}, {0, kline.FiveHundredMilliseconds}, {10, 0}, {20, kline.HundredMilliseconds}}},
+		{asset.Options, derivativesBookSettings(asset.Options), derivativesBookStreams, []derivativesBookSetting{{0, kline.HundredMilliseconds}, {0, kline.FiveHundredMilliseconds}, {5, kline.FiveHundredMilliseconds}, {20, kline.HundredMilliseconds}}},
+	} {
+		book := func(setting derivativesBookSetting) *subscription.Subscription {
+			return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: tc.a, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: setting.levels, Interval: setting.interval, QualifiedChannel: "btcusdt@" + tc.streams[setting]}
+		}
+		for _, first := range tc.settings {
+			for _, second := range tc.settings {
+				if first == second {
+					continue
+				}
+				t.Run(tc.a.String()+" "+first.String()+" before "+second.String(), func(t *testing.T) {
+					t.Parallel()
+					a, b := book(first), book(second)
+					wantA, wantB := book(first), book(second)
+					kept := a
+					if first.levels != 0 && second.levels == 0 {
+						kept = b
+					}
+					got, err := oneOrderbookSubscription(subscription.List{a, b})
+					assert.ErrorIs(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the order book subscription it leaves out")
+					require.Len(t, got, 1, "oneOrderbookSubscription must keep one order book subscription for the pair")
+					assert.Same(t, kept, got[0], "oneOrderbookSubscription should keep the diff book, or the first when both books are of one kind")
+					assert.Equal(t, wantA, a, "oneOrderbookSubscription should leave the first subscription as it was")
+					assert.Equal(t, wantB, b, "oneOrderbookSubscription should leave the second subscription as it was")
+				})
+			}
+		}
+		var orders [][]derivativesBookSetting
+		var permute func(prefix, rest []derivativesBookSetting)
+		permute = func(prefix, rest []derivativesBookSetting) {
+			if len(rest) == 0 {
+				orders = append(orders, prefix)
+				return
+			}
+			for i := range rest {
+				permute(append(slices.Clone(prefix), rest[i]), slices.Concat(rest[:i], rest[i+1:]))
+			}
+		}
+		permute(nil, tc.four)
+		for _, order := range orders {
+			names := make([]string, len(order))
+			for i, setting := range order {
+				names[i] = setting.String()
+			}
+			t.Run(tc.a.String()+" "+strings.Join(names, ", then "), func(t *testing.T) {
+				t.Parallel()
+				subs, want := make(subscription.List, len(order)), make(subscription.List, len(order))
+				var kept *subscription.Subscription
+				for i, setting := range order {
+					subs[i], want[i] = book(setting), book(setting)
+					if kept == nil && setting.levels == 0 {
+						kept = subs[i]
+					}
+				}
+				got, err := oneOrderbookSubscription(subs)
+				assert.ErrorIs(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the order book subscriptions it leaves out")
+				require.Len(t, got, 1, "oneOrderbookSubscription must keep one order book subscription for the pair")
+				assert.Same(t, kept, got[0], "oneOrderbookSubscription should keep the first diff book")
+				assert.Equal(t, want, subs, "oneOrderbookSubscription should leave the subscriptions as they were")
+			})
+		}
+	}
+}
+
+// TestDistinctSubscriptions ensures that only the first of the subscriptions the subscription store holds as one is
+// kept, its pairs compared whatever their order, case or delimiter, and that subscriptions it holds apart are all kept
+// in the order given
+func TestDistinctSubscriptions(t *testing.T) {
+	t.Parallel()
+	eth := currency.NewPair(currency.ETH, currency.USDT)
+	// check takes what it expects from copies made before the call, so a distinctSubscriptions that rewrites the list or
+	// the subscriptions it is given cannot change the expectation; parameters are copied through JSON, as saved
+	// configurations give them, so nested maps and lists are copied too
+	check := func(t *testing.T, subs subscription.List, kept ...int) {
+		t.Helper()
+		given := slices.Clone(subs)
+		copies := make(subscription.List, len(subs))
+		for i, s := range subs {
+			copies[i] = s.Clone()
+			params, err := json.Marshal(s.Params)
+			require.NoError(t, err, "json.Marshal must not error")
+			copies[i].Params = nil
+			require.NoError(t, json.Unmarshal(params, &copies[i].Params), "json.Unmarshal must not error")
+		}
+		got := distinctSubscriptions(subs)
+		require.Len(t, got, len(kept), "distinctSubscriptions must return one subscription for each kept position")
+		for i, k := range kept {
+			assert.Samef(t, given[k], got[i], "distinctSubscriptions should return the subscription given at position %d at position %d", k, i)
+		}
+		for i := range given {
+			assert.Samef(t, given[i], subs[i], "distinctSubscriptions should leave the subscription given at position %d in place", i)
+			assert.Equalf(t, copies[i], given[i], "distinctSubscriptions should leave the subscription given at position %d as it was", i)
+		}
+	}
+	channels := []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel}
+	for _, channel := range channels {
+		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+			anotherAsset := asset.CoinMarginedFutures
+			if a == asset.CoinMarginedFutures {
+				anotherAsset = asset.USDTMarginedFutures
+			}
+			t.Run(channel+" on "+a.String(), func(t *testing.T) {
+				t.Parallel()
+				// Both generators give each subscription one pair, and subscriptions built in Go can list several
+				for _, shape := range []struct {
+					name  string
+					pairs currency.Pairs
+				}{{"one pair", currency.Pairs{currency.NewBTCUSDT()}}, {"two pairs", currency.Pairs{currency.NewBTCUSDT(), eth}}} {
+					t.Run(shape.name, func(t *testing.T) {
+						t.Parallel()
+						// Generated subscriptions are enabled and carry their stream name, which only the qualified channel case
+						// changes
+						base := func() *subscription.Subscription {
+							s := &subscription.Subscription{Enabled: true, Channel: channel, Asset: a, Pairs: slices.Clone(shape.pairs), QualifiedChannel: "btcusdt@stream"}
+							switch channel {
+							case subscription.CandlesChannel:
+								s.Interval = kline.OneMin
+							case subscription.OrderbookChannel:
+								s.Levels, s.Interval = 5, kline.HundredMilliseconds
+							}
+							return s
+						}
+						respelt := currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
+						respeltName, otherPairs := "pairs in another order, case and delimiter", currency.Pairs{currency.NewBTCUSDT()}
+						if len(shape.pairs) == 1 {
+							respelt = currency.Pairs{currency.NewPairWithDelimiter("btc", "usdt", "_")}
+							respeltName, otherPairs = "pair in another case and delimiter", currency.Pairs{eth}
+						}
+						otherQuote := make(currency.Pairs, len(shape.pairs))
+						for i, p := range shape.pairs {
+							otherQuote[i] = currency.NewPair(p.Base, currency.USDC)
+						}
+						cases := []struct {
+							name     string
+							other    func(*subscription.Subscription)
+							distinct bool
+						}{
+							{"identical", func(*subscription.Subscription) {}, false},
+							{respeltName, func(s *subscription.Subscription) { s.Pairs = slices.Clone(respelt) }, false},
+							{"other parameters", func(s *subscription.Subscription) { s.Params = map[string]any{"depth": map[string]any{"levels": 10.0}} }, false},
+							{"another qualified channel", func(s *subscription.Subscription) { s.QualifiedChannel = "ethusdt@another" }, false},
+							{"authenticated", func(s *subscription.Subscription) { s.Authenticated = true }, false},
+							{"authenticated, with parameters", func(s *subscription.Subscription) {
+								s.Authenticated, s.Params = true, map[string]any{"source": "private"}
+							}, false},
+							{"another asset", func(s *subscription.Subscription) { s.Asset = anotherAsset }, true},
+							{"other pairs", func(s *subscription.Subscription) { s.Pairs = slices.Clone(otherPairs) }, true},
+							{"pairs of the same bases in another quote", func(s *subscription.Subscription) { s.Pairs = slices.Clone(otherQuote) }, true},
+							{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
+							{"another interval", func(s *subscription.Subscription) {
+								s.Interval = kline.FiveMin
+								if channel == subscription.OrderbookChannel {
+									s.Interval = kline.FiveHundredMilliseconds
+								}
+							}, true},
+						}
+						for _, another := range channels {
+							if another != channel {
+								cases = append(cases, struct {
+									name     string
+									other    func(*subscription.Subscription)
+									distinct bool
+								}{"another channel, " + another, func(s *subscription.Subscription) { s.Channel = another }, true})
+							}
+						}
+						for _, tc := range cases {
+							t.Run(tc.name, func(t *testing.T) {
+								t.Parallel()
+								for _, order := range []struct {
+									name       string
+									otherFirst bool
+								}{{"listed second", false}, {"listed first", true}} {
+									t.Run(order.name, func(t *testing.T) {
+										t.Parallel()
+										unchanged, other := base(), base()
+										tc.other(other)
+										wantUnchanged, wantOther := base(), base()
+										tc.other(wantOther)
+										subs := subscription.List{unchanged, other}
+										if order.otherFirst {
+											subs = subscription.List{other, unchanged}
+										}
+										if tc.distinct {
+											check(t, subs, 0, 1)
+										} else {
+											check(t, subs, 0)
+										}
+										assert.Equal(t, wantUnchanged, unchanged, "distinctSubscriptions should leave the unchanged subscription as it was")
+										assert.Equal(t, wantOther, other, "distinctSubscriptions should leave the other subscription as it was")
+									})
+								}
+							})
+						}
+					})
+				}
+			})
+		}
+	}
+
+	t.Run("parameters", func(t *testing.T) {
+		t.Parallel()
+		// Saved configurations give parameters as JSON decodes them
+		param := func(v any) map[string]any { return map[string]any{"source": v} }
+		for _, tc := range []struct {
+			name          string
+			first, second func() map[string]any
+		}{
+			{"none on either", func() map[string]any { return nil }, func() map[string]any { return nil }},
+			{"none then empty", func() map[string]any { return nil }, func() map[string]any { return map[string]any{} }},
+			{"empty then none", func() map[string]any { return map[string]any{} }, func() map[string]any { return nil }},
+			{"none then some", func() map[string]any { return nil }, func() map[string]any { return param("configuration") }},
+			{"some then none", func() map[string]any { return param("configuration") }, func() map[string]any { return nil }},
+			{"empty then some", func() map[string]any { return map[string]any{} }, func() map[string]any { return param("configuration") }},
+			{"some then empty", func() map[string]any { return param("configuration") }, func() map[string]any { return map[string]any{} }},
+			{"the same on both", func() map[string]any { return param("configuration") }, func() map[string]any { return param("configuration") }},
+			{"another string", func() map[string]any { return param("configuration") }, func() map[string]any { return param("another") }},
+			{"another number", func() map[string]any { return param(5.0) }, func() map[string]any { return param(10.0) }},
+			{"another boolean", func() map[string]any { return param(true) }, func() map[string]any { return param(false) }},
+			{"another list", func() map[string]any { return param([]any{"bid"}) }, func() map[string]any { return param([]any{"ask"}) }},
+			{"another object", func() map[string]any { return param(map[string]any{"levels": 5.0}) }, func() map[string]any { return param(map[string]any{"levels": 10.0}) }},
+			{"other parameters", func() map[string]any { return param("configuration") }, func() map[string]any { return map[string]any{"depth": map[string]any{"levels": 10.0}} }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				sub := func(params map[string]any) *subscription.Subscription {
+					return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@ticker", Params: params}
+				}
+				check(t, subscription.List{sub(tc.first()), sub(tc.second())}, 0)
+			})
+		}
+	})
+
+	t.Run("pair spellings", func(t *testing.T) {
+		t.Parallel()
+		option := currency.NewPairWithDelimiter("BTC", "261225-100000-C", "-")
+		anotherOption := currency.NewPairWithDelimiter("ETH", "261225-4000-P", "-")
+		for _, tc := range []struct {
+			a           asset.Item
+			pair, other currency.Pair
+			spellings   []string
+		}{
+			{asset.Spot, currency.NewBTCUSDT(), eth, []string{"BTCUSDT", "btcusdt", "BTC-USDT", "btc_usdt", "BTC/usdt", "btc.USDT", "BTC:USDT", "bTc-UsDt"}},
+			{asset.Options, option, anotherOption, []string{"BTC-261225-100000-C", "BTC_261225-100000-C", "btc-261225-100000-c", "BTC/261225-100000-C", "btc.261225-100000-C"}},
+		} {
+			for _, spelling := range tc.spellings {
+				t.Run(tc.a.String()+" "+spelling, func(t *testing.T) {
+					t.Parallel()
+					spelt, err := currency.NewPairFromString(spelling)
+					require.NoError(t, err, "NewPairFromString must not error")
+					for _, shape := range []struct {
+						name        string
+						pairs, also func() currency.Pairs
+					}{
+						{"one pair", func() currency.Pairs { return currency.Pairs{tc.pair} }, func() currency.Pairs { return currency.Pairs{spelt} }},
+						{"two pairs", func() currency.Pairs { return currency.Pairs{tc.pair, tc.other} }, func() currency.Pairs { return currency.Pairs{tc.other, spelt} }},
+					} {
+						t.Run(shape.name, func(t *testing.T) {
+							t.Parallel()
+							sub := func(pairs currency.Pairs) *subscription.Subscription {
+								return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: tc.a, Pairs: pairs, QualifiedChannel: "btcusdt@ticker"}
+							}
+							check(t, subscription.List{sub(shape.pairs()), sub(shape.also())}, 0)
+							check(t, subscription.List{sub(shape.also()), sub(shape.pairs())}, 0)
+						})
+					}
+				})
+			}
+		}
+	})
+
+	t.Run("pairs of other currencies", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			a           asset.Item
+			pair, other string
+		}{
+			{"reversed", asset.Spot, "BTC/USDT", "USDT/BTC"},
+			{"spelt with the same letters", asset.Spot, "BTC/USDT", "BTCU/SDT"},
+			{"a dash inside a code", asset.Spot, "BTC/USDT", "BTC/US-DT"},
+			{"a full stop inside a code", asset.Spot, "BTC/USDT", "BTC/US.DT"},
+			{"a leading zero", asset.Spot, "G-USDT", "0G-USDT"},
+			{"a multiplier", asset.USDTMarginedFutures, "BOB_USDT", "1000000BOB_USDT"},
+			{"codes in another script", asset.USDTMarginedFutures, "币安人生_USDT", "我踏马来了_USDT"},
+			{"option expiries a day apart", asset.Options, "BNB-261007-740-C", "BNB-261008-740-C"},
+			{"option strikes differing in a decimal point", asset.Options, "SOL-261225-125-C", "SOL-261225-12.5-C"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				pair, err := currency.NewPairFromString(tc.pair)
+				require.NoError(t, err, "NewPairFromString must not error")
+				other, err := currency.NewPairFromString(tc.other)
+				require.NoError(t, err, "NewPairFromString must not error")
+				sub := func(pairs ...currency.Pair) *subscription.Subscription {
+					return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: tc.a, Pairs: pairs, QualifiedChannel: "btcusdt@ticker"}
+				}
+				check(t, subscription.List{sub(pair), sub(other)}, 0, 1)
+				check(t, subscription.List{sub(other), sub(pair)}, 0, 1)
+				check(t, subscription.List{sub(pair, eth), sub(eth, other)}, 0, 1)
+				check(t, subscription.List{sub(eth, other), sub(pair, eth)}, 0, 1)
+			})
+		}
+	})
+
+	t.Run("duplicates listed apart", func(t *testing.T) {
+		t.Parallel()
+		sub := func(channel string, p currency.Pair, stream string, authenticated bool) *subscription.Subscription {
+			return &subscription.Subscription{Enabled: true, Channel: channel, Asset: asset.Spot, Pairs: currency.Pairs{p}, QualifiedChannel: stream, Authenticated: authenticated}
+		}
+		check(t, subscription.List{
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", false),
+			sub(subscription.AllTradesChannel, eth, "ethusdt@trade", false),
+			sub(subscription.TickerChannel, currency.NewBTCUSDT(), "btcusdt@ticker", true),
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", false),
+			sub(subscription.AllTradesChannel, currency.NewBTCUSDT(), "btcusdt@trade", false),
+			sub(subscription.AllTradesChannel, eth, "ethusdt@trade", false),
+			sub(subscription.TickerChannel, eth, "ethusdt@ticker", true),
+		}, 0, 1, 2, 4)
+	})
+
+	t.Run("a duplicate of the first after many others", func(t *testing.T) {
+		t.Parallel()
+		// Binance takes 50 streams a subscription message and 1,024 a connection, and a list can run past both
+		book := func(levels int) *subscription.Subscription {
+			return &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@depth", Levels: levels, Interval: kline.HundredMilliseconds}
+		}
+		subs := make(subscription.List, 0, 1101)
+		kept := make([]int, 0, 1100)
+		for i := range 1100 {
+			subs, kept = append(subs, book(i+1)), append(kept, i)
+		}
+		check(t, append(subs, book(1)), kept...)
+	})
+}
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		sub  *subscription.Subscription
+		exp  string
+		err  error
+	}{
+		{name: "ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
+		{name: "all trades", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trade"},
+		{name: "1s candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThousandMilliseconds}, exp: "kline_1s"},
+		{name: "15m candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}, exp: "kline_15m"},
+		{name: "1d candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, exp: "kline_1d"},
+		{name: "3d candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeDay}, exp: "kline_3d"},
+		{name: "1w candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneWeek}, exp: "kline_1w"},
+		{name: "1M candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: "kline_1M"},
+		{name: "unsupported candle interval", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwoDay}, err: kline.ErrUnsupportedInterval},
+		{name: "order book", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
+		{name: "order book every second", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}, exp: "depth"},
+		{name: "order book every 100ms", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
+		{name: "5 order book levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, exp: "depth5"},
+		{name: "20 order book levels every 100ms", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20, Interval: kline.HundredMilliseconds}, exp: "depth20@100ms"},
+		{name: "unsupported order book levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 7}, err: errUnsupportedLevels},
+		{name: "unsupported order book frequency", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds}, err: errUnsupportedFrequency},
+		{name: "unsupported channel", sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errUnsupportedChannel},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := channelName(tc.sub)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "channelName should error for %v", tc.sub)
+				return
+			}
+			require.NoErrorf(t, err, "channelName must not error for %v", tc.sub)
+			assert.Equalf(t, tc.exp, got, "channelName should name %v", tc.sub)
+		})
+	}
+}
+
+func TestIntervalToString(t *testing.T) {
+	t.Parallel()
+	for _, i := range klineIntervalList {
+		t.Run(i.String, func(t *testing.T) {
+			t.Parallel()
+			got, err := intervalToString(i.Interval)
+			require.NoErrorf(t, err, "intervalToString must not error for %s", i.Interval)
+			assert.Equalf(t, i.String, got, "intervalToString should format %s", i.Interval)
+		})
+	}
+	t.Run("unsupported interval", func(t *testing.T) {
+		t.Parallel()
+		_, err := intervalToString(kline.TwoDay)
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject an unsupported interval")
+	})
+}
+
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	exp := expectedSpotSubscriptions(
+		t, ex,
+		&subscription.Subscription{Channel: subscription.CandlesChannel, QualifiedChannel: "kline_1m", Interval: kline.OneMin},
+		&subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: "depth@100ms", Interval: kline.HundredMilliseconds},
+		&subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: "ticker"},
+		&subscription.Subscription{Channel: subscription.AllTradesChannel, QualifiedChannel: "trade"},
+	)
+	if !mockTests {
+		// Binance streams the subscriptions, so the test checks them against the real server
+		useWebsocket(t, ex, ex.spotStreamConnectionSetup(ex.Config))
+	} else {
+		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
+			tb.Helper()
+			var req WebsocketPayloadRequest
+			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+			assert.Contains(tb, []string{wsSubscribeMethod, wsUnsubscribeMethod}, req.Method, "method should be SUBSCRIBE or UNSUBSCRIBE")
+			assert.ElementsMatch(tb, exp.QualifiedChannels(), req.Params, "request should name every stream")
+			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%q}`, req.ID))
+		}
+		useMockWebsocket(t, ex, ex.spotStreamConnectionSetup(ex.Config), mock)
+	}
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must subscribe without error")
+	subs := ex.Websocket.GetSubscriptions()
+	testsubs.EqualLists(t, exp, subs.Clone())
+	for _, s := range subs {
+		assert.Equal(t, subscription.SubscribedState, s.State(), "subscription should be subscribed")
+	}
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must not error")
+	require.NoError(t, ex.Websocket.UnsubscribeChannels(t.Context(), conn, subs), "UnsubscribeChannels must not error")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "UnsubscribeChannels should remove every subscription")
+}
+
+func TestSubscribeBadResp(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
+		tb.Helper()
+		var req WebsocketPayloadRequest
+		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":{"error":"carrots"},"id":%q}`, req.ID))
+	}
+	setup := ex.spotStreamConnectionSetup(ex.Config)
+	setup.SubscriptionsNotRequired = true
+	useMockWebsocket(t, ex, setup, mock)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must not error")
+	err = ex.Subscribe(t.Context(), conn, subscription.List{{Channel: subscription.TickerChannel, QualifiedChannel: "moons@ticker"}})
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Subscribe must error ErrSubscriptionFailure")
+	require.ErrorIs(t, err, common.ErrUnknownError, "Subscribe must error ErrUnknownError")
+	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the response")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "a failed subscription should be removed")
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	t.Run("sets up the stream connections", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		setup := func(t *testing.T, configure func(*testing.T, *config.Exchange)) *Exchange {
+			t.Helper()
+			cfg := &config.Config{}
+			require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+			exchCfg, err := cfg.GetExchangeConfig("Binance")
+			require.NoError(t, err, "GetExchangeConfig must not error")
+			configure(t, exchCfg)
+			ex := new(Exchange)
+			ex.SetDefaults()
+			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			ex.Accounts = accounts.MustNewAccounts(ex)
+			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+			return ex
+		}
+		authenticated := func(_ *testing.T, c *config.Exchange) {
+			c.API.AuthenticatedWebsocketSupport = true
+			c.API.Credentials.Key, c.API.Credentials.Secret = "test-api-key", "test-api-secret"
+		}
+		// The WebSocket API serves market data requests without credentials too, and is optional, so it is registered
+		// whenever spot or margin is enabled
+		for _, tc := range []struct {
+			name         string
+			configure    func(*testing.T, *config.Exchange)
+			websocketAPI bool
+		}{
+			{"unauthenticated", func(*testing.T, *config.Exchange) {}, true},
+			{"authenticated", authenticated, true},
+			{"authenticated without credentials", func(_ *testing.T, c *config.Exchange) { c.API.AuthenticatedWebsocketSupport = true }, true},
+			{"credentials without authenticated websocket use", func(t *testing.T, c *config.Exchange) {
+				t.Helper()
+				authenticated(t, c)
+				c.API.AuthenticatedWebsocketSupport = false
+			}, true},
+			{"authenticated with spot and margin disabled", func(t *testing.T, c *config.Exchange) {
+				t.Helper()
+				authenticated(t, c)
+				for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+					require.NoErrorf(t, c.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+				}
+			}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := setup(t, tc.configure)
+				_, err := ex.Websocket.CreateTestConnection(asset.Spot)
+				require.NoError(t, err, "the spot stream connection must be registered")
+				assert.NotNil(t, ex.orderbookSync, "Setup should create the order book synchronisation every connection shares")
+				_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+				if tc.websocketAPI {
+					assert.NoError(t, err, "the WebSocket API connection should be registered")
+				} else {
+					assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "the WebSocket API connection should not be registered")
+				}
+			})
+		}
+
+		const spotStreamsURL = "wss://stream.binance.com:443/stream"
+		ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+			c.API.Endpoints[exchange.WebsocketSpot.String()] = spotStreamsURL
+		})
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
+		assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
+		// Connections connect in the order they are set up, so a slow WebSocket API host must come after every market data
+		// connection to hold none of them back
+		require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
+		assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
+
+		const (
+			testnetFstreamHost    = "wss://fstream.binancefuture.com"
+			testnetDstreamHost    = "wss://dstream.binancefuture.com"
+			productionFstreamHost = "wss://fstream.binance.com"
+			productionDstreamHost = "wss://dstream.binance.com"
+		)
+		for _, tc := range []struct {
+			name, filter, route, configuredHost, productionHost string
+			endpoint                                            exchange.URL
+		}{
+			{"USD-M public", usdtmPublicFilter, "/public/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"USD-M market", usdtmMarketFilter, "/market/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"USD-M private", usdtmPrivateFilter, "/private/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"COIN-M market", coinmFilter, "/stream", testnetDstreamHost, productionDstreamHost, exchange.WebsocketCoinMargined},
+			{"COIN-M private", coinmPrivateFilter, "/stream", testnetDstreamHost, productionDstreamHost, exchange.WebsocketCoinMargined},
+			{"options public", optionsPublicFilter, "/public/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
+			{"options market", optionsMarketFilter, "/market/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
+			{"options private", optionsPrivateFilter, "/private/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, cfg := range []struct {
+					name       string
+					host       string
+					configured bool
+				}{
+					{"configured endpoint", tc.configuredHost, true},
+					{"no configured endpoint", tc.productionHost, false},
+				} {
+					t.Run(cfg.name, func(t *testing.T) {
+						t.Parallel()
+						ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+							delete(c.API.Endpoints, tc.endpoint.String())
+							if cfg.configured {
+								c.API.Endpoints[tc.endpoint.String()] = cfg.host
+							}
+						})
+						conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+						require.NoError(t, err, "the derivatives stream connection must be registered")
+						assert.Equal(t, cfg.host+tc.route, conn.GetURL(), "the derivatives stream connection should take its product's configured host plus its route")
+					})
+				}
+			})
+		}
+
+		// Binance documents each product's market stream limit, but none for COIN-M user data streams or the options
+		// /private route, so those private connections take their product's market stream limit
+		t.Run("limits each stream connection to its product's market stream limit", func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, authenticated)
+			for _, tc := range []struct {
+				name   string
+				filter any
+				limit  int
+			}{
+				{"spot", asset.Spot, 1024},
+				{"USD-M public", usdtmPublicFilter, 1024},
+				{"USD-M market", usdtmMarketFilter, 1024},
+				{"USD-M private", usdtmPrivateFilter, 1024},
+				{"COIN-M market", coinmFilter, 1024},
+				{"COIN-M private at the COIN-M market stream limit", coinmPrivateFilter, 1024},
+				{"options public", optionsPublicFilter, 200},
+				{"options market", optionsMarketFilter, 200},
+				{"options private at the options market stream limit", optionsPrivateFilter, 200},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+					require.NoError(t, err, "CreateTestConnection must not error")
+					require.NoError(t, ex.Websocket.TrackTestConnection(tc.filter, conn), "TrackTestConnection must not error")
+					// The limit check runs before the duplicate check, so with a subscription already registered first, a
+					// batch within the limit stops at the duplicate and one past it is refused by the limit, both before
+					// anything is sent
+					registered := &subscription.Subscription{Channel: "registered"}
+					require.NoError(t, ex.Websocket.AddSubscriptions(conn, registered), "AddSubscriptions must not error")
+					batch := func(size int) subscription.List {
+						subs := subscription.List{registered}
+						for i := 1; i < size; i++ {
+							subs = append(subs, &subscription.Subscription{Channel: strconv.Itoa(i)})
+						}
+						return subs
+					}
+					err = ex.Websocket.SubscribeToChannels(t.Context(), conn, batch(tc.limit))
+					assert.ErrorIsf(t, err, subscription.ErrDuplicate, "SubscribeToChannels should take %d subscriptions within the limit", tc.limit)
+					err = ex.Websocket.SubscribeToChannels(t.Context(), conn, batch(tc.limit+1))
+					assert.Errorf(t, err, "SubscribeToChannels should refuse %d subscriptions", tc.limit+1)
+					assert.NotErrorIsf(t, err, subscription.ErrDuplicate, "SubscribeToChannels should refuse %d subscriptions at the limit check", tc.limit+1)
+				})
+			}
+		})
+
+		// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
+		// configuration saved before the endpoint existed keeps the production one
+		const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
+		for _, tc := range []struct {
+			name, configured, exp string
+		}{
+			{"WebSocket API endpoint not configured", "", binanceWebsocketAPIURL},
+			{"WebSocket API endpoint configured", testnetAPIURL, testnetAPIURL},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+					delete(c.API.Endpoints, exchange.WebsocketTrade.String())
+					if tc.configured != "" {
+						c.API.Endpoints[exchange.WebsocketTrade.String()] = tc.configured
+					}
+				})
+				conn, err := ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+				require.NoError(t, err, "the WebSocket API connection must be registered")
+				assert.Equal(t, tc.exp, conn.GetURL(), "the WebSocket API connection should take the configured WebsocketTradeURL")
+			})
+		}
+	})
+	t.Run("takes only a host for each derivatives stream endpoint", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		for _, tc := range []struct {
+			name, configured string
+			endpoint         exchange.URL
+			err              error
+			filter, exp      string
+		}{
+			{name: "a USD-M stream URL", configured: "wss://fstream.binancefuture.com/public/stream", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a COIN-M stream URL", configured: "wss://dstream.binancefuture.com/stream", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "an options host with a query", configured: "wss://fstream.binancefuture.com?listenKey=1", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a COIN-M path without a host", configured: "/stream", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M scheme-relative URL", configured: "//fstream.binancefuture.com/public/stream", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "an options path with a query naming a host", configured: "/stream?next=wss://fstream.binancefuture.com", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a COIN-M opaque URI", configured: "wss:dstream.binancefuture.com", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a COIN-M user without a host", configured: "wss://user@", endpoint: exchange.WebsocketCoinMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M host with a user", configured: "wss://user@fstream.binancefuture.com", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a lone slash", configured: "/", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "an options host with an empty query", configured: "wss://fstream.binancefuture.com?", endpoint: exchange.WebsocketOptions, err: errStreamEndpointNotHost},
+			{name: "a USD-M port without a host", configured: "wss://:443", endpoint: exchange.WebsocketUSDTMargined, err: errStreamEndpointNotHost},
+			{name: "a USD-M host with a port", configured: "wss://fstream.binancefuture.com:443", endpoint: exchange.WebsocketUSDTMargined, filter: usdtmPublicFilter, exp: "wss://fstream.binancefuture.com:443/public/stream"},
+			{name: "a COIN-M host with a trailing slash", configured: "wss://dstream.binancefuture.com/", endpoint: exchange.WebsocketCoinMargined, filter: coinmFilter, exp: "wss://dstream.binancefuture.com/stream"},
+			{name: "a USD-M host with a trailing slash", configured: "wss://fstream.binancefuture.com/", endpoint: exchange.WebsocketUSDTMargined, filter: usdtmPrivateFilter, exp: "wss://fstream.binancefuture.com/private/stream"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				cfg := &config.Config{}
+				require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+				exchCfg, err := cfg.GetExchangeConfig("Binance")
+				require.NoError(t, err, "GetExchangeConfig must not error")
+				exchCfg.API.Endpoints[tc.endpoint.String()] = tc.configured
+				ex := new(Exchange)
+				ex.SetDefaults()
+				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				ex.Accounts = accounts.MustNewAccounts(ex)
+				err = ex.Setup(exchCfg)
+				require.ErrorIsf(t, err, tc.err, "Setup must return the expected error for %s", tc.name)
+				if tc.err != nil {
+					assert.ErrorContainsf(t, err, tc.endpoint.String(), "Setup should name the endpoint for %s", tc.name)
+					return
+				}
+				conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+				require.NoError(t, err, "the derivatives stream connection must be registered")
+				assert.Equal(t, tc.exp, conn.GetURL(), "the derivatives stream connection should take the host without its trailing slash")
+			})
+		}
+	})
+	t.Run("streams a saved configuration's subscriptions and the derivatives defaults it leaves out", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		saved, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+		require.NoError(t, err, "ReadFile must read the test configuration")
+		// Version 23 is the last before Binance had derivatives streams
+		saved, err = jsonparser.Set(saved, []byte("23"), "version")
+		require.NoError(t, err, "Set must replace the configuration's version")
+		binanceIndex, i := -1, 0
+		_, err = jsonparser.ArrayEach(saved, func(exch []byte, _ jsonparser.ValueType, _ int, _ error) {
+			if name, _ := jsonparser.GetString(exch, "name"); name == "Binance" {
+				binanceIndex = i
+			}
+			i++
+		}, "exchanges")
+		require.NoError(t, err, "ArrayEach must read the configuration's exchanges")
+		require.NotEqual(t, -1, binanceIndex, "the test configuration must hold Binance")
+		derivatives := []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options}
+		spotTicker := func() *subscription.Subscription {
+			return &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot}
+		}
+		for _, tc := range []struct {
+			name, subscriptions string
+			exp                 subscription.List
+			defaults            []asset.Item
+			// refused are the assets whose order book streams refuse the list's all-assets order book subscription at each
+			// interval, which their order book connections report as partial generation
+			refused map[kline.Interval][]asset.Item
+			// mixedCaseFields saves the list under features and subscriptions fields in mixed case, which the loader reads
+			mixedCaseFields bool
+		}{
+			{
+				name:          "previous defaults",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp:           defaultSubscriptions.Clone(),
+			},
+			{
+				name:          "previous defaults with another candle interval",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
+					{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+				},
+				defaults: derivatives,
+			},
+			{
+				name:          "previous defaults without candles",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+				},
+				defaults: derivatives,
+			},
+			{
+				name:          "customised subscriptions",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+				},
+				defaults: derivatives,
+			},
+			{
+				name:          "disabled subscriptions alone",
+				subscriptions: `[{"enabled":false,"channel":"ticker","asset":"spot"}]`,
+				exp:           subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}},
+				defaults:      derivatives,
+			},
+			{
+				name:          "a ticker saved without an asset",
+				subscriptions: `[{"enabled":true,"channel":"ticker"}]`,
+				exp:           subscription.List{{Enabled: true, Channel: subscription.TickerChannel}},
+				defaults:      derivatives,
+			},
+			{
+				name:          "a spot ticker saved in upper case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"SPOT"}]`,
+				exp:           subscription.List{spotTicker()},
+				defaults:      derivatives,
+			},
+			{
+				name:          "a USDⓈ-M ticker saved in mixed case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"USDTMarginedFutures"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				defaults: []asset.Item{asset.CoinMarginedFutures, asset.Options},
+			},
+			{
+				name:          "COIN-M candles without an order book",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"5m"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.CoinMarginedFutures, Interval: kline.FiveMin},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				defaults: []asset.Item{asset.USDTMarginedFutures, asset.Options},
+			},
+			{
+				name:          "a disabled COIN-M order book",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"coinmarginedfutures","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				defaults: []asset.Item{asset.USDTMarginedFutures, asset.Options},
+			},
+			{
+				name:          "my orders of USDⓈ-M",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"myOrders","asset":"usdtmarginedfutures","authenticated":true}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: asset.USDTMarginedFutures, Authenticated: true},
+				},
+				defaults: derivatives,
+			},
+			{
+				name:          "my orders of all assets",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.MyOrdersChannel, Asset: asset.All, Authenticated: true},
+				},
+				defaults: derivatives,
+			},
+			{
+				name:          "an all-assets ticker",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "an all-assets ticker beside a spot one",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "an all-assets ticker beside a USDⓈ-M one",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "a disabled all-assets order book saved in upper case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "a disabled all-assets order book alone",
+				subscriptions: `[{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
+				exp:           subscription.List{{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}},
+			},
+			{
+				name:          "an all-assets order book at an update speed the futures streams refuse",
+				subscriptions: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives},
+			},
+			{
+				name:          "an all-assets ticker beside an all-assets order book the futures streams refuse",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives},
+			},
+			{
+				name:          "an all-assets order book the futures streams refuse beside one they take",
+				subscriptions: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.FiveHundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives, kline.FiveHundredMilliseconds: {asset.Spot}},
+			},
+			{
+				name:          "an all-assets ticker saved under features and subscriptions in mixed case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				mixedCaseFields: true,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				data, err := jsonparser.Set(slices.Clone(saved), []byte(tc.subscriptions), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
+				require.NoError(t, err, "Set must replace Binance's subscriptions")
+				if tc.mixedCaseFields {
+					exch, _, _, err := jsonparser.Get(data, "exchanges", "["+strconv.Itoa(binanceIndex)+"]")
+					require.NoError(t, err, "Get must read Binance's configuration")
+					features, _, _, err := jsonparser.Get(exch, "features")
+					require.NoError(t, err, "Get must read Binance's features")
+					features, err = jsonparser.Set(jsonparser.Delete(slices.Clone(features), "subscriptions"), []byte(tc.subscriptions), "sUbScRiPtIoNs")
+					require.NoError(t, err, "Set must save the subscriptions in mixed case")
+					exch, err = jsonparser.Set(jsonparser.Delete(slices.Clone(exch), "features"), features, "FeAtUrEs")
+					require.NoError(t, err, "Set must save the features in mixed case")
+					data, err = jsonparser.Set(data, exch, "exchanges", "["+strconv.Itoa(binanceIndex)+"]")
+					require.NoError(t, err, "Set must replace Binance's configuration")
+				}
+				path := filepath.Join(t.TempDir(), "config.json")
+				require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
+				cfg := &config.Config{}
+				require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load and migrate the configuration")
+				exchCfg, err := cfg.GetExchangeConfig("Binance")
+				require.NoError(t, err, "GetExchangeConfig must not error")
+				assert.Equal(t, tc.exp, exchCfg.Features.Subscriptions, "the saved subscriptions should load as expected")
+				ex := new(Exchange)
+				ex.SetDefaults()
+				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				ex.Accounts = accounts.MustNewAccounts(ex)
+				require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+				taken := tc.exp.Enabled()
+				for _, s := range defaultSubscriptions {
+					if slices.Contains(tc.defaults, s.Asset) {
+						taken = append(taken, s.Clone())
+					}
+				}
+				assert.Equal(t, taken, ex.Features.Subscriptions, "Setup should take the enabled saved subscriptions and the defaults of each derivatives asset they leave out")
+				assert.Equal(t, tc.exp, exchCfg.Features.Subscriptions, "Setup should leave the saved subscriptions as they are")
+				var exp, streamed []string
+				expected := make(common.Seen[string])
+				for _, s := range taken {
+					if s.Channel == subscription.MyOrdersChannel {
+						// myOrders has no stream of its own
+						continue
+					}
+					assets := []asset.Item{s.Asset}
+					switch s.Asset {
+					case asset.Empty:
+						assets = []asset.Item{asset.Spot}
+					case asset.All:
+						assets = slices.DeleteFunc(append([]asset.Item{asset.Spot}, derivatives...), func(a asset.Item) bool {
+							return s.Channel == subscription.OrderbookChannel && slices.Contains(tc.refused[s.Interval], a)
+						})
+					}
+					for _, a := range assets {
+						pairs, err := ex.GetEnabledPairs(a)
+						require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+						for _, p := range pairs {
+							if name := a.String() + " " + s.Channel + " " + s.Interval.Short() + " " + p.Base.Upper().String() + "/" + p.Quote.Upper().String(); !expected.CheckAndRecord(name) {
+								exp = append(exp, name)
+							}
+						}
+					}
+				}
+				for _, g := range []struct {
+					asset    asset.Item
+					books    bool
+					generate func(context.Context) (subscription.List, error)
+				}{
+					{asset.Spot, true, ex.generateSubscriptions},
+					{asset.USDTMarginedFutures, true, ex.generateUSDTMarginedFuturesPublicSubscriptions},
+					{asset.USDTMarginedFutures, false, ex.generateUSDTMarginedFuturesMarketSubscriptions},
+					{asset.CoinMarginedFutures, true, ex.generateCoinMarginedFuturesSubscriptions},
+					{asset.Options, true, ex.generateOptionsPublicSubscriptions},
+					{asset.Options, false, ex.generateOptionsMarketSubscriptions},
+				} {
+					subs, err := g.generate(t.Context())
+					if g.books && slices.ContainsFunc(taken, func(s *subscription.Subscription) bool {
+						return s.Asset == asset.All && s.Channel == subscription.OrderbookChannel && slices.Contains(tc.refused[s.Interval], g.asset)
+					}) {
+						require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s order book connection must report the subscription its streams refuse", g.asset)
+						unsupported := errUnsupportedStreamOption
+						if g.asset == asset.Spot {
+							unsupported = errUnsupportedFrequency
+						}
+						assert.ErrorIsf(t, err, unsupported, "the %s order book connection should report the update speed its streams refuse", g.asset)
+						assert.NotErrorIsf(t, err, errOrderbookSubscriptionConflict, "the %s order book connection should report no conflict between order books", g.asset)
+					} else {
+						require.NoErrorf(t, err, "the %s stream connection must generate its subscriptions", g.asset)
+					}
+					for _, s := range subs {
+						for _, p := range s.Pairs {
+							streamed = append(streamed, s.Asset.String()+" "+s.Channel+" "+s.Interval.Short()+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
+						}
+					}
+				}
+				assert.ElementsMatch(t, exp, streamed, "the stream connections should stream each subscription Setup takes once for each enabled pair of its asset")
+			})
+		}
+		t.Run("subscribes a saved list on its connections", func(t *testing.T) {
+			t.Parallel()
+			for _, tc := range []struct {
+				name, list string
+				// exp gives the streams each connection subscribes, from a function listing an asset's streams of the names
+				// given for each of its enabled pairs
+				exp func(streams func(asset.Item, ...string) []string) map[string][]string
+				// refused reports whether the order book connections refuse the list's all-assets order book
+				refused bool
+			}{
+				{
+					name: "a customised list and the derivatives defaults",
+					list: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker", "trade", "kline_5m", "depth@100ms"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker", "aggTrade", "kline_1m"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "aggTrade", "kline_1m", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker", "optionTrade", "depth@100ms"),
+							"options /market/stream": streams(asset.Options, "kline_1m"),
+						}
+					},
+				},
+				{
+					name: "COIN-M candles without an order book",
+					list: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"5m"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker", "aggTrade", "kline_1m"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "kline_5m", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker", "optionTrade", "depth@100ms"),
+							"options /market/stream": streams(asset.Options, "kline_1m"),
+						}
+					},
+				},
+				{
+					name: "all-assets order books at 1s and at 500ms",
+					list: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "depth"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@500ms"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "depth@500ms"),
+							"options /public/stream": streams(asset.Options, "depth@500ms"),
+						}
+					},
+					refused: true,
+				},
+				{
+					name: "an all-assets ticker",
+					list: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker"),
+						}
+					},
+				},
+				{
+					name: "an all-assets ticker beside an all-assets order book the futures streams refuse",
+					list: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker", "depth"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker"),
+						}
+					},
+					refused: true,
+				},
+				{
+					name: "an all-assets order book at an update speed the futures streams refuse",
+					list: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":          streams(asset.Spot, "depth"),
+							"USDⓈ-M /public/stream": streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"COIN-M /stream":        streams(asset.CoinMarginedFutures, "depth@100ms"),
+						}
+					},
+					refused: true,
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					data, err := jsonparser.Set(slices.Clone(saved), []byte(tc.list), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
+					require.NoError(t, err, "Set must replace Binance's subscriptions")
+					path := filepath.Join(t.TempDir(), "config.json")
+					require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
+					cfg := &config.Config{}
+					require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load and migrate the configuration")
+					exchCfg, err := cfg.GetExchangeConfig("Binance")
+					require.NoError(t, err, "GetExchangeConfig must not error")
+					for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testUSDTMarginedFuturesPair, asset.CoinMarginedFutures: testCoinMarginedFuturesPair, asset.Options: testOptionsPair} {
+						require.NoErrorf(t, exchCfg.CurrencyPairs.EnablePair(a, p), "EnablePair must enable a second %s pair", a)
+					}
+					var mu sync.Mutex
+					subscribed := make(map[string][]string)
+					for _, endpoint := range []struct {
+						url        exchange.URL
+						name, path string
+					}{
+						{exchange.WebsocketSpot, "spot", "/stream"},
+						{exchange.WebsocketUSDTMargined, "USDⓈ-M", ""},
+						{exchange.WebsocketCoinMargined, "COIN-M", ""},
+						{exchange.WebsocketOptions, "options", ""},
+						{exchange.WebsocketTrade, "WebSocket API", "/ws-api/v3"},
+					} {
+						s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+								var req struct {
+									ID     json.RawMessage `json:"id"`
+									Method string          `json:"method"`
+									Params []string        `json:"params"`
+								}
+								if err := json.Unmarshal(msg, &req); err != nil {
+									return err
+								}
+								if req.Method == wsSubscribeMethod {
+									route := endpoint.name + " " + r.URL.Path
+									mu.Lock()
+									subscribed[route] = append(subscribed[route], req.Params...)
+									mu.Unlock()
+								}
+								return c.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%s}`, req.ID))
+							})
+						}))
+						s.Start()
+						exchCfg.API.Endpoints[endpoint.url.String()] = "ws" + strings.TrimPrefix(s.URL, "http") + endpoint.path
+					}
+					ex := new(Exchange)
+					ex.SetDefaults()
+					ex.Websocket = sharedtestvalues.NewTestWebsocket()
+					ex.Accounts = accounts.MustNewAccounts(ex)
+					require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+					t.Cleanup(func() {
+						// Disabled first, as the connection monitor would otherwise redial the closed mock servers
+						assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+						if err := ex.Websocket.Shutdown(); err != nil {
+							assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+						}
+					})
+					err = ex.Websocket.Connect(t.Context())
+					if tc.refused {
+						require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "Connect must report the order book the futures and options streams refuse")
+						assert.ErrorIs(t, err, errUnsupportedStreamOption, "Connect should report the update speed the futures and options streams refuse")
+					} else {
+						require.NoError(t, err, "Connect must not error")
+					}
+					streams := func(a asset.Item, names ...string) []string {
+						t.Helper()
+						pairs, err := ex.GetEnabledPairs(a)
+						require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+						all := make([]string, 0, len(names)*len(pairs))
+						for _, p := range pairs {
+							symbol, err := ex.FormatSymbol(p, a)
+							require.NoErrorf(t, err, "FormatSymbol must not error for %s", p)
+							for _, name := range names {
+								all = append(all, strings.ToLower(symbol)+"@"+name)
+							}
+						}
+						slices.Sort(all)
+						return all
+					}
+					mu.Lock()
+					defer mu.Unlock()
+					for _, names := range subscribed {
+						slices.Sort(names)
+					}
+					assert.Equal(t, tc.exp(streams), subscribed, "each connection should subscribe its share of the subscriptions Setup takes")
+				})
+			}
+		})
+	})
+	t.Run("takes the exchange's own subscriptions once for a configuration without features", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		cfg := &config.Config{}
+		require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+		exchCfg, err := cfg.GetExchangeConfig("Binance")
+		require.NoError(t, err, "GetExchangeConfig must not error")
+		exchCfg.Features = nil
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		ex.Accounts = accounts.MustNewAccounts(ex)
+		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+		assert.Equal(t, defaultSubscriptions.Clone(), ex.Features.Subscriptions, "Setup should take the exchange's own subscriptions once each")
+	})
+	t.Run("adds the derivatives defaults a saved list leaves out with the websocket and every asset disabled", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		cfg := &config.Config{}
+		require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+		exchCfg, err := cfg.GetExchangeConfig("Binance")
+		require.NoError(t, err, "GetExchangeConfig must not error")
+		spotTicker := &subscription.Subscription{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot}
+		exchCfg.Features.Subscriptions = subscription.List{spotTicker}
+		exchCfg.Features.Enabled.Websocket = false
+		for _, a := range exchCfg.CurrencyPairs.GetAssetTypes(false) {
+			require.NoErrorf(t, exchCfg.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+		}
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Websocket = sharedtestvalues.NewTestWebsocket()
+		ex.Accounts = accounts.MustNewAccounts(ex)
+		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+		exp := subscription.List{spotTicker}
+		for _, s := range defaultSubscriptions {
+			if s.Asset != asset.Spot {
+				exp = append(exp, s.Clone())
+			}
+		}
+		assert.Equal(t, exp, ex.Features.Subscriptions, "Setup should add the derivatives defaults, which a later enabled asset or websocket streams")
+	})
+}

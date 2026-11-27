@@ -1730,6 +1730,7 @@ func TestString(t *testing.T) {
 		{RestSpotSupplementary, restSpotSupplementaryURL},
 		{RestUSDTMargined, restUSDTMarginedFuturesURL},
 		{RestCoinMargined, restCoinMarginedFuturesURL},
+		{RestOptions, restOptionsURL},
 		{RestFutures, restFuturesURL},
 		{RestFuturesSupplementary, restFuturesSupplementaryURL},
 		{RestUSDCMargined, restUSDCMarginedFuturesURL},
@@ -1885,7 +1886,7 @@ func TestAssetWebsocketFunctionality(t *testing.T) {
 	}
 }
 
-func TestGetGetURLTypeFromString(t *testing.T) {
+func TestGetURLTypeFromString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		Endpoint string
@@ -1896,6 +1897,7 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: restSpotSupplementaryURL, Expected: RestSpotSupplementary},
 		{Endpoint: restUSDTMarginedFuturesURL, Expected: RestUSDTMargined},
 		{Endpoint: restCoinMarginedFuturesURL, Expected: RestCoinMargined},
+		{Endpoint: restOptionsURL, Expected: RestOptions},
 		{Endpoint: restFuturesURL, Expected: RestFutures},
 		{Endpoint: restFuturesSupplementaryURL, Expected: RestFuturesSupplementary},
 		{Endpoint: restUSDCMarginedFuturesURL, Expected: RestUSDCMargined},

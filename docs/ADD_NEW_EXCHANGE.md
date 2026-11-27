@@ -496,26 +496,26 @@ type OrderResponse struct {
 For `POST` or `DELETE` requests, params are sent through a query params:
 
 ```go
-// NewOrder sends a new test order to Binance
-func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*OrderResponse, error) {
+// NewOrder sends in a new order
+func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*NewOrderResponse, error) {
     symbol, err := e.FormatSymbol(o.Symbol, asset.Spot)
     if err != nil {
-        return err
+        return nil, err
     }
     params := url.Values{}
     params.Set("symbol", symbol)
-    params.Set("side", o.Side)
-    params.Set("type", string(o.TradeType))
-    if o.QuoteOrderQty > 0 {
-        params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQty, 'f', -1, 64))
+    params.Set("side", string(o.Side))
+    params.Set("type", string(o.Type))
+    if o.QuoteOrderQuantity > 0 {
+        params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQuantity, 'f', -1, 64))
     } else {
         params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
     }
-    if o.TradeType == BinanceRequestParamsOrderLimit {
+    if o.Price > 0 {
         params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
     }
     if o.TimeInForce != "" {
-        params.Set("timeInForce", o.TimeInForce)
+        params.Set("timeInForce", string(o.TimeInForce))
     }
 
     if o.NewClientOrderID != "" {
@@ -526,15 +526,15 @@ func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*OrderResp
         params.Set("stopPrice", strconv.FormatFloat(o.StopPrice, 'f', -1, 64))
     }
 
-    if o.IcebergQty != 0 {
-        params.Set("icebergQty", strconv.FormatFloat(o.IcebergQty, 'f', -1, 64))
+    if o.IcebergQuantity != 0 {
+        params.Set("icebergQty", strconv.FormatFloat(o.IcebergQuantity, 'f', -1, 64))
     }
 
-    if o.NewOrderRespType != "" {
-        params.Set("newOrderRespType", o.NewOrderRespType)
+    if o.NewOrderResponseType != "" {
+        params.Set("newOrderRespType", string(o.NewOrderResponseType))
     }
-    var resp *OrderResponse
-    return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, orderEndpoint, params, spotOrderRate, resp)
+    var resp *NewOrderResponse
+    return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/order", params, spotOrderRate, &resp)
 }
 ```
 

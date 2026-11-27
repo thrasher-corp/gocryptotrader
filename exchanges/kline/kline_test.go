@@ -379,6 +379,7 @@ func TestDurationToWord(t *testing.T) {
 		{"twentymillisec", TwentyMilliseconds},
 		{"hundredmillisec", HundredMilliseconds},
 		{"twohundredfiftymillisec", TwoHundredAndFiftyMilliseconds},
+		{"fivehundredmillisec", FiveHundredMilliseconds},
 		{"thousandmillisec", ThousandMilliseconds},
 		{"tensec", TenSecond},
 		{"fifteensecond", FifteenSecond},

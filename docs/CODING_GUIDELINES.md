@@ -97,6 +97,28 @@ Never relay an empty batch.
     }
 ```
 
+### Enumerated Values
+
+- Give each string parameter that takes a fixed set of documented values, such as an order type, time in force or a futures working type, a named type with an underlying `string`, and export its documented values as constants of that type in one documented `const` group, so callers need no copies of their own and the field's type leads to its values:
+
+```go
+    // WorkingType is the workingType parameter of a conditional futures order
+    type WorkingType string
+
+    // Working types, the price that triggers a conditional futures order
+    const (
+        WorkingTypeContractPrice WorkingType = "CONTRACT_PRICE"
+        WorkingTypeMarkPrice     WorkingType = "MARK_PRICE"
+    )
+```
+
+- Name each constant after its type and value, spelling out abbreviated values: `TimeInForceGoodTillCrossing` for `GTX` and `TimeInForceImmediateOrCancel` for `IOC`.
+- Use the named type for request fields and parameters, and for the response and stream fields that carry the same values, so callers can compare them with the constants directly. Leave a field as `string` when its values differ from the parameter's, for example when a response reports them in a different case.
+- Keep the set open: do not check values against a hard-coded list, and let the exchange reject an unsupported value. Such lists go stale and reject valid values. A value the exchange adds later is sent by converting it, for example `WorkingType("NEW_VALUE")`. Validate only required parameters, documented mutual exclusions and values the code must translate.
+- Convert values to `string` where they meet a string API such as `url.Values.Set`. Code that type-switches on `string`, such as a request signature builder, must handle named string types too, or it will encode them as JSON.
+- Declare each type and its constants at the top of the exchange's types file, using the shared one when several API families take the same values. When products or endpoints accept different subsets, say which in the group comment.
+- Keep the exchange's spelling of a wire value, even a misspelt one, and give the constant a correctly spelt name, for example `IncomeTypeDeliveredSettlement IncomeType = "DELIVERED_SETTELMENT" //nolint:misspell // Binance's spelling of the wire value`.
+
 ### TestMain usage
 
 - TestMain must avoid API calls, so that individual unit tests can run quickly. Use sync.Once or similar patterns to bootstrap common data without burdening all unit tests with the same overhaed. See `UpdatePairsOnce` for an example of this.
@@ -194,6 +216,11 @@ Migration code lives in [config/versions](../config/versions), with each version
 - Updating defaults or example configurations does not migrate existing installations. Test a representative configuration from the previous version through the real configuration loader.
 - When no migration is needed, explain why existing configurations remain compatible and whether retaining their previous behaviour is intentional.
 - Preserve explicit user choices. Apply default-changing migrations only to configurations that can be reliably identified as using the previous defaults.
+
+### Default Subscriptions
+
+- An exchange set up with no saved subscriptions saves the default subscriptions its `SetDefaults` sets into its configuration and reads them from there afterwards, so later changes to those defaults never reach that configuration. When a change adds, removes or alters them, add a migration for that exchange that replaces saved subscriptions still matching the previous defaults, the whole list or single entries, with the new ones and restores the previous defaults on downgrade, as the Bitstamp and Binance migrations in [config/versions](../config/versions) do for whole lists. Upgrade the exchange's saved subscriptions in `config_example.json` and `testdata/configtest.json` as the migration would.
+- Customised lists that such a migration leaves alone can still lose data. If the change makes data depend on subscriptions a customised list may lack, such as the order books of an asset the exchange newly supports over websocket, which the engine then no longer polls over REST while the websocket stays connected, keep that data flowing: for example, add the asset's enabled default subscriptions at runtime, without saving them, when the saved list has no market data subscription for the asset, enabled or not, so that a disabled one opts the asset out.
 
 ### Migration Guards
 

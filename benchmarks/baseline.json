@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 41005,
-    "bytes": 10277414,
+    "allocs": 42651,
+    "bytes": 10787800,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Bitstamp's perpetual contracts in testdata/configtest.json, gave medians from 41005 to 41034. 0.4% is about 164 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts, Bitstamp's perpetual contracts and Binance's options pairs in testdata/configtest.json, gave medians from 42651 to 42665. 0.4% is about 171 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
@@ -201,37 +201,41 @@
     "allocs": 1,
     "bytes": 32
   },
-  "exchanges/binance.BenchmarkWsHandleData/BalanceUpdate": {
-    "allocs": 3,
-    "bytes": 240
+  "exchanges/binance.BenchmarkWebsocketHandleData/BalanceUpdate": {
+    "allocs": 4,
+    "bytes": 176
   },
-  "exchanges/binance.BenchmarkWsHandleData/Depth": {
+  "exchanges/binance.BenchmarkWebsocketHandleData/Depth": {
+    "allocs": 10,
+    "bytes": 632
+  },
+  "exchanges/binance.BenchmarkWebsocketHandleData/ExecutionReport": {
+    "allocs": 24,
+    "bytes": 1672
+  },
+  "exchanges/binance.BenchmarkWebsocketHandleData/Kline": {
+    "allocs": 5,
+    "bytes": 592
+  },
+  "exchanges/binance.BenchmarkWebsocketHandleData/ListStatus": {
     "allocs": 8,
-    "bytes": 400
+    "bytes": 880
   },
-  "exchanges/binance.BenchmarkWsHandleData/ExecutionReport": {
-    "allocs": 9,
-    "bytes": 74782
+  "exchanges/binance.BenchmarkWebsocketHandleData/OutboundAccountPosition": {
+    "allocs": 16,
+    "bytes": 1688
   },
-  "exchanges/binance.BenchmarkWsHandleData/Kline": {
-    "allocs": 5,
-    "bytes": 608
+  "exchanges/binance.BenchmarkWebsocketHandleData/PartialDepth": {
+    "allocs": 12,
+    "bytes": 816
   },
-  "exchanges/binance.BenchmarkWsHandleData/ListStatus": {
-    "allocs": 5,
-    "bytes": 560
-  },
-  "exchanges/binance.BenchmarkWsHandleData/OutboundAccountPosition": {
+  "exchanges/binance.BenchmarkWebsocketHandleData/Ticker": {
     "allocs": 6,
-    "bytes": 464
+    "bytes": 688
   },
-  "exchanges/binance.BenchmarkWsHandleData/Ticker": {
+  "exchanges/binance.BenchmarkWebsocketHandleData/Trade": {
     "allocs": 6,
-    "bytes": 664
-  },
-  "exchanges/binance.BenchmarkWsHandleData/Trade": {
-    "allocs": 1,
-    "bytes": 32
+    "bytes": 360
   },
   "exchanges/currencystate.BenchmarkGetCurrencyStateSnapshot/1": {
     "allocs": 2,
@@ -578,10 +582,10 @@
     "bytes": 13552
   },
   "internal/testing/exchange.BenchmarkSetup": {
-    "allocs": 6071,
-    "bytes": 1035671,
+    "allocs": 10159,
+    "bytes": 1595694,
     "allocs_tolerance": 0.0005,
-    "reason": "the median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians of 6071 allocs/op, with single samples from 6070 to 6073. 0.05% is three allocations above the budget, which covers that range"
+    "reason": "Binance's setup on this branch configures more websocket connections and assets than master's, so the budget is this branch's own. The median moves by an allocation or two between runs: BENCH_FLAGS runs in November 2026 gave medians from 10159 to 10160 allocs/op, with single samples from 10157 to 10162. 0.05% is five allocations above the budget, which covers that range"
   },
   "log.BenchmarkCustomLogHookBypass/Infof": {
     "allocs": 4,
