@@ -200,6 +200,8 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 			}
 			if sub.Channel == futuresOrderbookV2 {
 				sub.QualifiedChannel = "ob." + sub.Pairs[0].String() + "." + strconv.FormatUint(futuresOrderbookV2Limit, 10)
+			} else {
+				sub.QualifiedChannel = sub.Channel + ":" + sub.Pairs[0].String()
 			}
 			subscriptions = append(subscriptions, sub)
 		}

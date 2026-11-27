@@ -24,9 +24,10 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 	for z := range pairs {
 		for _, channel := range []string{chanOrderbook, chanPublicTrade, chanPublicTicker} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channel,
-				Pairs:   currency.Pairs{pairs[z]},
-				Asset:   asset.Options,
+				Channel:          channel,
+				QualifiedChannel: channel + ":" + pairs[z].String(),
+				Pairs:            currency.Pairs{pairs[z]},
+				Asset:            asset.Options,
 			})
 		}
 	}
