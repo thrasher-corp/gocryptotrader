@@ -445,11 +445,11 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 	return input, nil
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	return defaultSpotPrivateSubscriptions.ExpandTemplates(e)
 }
 

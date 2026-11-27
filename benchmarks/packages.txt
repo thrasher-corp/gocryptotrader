@@ -25,7 +25,7 @@ exchange/request
 exchange/sharedtestvalues
 exchange/websocket/orderbookmanager
 exchanges/binance
-exchanges/gateio
+exchanges/gate
 exchanges/htx
 exchanges/kucoin
 exchanges/okx

@@ -11,7 +11,7 @@ import (
 )
 
 // GenerateOptionsDefaultSubscriptions generates default subscription
-func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateOptionsDefaultSubscriptions(_ context.Context) (subscription.List, error) {
 	pairs, err := e.GetEnabledPairs(asset.Options)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {

@@ -231,7 +231,7 @@ func handleWSError(respRaw []byte) error {
 	return fmt.Errorf("%w: %s", errWebsocketError, wsErr.Message)
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return normaliseSubscriptions(e.Features.Subscriptions).ExpandTemplates(e)
 }
 

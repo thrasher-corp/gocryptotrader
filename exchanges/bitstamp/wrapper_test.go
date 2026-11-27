@@ -374,7 +374,7 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
 			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			subs, err := ex.generateSubscriptions()
+			subs, err := ex.generateSubscriptions(t.Context())
 			require.NoError(t, err, "generateSubscriptions must not error")
 			channels := make([]string, len(subs))
 			for i := range subs {

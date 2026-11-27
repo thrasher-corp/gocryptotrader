@@ -77,7 +77,7 @@ func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer 
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return e.Base.Features.Subscriptions.Clone(), nil
 		},
 		Subscriber:    func(context.Context, websocket.Connection, subscription.List) error { return nil },
@@ -371,6 +371,16 @@ func BenchmarkSetup(b *testing.B) {
 	for b.Loop() {
 		require.NoError(b, Setup(new(binance.Exchange)), "Setup must not error")
 	}
+}
+
+func TestSetupWithConfig(t *testing.T) {
+	b := new(binance.Exchange)
+	require.NoError(t, SetupWithConfig(b, func(c *config.Exchange) { c.Verbose = true }), "SetupWithConfig must not error")
+	assert.True(t, b.IsVerbose(), "SetupWithConfig should set the exchange up from the changed config")
+
+	b = new(binance.Exchange)
+	require.NoError(t, SetupWithConfig(b, nil), "SetupWithConfig must not error without a configure function")
+	assert.False(t, b.IsVerbose(), "SetupWithConfig should leave the test config unchanged without a configure function")
 }
 
 // TestMockHTTPInstance exercises MockHTTPInstance

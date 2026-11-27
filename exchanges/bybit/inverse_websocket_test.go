@@ -13,7 +13,7 @@ func TestGenerateInverseDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.GenerateInverseDefaultSubscriptions()
+	subs, err := e.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 	assert.NotEmpty(t, subs, "Subscriptions should not be empty")
 	for i := range subs {
@@ -23,7 +23,7 @@ func TestGenerateInverseDefaultSubscriptions(t *testing.T) {
 	err = e.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, false)
 	require.NoError(t, err, "SetAssetEnabled must not error")
 
-	subs, err = e.GenerateInverseDefaultSubscriptions()
+	subs, err = e.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 	assert.Empty(t, subs, "Subscriptions should be empty when asset is disabled")
 }
@@ -34,7 +34,7 @@ func TestInverseSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	subs, err := e.GenerateInverseDefaultSubscriptions()
+	subs, err := e.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 
 	err = e.InverseSubscribe(t.Context(), &FixtureConnection{}, subs)
@@ -47,7 +47,7 @@ func TestInverseUnsubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	subs, err := e.GenerateInverseDefaultSubscriptions()
+	subs, err := e.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 
 	err = e.InverseSubscribe(t.Context(), &FixtureConnection{}, subs)
