@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
@@ -75,6 +76,16 @@ func copyExchangeConfig(src *config.Exchange) (*config.Exchange, error) {
 // Setup takes an empty exchange instance, sets it up with its own copy of its testdata/configtest.json config and
 // attaches a NewTestWebsocket
 func Setup(e exchange.IBotExchange, verbose ...bool) error {
+	return SetupWithConfig(e, func(exchConf *config.Exchange) {
+		if len(verbose) > 0 {
+			exchConf.Verbose = verbose[0]
+		}
+	})
+}
+
+// SetupWithConfig is Setup with configure applied to the exchange's own copy of its test config before the exchange is
+// set up, such as to turn on useSandbox
+func SetupWithConfig(e exchange.IBotExchange, configure func(*config.Exchange)) error {
 	cfg, err := testConfig()
 	if err != nil {
 		return err
@@ -89,8 +100,8 @@ func Setup(e exchange.IBotExchange, verbose ...bool) error {
 	if err != nil {
 		return fmt.Errorf("%s %w", eName, err)
 	}
-	if len(verbose) > 0 {
-		exchConf.Verbose = verbose[0]
+	if configure != nil {
+		configure(exchConf)
 	}
 
 	b := e.GetBase()
@@ -159,6 +170,7 @@ func (s *mockHTTPServer) newClient() (*http.Client, error) {
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to the mock http server for its package's
 // recording, which every instance mocked from that recording shares
+// It disables the exchange's rate limiter, since requests to the local server need no throttling
 func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) error {
 	s, err := getMockHTTPServer(httpMockFile)
 	if err != nil {
@@ -172,6 +184,9 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	if err := b.DisableRateLimiter(); err != nil && !errors.Is(err, request.ErrRateLimiterAlreadyDisabled) {
+		return fmt.Errorf("error disabling rate limiter: %w", err)
+	}
 	if err := b.SetHTTPClient(newClient); err != nil {
 		return fmt.Errorf("error setting HTTP client: %w", err)
 	}

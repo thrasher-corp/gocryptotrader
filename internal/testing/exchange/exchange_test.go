@@ -77,7 +77,7 @@ func newMultiConnectionSetupExchange(tb testing.TB, websocketURL string, dialer 
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return e.Base.Features.Subscriptions.Clone(), nil
 		},
 		Subscriber:    func(context.Context, websocket.Connection, subscription.List) error { return nil },
@@ -373,6 +373,16 @@ func BenchmarkSetup(b *testing.B) {
 	}
 }
 
+func TestSetupWithConfig(t *testing.T) {
+	b := new(binance.Exchange)
+	require.NoError(t, SetupWithConfig(b, func(c *config.Exchange) { c.Verbose = true }), "SetupWithConfig must not error")
+	assert.True(t, b.IsVerbose(), "SetupWithConfig should set the exchange up from the changed config")
+
+	b = new(binance.Exchange)
+	require.NoError(t, SetupWithConfig(b, nil), "SetupWithConfig must not error without a configure function")
+	assert.False(t, b.IsVerbose(), "SetupWithConfig should leave the test config unchanged without a configure function")
+}
+
 // TestMockHTTPInstance exercises MockHTTPInstance
 // It runs serially, as several cases change the working directory
 func TestMockHTTPInstance(t *testing.T) {
@@ -386,6 +396,7 @@ func TestMockHTTPInstance(t *testing.T) {
 		b := new(binance.Exchange)
 		require.NoError(t, Setup(b), "Test exchange Setup must not error")
 		require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance with no optional path must not error")
+		assert.ErrorIs(t, b.DisableRateLimiter(), request.ErrRateLimiterAlreadyDisabled, "MockHTTPInstance should disable the rate limiter")
 		require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
 	})
 
@@ -403,7 +414,7 @@ func TestMockHTTPInstance(t *testing.T) {
 	})
 
 	t.Run("exchange without a requester", func(t *testing.T) {
-		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance should return the error setting the client")
+		assert.ErrorIs(t, MockHTTPInstance(new(binance.Exchange)), request.ErrRequestSystemIsNil, "MockHTTPInstance should error without a requester")
 	})
 
 	t.Run("invalid recording", func(t *testing.T) {

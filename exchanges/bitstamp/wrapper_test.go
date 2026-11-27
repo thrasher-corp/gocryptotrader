@@ -62,7 +62,6 @@ func newTestInstance(t *testing.T) *Exchange {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = t.Name()
 	require.NoError(t, testexch.MockHTTPInstance(ex, "api"), "MockHTTPInstance must not error")
-	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	return ex
 }
 
@@ -375,7 +374,7 @@ func TestLoadPreviousVersionConfig(t *testing.T) {
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
 			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			subs, err := ex.generateSubscriptions()
+			subs, err := ex.generateSubscriptions(t.Context())
 			require.NoError(t, err, "generateSubscriptions must not error")
 			channels := make([]string, len(subs))
 			for i := range subs {

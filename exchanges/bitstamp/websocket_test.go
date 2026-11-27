@@ -588,7 +588,7 @@ func TestNormaliseSubscriptions(t *testing.T) {
 	ex := newWebsocketTestInstance(t)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ex.Features.Subscriptions = subscription.List{settlements}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 1, "an account channel configured for every asset must only be subscribed once")
 	assert.Equal(t, channelMySettlements, subs[0].QualifiedChannel, "the account channel should be subscribed")
@@ -805,7 +805,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		&subscription.Subscription{Enabled: true, Channel: channelAnnouncements},
 		&subscription.Subscription{Enabled: true, Channel: channelMySettlements, Authenticated: true},
 	)
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 
 	exp := subscription.List{}
@@ -834,7 +834,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error without authentication")
 	assert.Empty(t, subs.Private(), "generateSubscriptions should not return authenticated subscriptions without authentication")
 }

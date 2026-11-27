@@ -159,7 +159,7 @@ func newDefaultSetup() *ManagerSetup {
 		Connector:    func() error { return nil },
 		Subscriber:   func(subscription.List) error { return nil },
 		Unsubscriber: func(subscription.List) error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{
 				{Channel: "TestSub"},
 				{Channel: "TestSub2", Key: "purple"},
@@ -268,7 +268,7 @@ func TestSetup(t *testing.T) {
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
-	websocketSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	websocketSetup.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return nil, nil }
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errDefaultURLIsEmpty)
 
@@ -470,7 +470,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("generate subscriptions error", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return nil, errDastardlyReason
 				},
 			})
@@ -488,7 +488,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			ws := newConfiguredMultiManager(t, nil)
 			partialSetup := &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					partialCalls++
 					return partialSubs, fmt.Errorf("%w: %w", ErrSubscriptionPartial, errDastardlyReason)
 				},
@@ -497,7 +497,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			}
 			healthySetup := &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					healthyCalls++
 					return healthySubs, nil
 				},
@@ -538,7 +538,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("missing connector", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 			})
@@ -550,7 +550,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("missing handler", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector: func(context.Context, Connection) error {
@@ -565,7 +565,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("missing subscriber", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector: func(context.Context, Connection) error {
@@ -581,7 +581,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("connector error", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector: func(context.Context, Connection) error {
@@ -601,7 +601,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 				Authenticate: func(context.Context, Connection) error {
 					return errDastardlyReason
 				},
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector:  dial,
@@ -616,7 +616,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("subscriber error", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector: dial,
@@ -634,7 +634,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("missing recorded subscriptions", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector:  dial,
@@ -651,7 +651,7 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 		t.Run("successful connect and send raw message", func(t *testing.T) {
 			ws := newConfiguredMultiManager(t, &ConnectionSetup{
 				URL: mockURL,
-				GenerateSubscriptions: func() (subscription.List, error) {
+				GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 					return testSubs, nil
 				},
 				Connector: dial,
@@ -699,6 +699,40 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 	})
 }
 
+// TestGenerateSubscriptionsReceivesCallerContext ensures generators run under the context given to Connect and
+// FlushChannels, as they may make REST calls that must honour its cancellation and credentials
+func TestGenerateSubscriptionsReceivesCallerContext(t *testing.T) {
+	t.Parallel()
+
+	type contextKey struct{}
+	for _, multi := range []bool{false, true} {
+		t.Run(fmt.Sprintf("multi connection %t", multi), func(t *testing.T) {
+			t.Parallel()
+
+			ws := NewManager()
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			var seen []any
+			generate := func(ctx context.Context) (subscription.List, error) {
+				seen = append(seen, ctx.Value(contextKey{}))
+				return nil, nil
+			}
+			setup := newDefaultSetup()
+			setup.UseMultiConnectionManagement = multi
+			setup.GenerateSubscriptions = generate
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			ws.trafficTimeout = time.Minute
+			if multi {
+				ws.connectionManager = []*websocket{{setup: &ConnectionSetup{URL: "wss://testConnectionURL", GenerateSubscriptions: generate}}}
+			}
+
+			require.NoError(t, ws.Connect(context.WithValue(t.Context(), contextKey{}, "connect")), "Connect must not error")
+			require.NoError(t, ws.FlushChannels(context.WithValue(t.Context(), contextKey{}, "flush")), "FlushChannels must not error")
+			assert.Equal(t, []any{"connect", "flush"}, seen, "generator should receive the contexts passed to Connect and FlushChannels")
+			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		})
+	}
+}
+
 func TestConnectTrackOnExistingConnectionManagerRecordsTrackedSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -713,7 +747,7 @@ func TestConnectTrackOnExistingConnectionManagerRecordsTrackedSubscriptions(t *t
 		Connector: func(context.Context, Connection) error {
 			return errors.New("connector should not be called for tracked-only batch")
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{trackedSub}, nil
 		},
 		Subscriber:   func(context.Context, Connection, subscription.List) error { return nil },
@@ -930,7 +964,7 @@ func TestConnect(t *testing.T) {
 						Connector: func(ctx context.Context, conn Connection) error {
 							return conn.Dial(ctx, dialer, nil, nil)
 						},
-						GenerateSubscriptions: func() (subscription.List, error) {
+						GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 							subs := make(subscription.List, tc.subscriptions)
 							for i := range subs {
 								subs[i] = &subscription.Subscription{Channel: tc.filter + strconv.Itoa(i)}
@@ -1193,7 +1227,7 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 				dials.Add(1)
 				return conn.Dial(ctx, dialer, nil, nil)
 			},
-			GenerateSubscriptions: func() (subscription.List, error) {
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 				return subscription.List{{Channel: "test"}}, nil
 			},
 			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
@@ -1242,7 +1276,7 @@ func TestConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T
 		setup.RunningURL = wsURL
 		// Cleanup gives the connection monitor five seconds to stop, so its cycle must not follow the default
 		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
-		setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+		setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return nil, nil }
 		require.NoError(t, ws.Setup(setup), "Setup must not error")
 		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
 
@@ -1286,7 +1320,7 @@ func newRetryTestManager(t *testing.T, multiConnection bool, wsURL string, diale
 			Connector: func(ctx context.Context, conn Connection) error {
 				return conn.Dial(ctx, dialer, nil, nil)
 			},
-			GenerateSubscriptions: func() (subscription.List, error) {
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 				return subscription.List{{Channel: "test"}}, nil
 			},
 			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
@@ -1480,13 +1514,13 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 	t.Parallel()
 
 	singleConn := NewManager()
-	singleConn.GenerateSubs = func() (subscription.List, error) {
+	singleConn.GenerateSubs = func(context.Context) (subscription.List, error) {
 		return subscription.List{{Channel: "single"}}, nil
 	}
 
 	singleConn.SetSubscriptionsNotRequired()
 
-	subs, err := singleConn.GenerateSubs()
+	subs, err := singleConn.GenerateSubs(t.Context())
 	require.NoError(t, err, "GenerateSubs must not error after subscriptions are disabled")
 	assert.Empty(t, subs, "GenerateSubs should return no subscriptions after subscriptions are disabled")
 
@@ -2135,7 +2169,7 @@ type GenSubs struct {
 }
 
 // generateSubs default subs created from the enabled pairs list
-func (g *GenSubs) generateSubs() (subscription.List, error) {
+func (g *GenSubs) generateSubs(context.Context) (subscription.List, error) {
 	superduperchannelsubs := make(subscription.List, len(g.EnabledPairs))
 	for i := range g.EnabledPairs {
 		superduperchannelsubs[i] = &subscription.Subscription{
@@ -2174,10 +2208,11 @@ func TestDisable(t *testing.T) {
 func TestEnable(t *testing.T) {
 	t.Parallel()
 	w := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, w) })
 	w.connector = noopConnect
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.Enable(t.Context()), "Enable must not error")
 	assert.ErrorIs(t, w.Enable(t.Context()), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
 }
@@ -2189,6 +2224,9 @@ func TestSetupNewConnection(t *testing.T) {
 	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
 	nonsenseWebsock = &Manager{}
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{})
+	assert.ErrorIs(t, err, errExchangeConfigEmpty, "SetupNewConnection should error on an empty connection setup")
+
 	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "SetupNewConnection should error correctly")
 
@@ -2232,7 +2270,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
-	connSetup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	connSetup.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return nil, nil }
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketSubscriberUnset)
 
@@ -2271,7 +2309,7 @@ func TestSetupNewConnection(t *testing.T) {
 			URL:                   "urlstring",
 			MaxSubscriptions:      -1,
 			Connector:             func(context.Context, Connection) error { return nil },
-			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
 			Handler:               func(context.Context, Connection, []byte) error { return nil },
@@ -2329,7 +2367,7 @@ func TestGetConfiguredWebsocketURLs(t *testing.T) {
 	connSetupOne := &ConnectionSetup{
 		URL:                   "wss://one.example/ws",
 		Connector:             func(context.Context, Connection) error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
 		Handler:               func(context.Context, Connection, []byte) error { return nil },
@@ -2340,7 +2378,7 @@ func TestGetConfiguredWebsocketURLs(t *testing.T) {
 	connSetupTwo := &ConnectionSetup{
 		URL:                   "wss://two.example/ws",
 		Connector:             func(context.Context, Connection) error { return nil },
-		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return nil, nil },
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
 		Handler:               func(context.Context, Connection, []byte) error { return nil },
