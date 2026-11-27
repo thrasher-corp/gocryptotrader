@@ -135,24 +135,24 @@ func TestGeneratePublicSubscriptions(t *testing.T) { //nolint:tparallel // Cases
 	pair := pairs[0]
 
 	t.Run("with authentication", func(t *testing.T) {
-		public, err := ex.generatePublicSubscriptions()
+		public, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		testsubs.EqualLists(t, publicTestSubscriptions(pair), public)
 	})
 	t.Run("without authentication", func(t *testing.T) {
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		public, err := ex.generatePublicSubscriptions()
+		public, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error without authentication")
 		assert.Len(t, public, 4, "generatePublicSubscriptions should not depend on authentication")
 	})
 	t.Run("unsupported channel", func(t *testing.T) {
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel}}
-		_, err := ex.generatePublicSubscriptions()
+		_, err := ex.generatePublicSubscriptions(t.Context())
 		assert.ErrorIs(t, err, subscription.ErrNotSupported, "generatePublicSubscriptions should reject a channel LBank doesn't stream")
 	})
 	t.Run("unsupported candle interval", func(t *testing.T) {
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.TwoHour}}
-		_, err := ex.generatePublicSubscriptions()
+		_, err := ex.generatePublicSubscriptions(t.Context())
 		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generatePublicSubscriptions should reject a candle interval LBank doesn't stream")
 	})
 }
@@ -164,7 +164,7 @@ func TestGenerateAccountSubscriptions(t *testing.T) { //nolint:tparallel // Case
 	require.NoError(t, err, "GetEnabledPairs must not error")
 	require.Len(t, pairs, 1, "the test exchange must enable one spot pair")
 	t.Run("with authentication", func(t *testing.T) {
-		account, err := ex.generateAccountSubscriptions()
+		account, err := ex.generateAccountSubscriptions(t.Context())
 		require.NoError(t, err, "generateAccountSubscriptions must not error")
 		exp := subscription.List{
 			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsOrderUpdateChannel},
@@ -174,14 +174,14 @@ func TestGenerateAccountSubscriptions(t *testing.T) { //nolint:tparallel // Case
 	})
 	t.Run("without authentication", func(t *testing.T) {
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		account, err := ex.generateAccountSubscriptions()
+		account, err := ex.generateAccountSubscriptions(t.Context())
 		require.NoError(t, err, "generateAccountSubscriptions must not error without authentication")
 		assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authentication")
 	})
 	// The public and account connections generate their subscriptions on one exchange, so each must leave the other's
 	// alone
 	t.Run("public subscriptions after", func(t *testing.T) {
-		public, err := ex.generatePublicSubscriptions()
+		public, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error after the account subscriptions")
 		testsubs.EqualLists(t, publicTestSubscriptions(pairs[0]), public)
 	})
@@ -190,35 +190,35 @@ func TestGenerateAccountSubscriptions(t *testing.T) { //nolint:tparallel // Case
 		var first subscription.List
 		t.Run("public", func(t *testing.T) {
 			var err error
-			first, err = seq.generatePublicSubscriptions()
+			first, err = seq.generatePublicSubscriptions(t.Context())
 			require.NoError(t, err, "generatePublicSubscriptions must not error")
 			testsubs.EqualLists(t, publicTestSubscriptions(pairs[0]), first)
 		})
 		t.Run("account", func(t *testing.T) {
-			account, err := seq.generateAccountSubscriptions()
+			account, err := seq.generateAccountSubscriptions(t.Context())
 			require.NoError(t, err, "generateAccountSubscriptions must not error after the public subscriptions")
 			testsubs.EqualLists(t, accountSubscriptions(), account)
 		})
 		t.Run("account without authentication", func(t *testing.T) {
 			seq.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			account, err := seq.generateAccountSubscriptions()
+			account, err := seq.generateAccountSubscriptions(t.Context())
 			require.NoError(t, err, "generateAccountSubscriptions must not error without authentication")
 			assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authentication")
 		})
 		t.Run("public again", func(t *testing.T) {
-			public, err := seq.generatePublicSubscriptions()
+			public, err := seq.generatePublicSubscriptions(t.Context())
 			require.NoError(t, err, "generatePublicSubscriptions must not error after the account subscriptions")
 			testsubs.EqualLists(t, publicTestSubscriptions(pairs[0]), public)
 			testsubs.EqualLists(t, publicTestSubscriptions(pairs[0]), first)
 		})
 		t.Run("unsupported channel", func(t *testing.T) {
 			seq.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel}}
-			_, err := seq.generatePublicSubscriptions()
+			_, err := seq.generatePublicSubscriptions(t.Context())
 			assert.ErrorIs(t, err, subscription.ErrNotSupported, "generatePublicSubscriptions should reject a channel LBank doesn't stream after the account subscriptions")
 		})
 		t.Run("unsupported candle interval", func(t *testing.T) {
 			seq.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.TwoHour}}
-			_, err := seq.generatePublicSubscriptions()
+			_, err := seq.generatePublicSubscriptions(t.Context())
 			assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generatePublicSubscriptions should reject a candle interval LBank doesn't stream after the account subscriptions")
 		})
 	})

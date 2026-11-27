@@ -1259,7 +1259,7 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 	ku := testInstance(t)
 	for _, authenticated := range []bool{false, true} {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-		subs, err := ku.generateSpotSubscriptions()
+		subs, err := ku.generateSpotSubscriptions(t.Context())
 		require.NoErrorf(t, err, "generateSpotSubscriptions must not error with authentication=%t", authenticated)
 		require.NotEmpty(t, subs, "generateSpotSubscriptions must generate the default spot and margin subscriptions")
 		for _, s := range subs {
@@ -1267,11 +1267,11 @@ func TestGenerateSpotSubscriptions(t *testing.T) {
 		}
 	}
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.CandlesChannel, Asset: asset.Futures, Interval: kline.SixHour}}
-	_, err := ku.generateSpotSubscriptions()
+	_, err := ku.generateSpotSubscriptions(t.Context())
 	require.NoError(t, err, "generateSpotSubscriptions must not fail on a futures candle interval, which only the futures connection carries")
 	ku.CurrencyPairs.Pairs[asset.Spot].RequestFormat = nil
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}}
-	_, err = ku.generateSpotSubscriptions()
+	_, err = ku.generateSpotSubscriptions(t.Context())
 	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateSpotSubscriptions must return a generation error")
 }
 
@@ -1280,7 +1280,7 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	ku := testInstance(t)
 	for _, authenticated := range []bool{false, true} {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-		subs, err := ku.generateFuturesSubscriptions()
+		subs, err := ku.generateFuturesSubscriptions(t.Context())
 		require.NoErrorf(t, err, "generateFuturesSubscriptions must not error with authentication=%t", authenticated)
 		require.NotEmpty(t, subs, "generateFuturesSubscriptions must generate the default futures subscriptions")
 		for _, s := range subs {
@@ -1289,7 +1289,7 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	}
 	ku.CurrencyPairs.Pairs[asset.Futures].RequestFormat = nil
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Futures}}
-	_, err := ku.generateFuturesSubscriptions()
+	_, err := ku.generateFuturesSubscriptions(t.Context())
 	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "generateFuturesSubscriptions must return a generation error")
 }
 
@@ -1427,14 +1427,14 @@ func TestGenerateSubscriptionsFuturesCandleInterval(t *testing.T) {
 		{Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.SixHour},
 		{Channel: subscription.TickerChannel, Asset: asset.Futures},
 	}
-	subs, err := ku.generateFuturesSubscriptions()
+	subs, err := ku.generateFuturesSubscriptions(t.Context())
 	require.ErrorIs(t, err, errUnsupportedCandleInterval, "generateFuturesSubscriptions must report a candle interval the futures websocket does not push")
 	require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateFuturesSubscriptions must report the dropped candles as a partial failure")
 	require.NotEmpty(t, subs, "generateFuturesSubscriptions must keep the other futures subscriptions")
 	for _, s := range subs {
 		assert.NotEqual(t, subscription.CandlesChannel, s.Channel, "generateFuturesSubscriptions should leave out the six hour candles")
 	}
-	spotSubs, err := ku.generateSpotSubscriptions()
+	spotSubs, err := ku.generateSpotSubscriptions(t.Context())
 	require.NoError(t, err, "generateSpotSubscriptions must not error for six hour candles, which spot pushes")
 	assert.True(t, slices.ContainsFunc(spotSubs, func(s *subscription.Subscription) bool { return strings.HasSuffix(s.QualifiedChannel, "_6hour") }), "spot six hour candles should be kept")
 	pairs, err := ku.GetEnabledPairs(asset.Futures)
@@ -1444,7 +1444,7 @@ func TestGenerateSubscriptionsFuturesCandleInterval(t *testing.T) {
 			{Channel: channel, Asset: asset.Futures, Interval: kline.FourHour},
 			{Channel: channel, Asset: asset.Futures, Interval: kline.SixHour},
 		}
-		subs, err = ku.generateFuturesSubscriptions()
+		subs, err = ku.generateFuturesSubscriptions(t.Context())
 		require.ErrorIsf(t, err, errUnsupportedCandleInterval, "generateFuturesSubscriptions must report six hour candles on %s", channel)
 		require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "generateFuturesSubscriptions must report six hour candles on %s as a partial failure", channel)
 		require.Lenf(t, subs, len(pairs), "generateFuturesSubscriptions must keep the four hour candles of each futures pair on %s", channel)
@@ -2210,8 +2210,8 @@ func TestGenerateRealtimeOrderbooksLeavesLevel1FedPairs(t *testing.T) {
 func orderbookWriters(t *testing.T, ex *Exchange) (writers map[string][]string, partial error) {
 	t.Helper()
 	writers = make(map[string][]string)
-	for _, generate := range []func() (subscription.List, error){ex.generateSpotSubscriptions, ex.generateFuturesSubscriptions} {
-		subs, err := generate()
+	for _, generate := range []func(context.Context) (subscription.List, error){ex.generateSpotSubscriptions, ex.generateFuturesSubscriptions} {
+		subs, err := generate(t.Context())
 		if err != nil {
 			require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generating Classic subscriptions must not fail outright")
 			partial = common.AppendError(partial, err)
@@ -2338,7 +2338,7 @@ func TestGenerateOrderbooksExplicitDepthGivesWayToUTA(t *testing.T) {
 			if tc.kept == "" {
 				continue
 			}
-			subs, err := ex.generateSpotSubscriptions()
+			subs, err := ex.generateSpotSubscriptions(t.Context())
 			require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s with authentication %t: generateSpotSubscriptions must report a partial failure", tc.name, authenticated)
 			var depth subscription.List
 			for _, s := range subs {
@@ -2371,7 +2371,7 @@ func TestGenerateOrderbooksPreExpandedBatch(t *testing.T) {
 			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc, eth}, QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT,ETH-USDT"},
 			{Enabled: true, Channel: UTAOrderbookChannel, Asset: asset.Spot, Levels: 5, Pairs: currency.Pairs{btc}},
 		}
-		subs, err := ex.generateSpotSubscriptions()
+		subs, err := ex.generateSpotSubscriptions(t.Context())
 		require.NoErrorf(t, err, "generateSpotSubscriptions must not error with authentication %t", tc.authenticated)
 		var books subscription.List
 		for _, sub := range subs {

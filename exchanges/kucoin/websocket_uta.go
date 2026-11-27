@@ -124,13 +124,15 @@ func (e *Exchange) newUTASpotPublicConnection(exch *config.Exchange, wsURL strin
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		ConnectionRateLimiter: newUTAPublicConnectionLimiter,
 		Connector:             e.UTAWebsocketConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateUTASubscriptions(utaSpotPublicConnection) },
-		Subscriber:            e.UTASubscribe,
-		Unsubscriber:          e.UTAUnsubscribe,
-		Handler:               e.wsHandleUTAData,
-		OnDisconnect:          e.invalidateOrderbooks,
-		MessageFilter:         utaSpotPublicConnection,
-		Optional:              true,
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
+			return e.generateUTASubscriptions(utaSpotPublicConnection)
+		},
+		Subscriber:    e.UTASubscribe,
+		Unsubscriber:  e.UTAUnsubscribe,
+		Handler:       e.wsHandleUTAData,
+		OnDisconnect:  e.invalidateOrderbooks,
+		MessageFilter: utaSpotPublicConnection,
+		Optional:      true,
 	}
 }
 
@@ -142,13 +144,15 @@ func (e *Exchange) newUTAFuturesPublicConnection(exch *config.Exchange, wsURL st
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		ConnectionRateLimiter: newUTAPublicConnectionLimiter,
 		Connector:             e.UTAWebsocketConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateUTASubscriptions(utaFuturesPublicConnection) },
-		Subscriber:            e.UTASubscribe,
-		Unsubscriber:          e.UTAUnsubscribe,
-		Handler:               e.wsHandleUTAData,
-		OnDisconnect:          e.invalidateOrderbooks,
-		MessageFilter:         utaFuturesPublicConnection,
-		Optional:              true,
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
+			return e.generateUTASubscriptions(utaFuturesPublicConnection)
+		},
+		Subscriber:    e.UTASubscribe,
+		Unsubscriber:  e.UTAUnsubscribe,
+		Handler:       e.wsHandleUTAData,
+		OnDisconnect:  e.invalidateOrderbooks,
+		MessageFilter: utaFuturesPublicConnection,
+		Optional:      true,
 	}
 }
 
@@ -161,12 +165,14 @@ func (e *Exchange) newUTAPrivateConnection(exch *config.Exchange, wsURL string) 
 		ConnectionRateLimiter: newUTAPrivateConnectionLimiter,
 		Connector:             e.UTAWebsocketConnect,
 		Authenticate:          e.AuthenticateUTAPrivateWebsocket,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateUTASubscriptions(utaPrivateConnection) },
-		Subscriber:            e.UTASubscribe,
-		Unsubscriber:          e.UTAUnsubscribe,
-		Handler:               e.wsHandleUTAData,
-		MessageFilter:         utaPrivateConnection,
-		Optional:              true,
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
+			return e.generateUTASubscriptions(utaPrivateConnection)
+		},
+		Subscriber:    e.UTASubscribe,
+		Unsubscriber:  e.UTAUnsubscribe,
+		Handler:       e.wsHandleUTAData,
+		MessageFilter: utaPrivateConnection,
+		Optional:      true,
 	}
 }
 

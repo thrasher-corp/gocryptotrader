@@ -20,11 +20,31 @@ func TestCurrenciesUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal(encoded, &unmarshalHere)
 	require.NoError(t, err)
 	require.Equal(t, expected, unmarshalHere.Join())
+	assert.Equal(t, []string{"btc", "usd", "ltc", "bro", "things"}, unmarshalHere.Strings(), "a comma separated string should read as one code per entry")
 
 	j := []byte(`["btc","usd","ltc","bro","things"]`)
 	err = json.Unmarshal(j, &unmarshalHere)
 	require.NoError(t, err)
 	require.Len(t, unmarshalHere, 5)
+
+	// Cases run in order, as Unmarshal adds the codes it reads to the package's shared currency storage
+	for _, tc := range []struct {
+		name, input string
+		expected    []string
+	}{
+		{name: "single code", input: `"GT"`, expected: []string{"GT"}},
+		{name: "spaced codes and empty entries", input: `" GT , USDT ,,"`, expected: []string{"GT", "USDT"}},
+		{name: "empty string", input: `""`, expected: []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var c Currencies
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &c), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.expected, c.Strings(), "Unmarshal should read %s as its comma separated codes", tc.input)
+		})
+	}
+
+	var c Currencies
+	assert.Error(t, json.Unmarshal([]byte(`"GT`), &c), "Unmarshal should error on an unterminated string")
 }
 
 func TestCurrenciesMarshalJSON(t *testing.T) {

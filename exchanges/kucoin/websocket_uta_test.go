@@ -245,7 +245,7 @@ func TestNewUTASpotPublicConnection(t *testing.T) {
 		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{utaSpotTestPair}},
 		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}},
 	}
-	subs, err := c.GenerateSubscriptions()
+	subs, err := c.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateSubscriptions must not error")
 	require.Len(t, subs, 1, "GenerateSubscriptions must generate the spot ticker alone")
 	assert.Equal(t, asset.Spot, subs[0].Asset, "GenerateSubscriptions should generate the spot ticker")
@@ -273,7 +273,7 @@ func TestNewUTAFuturesPublicConnection(t *testing.T) {
 		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{utaSpotTestPair}},
 		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{utaFuturesTestPair}},
 	}
-	subs, err := c.GenerateSubscriptions()
+	subs, err := c.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateSubscriptions must not error")
 	require.Len(t, subs, 1, "GenerateSubscriptions must generate the futures ticker alone")
 	assert.Equal(t, asset.Futures, subs[0].Asset, "GenerateSubscriptions should generate the futures ticker")
@@ -330,7 +330,7 @@ func TestNewUTAPrivateConnection(t *testing.T) {
 		{Enabled: true, Channel: UTATickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{utaSpotTestPair}},
 		{Enabled: true, Channel: UTAAllOrdersChannel},
 	}
-	subs, err := c.GenerateSubscriptions()
+	subs, err := c.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateSubscriptions must not error")
 	require.Len(t, subs, 1, "GenerateSubscriptions must generate the order channel alone")
 	assert.Equal(t, UTAAllOrdersChannel, subs[0].Channel, "GenerateSubscriptions should generate the order channel")

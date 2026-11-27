@@ -698,7 +698,7 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 }
 
 // generateSpotSubscriptions returns the subscriptions the spot and margin connection carries
-func (e *Exchange) generateSpotSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSpotSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return nil, err
@@ -708,7 +708,7 @@ func (e *Exchange) generateSpotSubscriptions() (subscription.List, error) {
 
 // generateFuturesSubscriptions returns the subscriptions the futures connection carries. The futures websocket pushes no
 // six hour candles, so a configuration asking for them loses only those subscriptions, reported as a partial failure
-func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return nil, err
