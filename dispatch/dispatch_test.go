@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -76,6 +77,48 @@ func TestStartStop(t *testing.T) {
 	err = d.stop()
 	assert.NoError(t, err, "stop should not error")
 	assert.False(t, d.isRunning(), "IsRunning should return false")
+
+	t.Run("stop counts out the pipes it closes", func(t *testing.T) {
+		t.Parallel()
+		d := NewDispatcher()
+		require.NoError(t, d.start(0, 0), "start must not error")
+		t.Cleanup(func() {
+			if d.isRunning() {
+				assert.NoError(t, d.stop(), "stop should not error")
+			}
+		})
+		mux := GetNewMux(d)
+		id, err := mux.GetID()
+		require.NoError(t, err, "GetID must not error")
+		pipes := make([]Pipe, 2)
+		for i := range pipes {
+			pipes[i], err = mux.Subscribe(id)
+			require.NoError(t, err, "Subscribe must not error")
+		}
+		require.Equal(t, int32(2), d.subscriberCount.Load(), "both subscriptions must be counted")
+
+		require.NoError(t, d.stop(), "stop must not error")
+		for i := range pipes {
+			select {
+			case _, ok := <-pipes[i].c:
+				assert.Falsef(t, ok, "stop should close pipe %d without sending to it", i)
+			default:
+				assert.Failf(t, "stop should close every pipe", "pipe %d is still open", i)
+			}
+		}
+		assert.Zero(t, d.subscriberCount.Load(), "stop should count out every pipe it closes")
+		require.NoError(t, pipes[0].Release(), "Release must not error while stopped")
+		assert.Zero(t, d.subscriberCount.Load(), "a pipe released while stopped should stay counted out")
+
+		require.NoError(t, d.start(0, 0), "start must not error")
+		assert.ErrorIs(t, pipes[1].Release(), errChannelNotFoundInUUIDRef, "a pipe closed by stop should be unknown after a restart")
+		assert.Zero(t, d.subscriberCount.Load(), "a pipe closed by stop should stay counted out after a restart")
+		p, err := mux.Subscribe(id)
+		require.NoError(t, err, "Subscribe must not error")
+		assert.Equal(t, int32(1), d.subscriberCount.Load(), "a new subscription should be counted")
+		require.NoError(t, p.Release(), "Release must not error")
+		assert.Zero(t, d.subscriberCount.Load(), "a released subscription should be counted out")
+	})
 }
 
 func TestSubscribe(t *testing.T) {
@@ -404,6 +447,180 @@ func TestMuxPublish(t *testing.T) {
 	// Shut down dispatch system
 	err = d.stop()
 	assert.NoError(t, err, "stop should not error")
+}
+
+func TestPipeWait(t *testing.T) {
+	t.Parallel()
+
+	waitContext := func(t *testing.T) context.Context {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		t.Cleanup(cancel)
+		return ctx
+	}
+
+	liveContext := func(t *testing.T) context.Context {
+		t.Helper()
+		return t.Context()
+	}
+
+	doneContext := func(t *testing.T) context.Context {
+		t.Helper()
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		return ctx
+	}
+
+	// waitBounded runs wait on another goroutine and requires it to return within five seconds
+	waitBounded := func(t *testing.T, wait func() (string, error)) (string, error) {
+		t.Helper()
+		type result struct {
+			got string
+			err error
+		}
+		done := make(chan result, 1)
+		go func() {
+			got, err := wait()
+			done <- result{got: got, err: err}
+		}()
+		select {
+		case r := <-done:
+			return r.got, r.err
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "Wait must return within five seconds")
+			return "", nil
+		}
+	}
+
+	t.Run("returns the next value as the requested type", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any, 1)}
+		p.c <- "update"
+		got, err := p.Wait[string](waitContext(t))
+		require.NoError(t, err, "Wait must not error")
+		assert.Equal(t, "update", got, "Wait should return the next value")
+	})
+
+	t.Run("returns the next value as an interface it implements", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any, 1)}
+		p.c <- time.Second
+		got, err := p.Wait[fmt.Stringer](waitContext(t))
+		require.NoError(t, err, "Wait must not error")
+		assert.Equal(t, time.Second, got, "Wait should return the next value")
+	})
+
+	t.Run("returns values in the order received", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any, 2)}
+		p.c <- "first"
+		p.c <- "second"
+		ctx := waitContext(t)
+		for _, want := range []string{"first", "second"} {
+			got, err := p.Wait[string](ctx)
+			require.NoError(t, err, "Wait must not error")
+			assert.Equal(t, want, got, "Wait should return the values in the order received")
+		}
+	})
+
+	t.Run("value of another type than the interface requested", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any, 1)}
+		p.c <- "update"
+		got, err := p.Wait[fmt.Stringer](waitContext(t))
+		assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "Wait should return a type assertion error")
+		assert.EqualError(t, err, "type assert failure from string to fmt.Stringer", "Wait should name the value's type and the requested type")
+		assert.Nil(t, got, "Wait should return the zero value")
+	})
+
+	t.Run("value of another type than the pointer requested", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any, 1)}
+		p.c <- 1
+		got, err := p.Wait[*int](waitContext(t))
+		assert.ErrorIs(t, err, common.ErrTypeAssertFailure, "Wait should return a type assertion error")
+		assert.EqualError(t, err, "type assert failure from int to *int", "Wait should name the value's type and the requested type")
+		assert.Nil(t, got, "Wait should return the zero value")
+	})
+
+	t.Run("closed pipe", func(t *testing.T) {
+		t.Parallel()
+		p := Pipe{c: make(chan any)}
+		close(p.c)
+		got, err := p.Wait[string](waitContext(t))
+		assert.ErrorIs(t, err, ErrPipeClosed, "Wait should return ErrPipeClosed")
+		assert.Same(t, ErrPipeClosed, err, "Wait should return ErrPipeClosed itself")
+		assert.Empty(t, got, "Wait should return the zero value")
+	})
+
+	t.Run("context already done", func(t *testing.T) {
+		t.Parallel()
+		ctx := doneContext(t)
+		p := Pipe{c: make(chan any)}
+		_, err := waitBounded(t, func() (string, error) { return p.Wait[string](ctx) })
+		assert.ErrorIs(t, err, context.Canceled, "Wait should return the context's error")
+	})
+
+	t.Run("deadline passes while waiting", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+		defer cancel()
+		p := Pipe{c: make(chan any)}
+		_, err := waitBounded(t, func() (string, error) { return p.Wait[string](ctx) })
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "Wait should return the context's error")
+	})
+
+	for _, tc := range []struct {
+		name    string
+		context func(*testing.T) context.Context
+	}{
+		{name: "live context", context: liveContext},
+		{name: "context already done", context: doneContext},
+	} {
+		t.Run("pipe without a channel/"+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := tc.context(t)
+			var p Pipe
+			got, err := waitBounded(t, func() (string, error) { return p.Wait[string](ctx) })
+			assert.ErrorIs(t, err, errChannelIsNil, "Wait should return errChannelIsNil")
+			assert.Empty(t, got, "Wait should return the zero value")
+		})
+
+		t.Run("nil pipe/"+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := tc.context(t)
+			var p *Pipe
+			got, err := waitBounded(t, func() (string, error) { return p.Wait[string](ctx) })
+			assert.ErrorIs(t, err, common.ErrNilPointer, "Wait should return common.ErrNilPointer")
+			assert.Empty(t, got, "Wait should return the zero value")
+		})
+	}
+
+	t.Run("published value then dispatcher stopped", func(t *testing.T) {
+		t.Parallel()
+		d := NewDispatcher()
+		require.NoError(t, d.start(0, 0), "start must not error")
+		t.Cleanup(func() {
+			if d.isRunning() {
+				assert.NoError(t, d.stop(), "stop should not error")
+			}
+		})
+		mux := GetNewMux(d)
+		id, err := mux.GetID()
+		require.NoError(t, err, "GetID must not error")
+		p, err := mux.Subscribe(id)
+		require.NoError(t, err, "Subscribe must not error")
+		require.NoError(t, mux.Publish("update", id), "Publish must not error")
+
+		ctx := waitContext(t)
+		got, err := p.Wait[string](ctx)
+		require.NoError(t, err, "Wait must not error")
+		assert.Equal(t, "update", got, "Wait should return the published value")
+
+		require.NoError(t, d.stop(), "stop must not error")
+		_, err = p.Wait[string](ctx)
+		assert.ErrorIs(t, err, ErrPipeClosed, "Wait should return ErrPipeClosed once the dispatcher has stopped")
+	})
 }
 
 func BenchmarkSubscribe(b *testing.B) {

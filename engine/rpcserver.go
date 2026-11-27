@@ -2016,19 +2016,6 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
-// receiveOrDone returns the next dispatched value, or the context's error once the client has gone away
-func receiveOrDone(ctx context.Context, ch <-chan any) (any, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case data, ok := <-ch:
-		if !ok {
-			return nil, errDispatchSystem
-		}
-		return data, nil
-	}
-}
-
 // GetOrderbookStream streams the requested updated orderbook
 func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stream gctrpc.GoCryptoTraderService_GetOrderbookStreamServer) error {
 	exch, a, p, err := s.exchangeAssetPair(r.GetExchange(), r.GetAssetType(), r.GetPair())
@@ -2088,14 +2075,9 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	}()
 
 	for {
-		data, err := receiveOrDone(stream.Context(), pipe.Channel())
+		d, err := pipe.Wait[orderbook.Outbound](stream.Context())
 		if err != nil {
 			return err
-		}
-
-		d, ok := data.(orderbook.Outbound)
-		if !ok {
-			return common.GetTypeAssertError("orderbook.Outbound", data)
 		}
 
 		resp := &gctrpc.OrderbookResponse{}
@@ -2160,14 +2142,9 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}()
 
 	for {
-		data, err := receiveOrDone(stream.Context(), pipe.Channel())
+		t, err := pipe.Wait[*ticker.Price](stream.Context())
 		if err != nil {
 			return err
-		}
-
-		t, ok := data.(*ticker.Price)
-		if !ok {
-			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		if err := stream.Send(s.tickerResponse(t)); err != nil {
@@ -2199,14 +2176,9 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	}()
 
 	for {
-		data, err := receiveOrDone(stream.Context(), pipe.Channel())
+		t, err := pipe.Wait[*ticker.Price](stream.Context())
 		if err != nil {
 			return err
-		}
-
-		t, ok := data.(*ticker.Price)
-		if !ok {
-			return common.GetTypeAssertError("*ticker.Price", data)
 		}
 
 		if err := stream.Send(s.tickerResponse(t)); err != nil {

@@ -1,7 +1,9 @@
 package dispatch
 
 import (
+	"context"
 	"errors"
+	"reflect"
 	"uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -86,4 +88,31 @@ func (p *Pipe) Release() error {
 // Channel returns the Pipe's channel
 func (p *Pipe) Channel() <-chan any {
 	return p.c
+}
+
+// Wait blocks until a value arrives, the Pipe's channel is closed or ctx is done. It returns the value as a T,
+// ErrPipeClosed for a closed channel, as the dispatcher closes its pipes when it stops, or the context's error; when
+// more than one is ready it may return any of them. A value that cannot be asserted to a T returns an error wrapping
+// common.ErrTypeAssertFailure, and a nil Pipe or the zero Pipe, which has no channel, returns an error at once
+func (p *Pipe) Wait[T any](ctx context.Context) (T, error) {
+	var zero T
+	if err := common.NilGuard(p); err != nil {
+		return zero, err
+	}
+	if p.c == nil {
+		return zero, errChannelIsNil
+	}
+	select {
+	case <-ctx.Done():
+		return zero, ctx.Err()
+	case data, ok := <-p.c:
+		if !ok {
+			return zero, ErrPipeClosed
+		}
+		v, ok := data.(T)
+		if !ok {
+			return zero, common.GetTypeAssertError(reflect.TypeFor[T]().String(), data)
+		}
+		return v, nil
+	}
 }

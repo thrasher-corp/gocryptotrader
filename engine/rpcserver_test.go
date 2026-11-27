@@ -5394,16 +5394,28 @@ type fakeServerStream[T any] struct {
 	grpc.ServerStream
 	context func() context.Context
 	sent    chan struct{}
+	mu      sync.Mutex
+	sends   []*T
 }
 
 func (f *fakeServerStream[T]) Context() context.Context { return f.context() }
 
-func (f *fakeServerStream[T]) Send(*T) error {
+func (f *fakeServerStream[T]) Send(m *T) error {
+	f.mu.Lock()
+	f.sends = append(f.sends, m)
+	f.mu.Unlock()
 	select {
 	case f.sent <- struct{}{}:
 	default:
 	}
 	return f.context().Err()
+}
+
+// responses returns every response passed to Send so far, including any whose send failed
+func (f *fakeServerStream[T]) responses() []*T {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.sends)
 }
 
 // newStreamTestServer returns a server whose exchange has a ticker and an orderbook for the returned pair, with the
@@ -5416,8 +5428,69 @@ func newStreamTestServer(t *testing.T) (s *RPCServer, exchangeName string, pair 
 		t.Cleanup(func() { assert.NoError(t, dispatch.Stop(), "Stop should not error") })
 	}
 	s, exchangeName, pair = newOrderbookTestServer(t)
-	require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: exchangeName, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 1, LastUpdated: time.Now()}), "ProcessTicker must not error")
+	process, _ := tickerProcessor(exchangeName)
+	require.NoError(t, process(), "ProcessTicker must not error")
 	return s, exchangeName, pair
+}
+
+// tickerProcessor returns a func that processes a BTCUSD spot ticker for the exchange, its last price one higher on
+// each call, and a func reporting whether a last price has been processed
+func tickerProcessor(exchangeName string) (process func() error, processed func(last float64) bool) {
+	var last float64
+	seen := make(map[float64]bool)
+	process = func() error {
+		last++
+		seen[last] = true
+		return ticker.ProcessTicker(&ticker.Price{ExchangeName: exchangeName, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: last, LastUpdated: time.Now()})
+	}
+	return process, func(last float64) bool { return seen[last] }
+}
+
+// bookProcessor returns a func that processes a BTCUSD spot orderbook for the exchange with a bid at 1 and an ask at 2
+func bookProcessor(exchangeName string) func() error {
+	return func() error {
+		return (&orderbook.Book{
+			Exchange: exchangeName,
+			Pair:     currency.NewBTCUSD(),
+			Asset:    asset.Spot,
+			Bids:     orderbook.Levels{{Price: 1, Amount: 1}},
+			Asks:     orderbook.Levels{{Price: 2, Amount: 1}},
+		}).Process()
+	}
+}
+
+// requireTestTickers requires each response to carry tickerProcessor's pair and a last price it processed, and no two
+// responses to carry the same last price, as the stream sends each update it receives once
+func requireTestTickers(t *testing.T, responses []*gctrpc.TickerResponse, processed func(last float64) bool) {
+	t.Helper()
+	require.GreaterOrEqual(t, len(responses), 2, "stream must have sent two tickers")
+	seen := make(map[float64]bool, len(responses))
+	for _, resp := range responses {
+		require.NotNil(t, resp, "stream must not send a nil ticker")
+		require.NotNil(t, resp.Pair, "ticker must have a pair")
+		assert.Equal(t, "BTC", resp.Pair.Base, "ticker should have the published pair's base")
+		assert.Equal(t, "USD", resp.Pair.Quote, "ticker should have the published pair's quote")
+		assert.Truef(t, processed(resp.Last), "ticker last price %v should be one that was processed", resp.Last)
+		assert.Falsef(t, seen[resp.Last], "ticker with last price %v should be sent once", resp.Last)
+		seen[resp.Last] = true
+	}
+}
+
+// requireTestBook requires resp to carry the orderbook bookProcessor processes
+func requireTestBook(t *testing.T, resp *gctrpc.OrderbookResponse) {
+	t.Helper()
+	require.NotNil(t, resp, "stream must have sent an orderbook")
+	assert.Empty(t, resp.Error, "orderbook should have no error")
+	require.NotNil(t, resp.Pair, "orderbook must have a pair")
+	assert.Equal(t, "BTC", resp.Pair.Base, "orderbook should have the published pair's base")
+	assert.Equal(t, "USD", resp.Pair.Quote, "orderbook should have the published pair's quote")
+	assert.Equal(t, asset.Spot.String(), resp.AssetType, "orderbook should have the published asset")
+	require.Len(t, resp.Bids, 1, "orderbook must have the published bid")
+	assert.Equal(t, 1.0, resp.Bids[0].Price, "orderbook should have the published bid price")
+	assert.Equal(t, 1.0, resp.Bids[0].Amount, "orderbook should have the published bid amount")
+	require.Len(t, resp.Asks, 1, "orderbook must have the published ask")
+	assert.Equal(t, 2.0, resp.Asks[0].Price, "orderbook should have the published ask price")
+	assert.Equal(t, 1.0, resp.Asks[0].Amount, "orderbook should have the published ask amount")
 }
 
 // newOrderbookTestServer returns a server whose exchange has a BTCUSD orderbook with a bid at 1 and an ask at 2
@@ -5426,14 +5499,7 @@ func newOrderbookTestServer(t *testing.T) (s *RPCServer, exchangeName string, pa
 	em := NewExchangeManager()
 	cp := currency.NewBTCUSD()
 	b := newFakeExchange(t, em, map[asset.Item]currency.Pairs{asset.Spot: {cp}})
-	book := &orderbook.Book{
-		Exchange: b.Name,
-		Pair:     cp,
-		Asset:    asset.Spot,
-		Bids:     orderbook.Levels{{Price: 1, Amount: 1}},
-		Asks:     orderbook.Levels{{Price: 2, Amount: 1}},
-	}
-	require.NoError(t, book.Process(), "Process must not error")
+	require.NoError(t, bookProcessor(b.Name)(), "Process must not error")
 	return &RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em}}, b.Name, &gctrpc.CurrencyPair{Base: cp.Base.String(), Quote: cp.Quote.String()}
 }
 
@@ -5458,7 +5524,57 @@ func requireStreamStopsOnCancel(t *testing.T, ready <-chan struct{}, cancel cont
 	}
 }
 
-// Not parallel: the stream subscribes to the global dispatcher
+// publishUntilSent publishes until the stream has sent a response that match accepts, among those after the first
+// skip, and returns it; done receives the stream handler's result
+func publishUntilSent[T any](t *testing.T, stream *fakeServerStream[T], done <-chan error, skip int, publish func() error, match func(*T) bool) *T {
+	t.Helper()
+	// Published repeatedly, as an update published before the handler subscribes can miss it
+	republish := time.NewTicker(10 * time.Millisecond)
+	defer republish.Stop()
+	deadline := time.After(5 * time.Second)
+	for {
+		for _, resp := range stream.responses()[skip:] {
+			if match(resp) {
+				return resp
+			}
+		}
+		require.NoError(t, publish(), "publish must not error")
+		select {
+		case <-stream.sent:
+		case err := <-done:
+			require.FailNowf(t, "stream must send the published update", "stream must not return first: %v", err)
+		case <-deadline:
+			require.FailNow(t, "stream must send the published update")
+		case <-republish.C:
+		}
+	}
+}
+
+// requireStreamSendsUntilDispatcherStops runs a stream handler and publishes until it has sent two responses, then
+// stops the global dispatcher and requires the handler to return dispatch.ErrPipeClosed
+func requireStreamSendsUntilDispatcherStops[T any](t *testing.T, stream *fakeServerStream[T], publish, run func() error) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- run() }()
+	anyResponse := func(*T) bool { return true }
+	publishUntilSent(t, stream, done, 0, publish, anyResponse)
+	publishUntilSent(t, stream, done, 1, publish, anyResponse)
+	t.Cleanup(func() {
+		if !dispatch.IsRunning() {
+			assert.NoError(t, dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), "Start should not error")
+		}
+	})
+	require.NoError(t, dispatch.Stop(), "Stop must not error")
+	select {
+	case err := <-done:
+		assert.ErrorIs(t, err, dispatch.ErrPipeClosed, "stream should return dispatch.ErrPipeClosed once the dispatcher stops")
+		assert.Same(t, dispatch.ErrPipeClosed, err, "stream should return dispatch.ErrPipeClosed itself")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "stream must return once the dispatcher stops")
+	}
+}
+
+// Not parallel: newStreamTestServer starts the global dispatcher if it is stopped, and stops it again at cleanup
 func TestGetOrderbookStream(t *testing.T) {
 	err := (&RPCServer{}).GetOrderbookStream(&gctrpc.GetOrderbookStreamRequest{}, nil)
 	assert.ErrorIs(t, err, errCurrencyPairUnset, "GetOrderbookStream should reject a request without a pair")
@@ -5473,7 +5589,7 @@ func TestGetOrderbookStream(t *testing.T) {
 	})
 }
 
-// Not parallel: the stream subscribes to the global dispatcher
+// Not parallel: the stream subscribes to the global dispatcher, which a subtest stops and restarts
 func TestGetExchangeOrderbookStream(t *testing.T) {
 	err := (&RPCServer{}).GetExchangeOrderbookStream(&gctrpc.GetExchangeOrderbookStreamRequest{}, nil)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "GetExchangeOrderbookStream should reject a request without an exchange")
@@ -5486,9 +5602,55 @@ func TestGetExchangeOrderbookStream(t *testing.T) {
 			return s.GetExchangeOrderbookStream(&gctrpc.GetExchangeOrderbookStreamRequest{Exchange: name}, stream)
 		})
 	})
+
+	t.Run("sends updates until the dispatcher stops", func(t *testing.T) {
+		s, name, _ := newStreamTestServer(t)
+		stream := &fakeServerStream[gctrpc.OrderbookResponse]{context: t.Context, sent: make(chan struct{}, 1)}
+		requireStreamSendsUntilDispatcherStops(t, stream, bookProcessor(name), func() error {
+			return s.GetExchangeOrderbookStream(&gctrpc.GetExchangeOrderbookStreamRequest{Exchange: name}, stream)
+		})
+		for _, resp := range stream.responses() {
+			requireTestBook(t, resp)
+		}
+	})
+
+	t.Run("sends an error for an invalid book, then the next valid book", func(t *testing.T) {
+		s, name, _ := newStreamTestServer(t)
+		depth, err := orderbook.GetDepth(name, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err, "GetDepth must not error")
+		ctx, cancel := context.WithCancel(t.Context())
+		stream := &fakeServerStream[gctrpc.OrderbookResponse]{context: func() context.Context { return ctx }, sent: make(chan struct{}, 1)}
+		done := make(chan error, 1)
+		go func() {
+			done <- s.GetExchangeOrderbookStream(&gctrpc.GetExchangeOrderbookStreamRequest{Exchange: name}, stream)
+		}()
+		var invalidErr error
+		invalidate := func() error {
+			invalidErr = depth.Invalidate(errors.New("test invalidation"))
+			require.ErrorIs(t, invalidErr, orderbook.ErrOrderbookInvalid, "Invalidate must return the invalid book error")
+			depth.Publish()
+			return nil
+		}
+		resp := publishUntilSent(t, stream, done, 0, invalidate, func(r *gctrpc.OrderbookResponse) bool { return r.Error != "" })
+		assert.Equal(t, invalidErr.Error(), resp.Error, "stream should send the invalid book's error")
+		assert.Nil(t, resp.Pair, "stream should send no pair for an invalid book")
+		assert.Empty(t, resp.Bids, "stream should send no bids for an invalid book")
+		assert.Empty(t, resp.Asks, "stream should send no asks for an invalid book")
+
+		// Processed once, as the handler has subscribed by now
+		resp = publishUntilSent(t, stream, done, len(stream.responses()), sync.OnceValue(bookProcessor(name)), func(r *gctrpc.OrderbookResponse) bool { return r.Error == "" })
+		requireTestBook(t, resp)
+		cancel()
+		select {
+		case err := <-done:
+			assert.ErrorIs(t, err, context.Canceled, "stream should return the context's error once the client has gone away")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "stream must return once the client's context is cancelled")
+		}
+	})
 }
 
-// Not parallel: the stream subscribes to the global dispatcher
+// Not parallel: the stream subscribes to the global dispatcher, which a subtest stops and restarts
 func TestGetTickerStream(t *testing.T) {
 	err := (&RPCServer{}).GetTickerStream(&gctrpc.GetTickerStreamRequest{}, nil)
 	assert.ErrorIs(t, err, errCurrencyPairUnset, "GetTickerStream should reject a request without a pair")
@@ -5507,9 +5669,19 @@ func TestGetTickerStream(t *testing.T) {
 			return s.GetTickerStream(&gctrpc.GetTickerStreamRequest{Exchange: name, AssetType: asset.Spot.String(), Pair: pair}, stream)
 		})
 	})
+
+	t.Run("sends updates until the dispatcher stops", func(t *testing.T) {
+		s, name, pair := newStreamTestServer(t)
+		stream := &fakeServerStream[gctrpc.TickerResponse]{context: t.Context, sent: make(chan struct{}, 1)}
+		process, processed := tickerProcessor(name)
+		requireStreamSendsUntilDispatcherStops(t, stream, process, func() error {
+			return s.GetTickerStream(&gctrpc.GetTickerStreamRequest{Exchange: name, AssetType: asset.Spot.String(), Pair: pair}, stream)
+		})
+		requireTestTickers(t, stream.responses(), processed)
+	})
 }
 
-// Not parallel: the stream subscribes to the global dispatcher
+// Not parallel: the stream subscribes to the global dispatcher, which a subtest stops and restarts
 func TestGetExchangeTickerStream(t *testing.T) {
 	err := (&RPCServer{}).GetExchangeTickerStream(&gctrpc.GetExchangeTickerStreamRequest{}, nil)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet, "GetExchangeTickerStream should reject a request without an exchange")
@@ -5522,48 +5694,15 @@ func TestGetExchangeTickerStream(t *testing.T) {
 			return s.GetExchangeTickerStream(&gctrpc.GetExchangeTickerStreamRequest{Exchange: name}, stream)
 		})
 	})
-}
 
-func TestReceiveOrDone(t *testing.T) {
-	t.Parallel()
-
-	t.Run("returns the next dispatched value", func(t *testing.T) {
-		t.Parallel()
-		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-		defer cancel()
-		ch := make(chan any, 1)
-		ch <- "update"
-		data, err := receiveOrDone(ctx, ch)
-		require.NoError(t, err, "receiveOrDone must not error")
-		assert.Equal(t, "update", data, "receiveOrDone should return the dispatched value")
-	})
-
-	t.Run("closed channel", func(t *testing.T) {
-		t.Parallel()
-		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-		defer cancel()
-		ch := make(chan any)
-		close(ch)
-		data, err := receiveOrDone(ctx, ch)
-		assert.ErrorIs(t, err, errDispatchSystem, "receiveOrDone should report a closed channel")
-		assert.Nil(t, data, "receiveOrDone should return no value for a closed channel")
-	})
-
-	t.Run("client gone away", func(t *testing.T) {
-		t.Parallel()
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		done := make(chan error, 1)
-		go func() {
-			_, err := receiveOrDone(ctx, make(chan any))
-			done <- err
-		}()
-		select {
-		case err := <-done:
-			assert.ErrorIs(t, err, context.Canceled, "receiveOrDone should return the context's error")
-		case <-time.After(5 * time.Second):
-			require.FailNow(t, "receiveOrDone must return once the context is done")
-		}
+	t.Run("sends updates until the dispatcher stops", func(t *testing.T) {
+		s, name, _ := newStreamTestServer(t)
+		stream := &fakeServerStream[gctrpc.TickerResponse]{context: t.Context, sent: make(chan struct{}, 1)}
+		process, processed := tickerProcessor(name)
+		requireStreamSendsUntilDispatcherStops(t, stream, process, func() error {
+			return s.GetExchangeTickerStream(&gctrpc.GetExchangeTickerStreamRequest{Exchange: name}, stream)
+		})
+		requireTestTickers(t, stream.responses(), processed)
 	})
 }
 
