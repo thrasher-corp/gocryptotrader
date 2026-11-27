@@ -348,6 +348,13 @@ func testDecimalScanInputTypes(t *testing.T) {
 		{name: "big.Int pointer", input: largeInteger, expected: largeInteger.String()},
 		{name: "zero big.Int", input: big.Int{}, expected: "0"},
 		{name: "zero big.Int pointer", input: new(big.Int), expected: "0"},
+		{name: "negative float32 with eight significant digits", input: float32(-1.2345678), expected: "-1.2345678"},
+		{name: "negative float64 with 17 significant digits", input: -0.0012345678912345677, expected: "-0.0012345678912345677"},
+		{name: "float64 integer past its shortest form", input: float64(1_000_000_000_000_000_128), expected: "1000000000000000100"},
+		{name: "big.Int beyond int64", input: *new(big.Int).Lsh(big.NewInt(1), 63), expected: "9223372036854775808"},
+		{name: "big.Int beyond uint64", input: *new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1)), expected: "18446744073709551617"},
+		{name: "big.Int pointer beyond int64", input: new(big.Int).Lsh(big.NewInt(1), 63), expected: "9223372036854775808"},
+		{name: "small negative big.Int pointer", input: big.NewInt(-42), expected: "-42"},
 		{name: "Decimal", input: MustFromString("-1.25"), expected: "-1.25"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -417,6 +424,8 @@ func testDecimalMarshalBSONValue(t *testing.T) {
 		{name: "34 digits with nineteen fractional digits", value: "999999999999999.9999999999999999999", expected: "ffffffff638e8d37c087adbe09ed1b30"},
 		{name: "trailing zero beyond 34 digits", value: "99999999999999999999999999999999990", expected: "ffffffff638e8d37c087adbe09ed4330"},
 		{name: "power of ten beyond 34 digits", value: "1" + strings.Repeat("0", 50), expected: "000000000a5bc138938d44c64d316230"},
+		{name: "trailing zero beyond 34 digits with a fraction", value: "999999999999999999999999999999999.10", expected: "f7ffffff638e8d37c087adbe09ed3f30"},
+		{name: "negative 34 digits", value: "-9999999999999999999999999999999999", expected: "ffffffff638e8d37c087adbe09ed41b0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -474,6 +483,7 @@ func testDecimalUnmarshalBSONValue(t *testing.T) {
 		{name: "Decimal128 trailing zeros beyond nineteen fractional digits", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "e8030000000000000000000000001630"), expected: "0.000000000000000001"},
 		{name: "Decimal128 positive exponent", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "0c000000000000000000000000000831"), expected: "12" + strings.Repeat("0", 100)},
 		{name: "Decimal128 negative with a positive exponent", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "050000000000000000000000000046b0"), expected: "-5000"},
+		{name: "Decimal128 exponent of one", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "05000000000000000000000000004230"), expected: "50"},
 		{name: "Decimal128 34 digits", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "ffffffff638e8d37c087adbe09ed4130"), expected: "9999999999999999999999999999999999"},
 		{name: "Decimal128 zero", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "00000000000000000000000000004030"), expected: "0"},
 		{name: "Decimal128 zero at the smallest exponent", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "00000000000000000000000000000000"), expected: "0"},
@@ -514,6 +524,8 @@ func testDecimalUnmarshalBSONValue(t *testing.T) {
 		{name: "Decimal128 NaN with a payload", typ: bsonwire.TypeDecimal128, data: bsonDecimal128(t, "1200000000000000000000000000007e"), expected: "0"},
 		{name: "invalid string", typ: bsonwire.TypeString, data: bsonwire.MarshalString("invalid"), expected: "0"},
 		{name: "empty string", typ: bsonwire.TypeString, data: bsonwire.MarshalString(""), expected: "0"},
+		{name: "quoted string", typ: bsonwire.TypeString, data: bsonwire.MarshalString(`"1.25"`), expected: "0"},
+		{name: "string with surrounding spaces", typ: bsonwire.TypeString, data: bsonwire.MarshalString(" 1.25 "), expected: "0"},
 		{name: "double NaN", typ: bsonwire.TypeDouble, data: binary.LittleEndian.AppendUint64(nil, math.Float64bits(math.NaN())), expected: "7"},
 		{name: "double infinity", typ: bsonwire.TypeDouble, data: binary.LittleEndian.AppendUint64(nil, math.Float64bits(math.Inf(1))), expected: "7"},
 		{name: "double negative infinity", typ: bsonwire.TypeDouble, data: binary.LittleEndian.AppendUint64(nil, math.Float64bits(math.Inf(-1))), expected: "7"},

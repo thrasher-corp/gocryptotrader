@@ -706,13 +706,17 @@ func TestDecimalScan(t *testing.T) {
 		{name: "float64", input: 1.25, expected: "1.25"},
 		{name: "sub-precision float64", input: 1e-20, expected: "0"},
 		{name: "shopspring Decimal", input: shopspring.RequireFromString("53.51"), expected: "53.51"},
+		{name: "negative shopspring Decimal", input: shopspring.RequireFromString("-53.51"), expected: "-53.51"},
+		{name: "shopspring Decimal beyond int64", input: shopspring.RequireFromString("9223372036854775808"), expected: "9223372036854775808"},
 		{name: "shopspring Decimal at the expansion limit", input: shopspring.New(1, maxStringDigits-1), expected: "1" + strings.Repeat("0", maxStringDigits-1)},
 		{name: "zero shopspring Decimal at the negative exponent limit", input: shopspring.New(0, -shopspringMaxDecodeExponent), expected: "0"},
 		{name: "zero shopspring Decimal at the positive exponent limit", input: shopspring.New(0, shopspringMaxDecodeExponent), expected: "0"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var result Decimal
+			// Start from a non-zero value so that a case which returns without
+			// storing its input cannot pass on the zero rows.
+			result := NewFromInt(7)
 			require.NoError(t, result.Scan(tc.input), "Scan must accept supported input")
 			assert.Equal(t, tc.expected, result.String(), "Scan should preserve the supported input")
 		})
@@ -730,6 +734,7 @@ func TestDecimalScan(t *testing.T) {
 		{name: "shopspring Decimal beyond udecimal precision", input: shopspring.RequireFromString("0.12345678901234567891"), expected: errPrecisionOutOfRange},
 		{name: "shopspring Decimal beyond the negative exponent limit", input: shopspring.New(1, -shopspringMaxDecodeExponent-1), expected: errExponentOutOfRange},
 		{name: "shopspring Decimal beyond the positive exponent limit", input: shopspring.New(1, shopspringMaxDecodeExponent+1), expected: errExponentOutOfRange},
+		{name: "zero shopspring Decimal beyond the positive exponent limit", input: shopspring.New(0, shopspringMaxDecodeExponent+1), expected: errExponentOutOfRange},
 		{name: "shopspring Decimal beyond the expansion limit", input: shopspring.New(1, maxStringDigits), expected: errInvalidDecimal},
 		{name: "invalid text beyond the parser cap", input: strings.Repeat("1", maxStringDigits+1) + "x", expected: errInvalidDecimal},
 	} {
