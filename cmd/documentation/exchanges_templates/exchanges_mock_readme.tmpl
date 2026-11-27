@@ -173,5 +173,7 @@ func TestDummyTest(t *testing.T) {
 
 + Recording sends real requests, so the recording lines must set `HTTPRecording` on the exchange passed to `SkipLiveTestIfCredentialsUnset` before the test calls it. The helper then skips the test as in a live run: without valid API keys on that exchange, or without `canManipulateRealOrders` where the test passes it. File two doesn't install `apiCredentials`, so with the repository's test config the helper skips while recording unless the test gives that exchange valid keys
 
++ Recording as above runs in the mock build, so a subtest that runs only when mocked, because its request would change the account, must skip while recording too: `if !mockTests || e.HTTPRecording {`
+
 {{template "donations" .}}
 {{end}}

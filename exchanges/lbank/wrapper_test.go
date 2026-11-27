@@ -778,7 +778,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("These orders could fill, so live tests place only the order priced away from the market")
 		}
 		for _, tc := range []struct {
@@ -1223,7 +1223,7 @@ func TestCancelOrder(t *testing.T) { //nolint:tparallel // Cases share the packa
 	})
 
 	t.Run("by client order ID", func(t *testing.T) {
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The live test order carries no client order ID")
 		}
 		assert.NoError(t, e.CancelOrder(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, ClientOrderID: "4b11c4ac-d54a-4bb5-86f9-06322174a036"}), "CancelOrder should cancel by client order ID")
@@ -1718,7 +1718,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("A withdrawal LBank accepts moves funds off LBank, which a live test cannot undo")
 		}
 		newRequest := func() *withdraw.Request {

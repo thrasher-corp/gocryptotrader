@@ -158,7 +158,7 @@ func TestUpdateCryptoDepositOriginator(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked update is not sent live, as it needs a pending deposit")
 		}
 		assert.NoError(t, e.UpdateCryptoDepositOriginator(t.Context(), 1, req), "UpdateCryptoDepositOriginator should not error")
@@ -177,7 +177,7 @@ func TestRejectCryptoDeposit(t *testing.T) {
 	assert.ErrorIs(t, e.RejectCryptoDeposit(t.Context(), 0), errDepositIDRequired, "RejectCryptoDeposit should error without a deposit ID")
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked rejection is not sent live, as it needs a pending deposit")
 		}
 		assert.NoError(t, e.RejectCryptoDeposit(t.Context(), 1), "RejectCryptoDeposit should not error")

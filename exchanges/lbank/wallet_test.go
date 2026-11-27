@@ -87,7 +87,7 @@ func TestWithdraw(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("A withdrawal LBank accepts moves funds off LBank, which a live test cannot undo")
 		}
 		t.Run("network withdrawal", func(t *testing.T) {
@@ -270,7 +270,7 @@ func TestAddDepositAddress(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("An address LBank adds cannot be removed by a live test")
 		}
 		result, err := e.AddDepositAddress(t.Context(), currency.USDT, "erc20")

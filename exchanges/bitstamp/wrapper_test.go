@@ -1891,7 +1891,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	} {
 		// Serial and in order, as each withdrawal goes through the same exchange
 		t.Run("mocked "+tc.c.String(), func(t *testing.T) {
-			if !mockTests {
+			if !mockTests || e.HTTPRecording {
 				t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 			}
 			resp, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
@@ -1962,7 +1962,7 @@ func TestWithdrawFiatFunds(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.WithdrawFiatFunds(t.Context(), testBankWithdrawalRequest(currency.EUR, 10))
@@ -2032,7 +2032,7 @@ func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), testBankWithdrawalRequest(currency.USD, 50))

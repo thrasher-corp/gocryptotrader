@@ -47,6 +47,25 @@ func setupMockExchange(ex *Exchange) error {
 	return testexch.MockHTTPInstance(ex)
 }
 
+// TestRecordingSkipsMockOnlySubtests checks that the tests whose mocked subtests change the account send no request
+// through e while it records. It runs serially, as recording changes the exchange every test shares
+func TestRecordingSkipsMockOnlySubtests(t *testing.T) {
+	// The mock's keys pass the credential check, so with canManipulateRealOrders the cases the helper guards would send
+	// their orders while recording; without keys it skips them whatever the setting
+	creds := e.GetDefaultCredentials()
+	e.SetCredentials(nil)
+	t.Cleanup(func() { e.SetCredentials(creds) })
+	sent := testexch.RequestsWhileRecording(t, e, map[string]func(*testing.T){
+		"TestAddDepositAddress":           TestAddDepositAddress,
+		"TestCancelExistingOrder":         TestCancelExistingOrder,
+		"TestCancelOrder":                 TestCancelOrder,
+		"TestSubmitOrder":                 TestSubmitOrder,
+		"TestWithdraw":                    TestWithdraw,
+		"TestWithdrawCryptocurrencyFunds": TestWithdrawCryptocurrencyFunds,
+	})
+	assert.Empty(t, sent, "These tests should send no request through e while it records")
+}
+
 // newTestExchange returns a mock exchange named after the test, so the ticker, order book and account stores it
 // writes do not collide with other tests'
 func newTestExchange(tb testing.TB) *Exchange {

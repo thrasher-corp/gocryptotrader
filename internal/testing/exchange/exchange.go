@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -208,6 +209,50 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 	log.Printf(sharedtestvalues.MockTesting, e.GetName())
 
 	return nil
+}
+
+var errRecordingRequestRefused = errors.New("request refused while recording")
+
+// refusingTransport refuses every request, so that one sent while recording never reaches the recorder, and keeps each
+// request's method and escaped path
+type refusingTransport struct {
+	mu   sync.Mutex
+	sent []string
+}
+
+func (r *refusingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.mu.Lock()
+	r.sent = append(r.sent, req.Method+" "+req.URL.EscapedPath())
+	r.mu.Unlock()
+	if req.Body == nil {
+		return nil, errRecordingRequestRefused
+	}
+	// A RoundTripper closes the request body, even when it refuses the request
+	return nil, errors.Join(errRecordingRequestRefused, req.Body.Close())
+}
+
+// RequestsWhileRecording runs tests as subtests of t with HTTPRecording set on e, as the mock README's recording lines
+// set it, and returns the requests they send through e as "METHOD /path", in the order sent. Each one is refused before
+// it leaves, so nothing is sent or recorded. It changes e, so no other test, and no other call of it, may use e until t
+// ends; then HTTPRecording is cleared and MockHTTPInstance reinstalls e's mock HTTP client with optionalPathPostfix
+func RequestsWhileRecording(t *testing.T, e exchange.IBotExchange, tests map[string]func(*testing.T), optionalPathPostfix ...string) []string {
+	t.Helper()
+	b := e.GetBase()
+	refuse := new(refusingTransport)
+	require.NoError(t, b.SetHTTPClient(&http.Client{Transport: refuse}), "SetHTTPClient must not error")
+	b.HTTPRecording = true
+	t.Cleanup(func() {
+		b.HTTPRecording = false
+		assert.NoError(t, MockHTTPInstance(e, optionalPathPostfix...), "MockHTTPInstance should reinstall the mock HTTP client")
+	})
+	t.Run("while recording", func(t *testing.T) {
+		for _, name := range slices.Sorted(maps.Keys(tests)) {
+			t.Run(name, tests[name])
+		}
+	})
+	refuse.mu.Lock()
+	defer refuse.mu.Unlock()
+	return slices.Clone(refuse.sent)
 }
 
 // MockWebsocketInstance creates a new Exchange instance with a mock websocket instance and HTTP server

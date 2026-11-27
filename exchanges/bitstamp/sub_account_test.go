@@ -79,7 +79,7 @@ func TestTransferFromMainAccount(t *testing.T) {
 	})
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked transfer is not sent live, to avoid transferring funds")
 		}
 		assert.NoError(t, e.TransferFromMainAccount(t.Context(), &TransferRequest{Amount: 10, Currency: currency.BTC, SubAccount: 990129}), "TransferFromMainAccount should not error")

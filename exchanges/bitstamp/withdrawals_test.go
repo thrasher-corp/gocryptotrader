@@ -276,7 +276,7 @@ func TestCryptoWithdrawal(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.CryptoWithdrawal(t.Context(), &CryptoWithdrawalRequest{
@@ -323,7 +323,7 @@ func TestRippleIOUWithdrawal(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked withdrawal is not sent live, to avoid withdrawing funds")
 		}
 		resp, err := e.RippleIOUWithdrawal(t.Context(), &RippleIOUWithdrawalRequest{Currency: currency.USD, Amount: 123, Address: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B"})

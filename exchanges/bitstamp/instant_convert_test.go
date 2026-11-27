@@ -17,7 +17,7 @@ func TestCreateInstantConvertAddress(t *testing.T) {
 	})
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked address is not created live, as the API would sell deposits to it")
 		}
 		resp, err := e.CreateInstantConvertAddress(t.Context(), currency.USD, "BECH32")

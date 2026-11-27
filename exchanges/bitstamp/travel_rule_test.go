@@ -50,7 +50,7 @@ func TestCreateContact(t *testing.T) {
 
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked contact is not created live, as the API has no endpoint to delete it")
 		}
 		contact, err := e.CreateContact(t.Context(), &ContactRequest{RetailInfo: testContact.RetailInfo, Description: testContact.Description})
@@ -91,7 +91,7 @@ func TestSubmitCounterpartyInfo(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked address is not registered live, as the API would keep its counterparty")
 		}
 		resp, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
@@ -161,7 +161,7 @@ func TestCreateSatoshiTest(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked test is not created live, as the API would keep it")
 		}
 		resp, err := e.CreateSatoshiTest(t.Context(), &SatoshiTestRequest{Address: core.BitcoinDonationAddress, Network: "bitcoin", Currency: currency.BTC})
@@ -237,7 +237,7 @@ func TestCreateExtendedPublicKeyRegistration(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked key is not registered live, as the API would keep the registration")
 		}
 		resp, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{
@@ -274,7 +274,7 @@ func TestRevokeExtendedPublicKeyRegistration(t *testing.T) {
 	assert.ErrorIs(t, err, errRegistrationIDRequired, "RevokeExtendedPublicKeyRegistration should error without an ID")
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked registration is not revoked live, as it needs a registration to revoke")
 		}
 		resp, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)

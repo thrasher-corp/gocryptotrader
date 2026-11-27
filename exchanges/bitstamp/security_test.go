@@ -11,7 +11,7 @@ func TestRevokeAllAPIKeys(t *testing.T) {
 	t.Parallel()
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("RevokeAllAPIKeys is never sent live with real credentials, as the API would revoke every API key")
 		}
 		resp, err := e.RevokeAllAPIKeys(t.Context())

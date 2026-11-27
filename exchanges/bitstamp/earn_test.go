@@ -53,7 +53,7 @@ func TestEarnSubscribe(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked subscription is not sent live, to avoid moving funds")
 		}
 		assert.NoError(t, e.EarnSubscribe(t.Context(), &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}), "EarnSubscribe should not error")
@@ -79,7 +79,7 @@ func TestEarnUnsubscribe(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked unsubscription is not sent live, to avoid moving funds")
 		}
 		assert.NoError(t, e.EarnUnsubscribe(t.Context(), &EarnSubscriptionRequest{Currency: currency.ETH, EarnType: EarnTypeStaking, EarnTerm: EarnTermFlexible, Amount: 10}), "EarnUnsubscribe should not error")
@@ -114,7 +114,7 @@ func TestSetEarnSubscriptionSetting(t *testing.T) {
 	}
 	t.Run("mocked", func(t *testing.T) {
 		t.Parallel()
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The mocked setting is not sent live, to avoid changing the account's settings")
 		}
 		err := e.SetEarnSubscriptionSetting(t.Context(), &EarnSubscriptionSettingRequest{Setting: EarnSettingOptIn, Currency: currency.ADA, EarnType: EarnTypeStaking})

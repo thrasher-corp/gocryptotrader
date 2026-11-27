@@ -197,7 +197,7 @@ func TestCancelExistingOrder(t *testing.T) {
 		assert.Equal(t, exp, result, "CancelExistingOrder should decode the cancelled order")
 	})
 	t.Run("by client order ID", func(t *testing.T) {
-		if !mockTests {
+		if !mockTests || e.HTTPRecording {
 			t.Skip("The order is only recorded in the mock")
 		}
 		result, err := e.CancelExistingOrder(t.Context(), &OrderReferenceRequest{Pair: spotTestPair, ClientOrderID: "4b11c4ac-d54a-4bb5-86f9-06322174a036"})
