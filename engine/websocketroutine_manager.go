@@ -277,11 +277,11 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 		cancel()
 		return errRoutineManagerNotStarted
 	}
-	key := strings.ToLower(ws.GetName())
-	if previous := m.dataReceivers[key]; previous != nil {
-		previous()
+	name := strings.ToLower(ws.GetName())
+	if previousCancel := m.dataReceivers[name]; previousCancel != nil {
+		previousCancel()
 	}
-	m.dataReceivers[key] = stop
+	m.dataReceivers[name] = stop
 
 	deliver := func(data any) {
 		if data == nil {

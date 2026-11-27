@@ -220,6 +220,41 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("restarted manager delivers the updates of an exchange it starts with", func(t *testing.T) {
+		var connects atomic.Int32
+		ws, err := testWebsocketManager(&connects)
+		require.NoError(t, err)
+		exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
+		t.Cleanup(func() { assert.NoError(t, exch.Shutdown(), "Shutdown should not error") })
+		exchangeManager := NewExchangeManager()
+		require.NoError(t, exchangeManager.Add(exch), "Add must not error")
+		manager, err := setupWebsocketRoutineManager(exchangeManager, &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+		require.NoError(t, err)
+		received := make(chan any, 1)
+		require.NoError(t, manager.registerWebsocketDataHandler(func(_ string, data any) error {
+			received <- data
+			return nil
+		}, false))
+		require.NoError(t, manager.Start(t.Context()))
+		t.Cleanup(func() {
+			if manager.state.Load() != stoppedState {
+				stopWebsocketRoutineManager(t, manager)
+			}
+		})
+		require.Eventually(t, manager.IsRunning, time.Second, 10*time.Millisecond, "routine manager must reach the ready state")
+		stopWebsocketRoutineManager(t, manager)
+
+		require.NoError(t, manager.Start(t.Context()), "Start must restart a stopped routine manager")
+		require.Eventually(t, manager.IsRunning, time.Second, 10*time.Millisecond, "restarted routine manager must reach the ready state")
+		require.NoError(t, ws.DataHandler.Send(t.Context(), "after restart"), "Send must not error")
+		select {
+		case data := <-received:
+			assert.Equal(t, "after restart", data, "restarted receiver should deliver the update")
+		case <-time.After(time.Second):
+			require.FailNow(t, "restarted routine manager must deliver the exchange's updates")
+		}
+	})
 }
 
 func TestWebsocketRoutineManagerConcurrentStartStop(t *testing.T) {
@@ -473,7 +508,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	err := m.registerWebsocketDataHandler(nil, false)
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
-	m = new(WebsocketRoutineManager)
+	m = &WebsocketRoutineManager{dataReceivers: make(map[string]context.CancelFunc)}
 
 	err = m.registerWebsocketDataHandler(nil, false)
 	require.ErrorIs(t, err, errNilWebsocketDataHandlerFunction)
@@ -522,7 +557,7 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 	err := m.setWebsocketDataHandler(nil)
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
-	m = new(WebsocketRoutineManager)
+	m = &WebsocketRoutineManager{dataReceivers: make(map[string]context.CancelFunc)}
 
 	err = m.setWebsocketDataHandler(nil)
 	require.ErrorIs(t, err, errNilWebsocketDataHandlerFunction)
@@ -732,10 +767,7 @@ func TestWebsocketRoutineManagerRegisterExchange(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, m.registerExchange(t.Context(), &websocketTestExchange{name: websocketTestExchangeName, ws: noWebsocket}), "registerExchange must ignore an exchange without websocket support")
 	assert.Zero(t, disabled.Load(), "connector should not be called without websocket support")
-}
 
-func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
-	t.Parallel()
 	errRefused := errors.New("refused")
 	for _, tc := range []struct {
 		name          string
@@ -759,18 +791,18 @@ func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+			rm, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 			require.NoError(t, err)
-			require.NoError(t, m.Start(t.Context()))
-			t.Cleanup(func() { stopWebsocketRoutineManager(t, m) })
-			received := make(chan any, 1)
-			require.NoError(t, m.registerWebsocketDataHandler(func(_ string, data any) error {
-				received <- data
+			require.NoError(t, rm.Start(t.Context()))
+			t.Cleanup(func() { stopWebsocketRoutineManager(t, rm) })
+			connectReceived := make(chan any, 1)
+			require.NoError(t, rm.registerWebsocketDataHandler(func(_ string, data any) error {
+				connectReceived <- data
 				return nil
 			}, false))
 
-			ws := websocket.NewManager()
-			require.NoError(t, ws.Setup(&websocket.ManagerSetup{
+			connectWS := websocket.NewManager()
+			require.NoError(t, connectWS.Setup(&websocket.ManagerSetup{
 				ExchangeConfig: &config.Exchange{
 					Name:                    websocketTestExchangeName,
 					Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
@@ -783,14 +815,14 @@ func TestWebsocketRoutineManagerRegisterExchangeConnectError(t *testing.T) {
 				DefaultURL:            "wss://example.com",
 				RunningURL:            "wss://example.com",
 			}))
-			exch := &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}
-			t.Cleanup(func() { _ = exch.Shutdown() })
+			connectExch := &websocketTestExchange{name: websocketTestExchangeName, ws: connectWS, supportsWebsocket: true}
+			t.Cleanup(func() { _ = connectExch.Shutdown() })
 
-			require.ErrorIs(t, m.registerExchange(t.Context(), exch), errRefused, "registerExchange must return the connect error")
-			assert.Equal(t, tc.connected, ws.IsConnected(), "connection state should match the failure")
-			require.NoError(t, ws.DataHandler.Send(t.Context(), tc.name))
+			require.ErrorIs(t, rm.registerExchange(t.Context(), connectExch), errRefused, "registerExchange must return the connect error")
+			assert.Equal(t, tc.connected, connectWS.IsConnected(), "connection state should match the failure")
+			require.NoError(t, connectWS.DataHandler.Send(t.Context(), tc.name))
 			select {
-			case data := <-received:
+			case data := <-connectReceived:
 				assert.Equal(t, tc.name, data, "receiver should deliver after a connect error")
 			case <-time.After(time.Second):
 				require.FailNow(t, "receiver must stay registered after a connect error")
