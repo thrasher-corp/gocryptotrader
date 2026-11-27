@@ -5,6 +5,9 @@ import (
 	"database/sql/driver"
 	"encoding"
 	"encoding/json" //nolint:depguard // Compile-time interface checks only; the custom JSON package does not export these interfaces.
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // decimalAPI checks the shared method signatures under either backend build.
@@ -46,7 +49,10 @@ var (
 	_ encoding.BinaryUnmarshaler = (*Decimal)(nil)
 	_ encoding.TextMarshaler     = Decimal{}
 	_ encoding.TextUnmarshaler   = (*Decimal)(nil)
+	_ fmt.Formatter              = Decimal{}
 	_ json.Marshaler             = Decimal{}
 	_ json.Unmarshaler           = (*Decimal)(nil)
 	_ sql.Scanner                = (*Decimal)(nil)
+	_ bsonwire.ValueMarshaler    = Decimal{}
+	_ bsonwire.ValueUnmarshaler  = (*Decimal)(nil)
 )

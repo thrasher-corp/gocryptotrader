@@ -4,11 +4,18 @@ package decimal
 
 import (
 	"database/sql/driver"
+	"encoding/binary"
 	"fmt"
+	"io"
+	"math"
 	"math/big"
+	"reflect"
+	"strconv"
 	"strings"
 
-	"github.com/quagmt/udecimal" //nolint:depguard // Selected implementation for the udecimal_on build.
+	"github.com/quagmt/udecimal"               //nolint:depguard // Selected implementation for the udecimal_on build.
+	shopspring "github.com/shopspring/decimal" //nolint:depguard // Scan takes the default build's own type, as the default build does.
+	"github.com/thrasher-corp/gocryptotrader/internal/bsonwire"
 )
 
 // MaxFractionalDigits is the fractional precision retained by udecimal arithmetic.
@@ -36,7 +43,7 @@ func NewFromInt32(value int32) Decimal {
 // MustFromFloat returns value truncated to udecimal's 19 fractional digits.
 // Finite magnitudes below 1e-19 become zero. It panics for non-finite values.
 func MustFromFloat(value float64) Decimal {
-	result, err := newUdecimalFromFloat(value)
+	result, err := newUdecimalFromFloat(value, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -44,8 +51,13 @@ func MustFromFloat(value float64) Decimal {
 }
 
 // NewFromString parses value. Scientific notation is normalised before using
-// udecimal because its native parser does not support exponent notation.
+// udecimal because its native parser does not support exponent notation. As in
+// the default build, the Unicode minus sign (U+2212) is accepted for '-'.
 func NewFromString(value string) (Decimal, error) {
+	// Matches the default build, where shopspring v1.6.0 reads the Unicode minus sign as '-'.
+	if strings.IndexByte(value, "\u2212"[0]) >= 0 {
+		value = strings.ReplaceAll(value, "\u2212", "-")
+	}
 	normalised, err := normalise(value, false)
 	if err != nil {
 		return Decimal{}, err
@@ -84,16 +96,17 @@ func (d Decimal) Mul(other Decimal) Decimal {
 // Div returns d/other, truncating beyond udecimal's 19-place precision. It
 // panics for a zero divisor because the Decimal API has no error return.
 func (d Decimal) Div(other Decimal) Decimal {
-	return Decimal{value: divideUdecimal(d.value, other.value)}
+	return Decimal{value: d.value.MustDiv(other.value)}
 }
 
 // Mod returns the remainder of d/other. It panics for a zero divisor because
 // the Decimal API has no error return.
 func (d Decimal) Mod(other Decimal) Decimal {
-	return Decimal{value: moduloUdecimal(d.value, other.value)}
+	return Decimal{value: d.value.MustMod(other.value)}
 }
 
-// Pow returns d raised to other and panics if other has a fractional component.
+// Pow returns d raised to other. It panics if other has a fractional component
+// or, for a non-zero d, a magnitude beyond math.MaxInt32.
 func (d Decimal) Pow(other Decimal) Decimal {
 	result, err := powUdecimal(d.value, other.value)
 	if err != nil {
@@ -175,14 +188,10 @@ func (d Decimal) Round(places int32) Decimal {
 	return Decimal{value: roundUdecimal(d.value, places)}
 }
 
-// Truncate removes fractional digits beyond precision without rounding.
+// Truncate removes digits beyond precision without rounding. Negative
+// precision truncates integer digits toward zero.
 func (d Decimal) Truncate(precision int32) Decimal {
-	// udecimal.Trunc accepts only unsigned precision, while Decimal.Truncate
-	// treats negative and out-of-range precision as no-ops.
-	if precision < 0 || precision >= maxPrecision {
-		return d
-	}
-	return Decimal{value: d.value.Trunc(uint8(precision))}
+	return Decimal{value: truncateUdecimal(d.value, precision)}
 }
 
 // Floor returns the greatest integer less than or equal to d.
@@ -249,21 +258,30 @@ func (d Decimal) MarshalJSON() ([]byte, error) {
 	return d.value.MarshalJSON()
 }
 
-// UnmarshalJSON implements json.Unmarshaler for quoted or bare decimals.
+// UnmarshalJSON implements json.Unmarshaler for quoted or bare decimals. As in
+// the default build, a bare null leaves d unchanged, the quoted string "null"
+// is invalid, and d is zero after any other decoding failure.
 func (d *Decimal) UnmarshalJSON(data []byte) error {
-	if len(data) <= maxStringDigits {
-		if err := d.value.UnmarshalJSON(data); err == nil {
+	if string(data) == "null" {
+		return nil
+	}
+	text := data
+	if len(text) > 1 && text[0] == '"' && text[len(text)-1] == '"' {
+		text = text[1 : len(text)-1]
+	}
+	// udecimal's UnmarshalJSON would read the quoted string "null" as null too,
+	// so parse the unquoted text with its text decoder instead. The parser limit
+	// counts the JSON as received, quotes included.
+	if len(data) <= maxStringDigits && useNativeParser(text) {
+		if err := d.value.UnmarshalText(text); err == nil {
 			return nil
 		}
 	}
-	if len(data) > 1 && data[0] == '"' && data[len(data)-1] == '"' {
-		data = data[1 : len(data)-1]
-	}
-	result, err := NewFromString(string(data))
+	result, err := NewFromString(string(text))
+	*d = result
 	if err != nil {
 		return fmt.Errorf("error unmarshalling decimal JSON: %w", err)
 	}
-	*d = result
 	return nil
 }
 
@@ -272,18 +290,19 @@ func (d Decimal) MarshalText() ([]byte, error) {
 	return d.value.MarshalText()
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
+// UnmarshalText implements encoding.TextUnmarshaler. As in the default build, d
+// is zero after a decoding failure.
 func (d *Decimal) UnmarshalText(data []byte) error {
-	if len(data) <= maxStringDigits {
+	if useNativeParser(data) {
 		if err := d.value.UnmarshalText(data); err == nil {
 			return nil
 		}
 	}
 	result, err := NewFromString(string(data))
+	*d = result
 	if err != nil {
 		return fmt.Errorf("error unmarshalling decimal text: %w", err)
 	}
-	*d = result
 	return nil
 }
 
@@ -303,61 +322,92 @@ func (d Decimal) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary implements encoding.BinaryUnmarshaler using udecimal's native format.
 func (d *Decimal) UnmarshalBinary(data []byte) error {
-	// udecimal trusts the precision byte and can construct a value which later
-	// panics. Decimal's supported precision is fixed, so reject it at the codec
-	// boundary before allowing the backend to mutate the receiver.
-	if len(data) > 1 && data[1] > maxPrecision {
-		return fmt.Errorf("%w: precision %d exceeds %d", udecimal.ErrInvalidBinaryData, data[1], maxPrecision)
-	}
+	// Decoding into a local value leaves d untouched, and a nil d unused, on error.
 	var value udecimal.Decimal
 	if err := value.UnmarshalBinary(data); err != nil {
 		return err
-	}
-	if value.IsZero() {
-		// The native decoder assigns sign and precision directly, bypassing the
-		// constructor which canonicalises zero for consistent comparisons.
-		value = udecimal.Zero
 	}
 	d.value = value
 	return nil
 }
 
-// Scan implements sql.Scanner while preserving the default backend's accepted
-// input types and the Decimal façade's parsing and float-conversion semantics.
+// Scan implements sql.Scanner. It accepts the default backend's input types and
+// applies the Decimal façade's parsing and float-conversion semantics. As in
+// the default build, d is zero after text that fails to decode.
 func (d *Decimal) Scan(value any) error {
-	if value32, ok := value.(float32); ok {
-		value = float64(value32)
-	}
-
 	var text string
 	switch value := value.(type) {
 	case string:
 		text = value
 	case []byte:
 		text = string(value)
+	case float32:
+		// The shortest form that round-trips to float32 keeps 54.33 as 54.33
+		// rather than its float64 expansion 54.33000183105469.
+		return d.scanFloat(float64(value), 32)
 	case float64:
-		result, err := newUdecimalFromFloat(value)
+		return d.scanFloat(value, 64)
+	case int, int8, int16, int32, int64:
+		*d = NewFromInt(reflect.ValueOf(value).Int())
+		return nil
+	case uint, uint8, uint16, uint32, uint64:
+		d.value = udecimal.MustFromUint64(reflect.ValueOf(value).Uint(), 0)
+		return nil
+	case big.Int:
+		return d.scanBigInt(&value)
+	case *big.Int:
+		if value == nil {
+			return fmt.Errorf("error scanning decimal: %w: nil *big.Int", errInvalidDecimal)
+		}
+		return d.scanBigInt(value)
+	case Decimal:
+		*d = value
+		return nil
+	case shopspring.Decimal:
+		// String would expand the exponent before NewFromString bounds it, and
+		// its form follows shopspring's display settings.
+		result, err := NewFromString(value.Coefficient().String() + "e" + strconv.FormatInt(int64(value.Exponent()), 10))
 		if err != nil {
 			return fmt.Errorf("error scanning decimal: %w", err)
 		}
-		d.value = result
+		*d = result
 		return nil
-	case int, int32:
-		return fmt.Errorf("can't scan %T to Decimal: %T is not supported", value, value)
 	default:
-		return d.value.Scan(value)
+		return fmt.Errorf("error scanning decimal: %w: %T", errUnsupportedScanType, value)
 	}
 	// shopspring accepts SQL drivers which return quoted numeric text. Preserve
 	// that established behaviour before trying either udecimal parser.
 	if len(text) > 2 && text[0] == '"' && text[len(text)-1] == '"' {
 		text = text[1 : len(text)-1]
 	}
-	if len(text) <= maxStringDigits {
+	if useNativeParser(text) {
 		if err := d.value.Scan(text); err == nil {
 			return nil
 		}
 	}
 	result, err := NewFromString(text)
+	*d = result
+	if err != nil {
+		return fmt.Errorf("error scanning decimal: %w", err)
+	}
+	return nil
+}
+
+// scanFloat stores value converted through the shortest decimal form that
+// round-trips to a float of bitSize bits.
+func (d *Decimal) scanFloat(value float64, bitSize int) error {
+	result, err := newUdecimalFromFloat(value, bitSize)
+	if err != nil {
+		return fmt.Errorf("error scanning decimal: %w", err)
+	}
+	d.value = result
+	return nil
+}
+
+// scanBigInt stores value through NewFromString, whose extended parser accepts
+// integers beyond udecimal's native 200-character limit.
+func (d *Decimal) scanBigInt(value *big.Int) error {
+	result, err := NewFromString(value.String())
 	if err != nil {
 		return fmt.Errorf("error scanning decimal: %w", err)
 	}
@@ -368,4 +418,110 @@ func (d *Decimal) Scan(value any) error {
 // Value implements driver.Valuer using the canonical decimal string.
 func (d Decimal) Value() (driver.Value, error) {
 	return d.value.Value()
+}
+
+// MarshalBSONValue implements the MongoDB Go driver v2's bson.ValueMarshaler
+// interface as the default build does, storing d as a BSON Decimal128. A value
+// needing more than 34 significant digits is an error rather than being
+// rounded.
+func (d Decimal) MarshalBSONValue() (typ byte, data []byte, err error) {
+	data, err = encodeDecimal128(d.value)
+	if err != nil {
+		return 0, nil, fmt.Errorf("error marshalling decimal BSON value: %w", err)
+	}
+	return bsonwire.TypeDecimal128, data, nil
+}
+
+// UnmarshalBSONValue implements the MongoDB Go driver v2's bson.ValueUnmarshaler
+// interface. As in the default build, it reads BSON Decimal128, string, double,
+// int32 and int64 values and reads null and undefined as zero. d is zero after
+// a 16-byte Decimal128 or a string's text fails to decode, and unchanged after
+// any other failure, such as a value of the wrong length.
+func (d *Decimal) UnmarshalBSONValue(typ byte, data []byte) error {
+	var err error
+	switch {
+	case typ == bsonwire.TypeNull || typ == bsonwire.TypeUndefined:
+		*d = Decimal{}
+	case typ == bsonwire.TypeDecimal128 && len(data) == decimal128Bytes:
+		*d, err = decodeDecimal128(data)
+	case typ == bsonwire.TypeString && len(data) >= 5:
+		// As in the default build, the text runs from after the int32 length to
+		// before the final byte, and neither is checked.
+		*d, err = NewFromString(string(data[4 : len(data)-1]))
+	case typ == bsonwire.TypeDouble && len(data) == 8:
+		var value udecimal.Decimal
+		if value, err = newUdecimalFromFloat(math.Float64frombits(binary.LittleEndian.Uint64(data)), 64); err == nil {
+			d.value = value
+		}
+	case typ == bsonwire.TypeInt32 && len(data) == 4:
+		*d = NewFromInt32(int32(binary.LittleEndian.Uint32(data))) //nolint:gosec // BSON stores a signed int32 in these bits
+	case typ == bsonwire.TypeInt64 && len(data) == 8:
+		*d = NewFromInt(int64(binary.LittleEndian.Uint64(data))) //nolint:gosec // BSON stores a signed int64 in these bits
+	default:
+		err = fmt.Errorf("%w: type %#02x with %d bytes", errUnsupportedBSONValue, typ, len(data))
+	}
+	if err != nil {
+		return fmt.Errorf("error unmarshalling decimal BSON value: %w", err)
+	}
+	return nil
+}
+
+// Format implements fmt.Formatter for the verbs the default backend supports.
+// %v, %s, %q, %x and %X format String(). %f and %F print fixed-point notation,
+// rounded like StringFixed when a precision is given, with fmt's width and sign
+// flags. %#v prints the MustFromString call that recreates d's value, without
+// any trailing fractional zeros d holds. Other verbs print fmt's usual error,
+// such as %!d(decimal.Decimal=3.14).
+func (d Decimal) Format(state fmt.State, verb rune) {
+	switch verb {
+	case 'v', 's', 'q', 'x', 'X':
+		text := d.String()
+		if verb == 'v' && state.Flag('#') {
+			verb, text = 's', "decimal.MustFromString("+strconv.Quote(text)+")"
+		}
+		_, hasWidth := state.Width()
+		_, hasPrecision := state.Precision()
+		if (verb == 'v' || verb == 's') && !hasWidth && !hasPrecision {
+			// Println and plain %v are the common case; skip rebuilding the directive.
+			_, _ = io.WriteString(state, text)
+			return
+		}
+		_, _ = fmt.Fprintf(state, fmt.FormatString(state, verb), text)
+	case 'f', 'F':
+		_, _ = io.WriteString(state, d.formatFixed(state))
+	default:
+		_, _ = fmt.Fprintf(state, "%%!%c(decimal.Decimal=%s)", verb, d.String())
+	}
+}
+
+// formatFixed returns d in fixed-point notation with fmt's float sign, padding
+// and alignment flags applied.
+func (d Decimal) formatFixed(state fmt.State) string {
+	var text string
+	if precision, ok := state.Precision(); ok {
+		text = d.StringFixed(int32(precision)) //nolint:gosec // fmt caps precision far below math.MaxInt32
+	} else {
+		text = d.String()
+	}
+	var sign string
+	switch {
+	case text[0] == '-':
+		sign, text = "-", text[1:]
+	case state.Flag('+'):
+		sign = "+"
+	case state.Flag(' '):
+		sign = " "
+	}
+	width, _ := state.Width()
+	padding := width - len(sign) - len(text)
+	switch {
+	case padding <= 0:
+		return sign + text
+	case state.Flag('-'):
+		return sign + text + strings.Repeat(" ", padding)
+	case state.Flag('0'):
+		return sign + strings.Repeat("0", padding) + text
+	default:
+		return strings.Repeat(" ", padding) + sign + text
+	}
 }

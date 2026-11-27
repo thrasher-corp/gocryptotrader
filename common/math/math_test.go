@@ -239,7 +239,12 @@ func TestFloatQuotientOfDecimals(t *testing.T) {
 	}
 	// The default backend holds decimals with more fractional digits than math/big parses, which the other cannot hold
 	if decimal.MaxFractionalDigits == 0 {
-		tiny := decimal.MustFromString("3e-1000001")
+		// By default shopspring refuses to decode exponents beyond 10,000, so build 3e-1000001 with exact multiplication instead
+		tiny := decimal.MustFromString("0.3")
+		exponentStep := decimal.MustFromString("1e-10000")
+		for range 100 {
+			tiny = tiny.Mul(exponentStep)
+		}
 		assert.Zero(t, FloatQuotientOfDecimals(tiny, decimal.NewFromInt(1)), "FloatQuotientOfDecimals should return zero for a dividend math/big cannot parse")
 		assert.Zero(t, FloatQuotientOfDecimals(decimal.NewFromInt(1), tiny), "FloatQuotientOfDecimals should return zero for a divisor math/big cannot parse")
 	}

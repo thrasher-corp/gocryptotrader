@@ -134,10 +134,19 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 	resultRat := new(big.Rat).SetFrac(&numeratorLCM, &denominatorGCD)
 	scale := max(fractionalDigits(firstString), fractionalDigits(secondString))
 	result, err := decimal.NewFromString(resultRat.FloatString(scale))
+	if err == nil {
+		return result, nil
+	}
+	// The default build refuses to parse a result past its decode exponent
+	// limit, so multiply the first increment by the integer ratio instead.
+	// Parsing stays the main path because multiplying keeps the first
+	// increment's scale, which differs between operand orders.
+	ratio := new(big.Rat).Quo(resultRat, firstRat)
+	factor, err := decimal.NewFromString(ratio.Num().String())
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("cannot convert common base increment: %w", err)
 	}
-	return result, nil
+	return first.Mul(factor), nil
 }
 
 func fractionalDigits(value string) int {

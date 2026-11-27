@@ -1,6 +1,8 @@
 package limits
 
 import (
+	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -304,6 +306,72 @@ func TestAmountStepCommonBaseIncrement(t *testing.T) {
 			assert.True(t, result.Equal(reverse), "CommonBaseIncrement should be symmetric")
 		})
 	}
+	t.Run("common multiple held alike in either order", func(t *testing.T) {
+		t.Parallel()
+		first := AmountStep{Increment: decimal.MustFromString("0.2"), ContractMultiplier: decimal.NewFromInt(1)}
+		second := AmountStep{Increment: decimal.MustFromString("0.03"), ContractMultiplier: decimal.NewFromInt(1)}
+		result, err := first.CommonBaseIncrement(second)
+		require.NoError(t, err, "CommonBaseIncrement must accept valid inputs")
+		reverse, err := second.CommonBaseIncrement(first)
+		require.NoError(t, err, "CommonBaseIncrement must be symmetric")
+		resultBinary, err := result.MarshalBinary()
+		require.NoError(t, err, "MarshalBinary must encode the increment")
+		reverseBinary, err := reverse.MarshalBinary()
+		require.NoError(t, err, "MarshalBinary must encode the reversed increment")
+		assert.Equal(t, resultBinary, reverseBinary, "CommonBaseIncrement should hold the common multiple alike in either order")
+	})
+	t.Run("common multiple survives binary storage", func(t *testing.T) {
+		t.Parallel()
+		var fractionalZeros decimal.Decimal
+		require.NoError(t, fractionalZeros.UnmarshalText([]byte("2.0000000000000000000")), "UnmarshalText must keep the trailing zeros")
+		largeOdd := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 1970), big.NewInt(1))
+		for _, tc := range []struct {
+			name          string
+			first, second AmountStep
+			expected      string
+		}{
+			{
+				name:     "fraction padded past the decode exponent limit",
+				first:    AmountStep{Increment: decimal.MustFromString("0.2" + strings.Repeat("0", 9999)), ContractMultiplier: decimal.MustFromString("1.0")},
+				second:   AmountStep{Increment: decimal.MustFromString("0.03"), ContractMultiplier: decimal.NewFromInt(1)},
+				expected: "0.6",
+			},
+			{
+				name:     "large integer beside trailing fractional zeros",
+				first:    AmountStep{Increment: fractionalZeros, ContractMultiplier: decimal.NewFromInt(1)},
+				second:   AmountStep{Increment: decimal.MustFromString(largeOdd.String()), ContractMultiplier: decimal.NewFromInt(1)},
+				expected: new(big.Int).Lsh(largeOdd, 1).String(),
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, operands := range [][2]AmountStep{{tc.first, tc.second}, {tc.second, tc.first}} {
+					result, err := operands[0].CommonBaseIncrement(operands[1])
+					require.NoError(t, err, "CommonBaseIncrement must accept valid inputs")
+					assert.Equal(t, tc.expected, result.String(), "CommonBaseIncrement should return the expected increment")
+					data, err := result.MarshalBinary()
+					require.NoError(t, err, "MarshalBinary must encode the increment")
+					var decoded decimal.Decimal
+					require.NoError(t, decoded.UnmarshalBinary(data), "UnmarshalBinary must decode the encoded increment")
+					assert.True(t, decoded.Equal(result), "UnmarshalBinary should restore the increment")
+				}
+			})
+		}
+	})
+	t.Run("result beyond the decode exponent limit", func(t *testing.T) {
+		t.Parallel()
+		if decimal.MaxFractionalDigits > 0 {
+			t.Skip("udecimal holds at most 19 fractional digits")
+		}
+		first := AmountStep{Increment: decimal.MustFromString("2e-10000"), ContractMultiplier: decimal.MustFromString("0.1")}
+		second := AmountStep{Increment: decimal.MustFromString("3e-10000"), ContractMultiplier: decimal.MustFromString("0.1")}
+		result, err := first.CommonBaseIncrement(second)
+		require.NoError(t, err, "CommonBaseIncrement must accept increments whose product decoding would refuse")
+		assert.Equal(t, "0."+strings.Repeat("0", 10000)+"6", result.String(), "CommonBaseIncrement should return the expected increment")
+		reverse, err := second.CommonBaseIncrement(first)
+		require.NoError(t, err, "CommonBaseIncrement must be symmetric")
+		assert.True(t, result.Equal(reverse), "CommonBaseIncrement should be symmetric")
+	})
 }
 
 func TestAmountStepCommonBaseIncrementUnparsable(t *testing.T) {
@@ -312,7 +380,14 @@ func TestAmountStepCommonBaseIncrementUnparsable(t *testing.T) {
 		t.Skip("big.Rat rejects more than 1e6 fractional digits, which udecimal cannot represent")
 	}
 	parseable := AmountStep{Increment: decimal.MustFromString("0.2"), ContractMultiplier: decimal.NewFromInt(1)}
-	unparsable := AmountStep{Increment: decimal.MustFromString("3e-1000001"), ContractMultiplier: decimal.NewFromInt(1)}
+	// By default shopspring refuses to decode exponents beyond 10,000, so build
+	// 3e-1000001 with exact multiplication instead.
+	unparsableIncrement := decimal.MustFromString("0.3")
+	exponentStep := decimal.MustFromString("1e-10000")
+	for range 100 {
+		unparsableIncrement = unparsableIncrement.Mul(exponentStep)
+	}
+	unparsable := AmountStep{Increment: unparsableIncrement, ContractMultiplier: decimal.NewFromInt(1)}
 	_, err := unparsable.CommonBaseIncrement(parseable)
 	assert.ErrorIs(t, err, errCannotParseBaseIncrement, "CommonBaseIncrement should reject a first increment big.Rat cannot parse")
 	_, err = parseable.CommonBaseIncrement(unparsable)
