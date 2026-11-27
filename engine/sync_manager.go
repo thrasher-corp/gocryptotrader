@@ -553,10 +553,7 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 	}
 
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
-		restCounter, ok := m.tryAcquireExchangeREST(exchangeName)
-		if !ok {
-			return
-		}
+		restCounter, admitted := m.tryAcquireExchangeREST(exchangeName)
 		if restCounter != nil {
 			defer restCounter.Add(-1)
 		}
@@ -579,6 +576,9 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 			m.mux.Unlock()
 
 			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
+				if !admitted {
+					return
+				}
 				m.mux.Lock()
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
@@ -599,6 +599,9 @@ func (m *SyncManager) syncTicker(ctx context.Context, c *currencyPairSyncAgent, 
 				result, err = e.GetCachedTicker(c.Pair, c.Key.Asset)
 			}
 		} else {
+			if !admitted {
+				return
+			}
 			result, err = e.UpdateTicker(ctx,
 				c.Pair,
 				c.Key.Asset)

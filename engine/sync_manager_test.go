@@ -122,64 +122,162 @@ func TestSyncManagerStop(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSyncManagerSyncTickerUsesRuntimeContextCancellation(t *testing.T) {
-	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("Bitstamp")
-	require.NoError(t, err)
-	exch.SetDefaults()
+type restTickerSyncExchange struct {
+	exchange.IBotExchange
+	batches, fail                             bool
+	slot                                      *atomic.Int64
+	requests, requestsHoldingSlot, cacheReads atomic.Int32
+}
 
-	started := make(chan context.Context, 1)
-	wrapped := syncTickerContextExchange{
-		IBotExchange: exch,
-		updateTickerFn: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
-			started <- ctx
-			<-ctx.Done()
-			return nil, ctx.Err()
-		},
+func (e *restTickerSyncExchange) GetName() string                      { return "Bitstamp" }
+func (e *restTickerSyncExchange) SupportsRESTTickerBatchUpdates() bool { return e.batches }
+
+func (e *restTickerSyncExchange) request() error {
+	e.requests.Add(1)
+	if e.slot.Load() == 1 {
+		e.requestsHoldingSlot.Add(1)
 	}
-
-	m, err := SetupSyncManager(&config.SyncManagerConfig{
-		SynchronizeTicker:   true,
-		FiatDisplayCurrency: currency.USD,
-		PairFormatDisplay:   &currency.EMPTYFORMAT,
-		TimeoutREST:         time.Millisecond,
-		TimeoutWebsocket:    time.Second,
-	}, em, &config.RemoteControlConfig{}, false)
-	require.NoError(t, err)
-	m.started.Store(true)
-	m.initSyncCompleted.Store(true)
-
-	runtimeCtx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	pair := currency.NewBTCUSD()
-	agent := &currencyPairSyncAgent{
-		Key:      key.NewExchangeAssetPair(wrapped.GetName(), asset.Spot, pair),
-		Pair:     pair,
-		Created:  time.Now().Add(-time.Minute),
-		trackers: make([]*syncBase, 3),
-		locks:    make([]sync.Mutex, 3),
+	if e.fail {
+		return errors.New("request refused")
 	}
-	agent.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+	return nil
+}
 
-	done := make(chan struct{})
-	go func() {
-		m.syncTicker(runtimeCtx, agent, wrapped)
-		close(done)
-	}()
+func (e *restTickerSyncExchange) UpdateTickers(context.Context, asset.Item) error {
+	return e.request()
+}
 
-	select {
-	case <-started:
-	case <-time.After(time.Second):
-		t.Fatal("expected update ticker call to start")
+func (e *restTickerSyncExchange) UpdateTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if err := e.request(); err != nil {
+		return nil, err
 	}
+	return &ticker.Price{Pair: p, AssetType: a}, nil
+}
 
-	cancel()
+func (e *restTickerSyncExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
+	e.cacheReads.Add(1)
+	return &ticker.Price{Pair: p, AssetType: a}, nil
+}
 
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("expected syncTicker to return after runtime context cancellation")
+func TestSyncManagerSyncTicker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns once the runtime context is cancelled", func(t *testing.T) {
+		t.Parallel()
+		em := NewExchangeManager()
+		exch, err := em.NewExchangeByName("Bitstamp")
+		require.NoError(t, err)
+		exch.SetDefaults()
+
+		started := make(chan context.Context, 1)
+		wrapped := syncTickerContextExchange{
+			IBotExchange: exch,
+			updateTickerFn: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+				started <- ctx
+				<-ctx.Done()
+				return nil, ctx.Err()
+			},
+		}
+
+		m, err := SetupSyncManager(&config.SyncManagerConfig{
+			SynchronizeTicker:   true,
+			FiatDisplayCurrency: currency.USD,
+			PairFormatDisplay:   &currency.EMPTYFORMAT,
+			TimeoutREST:         time.Millisecond,
+			TimeoutWebsocket:    time.Second,
+		}, em, &config.RemoteControlConfig{}, false)
+		require.NoError(t, err)
+		m.started.Store(true)
+		m.initSyncCompleted.Store(true)
+
+		runtimeCtx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		pair := currency.NewBTCUSD()
+		agent := &currencyPairSyncAgent{
+			Key:      key.NewExchangeAssetPair(wrapped.GetName(), asset.Spot, pair),
+			Pair:     pair,
+			Created:  time.Now().Add(-time.Minute),
+			trackers: make([]*syncBase, 3),
+			locks:    make([]sync.Mutex, 3),
+		}
+		agent.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+
+		done := make(chan struct{})
+		go func() {
+			m.syncTicker(runtimeCtx, agent, wrapped)
+			close(done)
+		}()
+
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("expected update ticker call to start")
+		}
+
+		cancel()
+
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("expected syncTicker to return after runtime context cancellation")
+		}
+	})
+
+	for _, tc := range []struct {
+		name              string
+		batches           bool
+		freshBatch        bool
+		expiredBatch      bool
+		fail              bool
+		updatedWhileTaken bool
+		requests          int32
+		cacheReads        int32
+	}{
+		{name: "a fresh batch is read from the cache while the REST calls are taken", batches: true, freshBatch: true, updatedWhileTaken: true, cacheReads: 1},
+		{name: "a due batch waits for a free REST call", batches: true, requests: 1, cacheReads: 1},
+		{name: "an expired batch waits for a free REST call", batches: true, expiredBatch: true, requests: 1, cacheReads: 1},
+		{name: "a failed batch releases its REST call", batches: true, fail: true, requests: 1},
+		{name: "a single ticker waits for a free REST call", requests: 1},
+		{name: "a failed single ticker releases its REST call", fail: true, requests: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, err := SetupSyncManager(&config.SyncManagerConfig{
+				SynchronizeTicker:   true,
+				NumWorkers:          3,
+				TimeoutREST:         time.Minute,
+				TimeoutWebsocket:    time.Minute,
+				FiatDisplayCurrency: currency.USD,
+				PairFormatDisplay:   &currency.EMPTYFORMAT,
+			}, NewExchangeManager(), &config.RemoteControlConfig{}, false)
+			require.NoError(t, err, "SetupSyncManager must not error")
+			m.started.Store(true)
+			m.initSyncCompleted.Store(true)
+			m.exchangeCount.Store(2)
+			held, ok := m.tryAcquireExchangeREST("Bitstamp")
+			require.True(t, ok, "an order book sync must take the exchange's only REST call")
+			if tc.freshBatch {
+				m.tickerBatchLastRequested[key.ExchangeAsset{Exchange: "Bitstamp", Asset: asset.Spot}] = time.Now()
+			}
+			if tc.expiredBatch {
+				m.tickerBatchLastRequested[key.ExchangeAsset{Exchange: "Bitstamp", Asset: asset.Spot}] = time.Now().Add(-2 * time.Minute)
+			}
+			c := m.add(key.NewExchangeAssetPair("Bitstamp", asset.Spot, currency.NewBTCUSD()), syncBase{IsUsingREST: true})
+			e := &restTickerSyncExchange{batches: tc.batches, fail: tc.fail, slot: held}
+
+			m.syncTicker(t.Context(), c, e)
+			require.Zero(t, e.requests.Load(), "no REST request must be made while the exchange's REST calls are taken")
+			require.Equal(t, tc.updatedWhileTaken, c.trackers[SyncItemTicker].HaveData, "the ticker must only be updated from a fresh batch while the REST calls are taken")
+
+			held.Add(-1)
+			m.syncTicker(t.Context(), c, e)
+			assert.Equal(t, tc.requests, e.requests.Load(), "REST requests should be made once a REST call is free")
+			assert.Equal(t, tc.requests, e.requestsHoldingSlot.Load(), "each REST request should hold the exchange's REST call")
+			assert.Equal(t, tc.cacheReads, e.cacheReads.Load(), "the batch cache should be read as expected")
+			assert.True(t, c.trackers[SyncItemTicker].HaveData, "the ticker should be updated")
+			assert.Zero(t, held.Load(), "every REST call should be released")
+		})
 	}
 }
 
@@ -466,10 +564,48 @@ func TestSyncManagerSlowExchangeDoesNotStarveOtherExchanges(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		return fastTickers.Load() >= 3 && fastOrderbooks.Load() >= 3
-	}, 2*time.Second, 20*time.Millisecond, "fast exchange ticker and orderbook must keep refreshing while the slow exchange blocks")
+		return slowMaxInFlight.Load() >= 1 && fastTickers.Load() >= 3 && fastOrderbooks.Load() >= 3
+	}, 2*time.Second, 20*time.Millisecond, "slow exchange must hold a REST worker while the fast exchange ticker and orderbook keep refreshing")
 
 	assert.Equal(t, int32(1), slowMaxInFlight.Load(), "slow exchange should hold exactly its one REST worker")
+}
+
+func TestSyncManagerWorker(t *testing.T) {
+	t.Parallel()
+
+	t.Run("an exchange loaded at run time joins the share", func(t *testing.T) {
+		t.Parallel()
+		em := NewExchangeManager()
+		require.NoError(t, em.Add(isolatedRESTSyncExchange{name: "FirstExchange"}), "Add must not error")
+		m, err := SetupSyncManager(&config.SyncManagerConfig{
+			SynchronizeTicker:   true,
+			NumWorkers:          3,
+			TimeoutREST:         10 * time.Millisecond,
+			TimeoutWebsocket:    10 * time.Millisecond,
+			FiatDisplayCurrency: currency.USD,
+			PairFormatDisplay:   &currency.EMPTYFORMAT,
+		}, em, &config.RemoteControlConfig{}, false)
+		require.NoError(t, err, "SetupSyncManager must not error")
+		m.started.Store(true)
+		m.shutdown = make(chan bool)
+		stopped := make(chan struct{})
+		go func() {
+			m.worker(t.Context())
+			close(stopped)
+		}()
+		t.Cleanup(func() {
+			close(m.shutdown)
+			select {
+			case <-stopped:
+			case <-time.After(5 * time.Second):
+				t.Error("worker should stop once shut down")
+			}
+		})
+
+		require.Eventually(t, func() bool { return m.exchangeCount.Load() == 1 }, 5*time.Second, 10*time.Millisecond, "the worker must count the loaded exchange")
+		require.NoError(t, em.Add(isolatedRESTSyncExchange{name: "SecondExchange"}), "Add must not error")
+		assert.Eventually(t, func() bool { return m.exchangeCount.Load() == 2 }, 5*time.Second, 10*time.Millisecond, "the worker should count an exchange loaded at run time")
+	})
 }
 
 func TestSyncManagerTryAcquireExchangeREST(t *testing.T) {
@@ -537,4 +673,31 @@ func TestSyncManagerGetExchangeRESTCounter(t *testing.T) {
 	require.NotNil(t, counter, "a new exchange must get a counter")
 	assert.Same(t, counter, m.getExchangeRESTCounter("Bitstamp"), "the same exchange should get the same counter")
 	assert.NotSame(t, counter, m.getExchangeRESTCounter("Kraken"), "another exchange should get its own counter")
+
+	for _, tc := range []struct {
+		name     string
+		existing bool
+	}{
+		{name: "a new counter does not wait for the lock a ticker batch holds"},
+		{name: "an existing counter does not wait for the lock a ticker batch holds", existing: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &SyncManager{}
+			if tc.existing {
+				m.getExchangeRESTCounter("Bitstamp")
+			}
+			m.mux.Lock()
+			got := make(chan *atomic.Int64, 1)
+			go func() { got <- m.getExchangeRESTCounter("Bitstamp") }()
+			select {
+			case gotCounter := <-got:
+				m.mux.Unlock()
+				assert.NotNil(t, gotCounter, "a counter should be returned while m.mux is held")
+			case <-time.After(5 * time.Second):
+				m.mux.Unlock()
+				require.Fail(t, "getExchangeRESTCounter must not wait for m.mux")
+			}
+		})
+	}
 }
