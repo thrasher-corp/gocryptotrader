@@ -2940,14 +2940,14 @@ func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // the cases s
 		},
 	}
 	// The cases share ex, whose subscriptions the statements after the loop replace, so they run in order before them
-	for filter, generate := range map[string]func() (subscription.List, error){
+	for filter, generate := range map[string]func(context.Context) (subscription.List, error){
 		websocketMarketDataConnection: ex.generateMarketDataSubscriptions,
 		websocketUserConnection:       ex.generateUserSubscriptions,
 		derivativesStreamsConnection:  ex.generateDerivativesStreamsSubscriptions,
 		derivativesPrivateConnection:  ex.generateDerivativesPrivateSubscriptions,
 	} {
 		t.Run(subtestName(filter), func(t *testing.T) {
-			subs, err := generate()
+			subs, err := generate(t.Context())
 			require.NoErrorf(t, err, "generating the %s connection's subscriptions must not error", filter)
 			for _, s := range subs {
 				if s.Channel == ChannelDerivativesUserPortfolio {
@@ -2960,7 +2960,7 @@ func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // the cases s
 	}
 
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneHour}}
-	_, err := ex.generateMarketDataSubscriptions()
+	_, err := ex.generateMarketDataSubscriptions(t.Context())
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generating subscriptions should error for Advanced Trade candles other than five minutes")
 }
 
@@ -3634,7 +3634,7 @@ func TestTypesBooleanPostOnly(t *testing.T) {
 	assert.Equal(t, types.Boolean(true), o.PostOnly, "a post only flag sent as a string should decode")
 }
 
-func TestSetupFromVersion21Config(t *testing.T) {
+func TestSetupFromVersion23Config(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3651,10 +3651,10 @@ func TestSetupFromVersion21Config(t *testing.T) {
 		`"spot":{"assetEnabled":true,"enabled":"BTC-USD","available":"BTC-USD,ETH-USD"}}}`), "currencyPairs")
 	require.NoError(t, err, "jsonparser.Set must not error for the pairs")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":21,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 21 config")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":23,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 23 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 21 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 23 config")
 	exchCfg, err := cfg.GetExchangeConfig("Coinbase")
 	require.NoError(t, err, "GetExchangeConfig must not error")
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), exchCfg.Features.Subscriptions.Clone())
@@ -3680,9 +3680,9 @@ func TestSetupFromVersion21Config(t *testing.T) {
 		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, pairs, false), "StorePairs must not error for available %s pairs", a)
 		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, pairs, true), "StorePairs must not error for enabled %s pairs", a)
 	}
-	marketData, err := ex.generateMarketDataSubscriptions()
+	marketData, err := ex.generateMarketDataSubscriptions(t.Context())
 	require.NoError(t, err, "generateMarketDataSubscriptions must not error for the upgraded configuration")
-	streams, err := ex.generateDerivativesStreamsSubscriptions()
+	streams, err := ex.generateDerivativesStreamsSubscriptions(t.Context())
 	require.NoError(t, err, "generateDerivativesStreamsSubscriptions must not error for the upgraded configuration")
 	subs := slices.Concat(marketData, streams)
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
@@ -3698,7 +3698,7 @@ func TestSetupFromVersion21Config(t *testing.T) {
 	}
 }
 
-func TestSetupFromVersion21CustomisedConfig(t *testing.T) {
+func TestSetupFromVersion23CustomisedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3716,10 +3716,10 @@ func TestSetupFromVersion21CustomisedConfig(t *testing.T) {
 		`"spot":{"assetEnabled":true,"enabled":"BTC-USD","available":"BTC-USD,ETH-USD"}}}`), "currencyPairs")
 	require.NoError(t, err, "jsonparser.Set must not error for the pairs")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":21,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 21 config")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":23,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 23 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 21 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 23 config")
 	exchCfg, err := cfg.GetExchangeConfig("Coinbase")
 	require.NoError(t, err, "GetExchangeConfig must not error")
 	ex := new(Exchange)
@@ -3729,9 +3729,9 @@ func TestSetupFromVersion21CustomisedConfig(t *testing.T) {
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
 	ex.Name = t.Name()
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	marketData, err := ex.generateMarketDataSubscriptions()
+	marketData, err := ex.generateMarketDataSubscriptions(t.Context())
 	require.NoError(t, err, "generateMarketDataSubscriptions must not error for the upgraded customised configuration")
-	user, err := ex.generateUserSubscriptions()
+	user, err := ex.generateUserSubscriptions(t.Context())
 	require.NoError(t, err, "generateUserSubscriptions must not error for the upgraded customised configuration")
 	assert.True(t, slices.ContainsFunc(user, func(s *subscription.Subscription) bool { return s.Channel == subscription.MyAccountChannel }), "the upgraded configuration should subscribe the account channel")
 	for _, s := range marketData {

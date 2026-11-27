@@ -236,7 +236,7 @@ func (e *Exchange) generateSubscriptions(keep func(*subscription.Subscription) b
 }
 
 // generateMarketDataSubscriptions returns the subscriptions Advanced Trade's market data connections carry
-func (e *Exchange) generateMarketDataSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateMarketDataSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateSubscriptions(func(s *subscription.Subscription) bool {
 		ch, ok := advancedTradeChannelOf(s)
 		return ok && !ch.account
@@ -244,7 +244,7 @@ func (e *Exchange) generateMarketDataSubscriptions() (subscription.List, error) 
 }
 
 // generateUserSubscriptions returns the subscriptions Advanced Trade's user connection carries
-func (e *Exchange) generateUserSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateUserSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateSubscriptions(func(s *subscription.Subscription) bool {
 		ch, ok := advancedTradeChannelOf(s)
 		return ok && ch.account

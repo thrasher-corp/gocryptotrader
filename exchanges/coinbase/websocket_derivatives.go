@@ -385,7 +385,7 @@ func derivativesChannelOf(s *subscription.Subscription) (derivativesChannel, boo
 }
 
 // generateDerivativesStreamsSubscriptions returns the subscriptions the gateway's public streams carry
-func (e *Exchange) generateDerivativesStreamsSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateDerivativesStreamsSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateSubscriptions(func(s *subscription.Subscription) bool {
 		ch, ok := derivativesChannelOf(s)
 		return ok && !ch.private
@@ -393,7 +393,7 @@ func (e *Exchange) generateDerivativesStreamsSubscriptions() (subscription.List,
 }
 
 // generateDerivativesPrivateSubscriptions returns the subscriptions the gateway's private connections carry
-func (e *Exchange) generateDerivativesPrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateDerivativesPrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generateSubscriptions(func(s *subscription.Subscription) bool {
 		ch, ok := derivativesChannelOf(s)
 		return ok && ch.private
