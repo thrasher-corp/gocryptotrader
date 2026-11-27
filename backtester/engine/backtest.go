@@ -20,10 +20,10 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
-	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctexchange "github.com/thrasher-corp/gocryptotrader/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/futures"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchange/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

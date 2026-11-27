@@ -9,9 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchange/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

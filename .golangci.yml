@@ -134,7 +134,7 @@ linters:
             - '**/exchange/**'
             - '!$test'
             # test infrastructure that aborts the run on a malformed fixture or missing credentials
-            - '!**/exchanges/mock/**'
+            - '!**/exchange/mock/**'
             - '!**/internal/**'
           allow:
             - github.com/thrasher-corp/gocryptotrader/log
@@ -219,7 +219,7 @@ linters:
         text: 'G101|G703' # G101 hardcoded credentials, G703 path traversal via taint analysis
       - linters:
           - gosec
-        path: exchanges/mock/server\.go
+        path: exchange/mock/server\.go
         text: 'G706' # G706 log injection via taint analysis
       - linters:
           - dupword

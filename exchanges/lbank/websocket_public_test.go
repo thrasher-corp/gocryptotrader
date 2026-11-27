@@ -7,12 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchange/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchange/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 )
 
 // PlaceV5AlgoOrder places a strategy order.

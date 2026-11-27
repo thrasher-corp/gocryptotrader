@@ -3,7 +3,7 @@ package lbank
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 )
 
 const rateInterval = 10 * time.Second

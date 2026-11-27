@@ -21,7 +21,7 @@ An event-driven backtesting tool to test and iterate trading strategies using hi
 
 ### Features
 
-- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](../docs/OHLCV.md) and [trade readme](../exchanges/trade/README.md) for supported exchanges
+- Works with all GoCryptoTrader exchanges that support trade/candle retrieval. See [candle readme](../docs/OHLCV.md) and [trade readme](../exchange/trade/README.md) for supported exchanges
 - CSV data import
 - Database data import
 - Proof of concept live data running

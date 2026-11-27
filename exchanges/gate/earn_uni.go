@@ -10,8 +10,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // GetLendingCurrencyList retrieves the currencies available for lending

@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // fetchWSOrderbookSnapshot retrieves a full orderbook snapshot for the specified pair and asset type.

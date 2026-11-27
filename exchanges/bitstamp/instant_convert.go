@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 )
 
 // CreateInstantConvertAddress creates an address which automatically sells deposited bitcoin for the liquidation currency

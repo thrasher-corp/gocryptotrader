@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 )
 
 var (

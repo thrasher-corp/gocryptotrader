@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 )
 
 // ListSubAccounts retrieves the main account's sub-accounts. A subAccountType of 0 lists every type of sub-account and 1

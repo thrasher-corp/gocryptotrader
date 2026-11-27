@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchange/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 

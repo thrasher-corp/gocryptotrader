@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 )
 
 // RevokeAllAPIKeys revokes every API key across all of the user's accounts, including the key making the request

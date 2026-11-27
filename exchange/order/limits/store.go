@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 // Load loads all limits into private limit holder

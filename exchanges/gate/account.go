@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 )
 
 // GetAccountDetails retrieves account details

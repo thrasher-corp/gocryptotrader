@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange)
 [![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
 
 ## This is still in active development
@@ -142,7 +142,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Yobit | Yes | NA | NA |
 ```
 
-#### Add exchange to the list of [supported exchanges](../exchanges/support.go)
+#### Add exchange to the list of [supported exchanges](../exchange/support.go)
 
 ```go
 var Exchanges = []string{
@@ -540,7 +540,7 @@ func (e *Exchange) NewOrder(ctx context.Context, o *NewOrderRequest) (*OrderResp
 
 ### Implementing wrapper functions
 
-Wrapper functions are the interface in which the GoCryptoTrader engine communicates with an exchange for receiving data and sending requests. See the [exchanges/interfaces.go Go interface file](../exchanges/interfaces.go) for a full list of API methods.
+Wrapper functions are the interface in which the GoCryptoTrader engine communicates with an exchange for receiving data and sending requests. See the [exchange/interfaces.go Go interface file](../exchange/interfaces.go) for a full list of API methods.
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below:
 
 Unsupported Example:
@@ -608,7 +608,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 Wrapper functions on most exchanges are written in similar ways so other exchanges can be used as a reference.
 
-Many helper functions defined in [exchange.go](../exchanges/exchange.go) can be useful when implementing wrapper functions. See examples below:
+Many helper functions defined in [exchange.go](../exchange/exchange.go) can be useful when implementing wrapper functions. See examples below:
 
 ```go
 e.FormatExchangeCurrency(p, a) // Formats the currency pair to the style accepted by the exchange. p is the currency pair & a is the asset type

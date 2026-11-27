@@ -1,6 +1,6 @@
 package coinmarketcap
 
-import "github.com/thrasher-corp/gocryptotrader/exchanges/request"
+import "github.com/thrasher-corp/gocryptotrader/exchange/request"
 
 const (
 	basicEPL request.EndpointLimit = iota

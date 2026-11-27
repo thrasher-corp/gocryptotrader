@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 var supportedAccountTypes = []WalletAccountType{Funding, UTA, Spot, Contract, Inverse}

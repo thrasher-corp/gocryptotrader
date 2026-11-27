@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order"
 )
 
 // TransactionType is the type of user transaction

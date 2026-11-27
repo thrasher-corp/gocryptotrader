@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 )
 
 var errNoCandleData = errors.New("no candle data provided")

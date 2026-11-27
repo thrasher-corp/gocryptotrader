@@ -3,7 +3,7 @@ package gate
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 )
 
 // Gate endpoints limits. See: https://www.gate.io/docs/developers/apiv4/en/#frequency-limit-rule

@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	gctkline "github.com/thrasher-corp/gocryptotrader/exchange/kline"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 

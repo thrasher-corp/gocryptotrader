@@ -3,7 +3,7 @@ package btcmarkets
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 )
 
 // BTCMarkets Rate limit consts

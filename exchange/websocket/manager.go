@@ -13,13 +13,13 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchange/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchange/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchange/request"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

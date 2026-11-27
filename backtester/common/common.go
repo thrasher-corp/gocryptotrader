@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchange/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 

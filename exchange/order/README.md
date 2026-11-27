@@ -1,0 +1,33 @@
+# GoCryptoTrader package Order
+
+<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo" width="350px" height="350px" hspace="70">
+
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchange/order)
+[![Coverage Status](https://codecov.io/gh/thrasher-corp/gocryptotrader/graph/badge.svg?token=41784B23TS)](https://codecov.io/gh/thrasher-corp/gocryptotrader)
+
+This order package is part of the GoCryptoTrader codebase.
+
+## This is still in active development
+
+You can track ideas, planned features and what's in progress on our [GoCryptoTrader Kanban board](https://github.com/orgs/thrasher-corp/projects/3).
+
+Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/zt-38z8abs3l-gH8AAOk8XND6DP5NfCiG_g)
+
+## Current Features for order
+
++ This package services the exchange package with order handling.
+  + Creation of order
+  + Deletion of order
+  + Order tracking
+
++ For futures orders, this package also contains a futures position controller. It is responsible for tracking all futures orders that GoCryptoTrader processes. It keeps a running history of realised and unrealised PNL to allow a trader to track their profits. Positions are closed once the exposure reaches zero, then upon a new futures order being processed, a new position is created. To view futures positions, see the GRPC command `getfuturesposition`
+
+## Donations
+
+<img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">
+
+If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
+
+`bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc`

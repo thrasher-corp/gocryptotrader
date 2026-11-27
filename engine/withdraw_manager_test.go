@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"

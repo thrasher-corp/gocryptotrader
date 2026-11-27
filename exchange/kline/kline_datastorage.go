@@ -1,0 +1,108 @@
+package kline
+
+import (
+	"errors"
+	"time"
+	"uuid"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
+)
+
+// LoadFromDatabase returns Item from database seeded data
+func LoadFromDatabase(exch string, pair currency.Pair, a asset.Item, interval Interval, start, end time.Time) (*Item, error) {
+	retCandle, err := candle.Series(exch, pair.Base.String(), pair.Quote.String(), int64(interval.Duration().Seconds()), a.String(), start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := Item{
+		Exchange: exch,
+		Pair:     pair,
+		Interval: interval,
+		Asset:    a,
+	}
+
+	for x := range retCandle.Candles {
+		if ret.SourceJobID == uuid.Nil() && retCandle.Candles[x].SourceJobID != "" {
+			ret.SourceJobID, err = uuid.Parse(retCandle.Candles[x].SourceJobID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if ret.ValidationJobID == uuid.Nil() && retCandle.Candles[x].ValidationJobID != "" {
+			ret.ValidationJobID, err = uuid.Parse(retCandle.Candles[x].ValidationJobID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		ret.Candles = append(ret.Candles, Candle{
+			Time:             retCandle.Candles[x].Timestamp,
+			Open:             retCandle.Candles[x].Open,
+			High:             retCandle.Candles[x].High,
+			Low:              retCandle.Candles[x].Low,
+			Close:            retCandle.Candles[x].Close,
+			Volume:           retCandle.Candles[x].Volume,
+			ValidationIssues: retCandle.Candles[x].ValidationIssues,
+		})
+	}
+	return &ret, nil
+}
+
+// StoreInDatabase returns Item from database seeded data
+func StoreInDatabase(in *Item, force bool) (uint64, error) {
+	if in.Exchange == "" {
+		return 0, errors.New("name cannot be blank")
+	}
+	if in.Pair.IsEmpty() {
+		return 0, errors.New("currency pair cannot be empty")
+	}
+	if !in.Asset.IsValid() {
+		return 0, errors.New("asset cannot be blank")
+	}
+	if len(in.Candles) < 1 {
+		return 0, errors.New("candle data is empty")
+	}
+
+	exchangeUUID, err := exchange.UUIDByName(in.Exchange)
+	if err != nil {
+		return 0, err
+	}
+
+	databaseCandles := candle.Item{
+		ExchangeID: exchangeUUID.String(),
+		Base:       in.Pair.Base.Upper().String(),
+		Quote:      in.Pair.Quote.Upper().String(),
+		Interval:   int64(in.Interval.Duration().Seconds()),
+		Asset:      in.Asset.String(),
+	}
+
+	for x := range in.Candles {
+		can := candle.Candle{
+			Timestamp: alignIntervalStart(in.Candles[x].Time, in.Interval),
+			Open:      in.Candles[x].Open,
+			High:      in.Candles[x].High,
+			Low:       in.Candles[x].Low,
+			Close:     in.Candles[x].Close,
+			Volume:    in.Candles[x].Volume,
+		}
+		if in.ValidationJobID != uuid.Nil() {
+			can.ValidationJobID = in.ValidationJobID.String()
+			can.ValidationIssues = in.Candles[x].ValidationIssues
+		}
+		if in.SourceJobID != uuid.Nil() {
+			can.SourceJobID = in.SourceJobID.String()
+		}
+
+		databaseCandles.Candles = append(databaseCandles.Candles, can)
+	}
+	if force {
+		_, err := candle.DeleteCandles(&databaseCandles)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return candle.Insert(&databaseCandles)
+}

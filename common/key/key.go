@@ -2,7 +2,7 @@ package key
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchange/asset"
 )
 
 // ExchangeAssetPair is a unique map key signature for exchange, currency pair and asset
