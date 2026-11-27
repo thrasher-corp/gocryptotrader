@@ -154,14 +154,14 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 }
 
 // generatePublicSubscriptions returns the configured subscriptions to the market data channels
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePublicSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := normaliseSubscriptions(e.Features.Subscriptions).ExpandTemplates(e)
 	return slices.DeleteFunc(subs, isAccountSubscription), err
 }
 
 // generateAccountSubscriptions returns the configured subscriptions to the account channels, none unless authenticated
 // websocket use is available
-func (e *Exchange) generateAccountSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAccountSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

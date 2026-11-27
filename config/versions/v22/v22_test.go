@@ -1,260 +1,174 @@
 package v22_test
 
 import (
-	"bytes"
-	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
-	"strings"
 	"testing"
 
-	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v22 "github.com/thrasher-corp/gocryptotrader/config/versions/v22"
 )
 
-// Kraken's default subscriptions as configs save them
-const (
-	ticker         = `{"enabled":true,"channel":"ticker","asset":"spot"}`
-	allTrades      = `{"enabled":true,"channel":"allTrades","asset":"spot"}`
-	candles        = `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"}`
-	orderbook      = `{"enabled":true,"channel":"orderbook","asset":"spot","levels":1000}`
-	myOrders       = `{"enabled":true,"channel":"myOrders","authenticated":true}`
-	myTrades       = `{"enabled":true,"channel":"myTrades","authenticated":true}`
-	futuresTicker  = `{"enabled":true,"channel":"ticker","asset":"futures"}`
-	futuresTrades  = `{"enabled":true,"channel":"allTrades","asset":"futures"}`
-	futuresBook    = `{"enabled":true,"channel":"orderbook","asset":"futures"}`
-	futuresOrders  = `{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true}`
-	futuresFills   = `{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true}`
-	futuresWallet  = `{"enabled":true,"channel":"myWallet","asset":"futures","authenticated":true}`
-	futuresDefault = futuresTicker + "," + futuresTrades + "," + futuresBook + "," + futuresOrders + "," + futuresFills + "," + futuresWallet
-)
-
-// previousDefaults are Kraken's default subscriptions before futures websocket support
-var previousDefaults = []string{ticker, allTrades, candles, orderbook, myOrders, myTrades}
-
-// kraken returns a Kraken exchange config with the websocket endpoints given, keeping its other endpoints, and the
-// subscriptions given, if any
-func kraken(public, private string, subs ...string) string {
-	features := ""
-	if len(subs) != 0 {
-		features = `"features":{"enabled":{"websocketAPI":true},"subscriptions":[` + strings.Join(subs, ",") + `]},`
-	}
-	return `{"name":"Kraken",` + features + `"api":{"urlEndpoints":{"RestFuturesSupplementaryURL":"https://futures.kraken.com/api/","RestFuturesURL":"https://futures.kraken.com/derivatives","RestSpotURL":"https://api.kraken.com","WebsocketSpotSupplementaryURL":"` + private + `","WebsocketSpotURL":"` + public + `"}},"custom":"retained"}`
-}
-
-// subscriptions returns a Kraken exchange config with the current websocket endpoints and the subscriptions given
-func subscriptions(subs ...string) string {
-	return kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", subs...)
-}
-
-// downgraded returns a Kraken exchange config with the previous websocket endpoints and the subscriptions given
-func downgraded(subs ...string) string {
-	return kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", subs...)
-}
-
-// replaced returns the previous default subscriptions with the subscription at i replaced by sub
-func replaced(i int, sub string) []string {
-	subs := append([]string(nil), previousDefaults...)
-	subs[i] = sub
-	return subs
-}
-
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Kraken"}, new(v22.Version).Exchanges(), "Exchanges should return just Kraken")
+	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
+
+	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
-		name, in, exp string
+		name string
+		in   string
+		exp  string
 	}{
-		{"previous defaults", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"beta endpoints", kraken("wss://beta-ws.kraken.com", "wss://beta-ws-auth.kraken.com"), kraken("wss://beta-ws.kraken.com/v2", "wss://beta-ws-auth.kraken.com/v2")},
-		{"trailing slashes", kraken("wss://ws.kraken.com/", "wss://ws-auth.kraken.com/"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"current endpoints", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2"), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2")},
-		{"custom endpoints", kraken("wss://proxy.example.com", "wss://ws-auth.example.com"), kraken("wss://proxy.example.com", "wss://ws-auth.example.com")},
-		{"one custom endpoint", kraken("wss://ws.kraken.com", "wss://proxy.example.com"), kraken("wss://ws.kraken.com/v2", "wss://proxy.example.com")},
-		{"public endpoint only", `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2"}}}`},
-		{"private endpoint only", `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":"wss://ws-auth.kraken.com"}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":"wss://ws-auth.kraken.com/v2"}}}`},
-		{"empty endpoint", kraken("", ""), kraken("", "")},
-		{"null endpoint", `{"api":{"urlEndpoints":{"WebsocketSpotURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotURL":null}}}`},
-		{"v1 endpoint under another key", `{"api":{"urlEndpoints":{"RestSpotURL":"wss://ws.kraken.com"}}}`, `{"api":{"urlEndpoints":{"RestSpotURL":"wss://ws.kraken.com"}}}`},
-		{"no endpoints", `{"name":"Kraken","api":{}}`, `{"name":"Kraken","api":{}}`},
-		{"no api", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-		{"endpoints and subscriptions", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...), kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...)},
+		{
+			name: "old defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
+		{
+			name: "custom endpoints with the version prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+		},
+		{
+			name: "custom endpoints without the prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+		},
+		{
+			name: "unrelated endpoints are kept",
+			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(tc.in))
+			out, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, tc.exp, string(got), "UpgradeExchange should move only Kraken's websocket v1 endpoints")
-			again, err := new(v22.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
-			require.NoError(t, err, "repeated UpgradeExchange must not error")
-			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
 		})
 	}
 
-	t.Run("previous default subscriptions", func(t *testing.T) {
-		t.Parallel()
-		explicitZeros := `{"enabled":true,"channel":"ticker","pairs":"","asset":"spot","params":{},"interval":0,"levels":0,"authenticated":false,"qualifiedChannel":"ignored"}`
-		for _, tc := range []struct {
-			name string
-			subs []string
-		}{
-			{"previous defaults", previousDefaults},
-			{"another order", []string{myTrades, orderbook, ticker, candles, myOrders, allTrades}},
-			{"capitalised asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"Spot"}`)},
-			{"upper case asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"SPOT"}`)},
-			{"capitalised field names", replaced(0, `{"Enabled":true,"Channel":"ticker","Asset":"spot"}`)},
-			{"explicit zero values", replaced(0, explicitZeros)},
-			{"interval in seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60s"}`)},
-			{"interval in minutes and seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m0s"}`)},
-			{"interval in nanoseconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":60000000000}`)},
-			{"interval unit spelt out", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1minute"}`)},
-			{"interval unit in upper case", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1MIN"}`)},
-			{"interval in upper case seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60S"}`)},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				got, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(subscriptions(tc.subs...)))
-				require.NoError(t, err, "UpgradeExchange must not error")
-				exp := subscriptions(append(tc.subs, futuresDefault)...)
-				assert.JSONEq(t, exp, string(got), "UpgradeExchange should add the futures subscriptions, keeping the saved ones")
-				again, err := new(v22.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
-				require.NoError(t, err, "repeated UpgradeExchange must not error")
-				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
-			})
-		}
-	})
+	in := []byte(`{"name":"GateIO","api":{}}`)
+	out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
 
-	t.Run("custom subscriptions", func(t *testing.T) {
-		t.Parallel()
-		for _, tc := range []struct {
-			name, in string
-		}{
-			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...)},
-			{"futures ticker added", subscriptions(append(previousDefaults, futuresTicker)...)},
-			{"level 3 book added", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`)...)},
-			{"default removed", subscriptions(previousDefaults[1:]...)},
-			{"default duplicated", subscriptions(replaced(1, ticker)...)},
-			{"disabled", subscriptions(replaced(0, `{"enabled":false,"channel":"ticker","asset":"spot"}`)...)},
-			{"enabled omitted", subscriptions(replaced(0, `{"channel":"ticker","asset":"spot"}`)...)},
-			{"capitalised channel", subscriptions(replaced(0, `{"enabled":true,"channel":"Ticker","asset":"spot"}`)...)},
-			{"another asset", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"all"}`)...)},
-			{"pairs", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","pairs":"XBT/USD"}`)...)},
-			{"params", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","params":{"event_trigger":"bbo"}}`)...)},
-			{"another depth", subscriptions(replaced(3, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":10}`)...)},
-			{"another interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)...)},
-			{"monthly interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1M"}`)...)},
-			{"invalid interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1 minute"}`)...)},
-			{"raw interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"raw"}`)...)},
-			// Scaling 2^53+1 minutes wraps to one minute, but the runtime rejects intervals that overflow
-			{"overflowing interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"9007199254740993m"}`)...)},
-			{"unauthenticated", subscriptions(replaced(4, `{"enabled":true,"channel":"myOrders"}`)...)},
-			{"no subscriptions", subscriptions()},
-			{"empty subscriptions", `{"name":"Kraken","features":{"subscriptions":[]}}`},
-			{"null subscriptions", `{"name":"Kraken","features":{"subscriptions":null}}`},
-			{"no features", `{"name":"Kraken"}`},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				got, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(tc.in))
-				require.NoError(t, err, "UpgradeExchange must not error")
-				assert.JSONEq(t, tc.in, string(got), "UpgradeExchange should keep subscriptions other than the previous defaults")
-			})
-		}
-	})
-
-	t.Run("malformed configs", func(t *testing.T) {
-		t.Parallel()
-		_, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com`))
-		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "UpgradeExchange should reject a malformed exchange config")
-		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
-			t.Run(subs, func(t *testing.T) {
-				t.Parallel()
-				var typeErr *json.UnmarshalTypeError
-				_, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-				assert.ErrorAsf(t, err, &typeErr, "UpgradeExchange should reject subscriptions %s", subs)
-			})
-		}
-	})
+	_, err = new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
+
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
 	for _, tc := range []struct {
-		name, in, exp string
+		name string
+		in   string
+		exp  string
 	}{
-		{"current defaults", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"beta endpoints", kraken("wss://beta-ws.kraken.com/v2", "wss://beta-ws-auth.kraken.com/v2"), kraken("wss://beta-ws.kraken.com", "wss://beta-ws-auth.kraken.com")},
-		{"trailing slashes", kraken("wss://ws.kraken.com/v2/", "wss://ws-auth.kraken.com/v2/"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"previous endpoints", kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com"), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com")},
-		{"custom endpoints", kraken("wss://proxy.example.com/v2", "wss://ws-auth.example.com/v2"), kraken("wss://proxy.example.com/v2", "wss://ws-auth.example.com/v2")},
-		{"null endpoint", `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":null}}}`, `{"api":{"urlEndpoints":{"WebsocketSpotSupplementaryURL":null}}}`},
-		{"no api", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-		{"endpoints and subscriptions", kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...), kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...)},
+		{
+			name: "new defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
+		{
+			name: "a custom bare host regains the version prefix and a custom path gains a final slash",
+			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
+		},
+		{
+			name: "custom paths over http or ending in the version prefix gain a final slash",
+			in:   `{"RestSpotURL":"http://localhost:8080/gateway","RestFuturesURL":"https://proxy.example/gate-fx/api/v4"}`,
+			exp:  `{"RestSpotURL":"http://localhost:8080/gateway/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/"}`,
+		},
+		{
+			name: "a custom bare host with a port regains the version prefix and a host ending in a slash is kept",
+			in:   `{"RestSpotURL":"https://proxy.example:8443","RestFuturesURL":"https://proxy.example/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example:8443/api/v4/","RestFuturesURL":"https://proxy.example/"}`,
+		},
+		{
+			name: "endpoints already carrying the prefix and placeholders are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(tc.in))
+			out, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should move only Kraken's websocket v2 endpoints")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
 
-	t.Run("subscriptions", func(t *testing.T) {
-		t.Parallel()
-		disabledTicker := `{"enabled":false,"channel":"ticker","asset":"futures"}`
-		level3 := `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`
-		for _, tc := range []struct {
-			name, in, exp string
-		}{
-			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...), downgraded(previousDefaults...)},
-			{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, futuresWallet, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
-			{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(previousDefaults...)},
-			{"previous defaults", subscriptions(previousDefaults...), downgraded(previousDefaults...)},
-			{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills, futuresWallet)...)},
-			{"futures subscriptions removed", subscriptions(append(previousDefaults, futuresTicker)...), downgraded(append(previousDefaults, futuresTicker)...)},
-			{"futures balances removed", subscriptions(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, futuresTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
-			{"level 3 book added", subscriptions(append(previousDefaults, futuresDefault, level3)...), downgraded(append(previousDefaults, futuresDefault, level3)...)},
-			{"no features", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				got, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(tc.in))
-				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should remove the futures subscriptions only from the current defaults")
-			})
-		}
-	})
-
-	t.Run("malformed configs", func(t *testing.T) {
-		t.Parallel()
-		_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2`))
-		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "DowngradeExchange should reject a malformed exchange config")
-		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
-			t.Run(subs, func(t *testing.T) {
-				t.Parallel()
-				var typeErr *json.UnmarshalTypeError
-				_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-				assert.ErrorAsf(t, err, &typeErr, "DowngradeExchange should reject subscriptions %s", subs)
-			})
-		}
-	})
+	_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
 }
 
-func TestRegisteredMigration(t *testing.T) {
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	binance := `{"name":"Binance","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com"}},"features":{"subscriptions":[` + strings.Join(previousDefaults, ",") + `]}}`
-	v21 := `{"version":21,"exchanges":[` + binance + `,` + kraken("wss://ws.kraken.com", "wss://ws-auth.kraken.com", previousDefaults...) + `]}`
-	upgraded := `{"version":22,"exchanges":[` + binance + `,` + kraken("wss://ws.kraken.com/v2", "wss://ws-auth.kraken.com/v2", append(previousDefaults, futuresDefault)...) + `]}`
-	got, err := versions.Manager.Deploy(t.Context(), []byte(v21), 22)
-	require.NoError(t, err, "Deploy must apply the registered v22 upgrade")
-	assert.JSONEq(t, upgraded, string(got), "Deploy should migrate only Kraken's websocket endpoints and subscriptions")
-
-	got, err = versions.Manager.Deploy(t.Context(), got, 21)
-	require.NoError(t, err, "Deploy must downgrade v22 to v21")
-	assert.JSONEq(t, v21, string(got), "Deploy should restore the websocket v1 endpoints and the previous subscriptions")
+	for _, endpoint := range []string{"https://proxy.example/gate/api/v4/", "https://proxy.example/gateway/", "https://proxy.example/"} {
+		t.Run(endpoint, func(t *testing.T) {
+			t.Parallel()
+			in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"` + endpoint + `"}}}`)
+			up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+		})
+	}
 }

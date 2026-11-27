@@ -28,7 +28,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	ws.Subscriber = currySimpleSub(ws)
 	ws.Unsubscriber = currySimpleUnsub(ws)
 
-	subs, err := ws.GenerateSubs()
+	subs, err := ws.GenerateSubs(t.Context())
 	require.NoError(t, err, "Generating test subscriptions must not error")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.NoError(t, ws.UnsubscribeChannels(t.Context(), nil, nil), "Unsubscribing from nil should not error")
@@ -89,7 +89,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	multiEmpty := NewManager()
 	multiEmpty.useMultiConnectionManagement = true
 
-	subs, err = amazingCandidate.GenerateSubscriptions()
+	subs, err = amazingCandidate.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "Generating test subscriptions must not error")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
@@ -657,7 +657,7 @@ func TestFlushChannelsConcurrentReaders(t *testing.T) {
 		newConcurrentSubscription("flush", 0),
 		newConcurrentSubscription("flush", 1),
 	}
-	manager.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) {
+	manager.connectionManager[0].setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 		return expected, nil
 	}
 
@@ -716,7 +716,7 @@ func TestFlushChannels(t *testing.T) {
 
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
 
@@ -731,11 +731,11 @@ func TestFlushChannels(t *testing.T) {
 
 	require.NoError(t, w.FlushChannels(t.Context()), "FlushChannels must not error")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
-	err = w.FlushChannels(t.Context())                                                    // error on full subscribeToChannels
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return nil, errDastardlyReason } // error on generateSubs
+	err = w.FlushChannels(t.Context())                                                                   // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly on GenerateSubs")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
+	w.GenerateSubs = func(context.Context) (subscription.List, error) { return nil, nil } // No subs to sub
 
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotRemoved)
 
@@ -750,7 +750,7 @@ func TestFlushChannels(t *testing.T) {
 	assert.NoError(t, w.FlushChannels(t.Context()), "FlushChannels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
-	subs, err := w.GenerateSubs()
+	subs, err := w.GenerateSubs(t.Context())
 	require.NoError(t, err, "GenerateSubs must not error")
 	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels(t.Context())
@@ -809,7 +809,7 @@ func TestFlushChannels(t *testing.T) {
 	// Unsubscribe what's already subscribed. No subscriptions left over, which then forces the shutdown and removal
 	// of the connection from management.
 	w.features.Subscribe = true
-	w.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) { return nil, nil }
+	w.connectionManager[0].setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return nil, nil }
 	require.ErrorIs(t, w.FlushChannels(t.Context()), ErrSubscriptionsNotRemoved, "Must error when no subscriptions are removed from subscription store")
 
 	w.connectionManager[0].setup.Unsubscriber = func(ctx context.Context, c Connection, s subscription.List) error {
@@ -825,7 +825,7 @@ func TestFlushChannels(t *testing.T) {
 		var m *Manager
 		account := lifecycleTestSetup(&m, wsURL, "account", func(context.Context, Connection) error {
 			return errDastardlyReason
-		}, func() (subscription.List, error) {
+		}, func(context.Context) (subscription.List, error) {
 			accountGenerations.Add(1)
 			if generationFails.Load() {
 				return nil, errDastardlyReason
@@ -837,7 +837,7 @@ func TestFlushChannels(t *testing.T) {
 		var publicSubs subscription.List
 		m = newLifecycleTestManager(t,
 			account,
-			lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) { return publicSubs.Clone(), nil }),
+			lifecycleTestSetup(&m, wsURL, "public", dial, func(context.Context) (subscription.List, error) { return publicSubs.Clone(), nil }),
 		)
 		optional, public := m.connectionManager[0], m.connectionManager[1]
 		publicSubs = subscription.List{{Channel: "first"}}
@@ -879,7 +879,7 @@ func TestFlushChannels(t *testing.T) {
 		var accountGenerationErr, accountSubscribeErr, publicGenerationErr, publicSubscribeErr error
 		accountSubs := subscription.List{{Channel: "account"}}
 		var m *Manager
-		account := lifecycleTestSetup(&m, wsURL, "account", dial, func() (subscription.List, error) {
+		account := lifecycleTestSetup(&m, wsURL, "account", dial, func(context.Context) (subscription.List, error) {
 			if accountGenerationErr != nil {
 				return nil, accountGenerationErr
 			}
@@ -895,7 +895,7 @@ func TestFlushChannels(t *testing.T) {
 		}
 		publicSub, laterPublicSub := &subscription.Subscription{Channel: "public"}, &subscription.Subscription{Channel: "later"}
 		var publicSubs subscription.List
-		publicSetup := lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
+		publicSetup := lifecycleTestSetup(&m, wsURL, "public", dial, func(context.Context) (subscription.List, error) {
 			return publicSubs.Clone(), publicGenerationErr
 		})
 		publicSubscriber := publicSetup.Subscriber
@@ -951,7 +951,7 @@ func TestFlushChannels(t *testing.T) {
 				first, second := &subscription.Subscription{Channel: "first"}, &subscription.Subscription{Channel: "second"}
 				wanted := subscription.List{first}
 				var m *Manager
-				setup := lifecycleTestSetup(&m, wsURL, "account", dial, func() (subscription.List, error) { return slices.Clone(wanted), nil })
+				setup := lifecycleTestSetup(&m, wsURL, "account", dial, func(context.Context) (subscription.List, error) { return slices.Clone(wanted), nil })
 				setup.Optional = optional
 				var authentications int
 				signedIn := make(map[Connection]bool)
@@ -1003,7 +1003,7 @@ func TestFlushChannels(t *testing.T) {
 				return errDastardlyReason
 			}
 			return dial(ctx, conn)
-		}, func() (subscription.List, error) { return slices.Clone(wanted), nil })
+		}, func(context.Context) (subscription.List, error) { return slices.Clone(wanted), nil })
 		account.Optional = true
 		m = newLifecycleTestManager(t, account)
 		m.MaxSubscriptionsPerConnection = 1
@@ -1033,14 +1033,14 @@ func TestFlushChannels(t *testing.T) {
 		var cancelling atomic.Bool
 		var secondGenerations atomic.Int32
 		var m *Manager
-		first := lifecycleTestSetup(&m, wsURL, "first", dial, func() (subscription.List, error) {
+		first := lifecycleTestSetup(&m, wsURL, "first", dial, func(context.Context) (subscription.List, error) {
 			if cancelling.Load() {
 				cancel()
 				return subscription.List{{Channel: "first"}}, fmt.Errorf("%w: one left out", ErrSubscriptionPartial)
 			}
 			return subscription.List{{Channel: "first"}}, nil
 		})
-		m = newLifecycleTestManager(t, first, lifecycleTestSetup(&m, wsURL, "second", dial, func() (subscription.List, error) {
+		m = newLifecycleTestManager(t, first, lifecycleTestSetup(&m, wsURL, "second", dial, func(context.Context) (subscription.List, error) {
 			secondGenerations.Add(1)
 			return subscription.List{{Channel: "second"}}, nil
 		}))
@@ -1074,7 +1074,7 @@ func TestFlushChannels(t *testing.T) {
 						return errDastardlyReason
 					}
 					return dial(ctx, conn)
-				}, func() (subscription.List, error) { return subscription.List{accountSub}, nil })
+				}, func(context.Context) (subscription.List, error) { return subscription.List{accountSub}, nil })
 				account.Optional = true
 				subscriber := account.Subscriber
 				account.Subscriber = func(ctx context.Context, conn Connection, subs subscription.List) error {
@@ -1118,7 +1118,7 @@ func TestFlushChannels(t *testing.T) {
 				return errDastardlyReason
 			}
 			return dial(ctx, conn)
-		}, func() (subscription.List, error) {
+		}, func(context.Context) (subscription.List, error) {
 			return subscription.List{{Channel: "first"}, {Channel: "second"}}, nil
 		})
 		account.Optional = true
@@ -1820,7 +1820,7 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 			connectorCalls++
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{subA, subB}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -1877,7 +1877,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 			connectorCalls++
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{realA, trackedA, realB, trackedB}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -1938,7 +1938,7 @@ func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 		Connector: func(ctx context.Context, conn Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			return subscription.List{realSub, trackedSub}, nil
 		},
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
@@ -2442,7 +2442,7 @@ func TestFlushChannelsKeepsConnectionWithPartialSubscriptions(t *testing.T) {
 		Connector: func(ctx context.Context, conn Connection) error {
 			return conn.Dial(ctx, dialer, nil, nil)
 		},
-		GenerateSubscriptions: func() (subscription.List, error) {
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 			enabledMu.Lock()
 			defer enabledMu.Unlock()
 			return enabled, nil

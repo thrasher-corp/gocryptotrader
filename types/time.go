@@ -33,6 +33,9 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	if len(timestamp) == 0 || timestamp[0] == 'n' || (len(timestamp) == 1 && timestamp[0] == '0') {
 		return nil
 	}
+	if timestamp[0] == '-' {
+		return t.unmarshalNegative(data, timestamp)
+	}
 
 	target := bytes.IndexByte(timestamp, '.')
 	length := len(timestamp)
@@ -97,6 +100,54 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	default:
 		return fmt.Errorf("%w: %q", ErrInvalidTimestampFormat, data)
 	}
+	return nil
+}
+
+// unmarshalNegative decodes a timestamp before the Unix epoch. The digits before any point pick the unit,
+// three widths a unit: 8-10 seconds, 11-13 milliseconds, 14-16 microseconds and 17-19 nanoseconds. For a whole
+// part without leading zeros, at least 10,000,000 and under 10,000,000,000 seconds before the epoch, these widths
+// name the unit, and a fraction carries up to 9, 6 or 3 digits of a second, millisecond or microsecond;
+// nanoseconds fit int64 only back to 1677-09-21. Outside that window another unit can have the same width, as it
+// can for positive timestamps.
+func (t *Time) unmarshalNegative(data, timestamp []byte) error {
+	signedWhole, fraction, point := bytes.Cut(timestamp, []byte{'.'})
+	// Keep the receiver for -0 and all-zero values with a point, as the positive zero forms do.
+	if (point || len(signedWhole) == 2) && len(bytes.TrimLeft(signedWhole[1:], "0")) == 0 && len(bytes.TrimLeft(fraction, "0")) == 0 {
+		return nil
+	}
+	var unitsPerSecond int64
+	var fractionDigits int
+	switch len(signedWhole) - 1 {
+	case 8, 9, 10:
+		unitsPerSecond, fractionDigits = 1, 9
+	case 11, 12, 13:
+		unitsPerSecond, fractionDigits = 1e3, 6
+	case 14, 15, 16:
+		unitsPerSecond, fractionDigits = 1e6, 3
+	case 17, 18, 19:
+		unitsPerSecond, fractionDigits = 1e9, 0
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidTimestampFormat, data)
+	}
+	if len(fraction) > fractionDigits || len(fraction) != 0 && (fraction[0] < '0' || fraction[0] > '9') {
+		return fmt.Errorf("%w: %q", ErrInvalidTimestampFormat, data)
+	}
+	units, err := strconv.ParseInt(string(signedWhole), 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing unix timestamp: %w", err)
+	}
+	nanoseconds := units % unitsPerSecond * (int64(time.Second) / unitsPerSecond)
+	if len(fraction) != 0 {
+		fractionValue, err := strconv.ParseInt(string(fraction), 10, 64)
+		if err != nil {
+			return fmt.Errorf("error parsing unix timestamp: %w", err)
+		}
+		for range fractionDigits - len(fraction) {
+			fractionValue *= 10
+		}
+		nanoseconds -= fractionValue
+	}
+	*t = Time(time.Unix(units/unitsPerSecond, nanoseconds))
 	return nil
 }
 

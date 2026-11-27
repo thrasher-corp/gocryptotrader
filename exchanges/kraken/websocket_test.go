@@ -517,15 +517,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	exp := expectedSubscriptions(ex)
-	public, err := ex.generatePublicSubscriptions()
+	public, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	testsubs.EqualLists(t, exp.Public(), public)
-	private, err := ex.generatePrivateSubscriptions()
+	private, err := ex.generatePrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
 	testsubs.EqualLists(t, exp.Private(), private)
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	private, err = ex.generatePrivateSubscriptions()
+	private, err = ex.generatePrivateSubscriptions(t.Context())
 	require.NoError(t, err, "generatePrivateSubscriptions must not error without authenticated websocket use")
 	assert.Empty(t, private, "generatePrivateSubscriptions should return nothing without authenticated websocket use")
 
@@ -617,7 +617,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	// Config version 22 migrates the previous default subscriptions to the defaults the config fixture holds
+	// Config version 24 migrates the previous default subscriptions to the defaults the config fixture holds
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), ex.Config.Features.Subscriptions.Clone())
 	// EqualLists leaves out whether a subscription is enabled or authenticated, which the migration matches saved
 	// defaults on
@@ -643,13 +643,13 @@ func TestDefaultSubscriptions(t *testing.T) {
 	}
 	got := make(map[feed]bool)
 	var all subscription.List
-	for name, generate := range map[string]func() (subscription.List, error){
+	for name, generate := range map[string]func(context.Context) (subscription.List, error){
 		"generatePublicSubscriptions":  ex.generatePublicSubscriptions,
 		"generatePrivateSubscriptions": ex.generatePrivateSubscriptions,
 		"generateLevel3Subscriptions":  ex.generateLevel3Subscriptions,
 		"generateFuturesSubscriptions": ex.generateFuturesSubscriptions,
 	} {
-		subs, err := generate()
+		subs, err := generate(t.Context())
 		require.NoErrorf(t, err, "%s must not error", name)
 		for _, s := range subs {
 			got[feed{s.Asset, s.QualifiedChannel}] = true
@@ -713,7 +713,7 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 			useTestCredentials(ex)
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 			ex.Features.Subscriptions = tc.subs.Clone()
-			got, err := ex.generatePrivateSubscriptions()
+			got, err := ex.generatePrivateSubscriptions(t.Context())
 			require.NoError(t, err, "generatePrivateSubscriptions must not error")
 			testsubs.EqualLists(t, tc.exp, got)
 			for _, s := range got {
@@ -729,7 +729,7 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5}}
-	_, err := ex.generatePrivateSubscriptions()
+	_, err := ex.generatePrivateSubscriptions(t.Context())
 	assert.ErrorIs(t, err, errInvalidDepth, "generatePrivateSubscriptions should return an error from generating the subscriptions")
 }
 
@@ -2231,23 +2231,23 @@ func TestGenerateLevel3Subscriptions(t *testing.T) { //nolint:tparallel // The s
 	// The default order book subscription is XBT/USD's level 2 book, which the level 3 book cannot share
 	ex.Features.Subscriptions = append(defaultSubscriptions.Clone(), &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllOrdersChannel, Levels: 10, Pairs: currency.Pairs{wsTestDOGEPair}})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	got, err := ex.generateLevel3Subscriptions()
+	got, err := ex.generateLevel3Subscriptions(t.Context())
 	require.NoError(t, err, "generateLevel3Subscriptions must not error")
 	assert.Empty(t, got, "generateLevel3Subscriptions should return nothing without authenticated websocket use")
 
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	got, err = ex.generateLevel3Subscriptions()
+	got, err = ex.generateLevel3Subscriptions(t.Context())
 	require.NoError(t, err, "generateLevel3Subscriptions must not error")
 	level3 := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.AllOrdersChannel, QualifiedChannel: wsChannelLevel3, Levels: 10, Pairs: currency.Pairs{wsTestDOGEPair}}
 	testsubs.EqualLists(t, subscription.List{level3}, got)
 	// The cases share ex, whose generators read the websocket state the test set up
-	for name, generate := range map[string]func() (subscription.List, error){
+	for name, generate := range map[string]func(context.Context) (subscription.List, error){
 		"generatePublicSubscriptions":  ex.generatePublicSubscriptions,
 		"generatePrivateSubscriptions": ex.generatePrivateSubscriptions,
 	} {
 		t.Run(name, func(t *testing.T) {
-			subs, err := generate()
+			subs, err := generate(t.Context())
 			require.NoErrorf(t, err, "%s must not error", name)
 			assert.Falsef(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool {
 				return s.QualifiedChannel == wsChannelLevel3 || s.Asset == asset.Futures
@@ -2343,7 +2343,7 @@ func TestManageSubs(t *testing.T) {
 			{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 			{Enabled: true, Asset: asset.All, Channel: subscription.MyWalletChannel, Authenticated: true},
 		}
-		subs, err := ex.generatePrivateSubscriptions()
+		subs, err := ex.generatePrivateSubscriptions(t.Context())
 		require.NoError(t, err, "generatePrivateSubscriptions must not error")
 		require.NoError(t, ex.manageSubs(t.Context(), conn, wsMethodSubscribe, subs), "manageSubs must not error for account channels saved for an asset")
 		assertRequests(t, []string{
@@ -3150,7 +3150,7 @@ func TestResubscribeOrderbookReceivingConnection(t *testing.T) {
 	for i := range subs {
 		s := *setups[public]
 		s.URL, s.MessageFilter = newMockWebsocketURL(t, servers[i].handle), filters[i]
-		s.GenerateSubscriptions = func() (subscription.List, error) { return subscription.List{subs[i]}, nil }
+		s.GenerateSubscriptions = func(context.Context) (subscription.List, error) { return subscription.List{subs[i]}, nil }
 		require.NoErrorf(t, ex.Websocket.SetupNewConnection(&s), "SetupNewConnection must not error for the %s connection", filters[i])
 	}
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must subscribe without error")

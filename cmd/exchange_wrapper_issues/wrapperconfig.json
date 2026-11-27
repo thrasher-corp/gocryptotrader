@@ -101,7 +101,7 @@
     "secret": "Secret",
     "otpSecret": "-"
    },
-  "gateio": {
+  "gate": {
    "key": "Key",
    "secret": "Secret",
    "otpSecret": "-"

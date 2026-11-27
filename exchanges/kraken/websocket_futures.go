@@ -110,12 +110,12 @@ func (e *Exchange) wsFuturesConnect(ctx context.Context, conn websocket.Connecti
 // generateFuturesSubscriptions returns the futures connection's subscriptions. Account feeds are left out without
 // valid credentials. A feed without products is subscribed to once, so its subscription is cloned without the pairs
 // templating gave it
-func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesSubscriptions(ctx context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return nil, err
 	}
-	authenticated := e.Websocket.CanUseAuthenticatedEndpoints() && e.AreCredentialsValid(context.TODO())
+	authenticated := e.Websocket.CanUseAuthenticatedEndpoints() && e.AreCredentialsValid(ctx)
 	futures := subscription.List{}
 	for _, s := range subs {
 		switch {

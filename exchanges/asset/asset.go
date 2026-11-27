@@ -46,6 +46,8 @@ const (
 	Spread
 	Options
 	OptionCombo
+	Stock
+	ETF
 	// All asset const must come immediately after all valid assets for method `IsValid`
 	All
 )
@@ -72,10 +74,12 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	linearContract         = "linearcontract"
+	stock                  = "stock"
+	etf                    = "etf"
 	all                    = "all"
 )
 
-var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
+var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread, Stock, ETF}
 
 // Supported returns a list of supported asset types
 func Supported() Items {
@@ -125,6 +129,10 @@ func (a Item) String() string {
 		return futureCombo
 	case LinearContract:
 		return linearContract
+	case Stock:
+		return stock
+	case ETF:
+		return etf
 	case All:
 		return all
 	default:
@@ -332,6 +340,10 @@ func New(input string) (Item, error) {
 		return FutureCombo, nil
 	case linearContract:
 		return LinearContract, nil
+	case stock:
+		return Stock, nil
+	case etf:
+		return ETF, nil
 	case all:
 		return All, nil
 	default:

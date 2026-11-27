@@ -166,13 +166,13 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 		futuresSubscription(subscription.HeartbeatChannel, wsFuturesFeedHeartbeat),
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	got, err := ex.generateFuturesSubscriptions()
+	got, err := ex.generateFuturesSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesSubscriptions must not error")
 	testsubs.EqualLists(t, public, got)
 
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	got, err = ex.generateFuturesSubscriptions()
+	got, err = ex.generateFuturesSubscriptions(t.Context())
 	require.NoError(t, err, "generateFuturesSubscriptions must not error with credentials")
 	exp := append(public.Clone(),
 		futuresSubscription(subscription.MyOrdersChannel, wsFuturesFeedOpenOrders),

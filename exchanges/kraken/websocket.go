@@ -115,7 +115,7 @@ func (e *Exchange) connectionSetups(exch *config.Exchange) ([]*websocket.Connect
 		filter                 string
 		url                    exchange.URL
 		connect                func(context.Context, websocket.Connection) error
-		generate               func() (subscription.List, error)
+		generate               func(context.Context) (subscription.List, error)
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
 		optional               bool
@@ -239,7 +239,7 @@ func validateFuturesSubscription(s *subscription.Subscription) error {
 }
 
 // generatePublicSubscriptions returns the public connection's subscriptions
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePublicSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	if err != nil {
 		return nil, err
@@ -251,8 +251,8 @@ func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
 
 // generateLevel3Subscriptions returns the level 3 order book connection's subscriptions. The level3 channel takes a
 // token, so without valid credentials it returns none, and the connection is skipped
-func (e *Exchange) generateLevel3Subscriptions() (subscription.List, error) {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(context.TODO()) {
+func (e *Exchange) generateLevel3Subscriptions(ctx context.Context) (subscription.List, error) {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(ctx) {
 		return subscription.List{}, nil
 	}
 	subs, err := e.generateSubscriptions()
@@ -265,8 +265,8 @@ func (e *Exchange) generateLevel3Subscriptions() (subscription.List, error) {
 // generatePrivateSubscriptions returns the private connection's subscriptions. Without valid credentials it returns
 // none, so the private connection is skipped rather than failing every connection. My orders and my trades share the
 // executions channel, so they make one subscription, taking the trades snapshot only for my trades
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(context.TODO()) {
+func (e *Exchange) generatePrivateSubscriptions(ctx context.Context) (subscription.List, error) {
+	if !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(ctx) {
 		return subscription.List{}, nil
 	}
 	subs, err := e.generateSubscriptions()

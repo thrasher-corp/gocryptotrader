@@ -104,7 +104,7 @@ type Manager struct {
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
-	GenerateSubs                  func() (subscription.List, error)
+	GenerateSubs                  func(context.Context) (subscription.List, error)
 	useMultiConnectionManagement  bool
 	DataHandler                   *stream.Relay
 	Match                         *Match
@@ -138,7 +138,7 @@ type ManagerSetup struct {
 	PreConnect            func(context.Context)
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
-	GenerateSubscriptions func() (subscription.List, error)
+	GenerateSubscriptions func(context.Context) (subscription.List, error)
 	Features              *protocol.Features
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
@@ -387,8 +387,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		defer m.connectionManagerMu.Unlock()
 		for x := range m.connectionManager {
 			// Below allows for multiple connections to the same URL with different outbound request signatures. This
-			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
-			// a spot connection.
+			// allows for easier determination of inbound and outbound messages. e.g. MEXC's public and private spot
+			// connections.
 			if m.connectionManager[x].setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].setup.MessageFilter {
 				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
 			}
@@ -545,7 +545,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		m.Wg.Add(1)
 		go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
-		subs, err := m.GenerateSubs() // regenerate state on new connection
+		subs, err := m.GenerateSubs(ctx) // regenerate state on new connection
 		if err != nil {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
@@ -651,7 +651,7 @@ func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subsc
 // dial; further connections, for subscriptions beyond one connection's limit, are dialled while m.m is held, moments
 // after the first reached the host. The caller discards the dialled connection when it is left unused, and must hold m.m
 func (m *Manager) connectSetupWith(ctx context.Context, i int, ws *websocket, dialled *dialledConnection) (subscriptionError, fatalErr error) {
-	subs, dial, subscriptionError, fatalErr := m.prepareSetup(i, ws)
+	subs, dial, subscriptionError, fatalErr := m.prepareSetup(ctx, i, ws)
 	if !dial {
 		return subscriptionError, fatalErr
 	}
@@ -707,14 +707,14 @@ func (m *Manager) connectSetupWith(ctx context.Context, i int, ws *websocket, di
 // prepareSetup generates the subscriptions a setup is connected for and checks it can be dialled, reporting whether
 // connecting it dials a connection. A setup is skipped, which reads as connected with nothing, when it generates no
 // subscriptions and connects only for them. The caller must hold m.m
-func (m *Manager) prepareSetup(i int, ws *websocket) (subs subscription.List, dial bool, subscriptionError, fatalErr error) {
+func (m *Manager) prepareSetup(ctx context.Context, i int, ws *websocket) (subs subscription.List, dial bool, subscriptionError, fatalErr error) {
 	if !ws.setup.SubscriptionsNotRequired {
 		if ws.setup.GenerateSubscriptions == nil {
 			return nil, false, nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
 		}
 
 		var err error
-		subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+		subs, err = ws.setup.GenerateSubscriptions(ctx) // regenerate state on new connection
 		var generationError error
 		if err != nil {
 			generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
@@ -830,7 +830,7 @@ func (m *Manager) retryOptionalSetup(ctx context.Context, i int, ws *websocket) 
 		return
 	}
 	// A setup that would not be dialled, being skipped or failing before its dial, is settled without one
-	_, dial, subscriptionError, fatalErr := m.prepareSetup(i, ws)
+	_, dial, subscriptionError, fatalErr := m.prepareSetup(ctx, i, ws)
 	if dial {
 		dialled := m.dialUnlocked(ctx, i, ws)
 		if dialled == nil {
