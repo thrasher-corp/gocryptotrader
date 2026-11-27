@@ -2653,6 +2653,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	a, pair := o[0].AssetType, o[0].Pair
 	switch a {
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.Margin:
+		return nil, fmt.Errorf("%w: Binance cannot cancel %s orders in a batch", common.ErrFunctionNotSupported, a)
 	default:
 		return nil, fmt.Errorf("%w: batch cancellation on %s", asset.ErrNotSupported, a)
 	}

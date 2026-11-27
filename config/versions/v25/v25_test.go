@@ -33,6 +33,7 @@ func assetDefaults(a string) []string {
 var (
 	previousDefaults = assetDefaults("spot")
 	currentDefaults  = slices.Concat(assetDefaults("spot"), assetDefaults("usdtmarginedfutures"), assetDefaults("coinmarginedfutures"), assetDefaults("options"))
+	futuresBooks     = []string{savedSubscription("orderbook", "usdtmarginedfutures", "100ms"), savedSubscription("orderbook", "coinmarginedfutures", "100ms")}
 )
 
 func list(entries []string) string {
@@ -71,6 +72,8 @@ func customised(defaults []string) map[string]string {
 		"enabled saved as text":                replace(ticker, `"enabled":true`, `"enabled":"true"`),
 		"a null enabled":                       replace(ticker, `"enabled":true`, `"enabled":null`),
 		"a field the defaults do not use":      replace(ticker, `}`, `,"authenticated":false}`),
+		"an extension field":                   replace(ticker, `}`, `,"x-note":"kept"}`),
+		"another order book interval":          replace(orderbook, `"100ms"`, `"1s"`),
 		"pairs saved as an empty list":         replace(ticker, `}`, `,"pairs":[]}`),
 		"pairs saved as empty text":            replace(ticker, `}`, `,"pairs":""}`),
 		"empty params":                         replace(ticker, `}`, `,"params":{}}`),
@@ -113,11 +116,9 @@ func customised(defaults []string) map[string]string {
 		"no subscriptions field":               `{"name":"Binance","features":{"enabled":{}}}`,
 		"no features":                          `{"name":"Binance"}`,
 		"null features":                        `{"name":"Binance","features":null}`,
-		"features in another case":             `{"name":"Binance","Features":{"subscriptions":` + list(defaults) + `}}`,
 		"features given twice":                 `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `},"features":{}}`,
 		"features given twice ignoring case":   `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `},"Features":{}}`,
 		"a field matching features":            `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `},"featureſ":{}}`,
-		"subscriptions in another case":        `{"name":"Binance","features":{"Subscriptions":` + list(defaults) + `}}`,
 		"subscriptions given twice":            `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `,"subscriptions":[]}}`,
 		"a field matching subscriptions":       `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `,"ſubscriptions":[]}}`,
 		"subscriptions again as another type":  `{"name":"Binance","features":{"subscriptions":` + list(defaults) + `,"SUBSCRIPTIONS":true}}`,
@@ -171,17 +172,37 @@ func TestUpgradeExchange(t *testing.T) {
 			"{\n   \"name\": \"Binance\",\n   \"features\": {\n    \"subscriptions\": " + list(currentDefaults) + "\n   }\n  }",
 		},
 		{"current defaults", upgraded, upgraded},
-		{"previous defaults with an all-assets ticker instead of spot's", binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, previousDefaults[1:]))), binance(list(previousDefaults[1:]))},
-		{"previous defaults beside an all-assets ticker", binance(list(append(slices.Clone(previousDefaults), savedSubscription("ticker", "all", "")))), upgraded},
+		{"previous defaults under features in another case", `{"name":"Binance","Features":{"subscriptions":` + list(previousDefaults) + `}}`, `{"name":"Binance","Features":{"subscriptions":` + list(currentDefaults) + `}}`},
+		{"previous defaults under subscriptions in another case", `{"name":"Binance","features":{"Subscriptions":` + list(previousDefaults) + `}}`, `{"name":"Binance","features":{"Subscriptions":` + list(currentDefaults) + `}}`},
+		{"previous defaults under features and subscriptions in mixed case", `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list(previousDefaults) + `}}`, `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list(currentDefaults) + `}}`},
+		{"previous defaults under escaped features and subscriptions", `{"name":"Binance","f\u0065atures":{"subscripti\u006fns":` + list(previousDefaults) + `}}`, `{"name":"Binance","f\u0065atures":{"subscripti\u006fns":` + list(currentDefaults) + `}}`},
+		{"previous defaults under a name in another case", `{"name":"binance","features":{"subscriptions":` + list(previousDefaults) + `}}`, `{"name":"binance","features":{"subscriptions":` + list(currentDefaults) + `}}`},
+		{"previous defaults before an identical list elsewhere", `{"name":"Binance","features":{"subscriptions":` + list(previousDefaults) + `},"copy":` + list(previousDefaults) + `}`, `{"name":"Binance","features":{"subscriptions":` + list(currentDefaults) + `},"copy":` + list(previousDefaults) + `}`},
+		{"previous defaults beside an identical list elsewhere", `{"name":"Binance","copy":` + list(previousDefaults) + `,"features":{"subscriptions":` + list(previousDefaults) + `}}`, `{"name":"Binance","copy":` + list(previousDefaults) + `,"features":{"subscriptions":` + list(currentDefaults) + `}}`},
+		{"an all-assets ticker under subscriptions in another case", `{"name":"Binance","features":{"Subscriptions":` + list([]string{savedSubscription("ticker", "all", "")}) + `}}`, `{"name":"Binance","features":{"Subscriptions":` + list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks)) + `}}`},
+		{"an all-assets ticker under features and subscriptions in mixed case", `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list([]string{savedSubscription("ticker", "all", "")}) + `}}`, `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks)) + `}}`},
+		{"an all-assets ticker beside an identical list elsewhere", `{"name":"Binance","copy":` + list([]string{savedSubscription("ticker", "all", "")}) + `,"features":{"subscriptions":` + list([]string{savedSubscription("ticker", "all", "")}) + `}}`, `{"name":"Binance","copy":` + list([]string{savedSubscription("ticker", "all", "")}) + `,"features":{"subscriptions":` + list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks)) + `}}`},
+		{"an all-assets ticker under features in another case", `{"name":"Binance","Features":{"subscriptions":` + list([]string{savedSubscription("ticker", "all", "")}) + `}}`, `{"name":"Binance","Features":{"subscriptions":` + list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks)) + `}}`},
+		{"previous defaults with an all-assets ticker instead of spot's", binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, previousDefaults[1:]))), binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, previousDefaults[1:], futuresBooks)))},
+		{"previous defaults beside an all-assets ticker", binance(list(append(slices.Clone(previousDefaults), savedSubscription("ticker", "all", "")))), binance(list(slices.Concat(previousDefaults, []string{savedSubscription("ticker", "all", "")}, futuresBooks)))},
+		{"an all-assets ticker", binance(list([]string{savedSubscription("ticker", "all", "")})), binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks)))},
+		{"an all-assets ticker beside a spot one", binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "all", "")})), binance(list(slices.Concat([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "all", "")}, futuresBooks)))},
 		{
-			"all-assets subscriptions",
+			"all-assets subscriptions with an order book at an update speed the futures streams refuse",
 			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "ALL", "1s"), `{"enabled":false,"channel":"candles","asset":"All","interval":"5m"}`})),
-			binance(list([]string{savedSubscription("ticker", "spot", "")})),
+			binance(list(slices.Concat([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "ALL", "1s"), `{"enabled":false,"channel":"candles","asset":"All","interval":"5m"}`}, futuresBooks))),
 		},
-		{"all-assets subscriptions alone", binance(list([]string{savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "all", "100ms")})), binance(`[]`)},
-		{"an all-assets subscription under a field in another case", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","Asset":"all"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
-		{"an escaped all-assets subscription", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"\u0061ll"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
-		{"an all-assets subscription with its asset given twice", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"all","ASSET":"all"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
+		{"an all-assets order book at an update speed the futures streams refuse", binance(list([]string{savedSubscription("orderbook", "all", "1s")})), binance(list(slices.Concat([]string{savedSubscription("orderbook", "all", "1s")}, futuresBooks)))},
+		{"an all-assets order book at a depth the futures streams refuse", binance(list([]string{`{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms","levels":25}`})), binance(list(slices.Concat([]string{`{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms","levels":25}`}, futuresBooks)))},
+		{
+			"an all-assets order book the futures streams refuse beside a USDⓈ-M one",
+			binance(list([]string{savedSubscription("orderbook", "all", "1s"), savedSubscription("orderbook", "usdtmarginedfutures", "1s")})),
+			binance(list([]string{savedSubscription("orderbook", "all", "1s"), savedSubscription("orderbook", "usdtmarginedfutures", "1s"), futuresBooks[1]})),
+		},
+		{"all-assets myOrders beside a USDⓈ-M ticker", binance(list([]string{`{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`, savedSubscription("ticker", "usdtmarginedfutures", "")})), binance(list([]string{`{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`, savedSubscription("ticker", "usdtmarginedfutures", ""), futuresBooks[0]}))},
+		{"an all-assets subscription under a field in another case", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","Asset":"all"}`})), binance(list(slices.Concat([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","Asset":"all"}`}, futuresBooks)))},
+		{"an escaped all-assets subscription", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"\u0061ll"}`})), binance(list(slices.Concat([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"\u0061ll"}`}, futuresBooks)))},
+		{"an all-assets subscription with its asset given twice", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"all","ASSET":"all"}`})), binance(list(slices.Concat([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"all","ASSET":"all"}`}, futuresBooks)))},
 		{
 			"a USDⓈ-M ticker with its channel given twice without an order book",
 			binance(list([]string{`{"enabled":true,"channel":"ticker","Channel":"ticker","asset":"usdtmarginedfutures"}`})),
@@ -198,9 +219,9 @@ func TestUpgradeExchange(t *testing.T) {
 			binance(list([]string{`{"enabled":false,"channel":"candles","asset":"CoinMarginedFutures","interval":"5m"}`, savedSubscription("orderbook", "coinmarginedfutures", "100ms")})),
 		},
 		{
-			"an all-assets ticker beside USDⓈ-M and COIN-M ones",
+			"an all-assets ticker beside USDⓈ-M and COIN-M subscriptions",
 			binance(list([]string{savedSubscription("ticker", "all", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("allTrades", "coinmarginedfutures", "")})),
-			binance(list([]string{savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("allTrades", "coinmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms"), savedSubscription("orderbook", "coinmarginedfutures", "100ms")})),
+			binance(list(slices.Concat([]string{savedSubscription("ticker", "all", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("allTrades", "coinmarginedfutures", "")}, futuresBooks))),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -224,10 +245,17 @@ func TestUpgradeExchange(t *testing.T) {
 		"an all-assets asset saved as a number":              binance(list([]string{`{"enabled":true,"channel":"ticker","asset":1}`, savedSubscription("ticker", "all", "")})),
 		"a USDⓈ-M channel given twice":                       binance(list([]string{`{"enabled":true,"channel":"ticker","Channel":"orderbook","asset":"usdtmarginedfutures"}`})),
 		"an all-assets ticker beside a null":                 binance(list([]string{savedSubscription("ticker", "all", ""), `null`})),
+
+		"all-assets subscriptions with an order book the futures streams take":    binance(list([]string{savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "all", "100ms")})),
+		"a disabled all-assets order book alone":                                  binance(list([]string{`{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}`})),
+		"an all-assets order book at 500ms":                                       binance(list([]string{savedSubscription("orderbook", "all", "500ms")})),
+		"an all-assets order book without an interval":                            binance(list([]string{`{"enabled":true,"channel":"orderbook","asset":"all"}`})),
+		"an all-assets order book's interval only sonic reads":                    binance(list([]string{`{"enabled":true,"channel":"orderbook","asset":"all","İnterval":"1s"}`})),
+		"an all-assets ticker under features in another case after null features": `{"name":"Binance","features":null,"Features":{"subscriptions":` + list([]string{savedSubscription("ticker", "all", "")}) + `}}`,
 	}
 	for name, in := range customised(previousDefaults) {
 		if name == "every asset" {
-			// The all-assets ticker streamed nothing in the previous version, so it is dropped, as a row above shows
+			// The all-assets ticker names the futures assets, so it gains their order books, as a row above shows
 			continue
 		}
 		unchanged[name] = in
@@ -277,11 +305,24 @@ func TestDowngradeExchange(t *testing.T) {
 		{"current defaults with assets in cases beyond ASCII", binance(list(beyondASCII)), downgraded},
 		{"current defaults with spot assets absent", binance(list(spotWithoutAssets)), downgraded},
 		{"previous defaults", downgraded, downgraded},
+		{"current defaults under features in another case", `{"name":"Binance","Features":{"subscriptions":` + list(currentDefaults) + `}}`, `{"name":"Binance","Features":{"subscriptions":` + list(previousDefaults) + `}}`},
+		{"current defaults under features and subscriptions in mixed case", `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list(currentDefaults) + `}}`, `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":` + list(previousDefaults) + `}}`},
+		{"current defaults under escaped features and subscriptions", `{"name":"Binance","f\u0065atures":{"subscripti\u006fns":` + list(currentDefaults) + `}}`, `{"name":"Binance","f\u0065atures":{"subscripti\u006fns":` + list(previousDefaults) + `}}`},
+		{"current defaults under a name in another case", `{"name":"binance","features":{"subscriptions":` + list(currentDefaults) + `}}`, `{"name":"binance","features":{"subscriptions":` + list(previousDefaults) + `}}`},
+		{"current defaults before an identical list elsewhere", `{"name":"Binance","features":{"subscriptions":` + list(currentDefaults) + `},"copy":` + list(currentDefaults) + `}`, `{"name":"Binance","features":{"subscriptions":` + list(previousDefaults) + `},"copy":` + list(currentDefaults) + `}`},
+		{"current defaults beside an identical list elsewhere", `{"name":"Binance","copy":` + list(currentDefaults) + `,"features":{"subscriptions":` + list(currentDefaults) + `}}`, `{"name":"Binance","copy":` + list(currentDefaults) + `,"features":{"subscriptions":` + list(previousDefaults) + `}}`},
+		{"current defaults under features in another case after null features", `{"name":"Binance","features":null,"Features":{"subscriptions":` + list(currentDefaults) + `}}`, `{"name":"Binance","features":null,"Features":{"subscriptions":` + list(currentDefaults) + `}}`},
+		{"current defaults under subscriptions in upper case", `{"name":"Binance","features":{"SUBSCRIPTIONS":` + list(currentDefaults) + `}}`, `{"name":"Binance","features":{"SUBSCRIPTIONS":` + list(previousDefaults) + `}}`},
 		{"current defaults with channels swapped across assets", binance(list(channelsSwapped)), binance(list(channelsSwapped))},
 		{
 			"a customised list with the USDⓈ-M order book its upgrade added",
 			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
 			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
+		},
+		{
+			"an all-assets ticker with the order books its upgrade added",
+			binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks))),
+			binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, futuresBooks))),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

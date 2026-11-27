@@ -133,8 +133,8 @@ func TestGetDownloadIDForOptionTransactionHistory(t *testing.T) {
 	require.NoError(t, err, "GetDownloadIDForOptionTransactionHistory must not error")
 	if mockTests {
 		exp := &OptionsTransactionHistoryDownloadIDResponse{
-			AverageDownloadMillisecondsOfLast30Days: 7241837,
-			DownloadID:                              "546975389218332672",
+			AverageDownloadTimeOfLast30Days: types.DurationMilliseconds(7241837 * time.Millisecond),
+			DownloadID:                      "546975389218332672",
 		}
 		assert.Equal(t, exp, result, "GetDownloadIDForOptionTransactionHistory should decode every field")
 		return
@@ -739,8 +739,8 @@ func TestGetAutoCancelAllOpenOrdersConfig(t *testing.T) {
 	require.NoError(t, err, "GetAutoCancelAllOpenOrdersConfig must not error")
 	if mockTests {
 		exp := &OptionsAutoCancelAllOpenOrdersConfigResponse{
-			Underlying:                  "BTCUSDT",
-			CountdownTimeInMilliseconds: 100000,
+			Underlying:    "BTCUSDT",
+			CountdownTime: types.DurationMilliseconds(100 * time.Second),
 		}
 		assert.Equal(t, exp, result, "GetAutoCancelAllOpenOrdersConfig should decode every field")
 		return
@@ -760,8 +760,8 @@ func TestSetOptionsAutoCancelAllOpenOrders(t *testing.T) {
 	require.NoError(t, err, "SetOptionsAutoCancelAllOpenOrders must not error")
 	if mockTests {
 		exp := &OptionsAutoCancelAllOpenOrdersConfigResponse{
-			Underlying:                  "BTCUSDT",
-			CountdownTimeInMilliseconds: 30000,
+			Underlying:    "BTCUSDT",
+			CountdownTime: types.DurationMilliseconds(30 * time.Second),
 		}
 		assert.Equal(t, exp, result, "SetOptionsAutoCancelAllOpenOrders should decode every field")
 	} else {
@@ -788,13 +788,13 @@ func TestGetOptionsMarketMakerProtection(t *testing.T) {
 	require.NoError(t, err, "GetOptionsMarketMakerProtection must not error")
 	if mockTests {
 		exp := &OptionsMarketMakerProtectionResponse{
-			UnderlyingID:             2,
-			Underlying:               "BTCUSDT",
-			WindowTimeInMilliseconds: 3000,
-			FrozenTimeInMilliseconds: 300000,
-			QuantityLimit:            2,
-			DeltaLimit:               2.3,
-			LastTriggerTime:          types.Time(time.Unix(1744120800, 0)),
+			UnderlyingID:    2,
+			Underlying:      "BTCUSDT",
+			WindowTime:      types.DurationMilliseconds(3 * time.Second),
+			FrozenTime:      types.DurationMilliseconds(5 * time.Minute),
+			QuantityLimit:   2,
+			DeltaLimit:      2.3,
+			LastTriggerTime: types.Time(time.Unix(1744120800, 0)),
 		}
 		assert.Equal(t, exp, result, "GetOptionsMarketMakerProtection should decode every field")
 		return
@@ -814,13 +814,13 @@ func TestResetOptionsMarketMakerProtection(t *testing.T) {
 	require.NoError(t, err, "ResetOptionsMarketMakerProtection must not error")
 	if mockTests {
 		exp := &OptionsMarketMakerProtectionResponse{
-			UnderlyingID:             2,
-			Underlying:               "BTCUSDT",
-			WindowTimeInMilliseconds: 3000,
-			FrozenTimeInMilliseconds: 300000,
-			QuantityLimit:            2,
-			DeltaLimit:               2.3,
-			LastTriggerTime:          types.Time(time.Unix(1744120800, 0)),
+			UnderlyingID:    2,
+			Underlying:      "BTCUSDT",
+			WindowTime:      types.DurationMilliseconds(3 * time.Second),
+			FrozenTime:      types.DurationMilliseconds(5 * time.Minute),
+			QuantityLimit:   2,
+			DeltaLimit:      2.3,
+			LastTriggerTime: types.Time(time.Unix(1744120800, 0)),
 		}
 		assert.Equal(t, exp, result, "ResetOptionsMarketMakerProtection should decode every field")
 		return
@@ -852,13 +852,13 @@ func TestSetOptionsMarketMakerProtectionConfig(t *testing.T) {
 	require.NoError(t, err, "SetOptionsMarketMakerProtectionConfig must not error")
 	if mockTests {
 		exp := &OptionsMarketMakerProtectionResponse{
-			UnderlyingID:             2,
-			Underlying:               "BTCUSDT",
-			WindowTimeInMilliseconds: 3000,
-			FrozenTimeInMilliseconds: 300000,
-			QuantityLimit:            1.5,
-			DeltaLimit:               1.5,
-			LastTriggerTime:          types.Time(time.Unix(1744120800, 0)),
+			UnderlyingID:    2,
+			Underlying:      "BTCUSDT",
+			WindowTime:      types.DurationMilliseconds(3 * time.Second),
+			FrozenTime:      types.DurationMilliseconds(5 * time.Minute),
+			QuantityLimit:   1.5,
+			DeltaLimit:      1.5,
+			LastTriggerTime: types.Time(time.Unix(1744120800, 0)),
 		}
 		assert.Equal(t, exp, result, "SetOptionsMarketMakerProtectionConfig should decode every field")
 		return

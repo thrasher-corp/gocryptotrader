@@ -66,8 +66,8 @@ type OptionsGreek struct {
 
 // OptionsTransactionHistoryDownloadIDResponse holds the download ID of an options transaction history file
 type OptionsTransactionHistoryDownloadIDResponse struct {
-	AverageDownloadMillisecondsOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
-	DownloadID                              string `json:"downloadId"`
+	AverageDownloadTimeOfLast30Days types.DurationMilliseconds `json:"avgCostTimestampOfLast30d"`
+	DownloadID                      string                     `json:"downloadId"`
 }
 
 // OptionsTransactionHistoryDownloadLinkResponse holds the download link of an options transaction history file
@@ -282,19 +282,19 @@ type OptionsAutoCancelAllOpenOrdersHeartbeatResponse struct {
 
 // OptionsAutoCancelAllOpenOrdersConfigResponse holds the auto-cancel countdown of an options underlying
 type OptionsAutoCancelAllOpenOrdersConfigResponse struct {
-	Underlying                  string `json:"underlying"`
-	CountdownTimeInMilliseconds uint64 `json:"countdownTime"`
+	Underlying    string                     `json:"underlying"`
+	CountdownTime types.DurationMilliseconds `json:"countdownTime"`
 }
 
 // OptionsMarketMakerProtectionResponse holds the market maker protection config of an options underlying
 type OptionsMarketMakerProtectionResponse struct {
-	UnderlyingID             uint64       `json:"underlyingId"`
-	Underlying               string       `json:"underlying"`
-	WindowTimeInMilliseconds uint64       `json:"windowTimeInMilliseconds"`
-	FrozenTimeInMilliseconds uint64       `json:"frozenTimeInMilliseconds"`
-	QuantityLimit            types.Number `json:"qtyLimit"`
-	DeltaLimit               types.Number `json:"deltaLimit"`
-	LastTriggerTime          types.Time   `json:"lastTriggerTime"`
+	UnderlyingID    uint64                     `json:"underlyingId"`
+	Underlying      string                     `json:"underlying"`
+	WindowTime      types.DurationMilliseconds `json:"windowTimeInMilliseconds"`
+	FrozenTime      types.DurationMilliseconds `json:"frozenTimeInMilliseconds"`
+	QuantityLimit   types.Number               `json:"qtyLimit"`
+	DeltaLimit      types.Number               `json:"deltaLimit"`
+	LastTriggerTime types.Time                 `json:"lastTriggerTime"`
 }
 
 // OptionsMarketMakerProtectionConfigRequest holds the parameters for setting the market maker protection config of an

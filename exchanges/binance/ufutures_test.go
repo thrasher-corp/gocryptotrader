@@ -297,8 +297,8 @@ func testUSDTMarginedFuturesDownloadID(t *testing.T, fn func(*testing.T, time.Ti
 	require.NoError(t, err, "must not error")
 	if mockTests {
 		exp := &USDTMarginedFuturesDownloadIDResponse{
-			AverageDownloadMillisecondsOfLast30Days: 7241837,
-			DownloadID:                              "546975389218332672",
+			AverageDownloadTimeOfLast30Days: types.DurationMilliseconds(7241837 * time.Millisecond),
+			DownloadID:                      "546975389218332672",
 		}
 		assert.Equal(t, exp, result, "should decode every field")
 		return
@@ -2098,8 +2098,8 @@ func TestUSDTMarginedFuturesAutoCancelAllOpenOrders(t *testing.T) {
 	require.NoError(t, err, "USDTMarginedFuturesAutoCancelAllOpenOrders must not error")
 	if mockTests {
 		exp := &USDTMarginedFuturesAutoCancelAllOpenOrdersResponse{
-			Symbol:                      "BTCUSDT",
-			CountdownTimeInMilliseconds: 30000,
+			Symbol:        "BTCUSDT",
+			CountdownTime: types.DurationMilliseconds(30 * time.Second),
 		}
 		assert.Equal(t, exp, result, "USDTMarginedFuturesAutoCancelAllOpenOrders should decode every field")
 	}

@@ -32,36 +32,43 @@ func TestSoleField(t *testing.T) {
 	for _, tc := range []struct {
 		name, object, field string
 		valueType           jsonparser.ValueType
-		exp                 string
+		exp, key            string
 		ok                  bool
 	}{
-		{"sole field", `{"features":{"enabled":{}},"name":"Binance"}`, "features", jsonparser.Object, `{"enabled":{}}`, true},
-		{"sole text field", `{"name":"Binance"}`, "name", jsonparser.String, "Binance", true},
-		{"sole field escaped", `{"f\u0065atures":{}}`, "features", jsonparser.Object, "{}", true},
-		{"sole field of another type", `{"features":[]}`, "features", jsonparser.Object, "", false},
-		{"sole text field of another type", `{"name":0}`, "name", jsonparser.String, "", false},
-		{"sole null field", `{"features":null}`, "features", jsonparser.Object, "", false},
-		{"sole field in another case", `{"Features":{}}`, "features", jsonparser.Object, "", false},
-		{"field given twice", `{"features":{},"features":{}}`, "features", jsonparser.Object, "", false},
-		{"field given twice ignoring case", `{"features":{},"FEATURES":{}}`, "features", jsonparser.Object, "", false},
-		{"field given twice, once escaped", `{"features":{},"f\u0065atures":{}}`, "features", jsonparser.Object, "", false},
-		{"field matching ignoring case beyond ASCII", `{"features":{},"featureſ":{}}`, "features", jsonparser.Object, "", false},
-		{"field matching once lower-cased beyond ASCII", `{"subscrİptions":[],"subscriptions":[]}`, "subscriptions", jsonparser.Array, "", false},
-		{"sole field matching once lower-cased beyond ASCII", `{"subscrİptions":[]}`, "subscriptions", jsonparser.Array, "", false},
-		{"field matching once unescaped and lower-cased", `{"subscriptions":[],"subscript\u0130ons":[]}`, "subscriptions", jsonparser.Array, "", false},
-		{"field given again as another type ignoring case", `{"subscriptions":[],"SUBSCRIPTIONS":true}`, "subscriptions", jsonparser.Array, "", false},
-		{"field matching neither build's comparison", `{"subscriptions":[],"ſubscrİptions":[]}`, "subscriptions", jsonparser.Array, "[]", true},
-		{"no field", `{"name":"Binance"}`, "features", jsonparser.Object, "", false},
-		{"empty object", `{}`, "features", jsonparser.Object, "", false},
-		{"malformed object", `{"features":{},`, "features", jsonparser.Object, "", false},
-		{"not an object", `[]`, "features", jsonparser.Object, "", false},
+		{"sole field", `{"features":{"enabled":{}},"name":"Binance"}`, "features", jsonparser.Object, `{"enabled":{}}`, "features", true},
+		{"sole text field", `{"name":"Binance"}`, "name", jsonparser.String, "Binance", "name", true},
+		{"sole field escaped", `{"f\u0065atures":{}}`, "features", jsonparser.Object, "{}", "features", true},
+		{"sole field in another case", `{"Features":{}}`, "features", jsonparser.Object, "{}", "Features", true},
+		{"sole field in upper case", `{"SUBSCRIPTIONS":[]}`, "subscriptions", jsonparser.Array, "[]", "SUBSCRIPTIONS", true},
+		{"sole field escaped in another case", `{"F\u0065atures":{}}`, "features", jsonparser.Object, "{}", "Features", true},
+		{"sole field of another type", `{"features":[]}`, "features", jsonparser.Object, "", "", false},
+		{"sole text field of another type", `{"name":0}`, "name", jsonparser.String, "", "", false},
+		{"sole null field", `{"features":null}`, "features", jsonparser.Object, "", "", false},
+		{"field given twice", `{"features":{},"features":{}}`, "features", jsonparser.Object, "", "", false},
+		{"field given twice ignoring case", `{"features":{},"FEATURES":{}}`, "features", jsonparser.Object, "", "", false},
+		{"field given twice, once escaped", `{"features":{},"f\u0065atures":{}}`, "features", jsonparser.Object, "", "", false},
+		{"field matching ignoring case beyond ASCII", `{"features":{},"featureſ":{}}`, "features", jsonparser.Object, "", "", false},
+		{"sole field matching ignoring case beyond ASCII", `{"featureſ":{}}`, "features", jsonparser.Object, "", "", false},
+		{"field matching once lower-cased beyond ASCII", `{"subscrİptions":[],"subscriptions":[]}`, "subscriptions", jsonparser.Array, "", "", false},
+		{"sole field matching once lower-cased beyond ASCII", `{"subscrİptions":[]}`, "subscriptions", jsonparser.Array, "", "", false},
+		{"field matching once unescaped and lower-cased", `{"subscriptions":[],"subscript\u0130ons":[]}`, "subscriptions", jsonparser.Array, "", "", false},
+		{"field given again as another type ignoring case", `{"subscriptions":[],"SUBSCRIPTIONS":true}`, "subscriptions", jsonparser.Array, "", "", false},
+		{"null field before one in another case", `{"features":null,"Features":{}}`, "features", jsonparser.Object, "", "", false},
+		{"null field after one in another case", `{"Features":{},"features":null}`, "features", jsonparser.Object, "", "", false},
+		{"sole field in mixed case", `{"sUbScRiPtIoNs":[]}`, "subscriptions", jsonparser.Array, "[]", "sUbScRiPtIoNs", true},
+		{"field matching neither build's comparison", `{"subscriptions":[],"ſubscrİptions":[]}`, "subscriptions", jsonparser.Array, "[]", "subscriptions", true},
+		{"no field", `{"name":"Binance"}`, "features", jsonparser.Object, "", "", false},
+		{"empty object", `{}`, "features", jsonparser.Object, "", "", false},
+		{"malformed object", `{"features":{},`, "features", jsonparser.Object, "", "", false},
+		{"not an object", `[]`, "features", jsonparser.Object, "", "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			value, ok := soleField([]byte(tc.object), tc.field, tc.valueType)
-			require.Equal(t, tc.ok, ok, "soleField must report whether the field is the sole match with its type")
+			value, key, ok := soleField([]byte(tc.object), tc.field, tc.valueType)
+			require.Equal(t, tc.ok, ok, "soleField must report whether the field is the sole match both decoders read, with its type")
 			if ok {
 				assert.Equal(t, tc.exp, string(value), "soleField should return the field's value")
+				assert.Equal(t, tc.key, key, "soleField should return the name the field is saved under")
 			}
 		})
 	}
@@ -124,6 +131,8 @@ func TestDefaultSubscriptionSavedAs(t *testing.T) {
 		{"interval on a ticker", spotTicker, `{"enabled":true,"channel":"ticker","asset":"spot","interval":"1m"}`, false},
 		{"ticker", spotTicker, `{"enabled":true,"channel":"ticker","asset":"spot"}`, true},
 		{"a field the default does not use", spotCandles, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","levels":0}`, false},
+		{"a field the default does not use, named as an extension", spotCandles, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","x-note":"kept"}`, false},
+		{"another order book interval", defaultSubscription{channel: "orderbook", asset: "spot", interval: "100ms"}, `{"enabled":true,"channel":"orderbook","asset":"spot","interval":"1s"}`, false},
 		{"pairs saved as an empty list", spotCandles, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","pairs":[]}`, false},
 		{"empty params", spotCandles, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","params":{}}`, false},
 		{"a field the default does not use given again as null", spotCandles, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","authenticated":true,"authenticated":null}`, false},
@@ -149,6 +158,7 @@ func TestReplaceDefaults(t *testing.T) {
 		name, exchange, exp string
 	}{
 		{"defaults", `{"name":"Binance","features":{"subscriptions":` + savedPreviousDefaults + `}}`, `{"name":"Binance","features":{"subscriptions":` + string(marshal(currentDefaults)) + `}}`},
+		{"defaults under features in another case", `{"name":"Binance","Features":{"subscriptions":` + savedPreviousDefaults + `}}`, `{"name":"Binance","Features":{"subscriptions":` + string(marshal(currentDefaults)) + `}}`},
 		{"no name", `{"features":{"subscriptions":` + savedPreviousDefaults + `}}`, ""},
 		{"no features", `{"name":"Binance"}`, ""},
 		{"features not an object", `{"name":"Binance","features":[]}`, ""},
@@ -176,24 +186,48 @@ func TestReadEntry(t *testing.T) {
 		name, raw      string
 		dataType       jsonparser.ValueType
 		asset, channel string
+		futuresBook    bool
 		ok             bool
 	}{
-		{"asset and channel", `{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}`, jsonparser.Object, "usdtmarginedfutures", "ticker", true},
-		{"asset lower-cased", `{"channel":"ticker","asset":"ALL"}`, jsonparser.Object, "all", "ticker", true},
-		{"asset under a field in another case", `{"channel":"ticker","ASSET":"spot"}`, jsonparser.Object, "spot", "ticker", true},
-		{"escaped asset", `{"channel":"ticker","asset":"\u0061ll"}`, jsonparser.Object, "all", "ticker", true},
-		{"no asset", `{"channel":"ticker"}`, jsonparser.Object, "", "ticker", true},
-		{"null asset", `{"channel":"ticker","asset":null}`, jsonparser.Object, "", "ticker", true},
-		{"channel kept in its case", `{"channel":"Ticker"}`, jsonparser.Object, "", "Ticker", true},
-		{"asset given twice with one value", `{"asset":"all","Asset":"ALL","channel":"ticker"}`, jsonparser.Object, "all", "ticker", true},
-		{"asset saved as a number", `{"channel":"ticker","asset":1}`, jsonparser.Object, "", "", false},
-		{"channel saved as an object", `{"channel":{},"asset":"spot"}`, jsonparser.Object, "", "", false},
-		{"asset given twice with two values", `{"asset":"all","Asset":"spot"}`, jsonparser.Object, "", "", false},
-		{"asset given as null and text", `{"asset":null,"Asset":"all"}`, jsonparser.Object, "", "", false},
-		{"channel given twice with two values", `{"channel":"ticker","CHANNEL":"orderbook"}`, jsonparser.Object, "", "", false},
-		{"asset under a field only the default decoder reads", `{"channel":"ticker","aſſet":"all"}`, jsonparser.Object, "", "", false},
-		{"entry saved as text", `"ticker"`, jsonparser.String, "", "", false},
-		{"null entry", `null`, jsonparser.Null, "", "", false},
+		{"asset and channel", `{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}`, jsonparser.Object, "usdtmarginedfutures", "ticker", false, true},
+		{"asset lower-cased", `{"channel":"ticker","asset":"ALL"}`, jsonparser.Object, "all", "ticker", false, true},
+		{"asset under a field in another case", `{"channel":"ticker","ASSET":"spot"}`, jsonparser.Object, "spot", "ticker", false, true},
+		{"escaped asset", `{"channel":"ticker","asset":"\u0061ll"}`, jsonparser.Object, "all", "ticker", false, true},
+		{"no asset", `{"channel":"ticker"}`, jsonparser.Object, "", "ticker", false, true},
+		{"null asset", `{"channel":"ticker","asset":null}`, jsonparser.Object, "", "ticker", false, true},
+		{"channel kept in its case", `{"channel":"Ticker"}`, jsonparser.Object, "", "Ticker", false, true},
+		{"asset given twice with one value", `{"asset":"all","Asset":"ALL","channel":"ticker"}`, jsonparser.Object, "all", "ticker", false, true},
+		{"asset saved as a number", `{"channel":"ticker","asset":1}`, jsonparser.Object, "", "", false, false},
+		{"channel saved as an object", `{"channel":{},"asset":"spot"}`, jsonparser.Object, "", "", false, false},
+		{"asset given twice with two values", `{"asset":"all","Asset":"spot"}`, jsonparser.Object, "", "", false, false},
+		{"asset given as null and text", `{"asset":null,"Asset":"all"}`, jsonparser.Object, "", "", false, false},
+		{"channel given twice with two values", `{"channel":"ticker","CHANNEL":"orderbook"}`, jsonparser.Object, "", "", false, false},
+		{"asset under a field only the default decoder reads", `{"channel":"ticker","aſſet":"all"}`, jsonparser.Object, "", "", false, false},
+		{"entry saved as text", `"ticker"`, jsonparser.String, "", "", false, false},
+		{"null entry", `null`, jsonparser.Null, "", "", false, false},
+		{"malformed entry", `{"channel","asset":"spot"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book without an interval or levels", `{"channel":"orderbook","asset":"all"}`, jsonparser.Object, "all", "orderbook", true, true},
+		{"disabled all-assets order book at 100ms", `{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}`, jsonparser.Object, "all", "orderbook", true, true},
+		{"all-assets order book at 500ms with 20 levels", `{"channel":"orderbook","asset":"all","interval":"500ms","levels":20}`, jsonparser.Object, "all", "orderbook", true, true},
+		{"all-assets order book at 1s", `{"channel":"orderbook","asset":"all","interval":"1s"}`, jsonparser.Object, "all", "orderbook", false, true},
+		{"all-assets order book with 25 levels", `{"channel":"orderbook","asset":"all","interval":"100ms","levels":25}`, jsonparser.Object, "all", "orderbook", false, true},
+		{"all-assets order book with its interval under a field in another case", `{"channel":"orderbook","asset":"all","Interval":"1s"}`, jsonparser.Object, "all", "orderbook", false, true},
+		{"all-assets order book with its interval given twice with one value", `{"channel":"orderbook","asset":"all","interval":"1s","INTERVAL":"1s"}`, jsonparser.Object, "all", "orderbook", false, true},
+		{"all-assets order book with its interval given twice with two values", `{"channel":"orderbook","asset":"all","interval":"100ms","Interval":"1s"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book with its interval under a field only sonic reads", `{"channel":"orderbook","asset":"all","İnterval":"1s"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book with its levels under a field only the default decoder reads", `{"channel":"orderbook","asset":"all","levelſ":25}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book with its levels given twice with two values", `{"channel":"orderbook","asset":"all","levels":5,"Levels":25}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book given two refused update speeds", `{"channel":"orderbook","asset":"all","interval":"1s","Interval":"250ms"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book at a refused update speed given two depths", `{"channel":"orderbook","asset":"all","interval":"1s","levels":5,"Levels":10}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book at a refused depth given two update speeds", `{"channel":"orderbook","asset":"all","interval":"100ms","Interval":"500ms","levels":25}`, jsonparser.Object, "", "", false, false},
+		{"asset given twice as synonyms", `{"channel":"ticker","asset":"option","Asset":"options"}`, jsonparser.Object, "", "", false, false},
+		{"channel given twice, once escaped", `{"channel":"ticker","Channel":"tick\u0065r","asset":"usdtmarginedfutures"}`, jsonparser.Object, "usdtmarginedfutures", "ticker", false, true},
+		{"all-assets order book given one update speed in two spellings", `{"channel":"orderbook","asset":"all","interval":"100ms","Interval":"0.1s"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book given no levels as 0 and -0", `{"channel":"orderbook","asset":"all","levels":0,"Levels":-0}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book given its interval three times, the middle one different", `{"channel":"orderbook","asset":"all","interval":"1s","Interval":"100ms","INTERVAL":"1s"}`, jsonparser.Object, "", "", false, false},
+		{"all-assets order book given two refused depths", `{"channel":"orderbook","asset":"all","levels":25,"Levels":50}`, jsonparser.Object, "", "", false, false},
+		{"interval of an all-assets ticker not read", `{"channel":"ticker","asset":"all","interval":"100ms","İnterval":"1s"}`, jsonparser.Object, "all", "ticker", false, true},
+		{"interval of a USDⓈ-M order book not read", `{"channel":"orderbook","asset":"usdtmarginedfutures","interval":"100ms","Interval":"1s"}`, jsonparser.Object, "usdtmarginedfutures", "orderbook", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -204,6 +238,145 @@ func TestReadEntry(t *testing.T) {
 			}
 			assert.Equal(t, tc.asset, entry.asset, "readEntry should read the asset as the loader does")
 			assert.Equal(t, tc.channel, entry.channel, "readEntry should read the channel as the loader does")
+			assert.Equal(t, tc.futuresBook, entry.futuresBook, "readEntry should report whether the futures streams take an all-assets order book")
+		})
+	}
+}
+
+func TestTexts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		values []savedValue
+		exp    []string
+		ok     bool
+	}{
+		{"no values", nil, []string{}, true},
+		{"text", []savedValue{{raw: "all", valueType: jsonparser.String, bothDecoders: true}}, []string{"all"}, true},
+		{"escaped text", []savedValue{{raw: `\u0061ll`, valueType: jsonparser.String, bothDecoders: true}}, []string{"all"}, true},
+		{"null", []savedValue{{raw: "null", valueType: jsonparser.Null, bothDecoders: true}}, []string{""}, true},
+		{"text and null", []savedValue{{raw: "all", valueType: jsonparser.String, bothDecoders: true}, {raw: "null", valueType: jsonparser.Null, bothDecoders: true}}, []string{"all", ""}, true},
+		{"a number", []savedValue{{raw: "1", valueType: jsonparser.Number, bothDecoders: true}}, nil, false},
+		{"malformed escape", []savedValue{{raw: `\u00`, valueType: jsonparser.String, bothDecoders: true}}, nil, false},
+		{"text under a field only one decoder reads", []savedValue{{raw: "all", valueType: jsonparser.String}}, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, ok := texts(tc.values)
+			assert.Equal(t, tc.ok, ok, "texts should report whether every value is text or null under a field both decoders read")
+			assert.Equal(t, tc.exp, out, "texts should return each value's text")
+		})
+	}
+}
+
+func TestSoleValue(t *testing.T) {
+	t.Parallel()
+	interval := savedValue{raw: "1s", valueType: jsonparser.String, bothDecoders: true}
+	for _, tc := range []struct {
+		name   string
+		values []savedValue
+		exp    savedValue
+		ok     bool
+	}{
+		{"no value", nil, savedValue{valueType: jsonparser.NotExist, bothDecoders: true}, true},
+		{"one value", []savedValue{interval}, interval, true},
+		{"one value given twice", []savedValue{interval, interval}, interval, true},
+		{"two values", []savedValue{interval, {raw: "100ms", valueType: jsonparser.String, bothDecoders: true}}, interval, false},
+		{"one value given as text and as a number", []savedValue{{raw: "5", valueType: jsonparser.String, bothDecoders: true}, {raw: "5", valueType: jsonparser.Number, bothDecoders: true}}, savedValue{raw: "5", valueType: jsonparser.String, bothDecoders: true}, false},
+		{"a value under a field only one decoder reads", []savedValue{{raw: "1s", valueType: jsonparser.String}}, savedValue{raw: "1s", valueType: jsonparser.String}, false},
+		{"one value given again under a field only one decoder reads", []savedValue{interval, {raw: "1s", valueType: jsonparser.String}}, interval, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value, ok := soleValue(tc.values)
+			require.Equal(t, tc.ok, ok, "soleValue must report whether the field holds one value both decoders read")
+			if ok {
+				assert.Equal(t, tc.exp, value, "soleValue should return the field's value")
+			}
+		})
+	}
+}
+
+func TestTakesFuturesInterval(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		raw       string
+		valueType jsonparser.ValueType
+		exp       bool
+	}{
+		{"no interval", "", jsonparser.NotExist, true},
+		{"100ms", "100ms", jsonparser.String, true},
+		{"500ms", "500ms", jsonparser.String, true},
+		{"100ms in seconds", "0.1s", jsonparser.String, true},
+		{"500ms in microseconds", "500000us", jsonparser.String, true},
+		{"100ms with a sign", "+100ms", jsonparser.String, true},
+		{"zero", "0", jsonparser.String, true},
+		{"zero seconds", "0s", jsonparser.String, true},
+		{"negative zero seconds", "-0s", jsonparser.String, true},
+		{"zero of a unit only the loader reads", "0sec", jsonparser.String, true},
+		{"zeros of a unit only the loader reads", "00days", jsonparser.String, true},
+		{"zero of a unit in upper case only the loader reads", "0SEC", jsonparser.String, true},
+		{"100ms written in two units", "0s100ms", jsonparser.String, true},
+		{"zero months", "0M", jsonparser.String, true},
+		{"100ms in nanoseconds", "100000000", jsonparser.Number, true},
+		{"500ms in nanoseconds", "500000000", jsonparser.Number, true},
+		{"100ms and a nanosecond", "100000001", jsonparser.Number, false},
+		{"100ms more than 2^32 nanoseconds", "4394967296", jsonparser.Number, false},
+		{"100ms and half a millisecond", "100.5ms", jsonparser.String, false},
+		{"half a millisecond", "0.5ms", jsonparser.String, false},
+		{"zero nanoseconds", "0", jsonparser.Number, true},
+		{"negative zero nanoseconds", "-0", jsonparser.Number, true},
+		{"1s", "1s", jsonparser.String, false},
+		{"1000ms", "1000ms", jsonparser.String, false},
+		{"250ms", "250ms", jsonparser.String, false},
+		{"-100ms", "-100ms", jsonparser.String, false},
+		{"one of a unit only the loader reads", "1sec", jsonparser.String, false},
+		{"a count of days with a leading zero", "01days", jsonparser.String, false},
+		{"raw", "raw", jsonparser.String, false},
+		{"empty text, which the loader refuses", "", jsonparser.String, false},
+		{"escaped 1s, which the loader refuses", `\u0031s`, jsonparser.String, false},
+		{"1s in nanoseconds", "1000000000", jsonparser.Number, false},
+		{"100ms in nanoseconds with an exponent, which the loader refuses", "1e8", jsonparser.Number, false},
+		{"null, which the loader refuses", "null", jsonparser.Null, false},
+		{"true, which the loader refuses", "true", jsonparser.Boolean, false},
+		{"an object, which the loader refuses", "{}", jsonparser.Object, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, takesFuturesInterval(savedValue{raw: tc.raw, valueType: tc.valueType, bothDecoders: true}), "takesFuturesInterval should report whether the futures streams take the update speed")
+		})
+	}
+}
+
+func TestTakesFuturesLevels(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		raw       string
+		valueType jsonparser.ValueType
+		exp       bool
+	}{
+		{"no levels", "", jsonparser.NotExist, true},
+		{"null", "null", jsonparser.Null, true},
+		{"zero", "0", jsonparser.Number, true},
+		{"negative zero", "-0", jsonparser.Number, true},
+		{"5", "5", jsonparser.Number, true},
+		{"10", "10", jsonparser.Number, true},
+		{"20", "20", jsonparser.Number, true},
+		{"1", "1", jsonparser.Number, false},
+		{"-1", "-1", jsonparser.Number, false},
+		{"15", "15", jsonparser.Number, false},
+		{"25", "25", jsonparser.Number, false},
+		{"50", "50", jsonparser.Number, false},
+		{"261, which a byte holds as 5", "261", jsonparser.Number, false},
+		{"5 with a fraction, which the loader refuses", "5.0", jsonparser.Number, false},
+		{"5 as text, which the loader refuses", "5", jsonparser.String, false},
+		{"true, which the loader refuses", "true", jsonparser.Boolean, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, takesFuturesLevels(savedValue{raw: tc.raw, valueType: tc.valueType, bothDecoders: true}), "takesFuturesLevels should report whether the futures streams take the depth")
 		})
 	}
 }
@@ -237,29 +410,55 @@ func TestMatchesBoth(t *testing.T) {
 
 func TestAllSame(t *testing.T) {
 	t.Parallel()
-	assert.True(t, allSame(nil), "allSame should accept no values")
-	assert.True(t, allSame([]string{"all", "all"}), "allSame should accept one value given twice")
-	assert.False(t, allSame([]string{"all", "spot"}), "allSame should refuse two values")
+	for _, tc := range []struct {
+		name string
+		same func() bool
+		exp  bool
+	}{
+		{"no values", func() bool { return allSame[string](nil) }, true},
+		{"one value given twice", func() bool { return allSame([]string{"all", "all"}) }, true},
+		{"two values", func() bool { return allSame([]string{"all", "spot"}) }, false},
+		{"a different value between two equal ones", func() bool { return allSame([]string{"all", "spot", "all"}) }, false},
+		{"a different value after two equal ones", func() bool { return allSame([]string{"all", "all", "spot"}) }, false},
+		{"one saved value given twice", func() bool {
+			return allSame([]savedValue{{raw: "5", valueType: jsonparser.Number}, {raw: "5", valueType: jsonparser.Number}})
+		}, true},
+		{"one text saved as two types", func() bool {
+			return allSame([]savedValue{{raw: "5", valueType: jsonparser.Number}, {raw: "5", valueType: jsonparser.String}})
+		}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.same(), "allSame should report whether every value is the first")
+		})
+	}
 }
 
 func TestSavedSubscriptions(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name, exchange, exp string
+		path                []string
 		ok                  bool
 	}{
-		{"saved subscriptions", `{"name":"Binance","features":{"subscriptions":[]}}`, "[]", true},
-		{"no name", `{"features":{"subscriptions":[]}}`, "", false},
-		{"features in another case", `{"name":"Binance","Features":{"subscriptions":[]}}`, "", false},
-		{"subscriptions given twice ignoring case", `{"name":"Binance","features":{"subscriptions":[],"Subscriptions":[]}}`, "", false},
-		{"subscriptions saved as an object", `{"name":"Binance","features":{"subscriptions":{}}}`, "", false},
+		{"saved subscriptions", `{"name":"Binance","features":{"subscriptions":[]}}`, "[]", []string{"features", "subscriptions"}, true},
+		{"features in another case", `{"name":"Binance","Features":{"subscriptions":[]}}`, "[]", []string{"Features", "subscriptions"}, true},
+		{"subscriptions in upper case", `{"name":"Binance","features":{"SUBSCRIPTIONS":[]}}`, "[]", []string{"features", "SUBSCRIPTIONS"}, true},
+		{"features and subscriptions in mixed case", `{"name":"Binance","FeAtUrEs":{"sUbScRiPtIoNs":[]}}`, "[]", []string{"FeAtUrEs", "sUbScRiPtIoNs"}, true},
+		{"null features beside features in another case", `{"name":"Binance","features":null,"Features":{"subscriptions":[]}}`, "", nil, false},
+		{"no name", `{"features":{"subscriptions":[]}}`, "", nil, false},
+		{"features given twice ignoring case", `{"name":"Binance","features":{"subscriptions":[]},"Features":{}}`, "", nil, false},
+		{"features under a field only the default decoder reads", `{"name":"Binance","featureſ":{"subscriptions":[]}}`, "", nil, false},
+		{"subscriptions given twice ignoring case", `{"name":"Binance","features":{"subscriptions":[],"Subscriptions":[]}}`, "", nil, false},
+		{"subscriptions saved as an object", `{"name":"Binance","features":{"subscriptions":{}}}`, "", nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			subscriptions, ok := savedSubscriptions([]byte(tc.exchange))
+			subscriptions, path, ok := savedSubscriptions([]byte(tc.exchange))
 			require.Equal(t, tc.ok, ok, "savedSubscriptions must report whether the loader reads one subscriptions list")
 			if ok {
 				assert.Equal(t, tc.exp, string(subscriptions), "savedSubscriptions should return the saved list")
+				assert.Equal(t, tc.path, path, "savedSubscriptions should return the field names the list is saved under")
 			}
 		})
 	}
@@ -267,18 +466,52 @@ func TestSavedSubscriptions(t *testing.T) {
 
 func TestStreamFuturesOrderbooks(t *testing.T) {
 	t.Parallel()
+	const (
+		usdtmBook = `{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures","interval":"100ms"}`
+		coinmBook = `{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures","interval":"100ms"}`
+	)
 	for _, tc := range []struct {
 		name, in, exp string
 		ok            bool
 	}{
 		{"spot alone stays as saved", `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, true},
-		{"all-assets entries dropped", `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`, `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, true},
-		{"all-assets myOrders kept", `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, true},
-		{"COIN-M without an order book gains one", `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures","interval":"100ms"}]`, true},
+		{"all-assets entries kept, naming the futures assets", `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`, `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"a disabled all-assets entry naming the futures assets", `[{"enabled":false,"channel":"candles","asset":"all","interval":"5m"}]`, `[{"enabled":false,"channel":"candles","asset":"all","interval":"5m"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"all-assets myOrders kept, naming nothing", `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, true},
+		{"COIN-M without an order book gains one", `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},` + coinmBook + `]`, true},
 		{"USDⓈ-M with an order book stays as saved", `[{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures"}]`, `[{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures"}]`, true},
+		{"an all-assets order book the futures streams take", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`, true},
+		{"a disabled all-assets order book the futures streams take", `[{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`, `[{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`, true},
+		{"an all-assets order book at an update speed the futures streams refuse", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an all-assets order book at a depth the futures streams refuse", `[{"enabled":true,"channel":"orderbook","asset":"all","levels":25}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","levels":25},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an all-assets order book the futures streams refuse beside a USDⓈ-M one", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures","interval":"1s"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures","interval":"1s"},` + coinmBook + `]`, true},
+		{"a usable all-assets order book after a refused one", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"}]`, true},
+		{"a usable all-assets order book before a refused one", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`, true},
+		{"a disabled all-assets order book at an update speed the futures streams refuse", `[{"enabled":false,"channel":"orderbook","asset":"all","interval":"1s"}]`, `[{"enabled":false,"channel":"orderbook","asset":"all","interval":"1s"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an all-assets order book at a negative depth", `[{"enabled":true,"channel":"orderbook","asset":"all","levels":-1}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","levels":-1},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an all-assets order book at a count of days with a leading zero", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"01days"}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"01days"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"a USDⓈ-M order book channel in another case", `[{"enabled":true,"channel":"OrderBook","asset":"usdtmarginedfutures"}]`, `[{"enabled":true,"channel":"OrderBook","asset":"usdtmarginedfutures"},` + usdtmBook + `]`, true},
+		{"all-assets myOrders in another case", `[{"enabled":true,"channel":"myorders","asset":"all"}]`, `[{"enabled":true,"channel":"myorders","asset":"all"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an all-assets entry without a channel", `[{"enabled":true,"asset":"all"}]`, `[{"enabled":true,"asset":"all"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"USDⓈ-M and COIN-M without order books gain both", `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"},{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"},{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"a COIN-M asset in a case the loader lower-cases beyond ASCII", `[{"enabled":true,"channel":"ticker","asset":"COİNMARGINEDFUTURES"}]`, `[{"enabled":true,"channel":"ticker","asset":"COİNMARGINEDFUTURES"},` + coinmBook + `]`, true},
+		{"a COIN-M order book before another COIN-M subscription", `[{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures","levels":5},{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, `[{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures","levels":5},{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, true},
+		{"a USDⓈ-M order book channel with a space", `[{"enabled":true,"channel":"orderbook ","asset":"usdtmarginedfutures"}]`, `[{"enabled":true,"channel":"orderbook ","asset":"usdtmarginedfutures"},` + usdtmBook + `]`, true},
+		{"an all-assets entry with a null channel", `[{"enabled":true,"channel":null,"asset":"all"}]`, `[{"enabled":true,"channel":null,"asset":"all"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"all-assets order books each refused on one count", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms","levels":25},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s","levels":5}]`, `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"100ms","levels":25},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s","levels":5},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"an entry holding a list with a closing bracket in its text", `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures","params":{"window":["]"]}}]`, `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures","params":{"window":["]"]}},` + usdtmBook + `]`, true},
+		{"an authenticated USDⓈ-M ticker without an order book", `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures","authenticated":true}]`, `[{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures","authenticated":true},` + usdtmBook + `]`, true},
+		{"an authenticated USDⓈ-M order book", `[{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures","authenticated":true}]`, `[{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures","authenticated":true}]`, true},
+		{"a USDⓈ-M ticker saved without enabled", `[{"channel":"ticker","asset":"usdtmarginedfutures"}]`, `[{"channel":"ticker","asset":"usdtmarginedfutures"},` + usdtmBook + `]`, true},
+		{"a USDⓈ-M order book saved without enabled", `[{"channel":"orderbook","asset":"usdtmarginedfutures"},{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}]`, `[{"channel":"orderbook","asset":"usdtmarginedfutures"},{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}]`, true},
+		{"an order book saved without an asset beside an all-assets ticker", `[{"enabled":true,"channel":"orderbook","interval":"100ms"},{"enabled":true,"channel":"ticker","asset":"all"}]`, `[{"enabled":true,"channel":"orderbook","interval":"100ms"},{"enabled":true,"channel":"ticker","asset":"all"},` + usdtmBook + `,` + coinmBook + `]`, true},
+		{"spacing kept", "[ {\"enabled\":true,\"channel\":\"ticker\",\"asset\":\"all\"}\n ]", "[ {\"enabled\":true,\"channel\":\"ticker\",\"asset\":\"all\"}\n ," + usdtmBook + "," + coinmBook + "]", true},
 		{"invalid JSON", `[{"enabled":true,"channel":"ticker","asset":"all"},]`, "", false},
 		{"an entry that is not an object", `[{"enabled":true,"channel":"ticker","asset":"all"},null]`, "", false},
 		{"an entry the decoders could read differently", `[{"enabled":true,"channel":"ticker","aſſet":"all"}]`, "", false},
+		{"an all-assets order book whose interval the decoders could read differently", `[{"enabled":true,"channel":"orderbook","asset":"all","İnterval":"1s"}]`, "", false},
+		{"an all-assets order book given two refused update speeds", `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s","Interval":"250ms"}]`, "", false},
+		{"an all-assets order book given two refused depths", `[{"enabled":true,"channel":"orderbook","asset":"all","levels":25,"Levels":50}]`, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

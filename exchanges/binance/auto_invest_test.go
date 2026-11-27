@@ -538,7 +538,7 @@ func TestOneTimeTransaction(t *testing.T) { //nolint:tparallel // The cases run 
 	if mockTests {
 		exp := &AutoInvestOneTimeTransactionResponse{
 			TransactionID: 12345,
-			WaitSecond:    5,
+			WaitTime:      types.DurationSeconds(5 * time.Second),
 		}
 		assert.Equal(t, exp, result, "OneTimeTransaction should decode every field")
 		return

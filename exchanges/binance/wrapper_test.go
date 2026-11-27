@@ -7030,9 +7030,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 		t.Run(a.String(), func(t *testing.T) {
 			_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: a, Pair: currency.NewBTCUSDT(), OrderID: "1"}})
-			require.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders must reject %s orders", a)
+			require.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders must reject %s orders", a)
 		})
 	}
+	t.Run("an asset Binance does not support", func(t *testing.T) {
+		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, Pair: currency.NewBTCUSDT(), OrderID: "1"}})
+		require.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders must reject an asset Binance does not support")
+	})
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.USDTMarginedFutures, OrderID: "1"}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelBatchOrders must reject a batch without a pair")
 	p := currency.NewBTCUSDT()
@@ -7790,6 +7794,43 @@ func TestCancelBatchOrders(t *testing.T) {
 		})
 
 		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			for _, tc := range []struct {
+				name                     string
+				typ                      order.Type
+				orderIDs, clientOrderIDs [2]string
+			}{
+				{"orders", order.UnknownType, [2]string{"1", "2"}, [2]string{}},
+				{"limit orders", order.Limit, [2]string{"1", "2"}, [2]string{}},
+				{"orders by client order ID", order.UnknownType, [2]string{}, [2]string{"client-1", "client-2"}},
+				{"limit orders by client order ID", order.Limit, [2]string{}, [2]string{"client-1", "client-2"}},
+				{"orders by both IDs", order.UnknownType, [2]string{"1", "2"}, [2]string{"client-1", "client-2"}},
+				{"limit orders by both IDs", order.Limit, [2]string{"1", "2"}, [2]string{"client-1", "client-2"}},
+			} {
+				t.Run("two "+a.String()+" "+tc.name, func(t *testing.T) {
+					t.Parallel()
+					entries := make([]order.Cancel, len(tc.orderIDs))
+					for i := range entries {
+						entries[i] = order.Cancel{AssetType: a, Type: tc.typ, Pair: currency.NewBTCUSDT(), OrderID: tc.orderIDs[i], ClientOrderID: tc.clientOrderIDs[i]}
+					}
+					ex, sent := newCancelStepsExchange(t, nil)
+					resp, err := ex.CancelBatchOrders(t.Context(), entries)
+					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse a batch of %s %s", a, tc.name)
+					assert.Nil(t, resp, "CancelBatchOrders should return no response for the refused batch")
+					assert.Zero(t, sent(), "CancelBatchOrders should send nothing for the refused batch")
+				})
+			}
+			t.Run("ten "+a.String()+" entries", func(t *testing.T) {
+				t.Parallel()
+				entries := make([]order.Cancel, 10)
+				for i := range entries {
+					entries[i] = order.Cancel{AssetType: a, Pair: currency.NewBTCUSDT(), OrderID: strconv.Itoa(i + 1)}
+				}
+				ex, sent := newCancelStepsExchange(t, nil)
+				resp, err := ex.CancelBatchOrders(t.Context(), entries)
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse a full batch of %s orders", a)
+				assert.Nil(t, resp, "CancelBatchOrders should return no response for the refused batch")
+				assert.Zero(t, sent(), "CancelBatchOrders should send nothing for the refused batch")
+			})
 			t.Run("eleven "+a.String()+" entries", func(t *testing.T) {
 				t.Parallel()
 				entries := make([]order.Cancel, 11)
@@ -7798,7 +7839,7 @@ func TestCancelBatchOrders(t *testing.T) {
 				}
 				ex, sent := newCancelStepsExchange(t, nil)
 				resp, err := ex.CancelBatchOrders(t.Context(), entries)
-				assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse %s orders", a)
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse %s orders", a)
 				assert.NotErrorIsf(t, err, errTooManyItems, "CancelBatchOrders should refuse %s orders before counting them", a)
 				assert.Nil(t, resp, "CancelBatchOrders should return no response for the refused batch")
 				assert.Zero(t, sent(), "CancelBatchOrders should send nothing for the refused batch")

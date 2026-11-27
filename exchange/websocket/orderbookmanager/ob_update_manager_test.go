@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -500,38 +501,57 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 func TestApplyFirstUpdate(t *testing.T) {
 	t.Parallel()
 
+	skipHeld := func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
+		return update.UpdateID <= lastUpdateID, nil
+	}
+	snapshotBids := orderbook.Levels{{Price: 1, Amount: 1}}
+	snapshotAsks := orderbook.Levels{{Price: 3, Amount: 1}}
+	updateBids := orderbook.Levels{{Price: 2, Amount: 2}}
 	for _, tc := range []struct {
 		name          string
 		base          string // the order book store is shared by every test, so each case has a pair of its own
 		check         func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error)
+		firstUpdateID int64
 		update        orderbook.Update
 		state         cacheState
 		lastUpdateID  int64
+		written       bool
 		queuedUpdates int
 	}{
 		{
-			name: "held by the snapshot",
-			base: "FIRSTHELD",
-			check: func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
-				return update.UpdateID <= lastUpdateID, nil
-			},
-			update:       orderbook.Update{UpdateID: 1336, AllowEmpty: true},
-			state:        cacheStateSnapshotLoaded,
-			lastUpdateID: 1336,
+			name:          "ending at the snapshot",
+			base:          "FIRSTHELD",
+			check:         skipHeld,
+			firstUpdateID: 1330,
+			update:        orderbook.Update{UpdateID: 1336, Bids: updateBids},
+			state:         cacheStateSnapshotLoaded,
+			lastUpdateID:  1336,
 		},
 		{
-			name:         "following the snapshot",
-			base:         "FIRSTNEXT",
-			check:        func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
-			update:       orderbook.Update{UpdateID: 1340, AllowEmpty: true},
-			state:        cacheStateSynced,
-			lastUpdateID: 1340,
+			name:          "ending before the snapshot",
+			base:          "FIRSTBEFORE",
+			check:         skipHeld,
+			firstUpdateID: 1330,
+			update:        orderbook.Update{UpdateID: 1335, Bids: updateBids},
+			state:         cacheStateSnapshotLoaded,
+			lastUpdateID:  1336,
+		},
+		{
+			name:          "following the snapshot",
+			base:          "FIRSTNEXT",
+			check:         func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
+			firstUpdateID: 1337,
+			update:        orderbook.Update{UpdateID: 1340, Bids: updateBids},
+			state:         cacheStateSynced,
+			lastUpdateID:  1340,
+			written:       true,
 		},
 		{
 			name:          "after a gap",
 			base:          "FIRSTGAP",
 			check:         func(int64, int64, *orderbook.Update) (bool, error) { return false, ErrOrderbookSnapshotOutdated },
-			update:        orderbook.Update{UpdateID: 1340, AllowEmpty: true},
+			firstUpdateID: 1338,
+			update:        orderbook.Update{UpdateID: 1340, Bids: updateBids},
 			state:         cacheStateQueuing,
 			queuedUpdates: 1,
 		},
@@ -539,6 +559,7 @@ func TestApplyFirstUpdate(t *testing.T) {
 			name:          "failing to apply",
 			base:          "FIRSTFAIL",
 			check:         func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
+			firstUpdateID: 1337,
 			update:        orderbook.Update{UpdateID: 1340},
 			state:         cacheStateQueuing,
 			queuedUpdates: 1,
@@ -553,7 +574,8 @@ func TestApplyFirstUpdate(t *testing.T) {
 			m.checkPendingUpdate = tc.check
 			pair, err := currency.NewPairFromStrings(tc.base, "USDT")
 			require.NoError(t, err, "NewPairFromStrings must not error")
-			require.NoError(t, m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1336}), "LoadSnapshot must not error")
+			snapshotTime := time.Now()
+			require.NoError(t, m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, Bids: slices.Clone(snapshotBids), Asks: slices.Clone(snapshotAsks), LastUpdated: snapshotTime, LastUpdateID: 1336}), "LoadSnapshot must not error")
 			cache, err := m.loadCache(pair, asset.Spot)
 			require.NoError(t, err, "loadCache must not error")
 			cache.m.Lock()
@@ -563,8 +585,9 @@ func TestApplyFirstUpdate(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			update := tc.update
-			update.Pair, update.Asset, update.UpdateTime = pair, asset.Spot, time.Now()
-			require.NoError(t, m.ProcessOrderbookUpdate(ctx, 1337, &update), "ProcessOrderbookUpdate must not error")
+			update.Bids = slices.Clone(tc.update.Bids)
+			update.Pair, update.Asset, update.UpdateTime = pair, asset.Spot, snapshotTime.Add(time.Second)
+			require.NoError(t, m.ProcessOrderbookUpdate(ctx, tc.firstUpdateID, &update), "ProcessOrderbookUpdate must not error")
 			cache.m.Lock()
 			assert.Equal(t, tc.state, cache.state, "ProcessOrderbookUpdate should leave the expected state")
 			assert.Len(t, cache.updates, tc.queuedUpdates, "ProcessOrderbookUpdate should queue the update for a new snapshot only after invalidating")
@@ -576,6 +599,15 @@ func TestApplyFirstUpdate(t *testing.T) {
 			}
 			require.NoError(t, err, "LastUpdateID must not error")
 			assert.Equal(t, tc.lastUpdateID, lastUpdateID, "ProcessOrderbookUpdate should apply only an update following the snapshot")
+			book, err := m.ob.GetOrderbook(pair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			expBids, expTime := snapshotBids, snapshotTime
+			if tc.written {
+				expBids, expTime = slices.Concat(updateBids, snapshotBids), update.UpdateTime
+			}
+			assert.Equal(t, expBids, book.Bids, "ProcessOrderbookUpdate should write only an update following the snapshot to the bids")
+			assert.Equal(t, snapshotAsks, book.Asks, "ProcessOrderbookUpdate should leave the asks as the snapshot holds them")
+			assert.WithinDuration(t, expTime, book.LastUpdated, 0, "ProcessOrderbookUpdate should take the update time of only an update following the snapshot")
 		})
 	}
 }

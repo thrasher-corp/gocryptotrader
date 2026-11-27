@@ -557,8 +557,8 @@ type CoinMarginedFuturesAllOrdersResponse struct {
 // CoinMarginedFuturesAutoCancelAllOpenOrdersResponse holds a coin margined futures auto-cancel countdown
 type CoinMarginedFuturesAutoCancelAllOpenOrdersResponse struct {
 	Symbol string `json:"symbol"`
-	// CountdownTimeInMilliseconds is 0 when the countdown is off
-	CountdownTimeInMilliseconds types.Number `json:"countdownTime"`
+	// CountdownTime is 0 when the countdown is off
+	CountdownTime types.DurationMilliseconds `json:"countdownTime"`
 }
 
 // CoinMarginedFuturesStatusResponse holds the status Binance answers coin margined futures actions with

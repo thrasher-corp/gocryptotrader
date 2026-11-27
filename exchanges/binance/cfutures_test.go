@@ -1622,8 +1622,8 @@ func TestCoinMarginedFuturesAutoCancelAllOpenOrders(t *testing.T) {
 	require.NoError(t, err, "CoinMarginedFuturesAutoCancelAllOpenOrders must not error")
 	if mockTests {
 		exp := &CoinMarginedFuturesAutoCancelAllOpenOrdersResponse{
-			Symbol:                      "BTCUSD_PERP",
-			CountdownTimeInMilliseconds: 30000,
+			Symbol:        "BTCUSD_PERP",
+			CountdownTime: types.DurationMilliseconds(30 * time.Second),
 		}
 		assert.Equal(t, exp, result, "CoinMarginedFuturesAutoCancelAllOpenOrders should decode every field")
 		return

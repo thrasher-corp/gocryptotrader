@@ -170,8 +170,8 @@ type USDTMarginedFuturesPositionModeResponse struct {
 // USDTMarginedFuturesDownloadIDResponse holds the reply of the Get Download Id endpoints for order, trade and
 // transaction history
 type USDTMarginedFuturesDownloadIDResponse struct {
-	AverageDownloadMillisecondsOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
-	DownloadID                              string `json:"downloadId"`
+	AverageDownloadTimeOfLast30Days types.DurationMilliseconds `json:"avgCostTimestampOfLast30d"`
+	DownloadID                      string                     `json:"downloadId"`
 }
 
 // USDTMarginedFuturesDownloadLinkResponse holds the reply of the Download Link by Id endpoints for order, trade and
@@ -695,8 +695,8 @@ type USDTMarginedFuturesAllOrdersResponse struct {
 
 // USDTMarginedFuturesAutoCancelAllOpenOrdersResponse holds the reply of Auto-Cancel All Open Orders
 type USDTMarginedFuturesAutoCancelAllOpenOrdersResponse struct {
-	Symbol                      string       `json:"symbol"`
-	CountdownTimeInMilliseconds types.Number `json:"countdownTime"`
+	Symbol        string                     `json:"symbol"`
+	CountdownTime types.DurationMilliseconds `json:"countdownTime"`
 }
 
 // USDTMarginedFuturesAlgoOrderBase holds the fields every USDⓈ-M algo (conditional) order reply carries

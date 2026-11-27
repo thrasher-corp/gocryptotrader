@@ -270,8 +270,8 @@ type OneTimeTransactionRequest struct {
 // AutoInvestOneTimeTransactionResponse holds a one-time Auto-Invest transaction and how long to wait before checking
 // its status
 type AutoInvestOneTimeTransactionResponse struct {
-	TransactionID uint64 `json:"transactionId"`
-	WaitSecond    uint64 `json:"waitSecond"`
+	TransactionID uint64                `json:"transactionId"`
+	WaitTime      types.DurationSeconds `json:"waitSecond"`
 }
 
 // AutoInvestOneTimeTransactionStatusResponse holds the status of a one-time Auto-Invest transaction

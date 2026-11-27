@@ -882,17 +882,21 @@ func (s *spotDepthStreams) expectedState(symbol string) *orderbookState {
 	}
 }
 
-// syncSpotBook sends frames of a pair's stream until its book follows them
+// syncSpotBook sends frames of a pair's stream until its book follows them, then one more frame. The snapshot alone can
+// match the stream while its synchronisation still applies the frames queued behind it, so the book must also reach the
+// update ID of a frame sent after it, which the snapshot alone cannot
 func syncSpotBook(t *testing.T, ex *Exchange, streams *spotDepthStreams, pair currency.Pair) {
 	t.Helper()
 	symbol := pair.Base.String() + pair.Quote.String()
-	require.Eventually(t, func() bool {
-		if err := ex.wsHandleData(t.Context(), nil, streams.frame(symbol)); err != nil {
-			return false
-		}
+	followsStream := func() bool {
 		book, err := ex.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 		return err == nil && book.LastUpdateID == streams.finalUpdateID(symbol)
+	}
+	require.Eventually(t, func() bool {
+		return ex.wsHandleData(t.Context(), nil, streams.frame(symbol)) == nil && followsStream()
 	}, 30*time.Second, 10*time.Millisecond, "the book must synchronise with its stream")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame(symbol)}), "wsHandleData must not error for the frame after the book synchronised")
+	require.Eventually(t, followsStream, 30*time.Second, 10*time.Millisecond, "the book must take the frame after its synchronisation")
 }
 
 func TestProcessDepthUpdate(t *testing.T) {
@@ -2356,6 +2360,11 @@ func TestSetup(t *testing.T) {
 			name, subscriptions string
 			exp                 subscription.List
 			defaults            []asset.Item
+			// refused are the assets whose order book streams refuse the list's all-assets order book subscription at each
+			// interval, which their order book connections report as partial generation
+			refused map[kline.Interval][]asset.Item
+			// mixedCaseFields saves the list under features and subscriptions fields in mixed case, which the loader reads
+			mixedCaseFields bool
 		}{
 			{
 				name:          "previous defaults",
@@ -2458,31 +2467,104 @@ func TestSetup(t *testing.T) {
 				defaults: derivatives,
 			},
 			{
-				name:          "an all-assets ticker beside a spot one",
-				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`,
-				exp:           subscription.List{spotTicker()},
-				defaults:      derivatives,
+				name:          "an all-assets ticker",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
 			},
 			{
-				name:          "a disabled all-assets order book saved in upper case",
-				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
-				exp:           subscription.List{spotTicker()},
-				defaults:      derivatives,
+				name:          "an all-assets ticker beside a spot one",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
 			},
 			{
 				name:          "an all-assets ticker beside a USDⓈ-M one",
 				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}]`,
 				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
 					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
 					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
 				},
-				defaults: []asset.Item{asset.CoinMarginedFutures, asset.Options},
+			},
+			{
+				name:          "a disabled all-assets order book saved in upper case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+				},
+			},
+			{
+				name:          "a disabled all-assets order book alone",
+				subscriptions: `[{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
+				exp:           subscription.List{{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds}},
+			},
+			{
+				name:          "an all-assets order book at an update speed the futures streams refuse",
+				subscriptions: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives},
+			},
+			{
+				name:          "an all-assets ticker beside an all-assets order book the futures streams refuse",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives},
+			},
+			{
+				name:          "an all-assets order book the futures streams refuse beside one they take",
+				subscriptions: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.ThousandMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.FiveHundredMilliseconds},
+				},
+				refused: map[kline.Interval][]asset.Item{kline.ThousandMilliseconds: derivatives, kline.FiveHundredMilliseconds: {asset.Spot}},
+			},
+			{
+				name:          "an all-assets ticker saved under features and subscriptions in mixed case",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp: subscription.List{
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				mixedCaseFields: true,
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				data, err := jsonparser.Set(slices.Clone(saved), []byte(tc.subscriptions), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
 				require.NoError(t, err, "Set must replace Binance's subscriptions")
+				if tc.mixedCaseFields {
+					exch, _, _, err := jsonparser.Get(data, "exchanges", "["+strconv.Itoa(binanceIndex)+"]")
+					require.NoError(t, err, "Get must read Binance's configuration")
+					features, _, _, err := jsonparser.Get(exch, "features")
+					require.NoError(t, err, "Get must read Binance's features")
+					features, err = jsonparser.Set(jsonparser.Delete(slices.Clone(features), "subscriptions"), []byte(tc.subscriptions), "sUbScRiPtIoNs")
+					require.NoError(t, err, "Set must save the subscriptions in mixed case")
+					exch, err = jsonparser.Set(jsonparser.Delete(slices.Clone(exch), "features"), features, "FeAtUrEs")
+					require.NoError(t, err, "Set must save the features in mixed case")
+					data, err = jsonparser.Set(data, exch, "exchanges", "["+strconv.Itoa(binanceIndex)+"]")
+					require.NoError(t, err, "Set must replace Binance's configuration")
+				}
 				path := filepath.Join(t.TempDir(), "config.json")
 				require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
 				cfg := &config.Config{}
@@ -2504,6 +2586,7 @@ func TestSetup(t *testing.T) {
 				assert.Equal(t, taken, ex.Features.Subscriptions, "Setup should take the enabled saved subscriptions and the defaults of each derivatives asset they leave out")
 				assert.Equal(t, tc.exp, exchCfg.Features.Subscriptions, "Setup should leave the saved subscriptions as they are")
 				var exp, streamed []string
+				expected := make(common.Seen[string])
 				for _, s := range taken {
 					if s.Channel == subscription.MyOrdersChannel {
 						// myOrders has no stream of its own
@@ -2514,125 +2597,235 @@ func TestSetup(t *testing.T) {
 					case asset.Empty:
 						assets = []asset.Item{asset.Spot}
 					case asset.All:
-						assets = append([]asset.Item{asset.Spot}, derivatives...)
+						assets = slices.DeleteFunc(append([]asset.Item{asset.Spot}, derivatives...), func(a asset.Item) bool {
+							return s.Channel == subscription.OrderbookChannel && slices.Contains(tc.refused[s.Interval], a)
+						})
 					}
 					for _, a := range assets {
 						pairs, err := ex.GetEnabledPairs(a)
 						require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
 						for _, p := range pairs {
-							exp = append(exp, a.String()+" "+s.Channel+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
+							if name := a.String() + " " + s.Channel + " " + s.Interval.Short() + " " + p.Base.Upper().String() + "/" + p.Quote.Upper().String(); !expected.CheckAndRecord(name) {
+								exp = append(exp, name)
+							}
 						}
 					}
 				}
-				for _, generate := range []func(context.Context) (subscription.List, error){
-					ex.generateSubscriptions,
-					ex.generateUSDTMarginedFuturesPublicSubscriptions,
-					ex.generateUSDTMarginedFuturesMarketSubscriptions,
-					ex.generateCoinMarginedFuturesSubscriptions,
-					ex.generateOptionsPublicSubscriptions,
-					ex.generateOptionsMarketSubscriptions,
+				for _, g := range []struct {
+					asset    asset.Item
+					books    bool
+					generate func(context.Context) (subscription.List, error)
+				}{
+					{asset.Spot, true, ex.generateSubscriptions},
+					{asset.USDTMarginedFutures, true, ex.generateUSDTMarginedFuturesPublicSubscriptions},
+					{asset.USDTMarginedFutures, false, ex.generateUSDTMarginedFuturesMarketSubscriptions},
+					{asset.CoinMarginedFutures, true, ex.generateCoinMarginedFuturesSubscriptions},
+					{asset.Options, true, ex.generateOptionsPublicSubscriptions},
+					{asset.Options, false, ex.generateOptionsMarketSubscriptions},
 				} {
-					subs, err := generate(t.Context())
-					require.NoError(t, err, "each stream connection must generate its subscriptions")
+					subs, err := g.generate(t.Context())
+					if g.books && slices.ContainsFunc(taken, func(s *subscription.Subscription) bool {
+						return s.Asset == asset.All && s.Channel == subscription.OrderbookChannel && slices.Contains(tc.refused[s.Interval], g.asset)
+					}) {
+						require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s order book connection must report the subscription its streams refuse", g.asset)
+						unsupported := errUnsupportedStreamOption
+						if g.asset == asset.Spot {
+							unsupported = errUnsupportedFrequency
+						}
+						assert.ErrorIsf(t, err, unsupported, "the %s order book connection should report the update speed its streams refuse", g.asset)
+						assert.NotErrorIsf(t, err, errOrderbookSubscriptionConflict, "the %s order book connection should report no conflict between order books", g.asset)
+					} else {
+						require.NoErrorf(t, err, "the %s stream connection must generate its subscriptions", g.asset)
+					}
 					for _, s := range subs {
 						for _, p := range s.Pairs {
-							streamed = append(streamed, s.Asset.String()+" "+s.Channel+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
+							streamed = append(streamed, s.Asset.String()+" "+s.Channel+" "+s.Interval.Short()+" "+p.Base.Upper().String()+"/"+p.Quote.Upper().String())
 						}
 					}
 				}
 				assert.ElementsMatch(t, exp, streamed, "the stream connections should stream each subscription Setup takes once for each enabled pair of its asset")
 			})
 		}
-		t.Run("subscribes a customised list and the derivatives defaults on their connections", func(t *testing.T) {
+		t.Run("subscribes a saved list on its connections", func(t *testing.T) {
 			t.Parallel()
-			list := `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`
-			data, err := jsonparser.Set(slices.Clone(saved), []byte(list), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
-			require.NoError(t, err, "Set must replace Binance's subscriptions")
-			path := filepath.Join(t.TempDir(), "config.json")
-			require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
-			cfg := &config.Config{}
-			require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load and migrate the configuration")
-			exchCfg, err := cfg.GetExchangeConfig("Binance")
-			require.NoError(t, err, "GetExchangeConfig must not error")
-			for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testUSDTMarginedFuturesPair, asset.CoinMarginedFutures: testCoinMarginedFuturesPair, asset.Options: testOptionsPair} {
-				require.NoErrorf(t, exchCfg.CurrencyPairs.EnablePair(a, p), "EnablePair must enable a second %s pair", a)
-			}
-			var mu sync.Mutex
-			subscribed := make(map[string][]string)
-			for _, endpoint := range []struct {
-				url        exchange.URL
-				name, path string
+			for _, tc := range []struct {
+				name, list string
+				// exp gives the streams each connection subscribes, from a function listing an asset's streams of the names
+				// given for each of its enabled pairs
+				exp func(streams func(asset.Item, ...string) []string) map[string][]string
+				// refused reports whether the order book connections refuse the list's all-assets order book
+				refused bool
 			}{
-				{exchange.WebsocketSpot, "spot", "/stream"},
-				{exchange.WebsocketUSDTMargined, "USDⓈ-M", ""},
-				{exchange.WebsocketCoinMargined, "COIN-M", ""},
-				{exchange.WebsocketOptions, "options", ""},
-				{exchange.WebsocketTrade, "WebSocket API", "/ws-api/v3"},
+				{
+					name: "a customised list and the derivatives defaults",
+					list: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"orderbook","asset":"spot","interval":"100ms"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker", "trade", "kline_5m", "depth@100ms"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker", "aggTrade", "kline_1m"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "aggTrade", "kline_1m", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker", "optionTrade", "depth@100ms"),
+							"options /market/stream": streams(asset.Options, "kline_1m"),
+						}
+					},
+				},
+				{
+					name: "COIN-M candles without an order book",
+					list: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"5m"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker", "aggTrade", "kline_1m"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "kline_5m", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker", "optionTrade", "depth@100ms"),
+							"options /market/stream": streams(asset.Options, "kline_1m"),
+						}
+					},
+				},
+				{
+					name: "all-assets order books at 1s and at 500ms",
+					list: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"500ms"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "depth"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@500ms"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "depth@500ms"),
+							"options /public/stream": streams(asset.Options, "depth@500ms"),
+						}
+					},
+					refused: true,
+				},
+				{
+					name: "an all-assets ticker",
+					list: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker"),
+						}
+					},
+				},
+				{
+					name: "an all-assets ticker beside an all-assets order book the futures streams refuse",
+					list: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":           streams(asset.Spot, "ticker", "depth"),
+							"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker"),
+							"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "depth@100ms"),
+							"options /public/stream": streams(asset.Options, "optionTicker"),
+						}
+					},
+					refused: true,
+				},
+				{
+					name: "an all-assets order book at an update speed the futures streams refuse",
+					list: `[{"enabled":true,"channel":"orderbook","asset":"all","interval":"1s"}]`,
+					exp: func(streams func(asset.Item, ...string) []string) map[string][]string {
+						return map[string][]string{
+							"spot /stream":          streams(asset.Spot, "depth"),
+							"USDⓈ-M /public/stream": streams(asset.USDTMarginedFutures, "depth@100ms"),
+							"COIN-M /stream":        streams(asset.CoinMarginedFutures, "depth@100ms"),
+						}
+					},
+					refused: true,
+				},
 			} {
-				s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
-						var req struct {
-							ID     json.RawMessage `json:"id"`
-							Method string          `json:"method"`
-							Params []string        `json:"params"`
-						}
-						if err := json.Unmarshal(msg, &req); err != nil {
-							return err
-						}
-						if req.Method == wsSubscribeMethod {
-							route := endpoint.name + " " + r.URL.Path
-							mu.Lock()
-							subscribed[route] = append(subscribed[route], req.Params...)
-							mu.Unlock()
-						}
-						return c.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%s}`, req.ID))
-					})
-				}))
-				s.Start()
-				exchCfg.API.Endpoints[endpoint.url.String()] = "ws" + strings.TrimPrefix(s.URL, "http") + endpoint.path
-			}
-			ex := new(Exchange)
-			ex.SetDefaults()
-			ex.Websocket = sharedtestvalues.NewTestWebsocket()
-			ex.Accounts = accounts.MustNewAccounts(ex)
-			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
-			t.Cleanup(func() {
-				// Disabled first, as the connection monitor would otherwise redial the closed mock servers
-				assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-				if err := ex.Websocket.Shutdown(); err != nil {
-					assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
-				}
-			})
-			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-			streams := func(a asset.Item, names ...string) []string {
-				t.Helper()
-				pairs, err := ex.GetEnabledPairs(a)
-				require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
-				all := make([]string, 0, len(names)*len(pairs))
-				for _, p := range pairs {
-					symbol, err := ex.FormatSymbol(p, a)
-					require.NoErrorf(t, err, "FormatSymbol must not error for %s", p)
-					for _, name := range names {
-						all = append(all, strings.ToLower(symbol)+"@"+name)
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					data, err := jsonparser.Set(slices.Clone(saved), []byte(tc.list), "exchanges", "["+strconv.Itoa(binanceIndex)+"]", "features", "subscriptions")
+					require.NoError(t, err, "Set must replace Binance's subscriptions")
+					path := filepath.Join(t.TempDir(), "config.json")
+					require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the configuration")
+					cfg := &config.Config{}
+					require.NoError(t, cfg.LoadConfig(path, true), "LoadConfig must load and migrate the configuration")
+					exchCfg, err := cfg.GetExchangeConfig("Binance")
+					require.NoError(t, err, "GetExchangeConfig must not error")
+					for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testUSDTMarginedFuturesPair, asset.CoinMarginedFutures: testCoinMarginedFuturesPair, asset.Options: testOptionsPair} {
+						require.NoErrorf(t, exchCfg.CurrencyPairs.EnablePair(a, p), "EnablePair must enable a second %s pair", a)
 					}
-				}
-				slices.Sort(all)
-				return all
+					var mu sync.Mutex
+					subscribed := make(map[string][]string)
+					for _, endpoint := range []struct {
+						url        exchange.URL
+						name, path string
+					}{
+						{exchange.WebsocketSpot, "spot", "/stream"},
+						{exchange.WebsocketUSDTMargined, "USDⓈ-M", ""},
+						{exchange.WebsocketCoinMargined, "COIN-M", ""},
+						{exchange.WebsocketOptions, "options", ""},
+						{exchange.WebsocketTrade, "WebSocket API", "/ws-api/v3"},
+					} {
+						s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+								var req struct {
+									ID     json.RawMessage `json:"id"`
+									Method string          `json:"method"`
+									Params []string        `json:"params"`
+								}
+								if err := json.Unmarshal(msg, &req); err != nil {
+									return err
+								}
+								if req.Method == wsSubscribeMethod {
+									route := endpoint.name + " " + r.URL.Path
+									mu.Lock()
+									subscribed[route] = append(subscribed[route], req.Params...)
+									mu.Unlock()
+								}
+								return c.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":%s}`, req.ID))
+							})
+						}))
+						s.Start()
+						exchCfg.API.Endpoints[endpoint.url.String()] = "ws" + strings.TrimPrefix(s.URL, "http") + endpoint.path
+					}
+					ex := new(Exchange)
+					ex.SetDefaults()
+					ex.Websocket = sharedtestvalues.NewTestWebsocket()
+					ex.Accounts = accounts.MustNewAccounts(ex)
+					require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+					t.Cleanup(func() {
+						// Disabled first, as the connection monitor would otherwise redial the closed mock servers
+						assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+						if err := ex.Websocket.Shutdown(); err != nil {
+							assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+						}
+					})
+					err = ex.Websocket.Connect(t.Context())
+					if tc.refused {
+						require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "Connect must report the order book the futures and options streams refuse")
+						assert.ErrorIs(t, err, errUnsupportedStreamOption, "Connect should report the update speed the futures and options streams refuse")
+					} else {
+						require.NoError(t, err, "Connect must not error")
+					}
+					streams := func(a asset.Item, names ...string) []string {
+						t.Helper()
+						pairs, err := ex.GetEnabledPairs(a)
+						require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+						all := make([]string, 0, len(names)*len(pairs))
+						for _, p := range pairs {
+							symbol, err := ex.FormatSymbol(p, a)
+							require.NoErrorf(t, err, "FormatSymbol must not error for %s", p)
+							for _, name := range names {
+								all = append(all, strings.ToLower(symbol)+"@"+name)
+							}
+						}
+						slices.Sort(all)
+						return all
+					}
+					mu.Lock()
+					defer mu.Unlock()
+					for _, names := range subscribed {
+						slices.Sort(names)
+					}
+					assert.Equal(t, tc.exp(streams), subscribed, "each connection should subscribe its share of the subscriptions Setup takes")
+				})
 			}
-			exp := map[string][]string{
-				"spot /stream":           streams(asset.Spot, "ticker", "trade", "kline_5m", "depth@100ms"),
-				"USDⓈ-M /public/stream":  streams(asset.USDTMarginedFutures, "depth@100ms"),
-				"USDⓈ-M /market/stream":  streams(asset.USDTMarginedFutures, "ticker", "aggTrade", "kline_1m"),
-				"COIN-M /stream":         streams(asset.CoinMarginedFutures, "ticker", "aggTrade", "kline_1m", "depth@100ms"),
-				"options /public/stream": streams(asset.Options, "optionTicker", "optionTrade", "depth@100ms"),
-				"options /market/stream": streams(asset.Options, "kline_1m"),
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			for _, names := range subscribed {
-				slices.Sort(names)
-			}
-			assert.Equal(t, exp, subscribed, "each connection should subscribe its share of the saved list and the derivatives defaults")
 		})
 	})
 	t.Run("takes the exchange's own subscriptions once for a configuration without features", func(t *testing.T) {
