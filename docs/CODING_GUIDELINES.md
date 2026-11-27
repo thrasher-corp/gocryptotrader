@@ -274,6 +274,12 @@ Use `require` and `assert` appropriately:
     combining and zero-width characters.
 - Give asynchronous test waits deadlines. Run tests sequentially when
     dependencies mutate package-level state.
+- When a callback runs at multiple lifecycle stages, exercise each stage through
+    its caller. Use distinct fixture values for configured and runtime inputs
+    so the test detects inconsistent arguments, and verify that replacing or
+    clearing the callback takes effect where supported.
+    If replacement can overlap an active operation, verify which invocation
+    first sees the new callback.
 - Test stream consumers with success, error-only and subsequent valid
     responses. Allow missing success fields on errors and preserve error reporting.
 - Use each endpoint's documented timestamp units. Shared renderers must omit
