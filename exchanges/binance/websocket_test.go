@@ -1030,9 +1030,13 @@ func TestProcessDepthUpdate(t *testing.T) {
 			return err == nil && got.LastUpdateID == streams.finalUpdateID("DOGEUSDT")
 		}, 30*time.Second, 10*time.Millisecond, "the snapshot must load without an event following it")
 		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleData, [][]byte{streams.frame("DOGEUSDT")}), "wsHandleData must not error")
-		got, err := storedOrderbookState(ex, pair, asset.Spot)
-		require.NoError(t, err, "the book must stay valid")
-		assert.Equal(t, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
+		// The snapshot is published before its synchronisation applies the events queued behind it, which an event
+		// arriving in between joins, so the event can apply just after it is handled
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			got, err := storedOrderbookState(ex, pair, asset.Spot)
+			require.NoError(c, err, "the book must stay valid")
+			assert.Equal(c, streams.expectedState("DOGEUSDT"), got, "the event following the snapshot should apply to it")
+		}, 30*time.Second, 10*time.Millisecond, "the event following the snapshot should apply to it")
 		assert.Equal(t, int32(1), fetches.Load(), "the book should load from one snapshot")
 	})
 }
@@ -2412,8 +2416,19 @@ func TestSetup(t *testing.T) {
 				exp: subscription.List{
 					spotTicker(),
 					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
 				},
 				defaults: []asset.Item{asset.CoinMarginedFutures, asset.Options},
+			},
+			{
+				name:          "COIN-M candles without an order book",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"5m"}]`,
+				exp: subscription.List{
+					spotTicker(),
+					{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.CoinMarginedFutures, Interval: kline.FiveMin},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Interval: kline.HundredMilliseconds},
+				},
+				defaults: []asset.Item{asset.USDTMarginedFutures, asset.Options},
 			},
 			{
 				name:          "a disabled COIN-M order book",
@@ -2443,17 +2458,25 @@ func TestSetup(t *testing.T) {
 				defaults: derivatives,
 			},
 			{
-				name:          "an all-assets ticker",
-				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"}]`,
-				exp:           subscription.List{{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All}},
+				name:          "an all-assets ticker beside a spot one",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`,
+				exp:           subscription.List{spotTicker()},
+				defaults:      derivatives,
 			},
 			{
 				name:          "a disabled all-assets order book saved in upper case",
 				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":false,"channel":"orderbook","asset":"ALL","interval":"100ms"}]`,
+				exp:           subscription.List{spotTicker()},
+				defaults:      derivatives,
+			},
+			{
+				name:          "an all-assets ticker beside a USDⓈ-M one",
+				subscriptions: `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}]`,
 				exp: subscription.List{
-					spotTicker(),
-					{Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+					{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures},
+					{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.USDTMarginedFutures, Interval: kline.HundredMilliseconds},
 				},
+				defaults: []asset.Item{asset.CoinMarginedFutures, asset.Options},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {

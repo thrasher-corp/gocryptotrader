@@ -169,3 +169,128 @@ func TestReplaceDefaults(t *testing.T) {
 		})
 	}
 }
+
+func TestReadEntry(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, raw      string
+		dataType       jsonparser.ValueType
+		asset, channel string
+		ok             bool
+	}{
+		{"asset and channel", `{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"}`, jsonparser.Object, "usdtmarginedfutures", "ticker", true},
+		{"asset lower-cased", `{"channel":"ticker","asset":"ALL"}`, jsonparser.Object, "all", "ticker", true},
+		{"asset under a field in another case", `{"channel":"ticker","ASSET":"spot"}`, jsonparser.Object, "spot", "ticker", true},
+		{"escaped asset", `{"channel":"ticker","asset":"\u0061ll"}`, jsonparser.Object, "all", "ticker", true},
+		{"no asset", `{"channel":"ticker"}`, jsonparser.Object, "", "ticker", true},
+		{"null asset", `{"channel":"ticker","asset":null}`, jsonparser.Object, "", "ticker", true},
+		{"channel kept in its case", `{"channel":"Ticker"}`, jsonparser.Object, "", "Ticker", true},
+		{"asset given twice with one value", `{"asset":"all","Asset":"ALL","channel":"ticker"}`, jsonparser.Object, "all", "ticker", true},
+		{"asset saved as a number", `{"channel":"ticker","asset":1}`, jsonparser.Object, "", "", false},
+		{"channel saved as an object", `{"channel":{},"asset":"spot"}`, jsonparser.Object, "", "", false},
+		{"asset given twice with two values", `{"asset":"all","Asset":"spot"}`, jsonparser.Object, "", "", false},
+		{"asset given as null and text", `{"asset":null,"Asset":"all"}`, jsonparser.Object, "", "", false},
+		{"channel given twice with two values", `{"channel":"ticker","CHANNEL":"orderbook"}`, jsonparser.Object, "", "", false},
+		{"asset under a field only the default decoder reads", `{"channel":"ticker","aſſet":"all"}`, jsonparser.Object, "", "", false},
+		{"entry saved as text", `"ticker"`, jsonparser.String, "", "", false},
+		{"null entry", `null`, jsonparser.Null, "", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			entry, ok := readEntry([]byte(tc.raw), tc.dataType)
+			require.Equal(t, tc.ok, ok, "readEntry must report whether the loader reads the entry unambiguously")
+			if !ok {
+				return
+			}
+			assert.Equal(t, tc.asset, entry.asset, "readEntry should read the asset as the loader does")
+			assert.Equal(t, tc.channel, entry.channel, "readEntry should read the channel as the loader does")
+		})
+	}
+}
+
+func TestMatchesField(t *testing.T) {
+	t.Parallel()
+	for key, exp := range map[string]bool{
+		"asset":   true,
+		"Asset":   true,
+		"ASSET":   true,
+		"aſſet":   true,
+		"assets":  false,
+		"channel": false,
+	} {
+		assert.Equalf(t, exp, matchesField(key, "asset"), "matchesField should report whether the loader reads %q as asset", key)
+	}
+	assert.True(t, matchesField("subscrİptions", "subscriptions"), "matchesField should match what sonic's lower-casing matches")
+}
+
+func TestMatchesBoth(t *testing.T) {
+	t.Parallel()
+	for key, exp := range map[string]bool{
+		"asset": true,
+		"ASSET": true,
+		"aſſet": false,
+		"other": false,
+	} {
+		assert.Equalf(t, exp, matchesBoth(key, "asset"), "matchesBoth should report whether both decoders read %q as asset", key)
+	}
+}
+
+func TestAllSame(t *testing.T) {
+	t.Parallel()
+	assert.True(t, allSame(nil), "allSame should accept no values")
+	assert.True(t, allSame([]string{"all", "all"}), "allSame should accept one value given twice")
+	assert.False(t, allSame([]string{"all", "spot"}), "allSame should refuse two values")
+}
+
+func TestSavedSubscriptions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, exchange, exp string
+		ok                  bool
+	}{
+		{"saved subscriptions", `{"name":"Binance","features":{"subscriptions":[]}}`, "[]", true},
+		{"no name", `{"features":{"subscriptions":[]}}`, "", false},
+		{"features in another case", `{"name":"Binance","Features":{"subscriptions":[]}}`, "", false},
+		{"subscriptions given twice ignoring case", `{"name":"Binance","features":{"subscriptions":[],"Subscriptions":[]}}`, "", false},
+		{"subscriptions saved as an object", `{"name":"Binance","features":{"subscriptions":{}}}`, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			subscriptions, ok := savedSubscriptions([]byte(tc.exchange))
+			require.Equal(t, tc.ok, ok, "savedSubscriptions must report whether the loader reads one subscriptions list")
+			if ok {
+				assert.Equal(t, tc.exp, string(subscriptions), "savedSubscriptions should return the saved list")
+			}
+		})
+	}
+}
+
+func TestStreamFuturesOrderbooks(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, in, exp string
+		ok            bool
+	}{
+		{"spot alone stays as saved", `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, true},
+		{"all-assets entries dropped", `[{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"ticker","asset":"all"}]`, `[{"enabled":true,"channel":"ticker","asset":"spot"}]`, true},
+		{"all-assets myOrders kept", `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, `[{"enabled":true,"channel":"myOrders","asset":"all"}]`, true},
+		{"COIN-M without an order book gains one", `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"}]`, `[{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures","interval":"100ms"}]`, true},
+		{"USDⓈ-M with an order book stays as saved", `[{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures"}]`, `[{"enabled":false,"channel":"orderbook","asset":"usdtmarginedfutures"}]`, true},
+		{"invalid JSON", `[{"enabled":true,"channel":"ticker","asset":"all"},]`, "", false},
+		{"an entry that is not an object", `[{"enabled":true,"channel":"ticker","asset":"all"},null]`, "", false},
+		{"an entry the decoders could read differently", `[{"enabled":true,"channel":"ticker","aſſet":"all"}]`, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, ok := streamFuturesOrderbooks([]byte(tc.in))
+			require.Equal(t, tc.ok, ok, "streamFuturesOrderbooks must report whether it reads the list unambiguously")
+			assert.Equal(t, tc.exp, string(out), "streamFuturesOrderbooks should return the expected list")
+		})
+	}
+}
+
+func TestMarshalEntry(t *testing.T) {
+	t.Parallel()
+	assert.JSONEq(t, `{"enabled":true,"channel":"ticker","asset":"spot"}`, string(marshalEntry(defaultSubscription{channel: "ticker", asset: "spot"})), "marshalEntry should save a subscription without an interval as GCT does")
+	assert.JSONEq(t, `{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures","interval":"100ms"}`, string(marshalEntry(defaultSubscription{channel: "orderbook", asset: "usdtmarginedfutures", interval: "100ms"})), "marshalEntry should save a subscription's interval as GCT does")
+}

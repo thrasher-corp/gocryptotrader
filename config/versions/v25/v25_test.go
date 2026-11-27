@@ -171,15 +171,68 @@ func TestUpgradeExchange(t *testing.T) {
 			"{\n   \"name\": \"Binance\",\n   \"features\": {\n    \"subscriptions\": " + list(currentDefaults) + "\n   }\n  }",
 		},
 		{"current defaults", upgraded, upgraded},
+		{"previous defaults with an all-assets ticker instead of spot's", binance(list(slices.Concat([]string{savedSubscription("ticker", "all", "")}, previousDefaults[1:]))), binance(list(previousDefaults[1:]))},
+		{"previous defaults beside an all-assets ticker", binance(list(append(slices.Clone(previousDefaults), savedSubscription("ticker", "all", "")))), upgraded},
+		{
+			"all-assets subscriptions",
+			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "ALL", "1s"), `{"enabled":false,"channel":"candles","asset":"All","interval":"5m"}`})),
+			binance(list([]string{savedSubscription("ticker", "spot", "")})),
+		},
+		{"all-assets subscriptions alone", binance(list([]string{savedSubscription("ticker", "all", ""), savedSubscription("orderbook", "all", "100ms")})), binance(`[]`)},
+		{"an all-assets subscription under a field in another case", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","Asset":"all"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
+		{"an escaped all-assets subscription", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"\u0061ll"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
+		{"an all-assets subscription with its asset given twice", binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","asset":"all","ASSET":"all"}`})), binance(list([]string{savedSubscription("ticker", "spot", "")}))},
+		{
+			"a USDⓈ-M ticker with its channel given twice without an order book",
+			binance(list([]string{`{"enabled":true,"channel":"ticker","Channel":"ticker","asset":"usdtmarginedfutures"}`})),
+			binance(list([]string{`{"enabled":true,"channel":"ticker","Channel":"ticker","asset":"usdtmarginedfutures"}`, savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
+		},
+		{
+			"a USDⓈ-M ticker without an order book",
+			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", "")})),
+			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
+		},
+		{
+			"disabled COIN-M candles in another case without an order book",
+			binance(list([]string{`{"enabled":false,"channel":"candles","asset":"CoinMarginedFutures","interval":"5m"}`})),
+			binance(list([]string{`{"enabled":false,"channel":"candles","asset":"CoinMarginedFutures","interval":"5m"}`, savedSubscription("orderbook", "coinmarginedfutures", "100ms")})),
+		},
+		{
+			"an all-assets ticker beside USDⓈ-M and COIN-M ones",
+			binance(list([]string{savedSubscription("ticker", "all", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("allTrades", "coinmarginedfutures", "")})),
+			binance(list([]string{savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("allTrades", "coinmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms"), savedSubscription("orderbook", "coinmarginedfutures", "100ms")})),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			out, err := new(v25.Version).UpgradeExchange(t.Context(), []byte(tc.in))
 			require.NoError(t, err, "UpgradeExchange must not error")
 			assert.Equal(t, tc.exp, string(out), "UpgradeExchange should return the expected configuration")
+			again, err := new(v25.Version).UpgradeExchange(t.Context(), out)
+			require.NoError(t, err, "UpgradeExchange must not error on its own output")
+			assert.Equal(t, tc.exp, string(again), "UpgradeExchange should leave its own output as it is")
 		})
 	}
+	unchanged := map[string]string{
+		"a USDⓈ-M order book":                                binance(list([]string{savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "500ms")})),
+		"a disabled COIN-M order book":                       binance(list([]string{savedSubscription("ticker", "coinmarginedfutures", ""), `{"enabled":false,"channel":"orderbook","asset":"coinmarginedfutures","interval":"100ms"}`})),
+		"USDⓈ-M myOrders alone":                              binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"myOrders","asset":"usdtmarginedfutures","authenticated":true}`})),
+		"options without an order book":                      binance(list([]string{savedSubscription("ticker", "options", "")})),
+		"an all-assets asset given twice":                    binance(list([]string{`{"enabled":true,"channel":"ticker","asset":"all","Asset":"spot"}`})),
+		"all-assets myOrders":                                binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"myOrders","asset":"all","authenticated":true}`})),
+		"an all-assets asset only the default decoder reads": binance(list([]string{savedSubscription("ticker", "spot", ""), `{"enabled":true,"channel":"ticker","aſſet":"all"}`})),
+		"an all-assets asset saved as a number":              binance(list([]string{`{"enabled":true,"channel":"ticker","asset":1}`, savedSubscription("ticker", "all", "")})),
+		"a USDⓈ-M channel given twice":                       binance(list([]string{`{"enabled":true,"channel":"ticker","Channel":"orderbook","asset":"usdtmarginedfutures"}`})),
+		"an all-assets ticker beside a null":                 binance(list([]string{savedSubscription("ticker", "all", ""), `null`})),
+	}
 	for name, in := range customised(previousDefaults) {
+		if name == "every asset" {
+			// The all-assets ticker streamed nothing in the previous version, so it is dropped, as a row above shows
+			continue
+		}
+		unchanged[name] = in
+	}
+	for name, in := range unchanged {
 		t.Run("customised: "+name, func(t *testing.T) {
 			t.Parallel()
 			out, err := new(v25.Version).UpgradeExchange(t.Context(), []byte(in))
@@ -225,6 +278,11 @@ func TestDowngradeExchange(t *testing.T) {
 		{"current defaults with spot assets absent", binance(list(spotWithoutAssets)), downgraded},
 		{"previous defaults", downgraded, downgraded},
 		{"current defaults with channels swapped across assets", binance(list(channelsSwapped)), binance(list(channelsSwapped))},
+		{
+			"a customised list with the USDⓈ-M order book its upgrade added",
+			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
+			binance(list([]string{savedSubscription("ticker", "spot", ""), savedSubscription("ticker", "usdtmarginedfutures", ""), savedSubscription("orderbook", "usdtmarginedfutures", "100ms")})),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
