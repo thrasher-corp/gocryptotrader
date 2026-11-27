@@ -1971,7 +1971,7 @@ func TestGeneratePublicDefaultSubscriptions(t *testing.T) {
 	options := currency.Pairs{fixtureOptionPair, currency.NewPairWithDelimiter("BTC", "10OCT26-82750-C-USDT", "-"), currency.NewPairWithDelimiter("ETH", "10OCT26-2500-C-USDT", "-")}
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, options, false), "StorePairs must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, options, true), "StorePairs must not error")
-	subs, err := ex.GenerateOptionsDefaultSubscriptions()
+	subs, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	assert.ElementsMatch(t, []string{
 		"orderbook.25.BTC-24SEP27-170000-P-USDT", "tickers.BTC-24SEP27-170000-P-USDT",
@@ -1987,12 +1987,12 @@ func TestGeneratePublicDefaultSubscriptions(t *testing.T) {
 
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
-	subs, err = ex.GenerateInverseDefaultSubscriptions()
+	subs, err = ex.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 	assert.ElementsMatch(t, []string{"orderbook.50.BTCUSD", "tickers.BTCUSD", "publicTrade.BTCUSD"}, subs.QualifiedChannels(), "inverse subscriptions should cover the orderbook, ticker and trades")
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.GenerateInverseDefaultSubscriptions()
+	subs, err = ex.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error for a disabled asset")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions")
 

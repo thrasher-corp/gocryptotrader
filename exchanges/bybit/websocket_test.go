@@ -1085,7 +1085,7 @@ func TestPublicConnectionArgsLimit(t *testing.T) {
 	enable(asset.Spot, spot[:150])
 	enable(asset.Options, options)
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
-	optionSubs, err := ex.GenerateOptionsDefaultSubscriptions()
+	optionSubs, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	optionTopics := optionSubs.QualifiedChannels()
 	require.Greater(t, len(optionTopics), publicConnectionArgsLimit, "the option topics must exceed the args limit")

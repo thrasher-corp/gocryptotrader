@@ -25,11 +25,11 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	ex := websocketTestInstance(t)
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, false), "StorePairs must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, true), "StorePairs must not error")
-	subs, err := ex.GenerateOptionsDefaultSubscriptions()
+	subs, err := ex.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	assert.ElementsMatch(t, []string{"orderbook.25.BTC-24SEP27-170000-P-USDT", "tickers.BTC-24SEP27-170000-P-USDT", "publicTrade.BTC"}, subs.QualifiedChannels(), "option subscriptions should take 25 levels and trades by base coin")
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	subs, err = ex.GenerateOptionsDefaultSubscriptions()
+	subs, err = ex.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error for a disabled asset")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions")
 }

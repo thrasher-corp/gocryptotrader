@@ -27,7 +27,7 @@ func TestGenerateEventPublicSubscriptions(t *testing.T) {
 		{Enabled: false, Channel: ChannelEventPublicTrade, Params: map[string]any{"symbol": eventTestRangeSymbol}},
 		{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol},
 	}
-	subs, err := ex.generateEventPublicSubscriptions()
+	subs, err := ex.generateEventPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateEventPublicSubscriptions must not error")
 	assert.Equal(t, []string{"orderbook.25." + eventTestTargetSymbol, "publicTrade." + eventTestTargetSymbol}, subs.QualifiedChannels(), "generateEventPublicSubscriptions should qualify each enabled event subscription by its topic")
 	for _, s := range subs {
@@ -40,13 +40,13 @@ func TestGenerateEventPublicSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": ""}},
 	}
 	ex.Features.Subscriptions = append(subscription.List{{Enabled: true, Channel: ChannelEventPublicTrade, Params: symbol}}, unusable...)
-	subs, err = ex.generateEventPublicSubscriptions()
+	subs, err = ex.generateEventPublicSubscriptions(t.Context())
 	assert.NoError(t, err, "generateEventPublicSubscriptions should not error for subscriptions without a usable symbol")
 	assert.Equal(t, []string{"publicTrade." + eventTestTargetSymbol}, subs.QualifiedChannels(), "generateEventPublicSubscriptions should return only the subscriptions with a symbol")
 	for _, s := range unusable {
 		assert.Truef(t, s.Enabled, "generateEventPublicSubscriptions should leave %s with params %v as configured", s.Channel, s.Params)
 	}
-	subs, err = ex.generateEventPublicSubscriptions()
+	subs, err = ex.generateEventPublicSubscriptions(t.Context())
 	assert.NoError(t, err, "generateEventPublicSubscriptions should not error when generating again")
 	assert.Equal(t, []string{"publicTrade." + eventTestTargetSymbol}, subs.QualifiedChannels(), "generateEventPublicSubscriptions should generate the same subscriptions again")
 }
@@ -58,7 +58,7 @@ func TestEventPublicSubscribe(t *testing.T) {
 		{Enabled: true, Channel: ChannelEventOrderbook, Params: map[string]any{"symbol": eventTestTargetSymbol}},
 		{Enabled: true, Channel: ChannelEventPublicTrade, Params: map[string]any{"symbol": eventTestTargetSymbol}},
 	}
-	subs, err := ex.generateEventPublicSubscriptions()
+	subs, err := ex.generateEventPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateEventPublicSubscriptions must not error")
 	conn := &topicFixtureConnection{match: websocket.NewMatch(), reply: commandReply(t), handler: ex.wsHandleEventPublicData}
 

@@ -614,7 +614,7 @@ func (e *Exchange) handleNoTopicWebsocketResponse(ctx context.Context, conn webs
 
 // generateSubscriptions returns the configured spot subscriptions for the spot connection; each other public connection
 // generates its own
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	var configured subscription.List
 	for _, s := range e.Features.Subscriptions {
 		if (s.Asset == asset.Spot || s.Asset == asset.All) && !dedicatedConnectionChannel(s.Channel) {

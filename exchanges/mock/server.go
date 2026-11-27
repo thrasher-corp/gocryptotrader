@@ -124,7 +124,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 			MessageWriteJSON(w, http.StatusOK, payload)
 			return
 
-		case http.MethodPost, http.MethodPut:
+		case http.MethodPost, http.MethodPut, http.MethodPatch:
 			switch r.Header.Get(contentType) {
 			case applicationURLEncoded:
 				readBody, err := io.ReadAll(r.Body)
@@ -280,7 +280,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			if getJSONBodyShape(data) != jsonBodyObject {
 				continue
 			}
-			// Convert the recorded body exactly as a request's JSON body is converted, so nested values match too
+			// Recorded values are derived exactly as request bodies are, so nested arrays and objects compare as JSON
 			mockVals, err = DeriveURLValsFromJSONMap([]byte(data))
 		} else {
 			mockVals, err = url.ParseQuery(data)

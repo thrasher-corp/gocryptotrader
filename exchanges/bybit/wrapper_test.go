@@ -6101,7 +6101,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			{Enabled: true, Asset: asset.Spot, Channel: ChannelRFQPublicTrades},
 			{Enabled: true, Asset: asset.All, Channel: AdvancedEarnDualAssetsOffersChannel},
 		}
-		subs, err := ex.generateSubscriptions()
+		subs, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		for _, s := range subs {
 			assert.Equal(t, asset.Spot, s.Asset, "the spot connection should only generate spot subscriptions")
@@ -6109,7 +6109,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		assert.ElementsMatch(t, []string{"orderbook.200.BTCUSDT", "kline.5.BTCUSDT", "orderbook.rpi.BTCUSDT"}, subs.QualifiedChannels(), "generateSubscriptions should expand the spot topics")
 
 		ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel}}
-		_, err = ex.generateSubscriptions()
+		_, err = ex.generateSubscriptions(t.Context())
 		require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "generateSubscriptions must reject a subscription without a topic")
 	})
 
@@ -6147,7 +6147,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
@@ -6225,12 +6225,12 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, subscription.List{}), "authSubscribe must not error without subscriptions")
 
-	authsubs, err := e.generateAuthSubscriptions()
+	authsubs, err := e.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.Empty(t, authsubs, "generateAuthSubscriptions must not return subs")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	authsubs, err = e.generateAuthSubscriptions()
+	authsubs, err = e.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
 	var positionSubscriptions subscription.List

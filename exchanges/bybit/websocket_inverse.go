@@ -11,7 +11,7 @@ import (
 
 // GenerateInverseDefaultSubscriptions returns the orderbook, trade and ticker subscriptions for every enabled inverse
 // pair
-func (e *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateInverseDefaultSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generatePublicDefaultSubscriptions(asset.CoinMarginedFutures)
 }
 

@@ -43,7 +43,7 @@ func TestGenerateRFQPublicSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: ChannelRFQPublicTrades},
 		{Enabled: true, Channel: ChannelRFQQuotes, Authenticated: true},
 	}
-	subs, err := ex.generateRFQPublicSubscriptions()
+	subs, err := ex.generateRFQPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateRFQPublicSubscriptions must not error")
 	require.Len(t, subs, 1, "generateRFQPublicSubscriptions must generate the public trade subscription")
 	assert.Equal(t, ChannelRFQPublicTrades, subs[0].QualifiedChannel, "generateRFQPublicSubscriptions should qualify the subscription by its topic")
@@ -54,7 +54,7 @@ func TestRFQPublicSubscribe(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: ChannelRFQPublicTrades}}
-	subs, err := ex.generateRFQPublicSubscriptions()
+	subs, err := ex.generateRFQPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateRFQPublicSubscriptions must not error")
 	conn := &topicFixtureConnection{match: websocket.NewMatch(), reply: rfqReply(t), handler: ex.wsHandleRFQPublicData}
 

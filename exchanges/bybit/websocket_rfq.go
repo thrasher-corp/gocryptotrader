@@ -41,7 +41,7 @@ func (e *Exchange) RFQPublicConnectionSetup(exch *config.Exchange, url string) *
 }
 
 // generateRFQPublicSubscriptions returns the enabled subscription to the RFQ public trade channel
-func (e *Exchange) generateRFQPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateRFQPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	var subs subscription.List
 	for _, s := range e.Features.Subscriptions.Enabled() {
 		if s.Channel == ChannelRFQPublicTrades {

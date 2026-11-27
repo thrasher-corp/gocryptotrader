@@ -198,6 +198,13 @@ func TestRegisterHandlerAndMatching(t *testing.T) {
 			bodyParams:  `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
 		},
 		{
+			name:        "post_application_json_array_of_strings",
+			method:      http.MethodPost,
+			contentType: applicationJSON,
+			requestBody: `["1","2"]`,
+			bodyParams:  `["1","2"]`,
+		},
+		{
 			name:          "post_text_plain_array_body",
 			method:        http.MethodPost,
 			contentType:   textPlain,
@@ -211,6 +218,20 @@ func TestRegisterHandlerAndMatching(t *testing.T) {
 			contentType: applicationJSON,
 			requestBody: `{"currency":"btc"}`,
 			bodyParams:  `{"currency":"btc"}`,
+		},
+		{
+			name:        "patch_application_json_object",
+			method:      http.MethodPatch,
+			contentType: applicationJSON,
+			requestBody: `{"currency":"btc"}`,
+			bodyParams:  `{"currency":"btc"}`,
+		},
+		{
+			name:        "post_application_json_object_with_nested_values",
+			method:      http.MethodPost,
+			contentType: applicationJSON,
+			requestBody: `{"currencies":["btc","eth"],"settings":{"enabled":true}}`,
+			bodyParams:  `{"currencies":["btc","eth"],"settings":{"enabled":true}}`,
 		},
 		{
 			name:        "delete_query_string",
@@ -406,6 +427,13 @@ func TestMatchAndGetResponse(t *testing.T) {
 			wantResult:  `{"match":"float"}`,
 		},
 		{
+			name:        "json object body with nested and null values",
+			mockData:    []HTTPResponse{{BodyParams: `{"currencies":["BTC","ETH"],"settings":{"enabled":true},"note":null}`, Data: json.RawMessage(`{"match":"nested"}`)}},
+			requestVals: url.Values{"currencies": {`["BTC","ETH"]`}, "settings": {`{"enabled":true}`}, "note": {"null"}},
+			isQueryData: false,
+			wantResult:  `{"match":"nested"}`,
+		},
+		{
 			name:        "json object body with nested values",
 			mockData:    []HTTPResponse{{BodyParams: `{"category":"linear","request":[{"symbol":"BTCUSDT","qty":"1"}],"filter":{"a":1},"none":null}`, Data: json.RawMessage(`{"match":"nested"}`)}},
 			requestVals: url.Values{"category": {"linear"}, "request": {`[{"qty":"1","symbol":"BTCUSDT"}]`}, "filter": {`{"a":1}`}, "none": {"null"}},
@@ -463,6 +491,22 @@ func TestMatchAndGetResponse(t *testing.T) {
 			assert.JSONEq(t, tc.wantResult, string(got), "MatchAndGetResponse should return correct data")
 		})
 	}
+}
+
+func TestMatchAndGetResponseNestedJSONBody(t *testing.T) {
+	t.Parallel()
+	// Recorded bodies must encode nested values exactly as DeriveURLValsFromJSONMap encodes the request body
+	body := `{"market":"BTC_USDT","trigger":{"rule":">=","price":"100","expiration":3600},"ids":["1","2"],"note":null}`
+	requestVals, err := DeriveURLValsFromJSONMap([]byte(body))
+	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+
+	got, err := MatchAndGetResponse([]HTTPResponse{{BodyParams: body, Data: json.RawMessage(`{"match":"nested"}`)}}, requestVals, false)
+	require.NoError(t, err, "MatchAndGetResponse must match nested body values")
+	assert.JSONEq(t, `{"match":"nested"}`, string(got), "MatchAndGetResponse should return the nested body payload")
+
+	requestVals.Set("trigger", `{"rule":"<=","price":"100","expiration":3600}`)
+	_, err = MatchAndGetResponse([]HTTPResponse{{BodyParams: body, Data: json.RawMessage(`{"match":"nested"}`)}}, requestVals, false)
+	assert.ErrorIs(t, err, errNoDataMatched, "MatchAndGetResponse should not match a different nested value")
 }
 
 func TestJSONBodyArrayRegression(t *testing.T) {

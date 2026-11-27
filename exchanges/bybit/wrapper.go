@@ -525,7 +525,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 			Connector:            e.WebsocketConnect,
-			GenerateSubscriptions: func() (subscription.List, error) {
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 				return e.GenerateLinearDefaultSubscriptions(asset.USDTMarginedFutures)
 			},
 			Subscriber: func(ctx context.Context, conn websocket.Connection, sub subscription.List) error {
@@ -546,7 +546,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 			Connector:            e.WebsocketConnect,
-			GenerateSubscriptions: func() (subscription.List, error) {
+			GenerateSubscriptions: func(context.Context) (subscription.List, error) {
 				return e.GenerateLinearDefaultSubscriptions(asset.USDCMarginedFutures)
 			},
 			Subscriber: func(ctx context.Context, conn websocket.Connection, sub subscription.List) error {

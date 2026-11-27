@@ -26,11 +26,11 @@ func TestSystemStatusConnectionSetup(t *testing.T) {
 	for name, set := range map[string]bool{"Connector": setup.Connector != nil, "GenerateSubscriptions": setup.GenerateSubscriptions != nil, "Subscriber": setup.Subscriber != nil, "Unsubscriber": setup.Unsubscriber != nil, "Handler": setup.Handler != nil} {
 		assert.Truef(t, set, "setup should set %s", name)
 	}
-	subs, err := setup.GenerateSubscriptions()
+	subs, err := setup.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateSubscriptions must not error")
 	assert.Empty(t, subs, "the system status connection should not subscribe unless configured to")
 	ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Enabled: true, Channel: chanSystemStatus})
-	subs, err = setup.GenerateSubscriptions()
+	subs, err = setup.GenerateSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateSubscriptions must not error")
 	assert.Equal(t, []string{chanSystemStatus}, subs.QualifiedChannels(), "a configured system.status subscription should be generated")
 
@@ -44,18 +44,18 @@ func TestGenerateSystemStatusSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
-	subs, err := ex.generateSystemStatusSubscriptions()
+	subs, err := ex.generateSystemStatusSubscriptions(t.Context())
 	require.NoError(t, err, "generateSystemStatusSubscriptions must not error")
 	assert.Nil(t, subs, "generateSystemStatusSubscriptions should generate nothing unless system.status is configured")
 
 	ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Channel: chanSystemStatus})
-	subs, err = ex.generateSystemStatusSubscriptions()
+	subs, err = ex.generateSystemStatusSubscriptions(t.Context())
 	require.NoError(t, err, "generateSystemStatusSubscriptions must not error")
 	assert.Nil(t, subs, "generateSystemStatusSubscriptions should generate nothing for a disabled system.status")
 
 	configured := &subscription.Subscription{Enabled: true, Channel: chanSystemStatus}
 	ex.Features.Subscriptions = append(ex.Features.Subscriptions, configured)
-	subs, err = ex.generateSystemStatusSubscriptions()
+	subs, err = ex.generateSystemStatusSubscriptions(t.Context())
 	require.NoError(t, err, "generateSystemStatusSubscriptions must not error")
 	exp := subscription.List{{Enabled: true, Channel: chanSystemStatus, QualifiedChannel: chanSystemStatus}}
 	assert.Equal(t, exp, subs, "generateSystemStatusSubscriptions should generate the configured subscription qualified by its topic")

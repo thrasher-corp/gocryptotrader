@@ -15,11 +15,11 @@ func TestGenerateInverseDefaultSubscriptions(t *testing.T) {
 	ex := websocketTestInstance(t)
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
-	subs, err := ex.GenerateInverseDefaultSubscriptions()
+	subs, err := ex.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
 	assert.ElementsMatch(t, []string{"orderbook.50.BTCUSD", "tickers.BTCUSD", "publicTrade.BTCUSD"}, subs.QualifiedChannels(), "inverse subscriptions should cover the orderbook, ticker and trades")
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.GenerateInverseDefaultSubscriptions()
+	subs, err = ex.GenerateInverseDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error for a disabled asset")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions")
 }

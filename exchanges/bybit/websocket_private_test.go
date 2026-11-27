@@ -1692,11 +1692,11 @@ func testRelayedPrivateStream[T any](t *testing.T, fixture string, exp []T) {
 func TestGenerateAuthSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
-	subs, err := ex.generateAuthSubscriptions()
+	subs, err := ex.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	assert.Empty(t, subs, "nothing should be generated without authenticated websocket support")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err = ex.generateAuthSubscriptions()
+	subs, err = ex.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: chanPositions, Asset: asset.All},
@@ -1714,7 +1714,7 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: chanPositions, Authenticated: true},
 		{Enabled: true, Channel: chanExecution, Authenticated: true},
 	}
-	subs, err = ex.generateAuthSubscriptions()
+	subs, err = ex.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	assert.Equal(t, exp, subs, "generateAuthSubscriptions should generate the private topics whatever the configuration holds")
 	for _, s := range ex.Config.Features.Subscriptions {

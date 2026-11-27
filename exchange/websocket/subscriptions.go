@@ -366,7 +366,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 	}
 
 	if !m.useMultiConnectionManagement {
-		newSubs, err := m.GenerateSubs()
+		newSubs, err := m.GenerateSubs(ctx)
 		if err != nil {
 			return err
 		}
@@ -379,7 +379,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 			continue
 		}
 
-		newSubs, err := ws.setup.GenerateSubscriptions()
+		newSubs, err := ws.setup.GenerateSubscriptions(ctx)
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {

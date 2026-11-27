@@ -239,7 +239,7 @@ func TestTopicConnectionSetups(t *testing.T) { //nolint:tparallel // Subtests sh
 				assert.NotNilf(t, fn, "%s should set %s", name, field)
 			}
 			require.NotNilf(t, setup.GenerateSubscriptions, "%s must set GenerateSubscriptions", name)
-			subs, err := setup.GenerateSubscriptions()
+			subs, err := setup.GenerateSubscriptions(t.Context())
 			require.NoErrorf(t, err, "%s GenerateSubscriptions must not error", name)
 			assert.Emptyf(t, subs, "%s GenerateSubscriptions should generate no subscriptions by default", name)
 		})
@@ -259,7 +259,7 @@ func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
 		{Enabled: false, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": "SOLUSDT_SOL/USDT"}},
 		{Enabled: true, Channel: ChannelEventOrderbook, Params: symbol},
 	}
-	subs, err := ex.generateSpreadPublicSubscriptions()
+	subs, err := ex.generateSpreadPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateSpreadPublicSubscriptions must not error")
 	assert.Equal(t, []string{
 		"orderbook.1.ETHUSDT_ETH/USDT",
@@ -277,7 +277,7 @@ func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: ChannelSpreadPublicTrade, Params: map[string]any{"symbol": 1}},
 	}
 	ex.Features.Subscriptions = append(subscription.List{{Enabled: true, Channel: ChannelSpreadTicker, Params: symbol}}, unusable...)
-	subs, err = ex.generateSpreadPublicSubscriptions()
+	subs, err = ex.generateSpreadPublicSubscriptions(t.Context())
 	assert.NoError(t, err, "generateSpreadPublicSubscriptions should not error for subscriptions without a usable symbol")
 	assert.Equal(t, []string{"tickers." + spreadTestSymbol}, subs.QualifiedChannels(), "generateSpreadPublicSubscriptions should return only the subscriptions with a symbol")
 	for _, s := range unusable {
@@ -292,7 +292,7 @@ func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
 		}
 	})
 	for range 50 {
-		_, err := ex.generateSpreadPublicSubscriptions()
+		_, err := ex.generateSpreadPublicSubscriptions(t.Context())
 		assert.NoError(t, err, "generateSpreadPublicSubscriptions should not error while the configuration is saved")
 	}
 	wg.Wait()
@@ -492,7 +492,7 @@ func TestSpreadPublicSubscribe(t *testing.T) {
 		{Enabled: true, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": spreadTestSymbol}},
 		{Enabled: true, Channel: ChannelSpreadTicker, Params: map[string]any{"symbol": "FAILUSDT_FAIL/USDT"}},
 	}
-	subs, err := ex.generateSpreadPublicSubscriptions()
+	subs, err := ex.generateSpreadPublicSubscriptions(t.Context())
 	require.NoError(t, err, "generateSpreadPublicSubscriptions must not error")
 	conn := &topicFixtureConnection{match: websocket.NewMatch(), reply: commandReply(t), handler: ex.wsHandleSpreadPublicData}
 

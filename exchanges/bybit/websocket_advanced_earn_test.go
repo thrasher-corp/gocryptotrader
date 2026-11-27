@@ -64,7 +64,7 @@ func TestAdvancedEarnConnectionSetup(t *testing.T) {
 func TestGenerateAdvancedEarnSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newAdvancedEarnTestExchange(t)
-	subs, err := ex.generateAdvancedEarnSubscriptions()
+	subs, err := ex.generateAdvancedEarnSubscriptions(t.Context())
 	require.NoError(t, err, "generateAdvancedEarnSubscriptions must not error")
 	assert.Empty(t, subs, "generateAdvancedEarnSubscriptions should generate nothing by default")
 
@@ -74,7 +74,7 @@ func TestGenerateAdvancedEarnSubscriptions(t *testing.T) {
 		{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
 		{Enabled: true, Channel: AdvancedEarnDoubleWinOffersChannel},
 	}
-	subs, err = ex.generateAdvancedEarnSubscriptions()
+	subs, err = ex.generateAdvancedEarnSubscriptions(t.Context())
 	require.NoError(t, err, "generateAdvancedEarnSubscriptions must not error")
 	exp := subscription.List{
 		{Enabled: true, Channel: AdvancedEarnDualAssetsOffersChannel},

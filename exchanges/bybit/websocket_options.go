@@ -11,7 +11,7 @@ import (
 
 // GenerateOptionsDefaultSubscriptions returns the orderbook and ticker subscriptions for every enabled option pair, and
 // a trade subscription for each base coin
-func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateOptionsDefaultSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.generatePublicDefaultSubscriptions(asset.Options)
 }
 

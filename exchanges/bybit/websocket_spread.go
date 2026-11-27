@@ -58,7 +58,7 @@ func (e *Exchange) SpreadPublicConnectionSetup(exch *config.Exchange, url string
 
 // generateSpreadPublicSubscriptions returns the enabled subscriptions to spread public channels, qualified by topic. A
 // subscription without a usable symbol is left out with a warning, since Setup disables the configured ones
-func (e *Exchange) generateSpreadPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSpreadPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	var subs subscription.List
 	for _, s := range e.Features.Subscriptions.Enabled() {
 		var prefix string

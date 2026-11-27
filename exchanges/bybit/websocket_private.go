@@ -392,7 +392,7 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, respRaw []byte) 
 // generateAuthSubscriptions generates default subscription for the dedicated auth websocket connection. These are
 // agnostic to the asset type and pair as all account level data will be routed through this connection. Setup disables
 // any authenticated subscription in the configuration, since these are not configurable
-func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAuthSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

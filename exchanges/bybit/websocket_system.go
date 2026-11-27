@@ -38,7 +38,7 @@ func (e *Exchange) SystemStatusConnectionSetup(url string) *websocket.Connection
 }
 
 // generateSystemStatusSubscriptions returns the enabled system.status subscription, if any
-func (e *Exchange) generateSystemStatusSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSystemStatusSubscriptions(_ context.Context) (subscription.List, error) {
 	for _, s := range e.Features.Subscriptions.Enabled() {
 		if s.Channel == chanSystemStatus {
 			sub := s.Clone()

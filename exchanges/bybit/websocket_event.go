@@ -49,7 +49,7 @@ func (e *Exchange) EventPublicConnectionSetup(exch *config.Exchange, url string)
 
 // generateEventPublicSubscriptions returns the enabled subscriptions to event public channels, qualified by topic. A
 // subscription without a usable symbol is left out with a warning, since Setup disables the configured ones
-func (e *Exchange) generateEventPublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateEventPublicSubscriptions(_ context.Context) (subscription.List, error) {
 	var subs subscription.List
 	for _, s := range e.Features.Subscriptions.Enabled() {
 		var prefix string

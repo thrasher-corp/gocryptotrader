@@ -51,7 +51,7 @@ func (e *Exchange) AdvancedEarnConnectionSetup(exch *config.Exchange, url string
 }
 
 // generateAdvancedEarnSubscriptions returns the enabled Advanced Earn subscriptions in the exchange's configuration
-func (e *Exchange) generateAdvancedEarnSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAdvancedEarnSubscriptions(_ context.Context) (subscription.List, error) {
 	var subs subscription.List
 	for _, s := range e.Features.Subscriptions {
 		if s.Enabled && isAdvancedEarnChannel(s.Channel) {
