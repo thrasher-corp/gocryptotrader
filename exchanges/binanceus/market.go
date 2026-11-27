@@ -226,7 +226,7 @@ func (e *Exchange) getLatestSpotPrice(ctx context.Context, symbols currency.Pair
 	if symbolStatus != "" {
 		params.Set("symbolStatus", string(symbolStatus))
 	}
-	var resp objectOrArray[SymbolPriceResponse]
+	var resp common.ObjectOrArray[SymbolPriceResponse]
 	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/ticker/price", "ticker.price", params, symbolsTickerLimit(len(symbols)), &resp)
 }
 
@@ -260,17 +260,17 @@ func (e *Exchange) getBestPrice(ctx context.Context, symbols currency.Pairs, sym
 	if symbolStatus != "" {
 		params.Set("symbolStatus", string(symbolStatus))
 	}
-	var resp objectOrArray[BookTickerResponse]
+	var resp common.ObjectOrArray[BookTickerResponse]
 	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/ticker/bookTicker", "ticker.book", params, symbolsTickerLimit(len(symbols)), &resp)
 }
 
-// GetPriceChangeStats returns 24hr ticker price change statistics. A request without symbols returns every symbol, at
-// a much higher weight
-func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStatsRequest) ([]PriceChangeStatsResponse, error) {
-	return e.getPriceChangeStats(ctx, req, false)
+// GetPriceChangeStatistics returns 24hr ticker price change statistics. A request without symbols returns every symbol,
+// at a much higher weight
+func (e *Exchange) GetPriceChangeStatistics(ctx context.Context, req *PriceChangeStatisticsRequest) ([]PriceChangeStatisticsResponse, error) {
+	return e.getPriceChangeStatistics(ctx, req, false)
 }
 
-func (e *Exchange) getPriceChangeStats(ctx context.Context, req *PriceChangeStatsRequest, useWebsocket bool) ([]PriceChangeStatsResponse, error) {
+func (e *Exchange) getPriceChangeStatistics(ctx context.Context, req *PriceChangeStatisticsRequest, useWebsocket bool) ([]PriceChangeStatisticsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (e *Exchange) getPriceChangeStats(ctx context.Context, req *PriceChangeStat
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
-	var resp objectOrArray[PriceChangeStatsResponse]
+	var resp common.ObjectOrArray[PriceChangeStatisticsResponse]
 	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/ticker/24hr", "ticker.24hr", params, ticker24HourLimit(len(req.Symbols)), &resp)
 }
 
@@ -322,7 +322,7 @@ func (e *Exchange) getTickerData(ctx context.Context, req *RollingWindowTickerRe
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
-	var resp objectOrArray[TickerStatisticsResponse]
+	var resp common.ObjectOrArray[TickerStatisticsResponse]
 	return resp, e.sendPublicRequest(ctx, useWebsocket, "/api/v3/ticker", "ticker", params, rollingWindowTickerLimit(len(req.Symbols)), &resp)
 }
 
@@ -350,7 +350,7 @@ func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTicke
 	if req.SymbolStatus != "" {
 		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
-	var resp objectOrArray[TickerStatisticsResponse]
+	var resp common.ObjectOrArray[TickerStatisticsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/tradingDay", params), tradingDayTickerLimit(len(req.Symbols)), &resp)
 }
 

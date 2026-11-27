@@ -48,10 +48,10 @@ func (w WebsocketAPI) GetBestPrice(ctx context.Context, symbols currency.Pairs, 
 	return w.e.getBestPrice(ctx, symbols, symbolStatus, true)
 }
 
-// GetPriceChangeStats returns 24hr ticker price change statistics as Exchange.GetPriceChangeStats does, over the
-// WebSocket API
-func (w WebsocketAPI) GetPriceChangeStats(ctx context.Context, req *PriceChangeStatsRequest) ([]PriceChangeStatsResponse, error) {
-	return w.e.getPriceChangeStats(ctx, req, true)
+// GetPriceChangeStatistics returns 24hr ticker price change statistics as Exchange.GetPriceChangeStatistics does, over
+// the WebSocket API
+func (w WebsocketAPI) GetPriceChangeStatistics(ctx context.Context, req *PriceChangeStatisticsRequest) ([]PriceChangeStatisticsResponse, error) {
+	return w.e.getPriceChangeStatistics(ctx, req, true)
 }
 
 // GetTickerData returns rolling window price change statistics as Exchange.GetTickerData does, over the WebSocket API

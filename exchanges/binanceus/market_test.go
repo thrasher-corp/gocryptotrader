@@ -423,29 +423,29 @@ func TestGetBestPrice(t *testing.T) {
 	assert.Len(t, result, 1, "GetBestPrice should return the symbol's book ticker")
 }
 
-func TestGetPriceChangeStats(t *testing.T) {
+func TestGetPriceChangeStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPriceChangeStats(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetPriceChangeStats must reject a nil request")
-	_, err = e.GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPriceChangeStats must reject an empty pair")
+	_, err := e.GetPriceChangeStatistics(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPriceChangeStatistics must reject a nil request")
+	_, err = e.GetPriceChangeStatistics(t.Context(), &PriceChangeStatisticsRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPriceChangeStatistics must reject an empty pair")
 
 	t.Run("sends the type and status as set", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v3/ticker/24hr", r.URL.Path, "GetPriceChangeStats should request the 24hr ticker path")
-			assert.Equal(t, url.Values{"type": {"MINI"}, "symbolStatus": {"BREAK"}}, r.URL.Query(), "GetPriceChangeStats should send the type and status")
+			assert.Equal(t, "/api/v3/ticker/24hr", r.URL.Path, "GetPriceChangeStatistics should request the 24hr ticker path")
+			assert.Equal(t, url.Values{"type": {"MINI"}, "symbolStatus": {"BREAK"}}, r.URL.Query(), "GetPriceChangeStatistics should send the type and status")
 			writeResponse(t, w, `[]`)
 		})
-		_, err := ex.GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Type: TickerTypeMini, SymbolStatus: SymbolStatusBreak})
-		require.NoError(t, err, "GetPriceChangeStats must not error")
+		_, err := ex.GetPriceChangeStatistics(t.Context(), &PriceChangeStatisticsRequest{Type: TickerTypeMini, SymbolStatus: SymbolStatusBreak})
+		require.NoError(t, err, "GetPriceChangeStatistics must not error")
 	})
 
 	ensureTradablePairs(t)
-	result, err := e.GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Symbols: currency.Pairs{spotTradablePair}})
-	require.NoError(t, err, "GetPriceChangeStats must not error")
+	result, err := e.GetPriceChangeStatistics(t.Context(), &PriceChangeStatisticsRequest{Symbols: currency.Pairs{spotTradablePair}})
+	require.NoError(t, err, "GetPriceChangeStatistics must not error")
 	if mockTests {
-		exp := []PriceChangeStatsResponse{{
+		exp := []PriceChangeStatisticsResponse{{
 			Symbol:               "BTCUSDT",
 			PriceChange:          -127.77,
 			PriceChangePercent:   -0.173,
@@ -468,10 +468,10 @@ func TestGetPriceChangeStats(t *testing.T) {
 			LastID:               32183709,
 			Count:                8415,
 		}}
-		assert.Equal(t, exp, result, "GetPriceChangeStats should decode every field")
+		assert.Equal(t, exp, result, "GetPriceChangeStatistics should decode every field")
 		return
 	}
-	assert.Len(t, result, 1, "GetPriceChangeStats should return the symbol's statistics")
+	assert.Len(t, result, 1, "GetPriceChangeStatistics should return the symbol's statistics")
 }
 
 func TestGetTickerData(t *testing.T) {
@@ -574,21 +574,6 @@ func TestGetTradingDayTicker(t *testing.T) {
 		return
 	}
 	assert.Len(t, result, 1, "GetTradingDayTicker should return the symbol's statistics")
-}
-
-func TestObjectOrArrayUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	exp := objectOrArray[SymbolPriceResponse]{{Symbol: "BTCUSDT", Price: 73716.55}, {Symbol: "ETHUSDT", Price: 2713.26}}
-	var result objectOrArray[SymbolPriceResponse]
-	require.NoError(t, json.Unmarshal([]byte(`[{"symbol":"BTCUSDT","price":"73716.55000000"},{"symbol":"ETHUSDT","price":"2713.26000000"}]`), &result), "Unmarshal must not error for an array")
-	assert.Equal(t, exp, result, "Unmarshal should decode every element of an array")
-
-	result = nil
-	require.NoError(t, json.Unmarshal([]byte(` {"symbol":"BTCUSDT","price":"73716.55000000"}`), &result), "Unmarshal must not error for an object")
-	assert.Equal(t, exp[:1], result, "Unmarshal should decode an object into one element")
-
-	assert.Error(t, json.Unmarshal([]byte(`{"symbol":1}`), &result), "Unmarshal should error for an invalid object")
-	assert.Error(t, json.Unmarshal([]byte(`"BTCUSDT"`), &result), "Unmarshal should error for neither an object nor an array")
 }
 
 func TestCandleStickResponseUnmarshalJSON(t *testing.T) {

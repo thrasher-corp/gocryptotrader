@@ -160,16 +160,16 @@ type DepositHistoryRequest struct {
 
 // DepositRecordResponse holds a crypto deposit of the account or of a sub-account
 type DepositRecordResponse struct {
-	Amount       types.Number  `json:"amount"`
-	Coin         currency.Code `json:"coin"`
-	Network      string        `json:"network"`
-	Status       uint64        `json:"status"`
-	Address      string        `json:"address"`
-	AddressTag   string        `json:"addressTag"`
-	TxID         string        `json:"txId"`
-	InsertTime   types.Time    `json:"insertTime"`
-	TransferType uint64        `json:"transferType"`
-	ConfirmTimes string        `json:"confirmTimes"` // Confirmations, such as 12/12
+	Amount        types.Number  `json:"amount"`
+	Coin          currency.Code `json:"coin"`
+	Network       string        `json:"network"`
+	Status        uint64        `json:"status"`
+	Address       string        `json:"address"`
+	AddressTag    string        `json:"addressTag"`
+	TransactionID string        `json:"txId"`
+	InsertTime    types.Time    `json:"insertTime"`
+	TransferType  uint64        `json:"transferType"`
+	ConfirmTimes  string        `json:"confirmTimes"` // Confirmations, such as 12/12
 }
 
 // SubAccountDepositAddressRequest holds the parameters of a sub-account deposit address request

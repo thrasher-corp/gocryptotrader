@@ -10,7 +10,7 @@ import (
 // UserEligibilityResponse holds whether the user is eligible for an API partner's rebates
 type UserEligibilityResponse struct {
 	IsEligible bool   `json:"isEligible"`
-	IfNewUser  bool   `json:"ifNewUser"` // True for a new user and false for an existing one
+	IsNewUser  bool   `json:"ifNewUser"`
 	VIPLevel   uint64 `json:"vipLevel"`
 	ReferrerID uint64 `json:"referrerId"`
 }

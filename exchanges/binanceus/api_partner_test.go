@@ -35,7 +35,7 @@ func TestCheckUserEligibility(t *testing.T) {
 		require.NoError(t, err, "CheckUserEligibility must not error")
 		require.NotNil(t, result, "CheckUserEligibility must return a result")
 		if mockTests {
-			assert.Equal(t, &UserEligibilityResponse{IsEligible: true, IfNewUser: true, VIPLevel: 1, ReferrerID: 39472261}, result, "CheckUserEligibility should decode the eligibility")
+			assert.Equal(t, &UserEligibilityResponse{IsEligible: true, IsNewUser: true, VIPLevel: 1, ReferrerID: 39472261}, result, "CheckUserEligibility should decode the eligibility")
 		}
 	})
 }

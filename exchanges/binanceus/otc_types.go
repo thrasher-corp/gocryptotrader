@@ -7,7 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// CoinPairResponse holds a coin pair OTC orders convert between, and the amounts of each coin an order may convert
+// CoinPairResponse holds a coin pair over-the-counter orders convert between, and the amounts of each coin an order may
+// convert
 type CoinPairResponse struct {
 	FromCoin              currency.Code `json:"fromCoin"`
 	ToCoin                currency.Code `json:"toCoin"`
@@ -17,7 +18,7 @@ type CoinPairResponse struct {
 	ToCoinMaximumAmount   types.Number  `json:"toCoinMaxAmount"`
 }
 
-// QuoteRequest holds the parameters of a request for an OTC quote
+// QuoteRequest holds the parameters of a request for an over-the-counter quote
 type QuoteRequest struct {
 	FromCoin      currency.Code
 	ToCoin        currency.Code
@@ -25,8 +26,8 @@ type QuoteRequest struct {
 	RequestAmount float64
 }
 
-// QuoteResponse holds an OTC quote. QuoteID is sent only when the account holds enough of the coin the quote converts
-// from to settle it; a quote without one is informational and cannot be placed
+// QuoteResponse holds an over-the-counter quote. QuoteID is sent only when the account holds enough of the coin the
+// quote converts from to settle it; a quote without one is informational and cannot be placed
 type QuoteResponse struct {
 	QuoteID        string       `json:"quoteId"`
 	Symbol         string       `json:"symbol"`
@@ -37,29 +38,29 @@ type QuoteResponse struct {
 	ToAmount       types.Number `json:"toAmount"`
 }
 
-// PlaceOTCTradeOrderResponse holds an OTC order as placed
-type PlaceOTCTradeOrderResponse struct {
-	OrderID     string         `json:"orderId"`
-	CreateTime  types.Time     `json:"createTime"`
-	OrderStatus OTCOrderStatus `json:"orderStatus"` // Always PROCESS, as an order settles after it is placed
+// PlaceOverTheCounterTradeOrderResponse holds an over-the-counter order as placed
+type PlaceOverTheCounterTradeOrderResponse struct {
+	OrderID     string                    `json:"orderId"`
+	CreateTime  types.Time                `json:"createTime"`
+	OrderStatus OverTheCounterOrderStatus `json:"orderStatus"` // Always PROCESS, as an order settles after it is placed
 }
 
-// OTCTradeOrderResponse holds an OTC order
-type OTCTradeOrderResponse struct {
-	QuoteID      string         `json:"quoteId"`
-	OrderID      string         `json:"orderId"`
-	OrderStatus  OTCOrderStatus `json:"orderStatus"`
-	FromCoin     currency.Code  `json:"fromCoin"`
-	FromAmount   types.Number   `json:"fromAmount"`
-	ToCoin       currency.Code  `json:"toCoin"`
-	ToAmount     types.Number   `json:"toAmount"`
-	Ratio        types.Number   `json:"ratio"`
-	InverseRatio types.Number   `json:"inverseRatio"`
-	CreateTime   types.Time     `json:"createTime"`
+// OverTheCounterTradeOrderResponse holds an over-the-counter order
+type OverTheCounterTradeOrderResponse struct {
+	QuoteID      string                    `json:"quoteId"`
+	OrderID      string                    `json:"orderId"`
+	OrderStatus  OverTheCounterOrderStatus `json:"orderStatus"`
+	FromCoin     currency.Code             `json:"fromCoin"`
+	FromAmount   types.Number              `json:"fromAmount"`
+	ToCoin       currency.Code             `json:"toCoin"`
+	ToAmount     types.Number              `json:"toAmount"`
+	Ratio        types.Number              `json:"ratio"`
+	InverseRatio types.Number              `json:"inverseRatio"`
+	CreateTime   types.Time                `json:"createTime"`
 }
 
-// OTCTradeOrdersRequest holds the optional filters of an OTC orders request
-type OTCTradeOrdersRequest struct {
+// OverTheCounterTradeOrdersRequest holds the optional filters of an over-the-counter orders request
+type OverTheCounterTradeOrdersRequest struct {
 	OrderID   string
 	FromCoin  currency.Code
 	ToCoin    currency.Code
@@ -69,10 +70,11 @@ type OTCTradeOrdersRequest struct {
 	Limit     uint64 // Orders a page holds: 10 when zero, at most 100
 }
 
-// OTCTradeOrdersResponse holds a page of OTC orders and the number of orders matching the request
-type OTCTradeOrdersResponse struct {
-	Total uint64                  `json:"total"`
-	Rows  []OTCTradeOrderResponse `json:"rows"`
+// OverTheCounterTradeOrdersResponse holds a page of over-the-counter orders and the number of orders matching the
+// request
+type OverTheCounterTradeOrdersResponse struct {
+	Total uint64                             `json:"total"`
+	Rows  []OverTheCounterTradeOrderResponse `json:"rows"`
 }
 
 // OCBSTradeOrdersRequest holds the optional filters of an OCBS orders request
@@ -92,15 +94,15 @@ type OCBSTradeOrdersResponse struct {
 
 // OCBSTradeOrder holds an OCBS order, which buys crypto with fiat or sells it for fiat
 type OCBSTradeOrder struct {
-	QuoteID     string         `json:"quoteId"`
-	OrderID     string         `json:"orderId"`
-	OrderStatus OTCOrderStatus `json:"orderStatus"`
-	FromCoin    currency.Code  `json:"fromCoin"` // Fiat for a buy and crypto for a sell
-	FromAmount  types.Number   `json:"fromAmount"`
-	ToCoin      currency.Code  `json:"toCoin"` // Crypto for a buy and fiat for a sell
-	ToAmount    types.Number   `json:"toAmount"`
-	FeeCoin     currency.Code  `json:"feeCoin"`
-	FeeAmount   types.Number   `json:"feeAmount"` // The trading fee and the payment rail's fee
-	Ratio       types.Number   `json:"ratio"`
-	CreateTime  types.Time     `json:"createTime"`
+	QuoteID     string                    `json:"quoteId"`
+	OrderID     string                    `json:"orderId"`
+	OrderStatus OverTheCounterOrderStatus `json:"orderStatus"`
+	FromCoin    currency.Code             `json:"fromCoin"` // Fiat for a buy and crypto for a sell
+	FromAmount  types.Number              `json:"fromAmount"`
+	ToCoin      currency.Code             `json:"toCoin"` // Crypto for a buy and fiat for a sell
+	ToAmount    types.Number              `json:"toAmount"`
+	FeeCoin     currency.Code             `json:"feeCoin"`
+	FeeAmount   types.Number              `json:"feeAmount"` // The trading fee and the payment rail's fee
+	Ratio       types.Number              `json:"ratio"`
+	CreateTime  types.Time                `json:"createTime"`
 }

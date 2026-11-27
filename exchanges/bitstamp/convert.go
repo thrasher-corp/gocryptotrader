@@ -249,25 +249,6 @@ func (t *UserTransactionResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler
-func (u *unconfirmedDeposits) UnmarshalJSON(data []byte) error {
-	data = bytes.TrimSpace(data)
-	if len(data) > 0 && data[0] == '{' {
-		var deposit UnconfirmedDepositResponse
-		if err := json.Unmarshal(data, &deposit); err != nil {
-			return err
-		}
-		*u = unconfirmedDeposits{deposit}
-		return nil
-	}
-	var deposits []UnconfirmedDepositResponse
-	if err := json.Unmarshal(data, &deposits); err != nil {
-		return err
-	}
-	*u = deposits
-	return nil
-}
-
 // parseOptionalNumber decodes a number which may be sent as a JSON number, a numeric string or null, which decodes as 0
 func parseOptionalNumber(data json.RawMessage) (float64, error) {
 	if bytes.Equal(data, []byte("null")) {

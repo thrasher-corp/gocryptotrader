@@ -126,7 +126,7 @@ func (e *Exchange) SetDefaults() {
 	var err error
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimits()))
+		request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -378,7 +378,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	// A request without symbols returns every ticker, at the weight of one naming 101 or more symbols
-	stats, err := e.GetPriceChangeStats(ctx, &PriceChangeStatsRequest{})
+	stats, err := e.GetPriceChangeStatistics(ctx, &PriceChangeStatisticsRequest{})
 	if err != nil {
 		return err
 	}
@@ -418,7 +418,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	if a != asset.Spot {
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-	stats, err := e.GetPriceChangeStats(ctx, &PriceChangeStatsRequest{Symbols: currency.Pairs{p}})
+	stats, err := e.GetPriceChangeStatistics(ctx, &PriceChangeStatisticsRequest{Symbols: currency.Pairs{p}})
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +433,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // spotTickerPrice converts a 24hr ticker. Close is the previous close, as the ticker stream reports it
-func (e *Exchange) spotTickerPrice(t *PriceChangeStatsResponse, pair currency.Pair) ticker.Price {
+func (e *Exchange) spotTickerPrice(t *PriceChangeStatisticsResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -1612,13 +1612,11 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 	}
 	start, end = startMilli, endMilli
 	var orders []T
-	seen := make(map[uint64]struct{})
+	seen := make(common.Seen[uint64])
 	unseen := func(page []T) []T {
 		var fresh []T
 		for i := range page {
-			id := idOf(&page[i])
-			if _, ok := seen[id]; !ok {
-				seen[id] = struct{}{}
+			if !seen.CheckAndRecord(idOf(&page[i])) {
 				fresh = append(fresh, page[i])
 			}
 		}

@@ -218,7 +218,7 @@ func TestSendRequest(t *testing.T) {
 				w.WriteHeader(tc.statusCode)
 				writeResponse(t, w, tc.body)
 			})
-			var result *ErrResponse
+			var result *ErrorResponse
 			err := ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/api/v3/time", defaultRate, &result)
 			for _, want := range tc.errs {
 				require.ErrorIs(t, err, want, "SendHTTPRequest must return the expected error")
@@ -242,7 +242,7 @@ func TestSendRequest(t *testing.T) {
 			ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 				writeResponse(t, w, body)
 			})
-			var result *ErrResponse
+			var result *ErrorResponse
 			require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/sapi/v1/test", defaultRate, &result), "SendHTTPRequest must not error")
 			require.NotNil(t, result, "SendHTTPRequest must decode the response")
 		})
@@ -261,15 +261,67 @@ func TestSendRequest(t *testing.T) {
 
 	t.Run("a nil result", func(t *testing.T) {
 		t.Parallel()
-		ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-			writeResponse(t, w, `{}`)
-		})
-		endpoint, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
-		require.NoError(t, err, "GetURL must not error")
-		assert.NoError(t, ex.sendRequest(t.Context(), defaultRate, request.UnauthenticatedRequest, nil, func() (*request.Item, error) {
-			return &request.Item{Method: http.MethodGet, Path: endpoint + "/api/v3/ping"}, nil
-		}), "sendRequest should not error when no result is wanted")
+		for _, tc := range []struct {
+			name string
+			body string
+			err  error
+		}{
+			{name: "empty object", body: `{}`},
+			{name: "empty array", body: `[]`},
+			{name: "null", body: `null`},
+			{name: "data", body: `{"listenKey":"pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"}`, err: errUnexpectedResponseData},
+			{name: "error object", body: `{"code":-1121,"msg":"Invalid symbol."}`, err: errAPIResponse},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+					writeResponse(t, w, tc.body)
+				})
+				endpoint, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+				require.NoError(t, err, "GetURL must not error")
+				assert.ErrorIs(t, ex.sendRequest(t.Context(), defaultRate, request.UnauthenticatedRequest, nil, func() (*request.Item, error) {
+					return &request.Item{Method: http.MethodGet, Path: endpoint + "/api/v3/ping"}, nil
+				}), tc.err, "sendRequest should return the expected error when no result is wanted")
+			})
+		}
 	})
+}
+
+func TestCheckNoData(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		raw  string
+		err  error
+		msg  string
+	}{
+		{name: "no body"},
+		{name: "null", raw: `null`},
+		{name: "empty object", raw: `{}`},
+		{name: "empty object holding whitespace", raw: "{ \n}"},
+		{name: "empty array", raw: `[]`},
+		{name: "object", raw: `{"listenKey":"pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"}`, err: errUnexpectedResponseData},
+		{name: "object holding a null", raw: `{"listenKey":null}`, err: errUnexpectedResponseData},
+		{name: "array", raw: `[1]`, err: errUnexpectedResponseData},
+		{name: "array holding an empty object", raw: `[{}]`, err: errUnexpectedResponseData},
+		{name: "array holding a null", raw: `[null]`, err: errUnexpectedResponseData},
+		{name: "multibyte text counted in bytes", raw: `{"fee":"€"}`, err: errUnexpectedResponseData, msg: "13 bytes"},
+		{name: "string", raw: `"ok"`, err: errUnexpectedResponseData},
+		{name: "empty string", raw: `""`, err: errUnexpectedResponseData},
+		{name: "zero", raw: `0`, err: errUnexpectedResponseData},
+		{name: "false", raw: `false`, err: errUnexpectedResponseData},
+		{name: "true", raw: `true`, err: errUnexpectedResponseData},
+		{name: "not JSON", raw: `{`, err: errUnexpectedResponseData},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := checkNoData(json.RawMessage(tc.raw))
+			assert.ErrorIs(t, err, tc.err, "checkNoData should return the expected error")
+			if tc.msg != "" {
+				assert.ErrorContains(t, err, tc.msg, "checkNoData should report the response's size in bytes")
+			}
+		})
+	}
 }
 
 func TestSendAuthHTTPRequest(t *testing.T) {
@@ -314,9 +366,9 @@ func TestSendAuthHTTPRequest(t *testing.T) {
 			if tc.recvWindow != "" {
 				params.Set("recvWindow", tc.recvWindow)
 			}
-			var result *ErrResponse
+			var result *ErrorResponse
 			require.NoError(t, ex.SendAuthHTTPRequest(t.Context(), exchange.RestSpotSupplementary, tc.method, "/api/v3/order", params, defaultRate, &result), "SendAuthHTTPRequest must not error")
-			assert.Equal(t, &ErrResponse{Code: 200, Message: "success"}, result, "SendAuthHTTPRequest should decode the response")
+			assert.Equal(t, &ErrorResponse{Code: 200, Message: "success"}, result, "SendAuthHTTPRequest should decode the response")
 		})
 	}
 
@@ -359,9 +411,9 @@ func TestSendAPIKeyHTTPRequest(t *testing.T) {
 		assert.Equal(t, "listenKey=pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1", r.URL.RawQuery, "SendAPIKeyHTTPRequest should send neither a timestamp nor a signature")
 		writeResponse(t, w, `{}`)
 	})
-	var result *ErrResponse
+	var result *ErrorResponse
 	require.NoError(t, ex.SendAPIKeyHTTPRequest(t.Context(), exchange.RestSpotSupplementary, http.MethodPut, "/api/v3/userDataStream?listenKey=pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1", defaultRate, &result), "SendAPIKeyHTTPRequest must not error")
-	assert.Equal(t, &ErrResponse{}, result, "SendAPIKeyHTTPRequest should decode the response")
+	assert.Equal(t, &ErrorResponse{}, result, "SendAPIKeyHTTPRequest should decode the response")
 
 	t.Run("through the shared exchange", func(t *testing.T) {
 		t.Parallel()
@@ -577,8 +629,8 @@ func TestTimedOutRequestRetries(t *testing.T) {
 			_, err := ex.RequestForQuote(ctx, &QuoteRequest{FromCoin: currency.BTC, ToCoin: currency.USDT, RequestCoin: currency.BTC, RequestAmount: 1})
 			return err
 		}},
-		{name: "PlaceOTCTradeOrder", call: func(ctx context.Context, ex *Exchange) error {
-			_, err := ex.PlaceOTCTradeOrder(ctx, "15848701022")
+		{name: "PlaceOverTheCounterTradeOrder", call: func(ctx context.Context, ex *Exchange) error {
+			_, err := ex.PlaceOverTheCounterTradeOrder(ctx, "15848701022")
 			return err
 		}},
 		{name: "StakeAsset", call: func(ctx context.Context, ex *Exchange) error {

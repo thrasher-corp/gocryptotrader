@@ -17,8 +17,8 @@ import (
 
 var errQuoteIDRequired = errors.New("quote ID required")
 
-// GetSupportedCoinPairs returns the coin pairs OTC orders convert between, filtered on the coin converted from and the
-// coin converted to when they are set
+// GetSupportedCoinPairs returns the coin pairs over-the-counter orders convert between, filtered on the coin converted
+// from and the coin converted to when they are set
 func (e *Exchange) GetSupportedCoinPairs(ctx context.Context, fromCoin, toCoin currency.Code) ([]CoinPairResponse, error) {
 	params := url.Values{}
 	if !fromCoin.IsEmpty() {
@@ -31,8 +31,9 @@ func (e *Exchange) GetSupportedCoinPairs(ctx context.Context, fromCoin, toCoin c
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/otc/coinPairs", params, defaultRate, &resp)
 }
 
-// RequestForQuote requests a quote to convert one coin to another. The quote carries the quote ID PlaceOTCTradeOrder
-// takes only when the account holds enough of the coin it converts from; otherwise it is informational
+// RequestForQuote requests a quote to convert one coin to another. The quote carries the quote ID
+// PlaceOverTheCounterTradeOrder takes only when the account holds enough of the coin it converts from; otherwise it is
+// informational
 func (e *Exchange) RequestForQuote(ctx context.Context, req *QuoteRequest) (*QuoteResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
@@ -58,29 +59,31 @@ func (e *Exchange) RequestForQuote(ctx context.Context, req *QuoteRequest) (*Quo
 	return resp, e.SendAuthHTTPRequest(request.WithRetryNotAllowed(ctx), exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/otc/quotes", params, defaultRate, &resp)
 }
 
-// PlaceOTCTradeOrder places an OTC order from a quote. A placed order settles afterwards, so GetOTCTradeOrder reports
-// whether it succeeded; a quote that cannot be placed, such as an expired one, is refused with an error
-func (e *Exchange) PlaceOTCTradeOrder(ctx context.Context, quoteID string) (*PlaceOTCTradeOrderResponse, error) {
+// PlaceOverTheCounterTradeOrder places an over-the-counter order from a quote. A placed order settles afterwards, so
+// GetOverTheCounterTradeOrder reports whether it succeeded; a quote that cannot be placed, such as an expired one, is
+// refused with an error
+func (e *Exchange) PlaceOverTheCounterTradeOrder(ctx context.Context, quoteID string) (*PlaceOverTheCounterTradeOrderResponse, error) {
 	if quoteID == "" {
 		return nil, errQuoteIDRequired
 	}
 	params := url.Values{}
 	params.Set("quoteId", quoteID)
-	var resp *PlaceOTCTradeOrderResponse
+	var resp *PlaceOverTheCounterTradeOrderResponse
 	return resp, e.SendAuthHTTPRequest(request.WithRetryNotAllowed(ctx), exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/otc/orders", params, defaultRate, &resp)
 }
 
-// GetOTCTradeOrder returns an OTC order
-func (e *Exchange) GetOTCTradeOrder(ctx context.Context, orderID string) (*OTCTradeOrderResponse, error) {
+// GetOverTheCounterTradeOrder returns an over-the-counter order
+func (e *Exchange) GetOverTheCounterTradeOrder(ctx context.Context, orderID string) (*OverTheCounterTradeOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *OTCTradeOrderResponse
+	var resp *OverTheCounterTradeOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/otc/orders/"+url.PathEscape(orderID), nil, defaultRate, &resp)
 }
 
-// GetAllOTCTradeOrders returns a page of the account's OTC orders. A nil request returns the first page of 10 orders
-func (e *Exchange) GetAllOTCTradeOrders(ctx context.Context, req *OTCTradeOrdersRequest) (*OTCTradeOrdersResponse, error) {
+// GetAllOverTheCounterTradeOrders returns a page of the account's over-the-counter orders. A nil request returns the
+// first page of 10 orders
+func (e *Exchange) GetAllOverTheCounterTradeOrders(ctx context.Context, req *OverTheCounterTradeOrdersRequest) (*OverTheCounterTradeOrdersResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if req.OrderID != "" {
@@ -102,7 +105,7 @@ func (e *Exchange) GetAllOTCTradeOrders(ctx context.Context, req *OTCTradeOrders
 			params.Set("limit", strconv.FormatUint(req.Limit, 10))
 		}
 	}
-	var resp *OTCTradeOrdersResponse
+	var resp *OverTheCounterTradeOrdersResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/otc/orders", params, defaultRate, &resp)
 }
 

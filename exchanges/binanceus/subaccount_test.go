@@ -30,7 +30,7 @@ func TestGetSubAccountInformation(t *testing.T) {
 	if mockTests {
 		exp := &SubAccountInformationResponse{
 			Success:     true,
-			SubAccounts: []SubAccount{{Email: "123@test.com", Status: "enabled", Activated: true, Mobile: "91605290", GAuth: true, CreateTime: types.Time(time.UnixMilli(1544433328000))}},
+			SubAccounts: []SubAccount{{Email: "123@test.com", Status: "enabled", Activated: true, Mobile: "91605290", GoogleAuthenticatorEnabled: true, CreateTime: types.Time(time.UnixMilli(1544433328000))}},
 		}
 		assert.Equal(t, exp, result, "GetSubAccountInformation should decode every field")
 	}

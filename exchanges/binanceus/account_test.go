@@ -77,7 +77,7 @@ func TestGetUserAPITradingStatus(t *testing.T) {
 			Status: APITradingStatus{
 				IsLocked:           true,
 				PlannedRecoverTime: types.Time(time.UnixMilli(1794465235319)),
-				TriggerCondition:   APITradingTriggerCondition{GTCCancellationRatio: 150, IOCOrFOKExpirationRatio: 150, UnfilledRatio: 300},
+				TriggerCondition:   APITradingTriggerCondition{GoodTillCancelCancellationRatio: 150, ImmediateOrCancelOrFillOrKillExpirationRatio: 150, UnfilledRatio: 300},
 				Indicators: map[string][]TradingIndicator{"BTCUSDT": {
 					{Indicator: "UFR", Count: 20, CurrentValue: 0.05, TriggerValue: 0.995},
 					{Indicator: "IFER", Count: 20, CurrentValue: 0.99, TriggerValue: 0.99},

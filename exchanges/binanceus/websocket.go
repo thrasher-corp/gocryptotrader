@@ -192,7 +192,7 @@ func (e *Exchange) handleStreamsServerShutdown(conn websocket.Connection, event 
 // meanwhile has closed conn, and is left alone in case it has connected again
 func (e *Exchange) shutdownWebsocketFor(conn websocket.Connection) func() error {
 	return func() error {
-		if !isConnected(conn) {
+		if !conn.IsConnected() {
 			return nil
 		}
 		return e.Websocket.Shutdown()
@@ -524,7 +524,7 @@ func distinctSubscriptions(subs subscription.List) subscription.List {
 		levels         int
 		interval       kline.Interval
 	}
-	seen := make(map[stream]bool, len(subs))
+	seen := make(common.Seen[stream], len(subs))
 	kept := make(subscription.List, 0, len(subs))
 	for _, s := range subs {
 		pairs := make([]string, len(s.Pairs))
@@ -533,8 +533,7 @@ func distinctSubscriptions(subs subscription.List) subscription.List {
 		}
 		slices.Sort(pairs)
 		k := stream{channel: s.Channel, pairs: strings.Join(pairs, ","), asset: s.Asset, levels: s.Levels, interval: s.Interval}
-		if !seen[k] {
-			seen[k] = true
+		if !seen.CheckAndRecord(k) {
 			kept = append(kept, s)
 		}
 	}

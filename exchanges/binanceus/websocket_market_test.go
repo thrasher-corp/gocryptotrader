@@ -160,16 +160,16 @@ func TestWebsocketAPIGetBestPrice(t *testing.T) {
 	assert.Equal(t, []BookTickerResponse{{Symbol: "BTCUSDT", BidPrice: 73397.8, BidQuantity: 0.00034, AskPrice: 73398.01, AskQuantity: 0.00592}}, result, "GetBestPrice should decode every field")
 }
 
-func TestWebsocketAPIGetPriceChangeStats(t *testing.T) {
+func TestWebsocketAPIGetPriceChangeStatistics(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketAPITestExchange(t, false)
-	result, err := ex.WebsocketAPI().GetPriceChangeStats(t.Context(), &PriceChangeStatsRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}})
-	require.NoError(t, err, "GetPriceChangeStats must not error")
+	result, err := ex.WebsocketAPI().GetPriceChangeStatistics(t.Context(), &PriceChangeStatisticsRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}})
+	require.NoError(t, err, "GetPriceChangeStatistics must not error")
 	if !mockTests {
-		assert.Len(t, result, 1, "GetPriceChangeStats should return the symbol's statistics")
+		assert.Len(t, result, 1, "GetPriceChangeStatistics should return the symbol's statistics")
 		return
 	}
-	exp := []PriceChangeStatsResponse{{
+	exp := []PriceChangeStatisticsResponse{{
 		Symbol:               "BTCUSDT",
 		PriceChange:          -280.54,
 		PriceChangePercent:   -0.381,
@@ -192,7 +192,7 @@ func TestWebsocketAPIGetPriceChangeStats(t *testing.T) {
 		LastID:               32184165,
 		Count:                8091,
 	}}
-	assert.Equal(t, exp, result, "GetPriceChangeStats should decode every field")
+	assert.Equal(t, exp, result, "GetPriceChangeStatistics should decode every field")
 }
 
 func TestWebsocketAPIGetTickerData(t *testing.T) {

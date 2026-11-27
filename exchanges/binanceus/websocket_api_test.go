@@ -135,8 +135,8 @@ func websocketAPIFixtureResult[T any](tb testing.TB, method string, index int) T
 // newWebsocketTestExchange returns an exchange named after the test, so tests writing the shared ticker, order book and
 // account stores cannot collide, with the test pair enabled and credentials: the live ones in live tests that have
 // them, and placeholders otherwise, which tests against local servers and handlers sign with. Mock tests are not rate
-// limited. Its configuration takes the name too, for a websocket set up from it, whose order book manager looks books
-// up under the configuration's name
+// limited over REST, and draw on limits of their own over the WebSocket API. Its configuration takes the name too, for a
+// websocket set up from it, whose order book manager looks books up under the configuration's name
 func newWebsocketTestExchange(tb testing.TB) *Exchange {
 	tb.Helper()
 	ex := new(Exchange)
@@ -152,6 +152,9 @@ func newWebsocketTestExchange(tb testing.TB) *Exchange {
 	}
 	if mockTests {
 		require.NoError(tb, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+		// A websocket set up from the exchange limits WebSocket API requests itself, so mock tests running in parallel
+		// would otherwise queue on the limits every instance shares
+		request.WithLimiter(newRateLimits())(ex.Requester)
 	}
 	pair := currency.NewBTCUSDT()
 	require.NoError(tb, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair, currency.NewPair(currency.ETH, currency.USDT)}, false), "StorePairs must not error")
@@ -595,7 +598,7 @@ func TestWebsocketConnectAPI(t *testing.T) {
 	ex := newWebsocketAPITestExchange(t, false)
 	conn := ex.wsAPI.get()
 	require.NotNil(t, conn, "WebsocketConnectAPI must keep the connection for requests")
-	assert.True(t, isConnected(conn), "the connection kept should be up")
+	assert.True(t, conn.IsConnected(), "the connection kept should be up")
 
 	ex.userData.expect("stale", &accounts.Credentials{Key: "k"})
 	ex.Config.HTTPTimeout = time.Second
@@ -975,15 +978,6 @@ func TestAcquireWebsocketAPIConnection(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "acquireWebsocketAPIConnection should error without a connection kept")
 }
 
-func TestIsConnected(t *testing.T) {
-	t.Parallel()
-	conn := newFakeConnection()
-	assert.True(t, isConnected(conn), "isConnected should report a connection that is up")
-	conn.connected = false
-	assert.False(t, isConnected(conn), "isConnected should report a connection that is down")
-	assert.True(t, isConnected(struct{ websocket.Connection }{}), "isConnected should take a connection that cannot tell as up")
-}
-
 func TestWebsocketAPIIsConnected(t *testing.T) {
 	t.Parallel()
 	assert.False(t, newWebsocketTestExchange(t).WebsocketAPI().IsConnected(), "IsConnected should report a disconnected WebSocket API")
@@ -1187,6 +1181,34 @@ func TestSendOnWebsocketAPIConnection(t *testing.T) {
 
 	conn.response = []byte(`{"id":"1","status":200,"result":{}}`)
 	assert.NoError(t, ex.sendOnWebsocketAPIConnection(t.Context(), conn, defaultRate, req, nil), "sendOnWebsocketAPIConnection should not decode a result nobody wants")
+
+	t.Run("a nil result", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name     string
+			response string
+			err      error
+			msg      string
+		}{
+			{name: "empty object", response: `{"id":"1","status":200,"result":{}}`},
+			{name: "empty array", response: `{"id":"1","status":200,"result":[]}`},
+			{name: "null", response: `{"id":"1","status":200,"result":null}`},
+			{name: "missing", response: `{"id":"1","status":200}`},
+			{name: "data", response: `{"id":"1","status":200,"result":{"serverTime":1794466395877}}`, err: errUnexpectedResponseData, msg: "time: " + errUnexpectedResponseData.Error()},
+			{name: "error", response: `{"id":"1","status":400,"error":{"code":-2013,"msg":"Order does not exist."}}`, err: order.ErrOrderNotFound, msg: "time status 400"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				conn := newFakeConnection()
+				conn.response = []byte(tc.response)
+				err := ex.sendOnWebsocketAPIConnection(t.Context(), conn, defaultRate, req, nil)
+				assert.ErrorIs(t, err, tc.err, "sendOnWebsocketAPIConnection should return the expected error when no result is wanted")
+				if tc.msg != "" {
+					assert.ErrorContains(t, err, tc.msg, "sendOnWebsocketAPIConnection should name the method in its error")
+				}
+			})
+		}
+	})
 }
 
 func TestIsRejectedKey(t *testing.T) {

@@ -1,7 +1,6 @@
 package binanceus
 
 import (
-	"bytes"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,22 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-// objectOrArray decodes a response that is a single object when one symbol is requested and an array otherwise
-type objectOrArray[T any] []T
-
-// UnmarshalJSON decodes a JSON object into a one-element slice and a JSON array into a slice
-func (o *objectOrArray[T]) UnmarshalJSON(data []byte) error {
-	if trimmed := bytes.TrimLeft(data, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '{' {
-		var single T
-		if err := json.Unmarshal(trimmed, &single); err != nil {
-			return err
-		}
-		*o = objectOrArray[T]{single}
-		return nil
-	}
-	return json.Unmarshal(data, (*[]T)(o))
-}
 
 // RecentTradeRequest holds the parameters of a recent trades request
 type RecentTradeRequest struct {
@@ -138,16 +121,16 @@ type BookTickerResponse struct {
 	AskQuantity types.Number `json:"askQty"`
 }
 
-// PriceChangeStatsRequest holds the parameters of a 24hr ticker price change statistics request
-type PriceChangeStatsRequest struct {
+// PriceChangeStatisticsRequest holds the parameters of a 24hr ticker price change statistics request
+type PriceChangeStatisticsRequest struct {
 	Symbols      currency.Pairs // Every symbol when empty
 	Type         TickerType     // FULL when empty, or MINI
 	SymbolStatus SymbolStatus
 }
 
-// PriceChangeStatsResponse holds 24hr ticker price change statistics; the MINI type leaves out the price change,
+// PriceChangeStatisticsResponse holds 24hr ticker price change statistics; the MINI type leaves out the price change,
 // previous close, last quantity, bid and ask fields
-type PriceChangeStatsResponse struct {
+type PriceChangeStatisticsResponse struct {
 	Symbol               string       `json:"symbol"`
 	PriceChange          types.Number `json:"priceChange"`
 	PriceChangePercent   types.Number `json:"priceChangePercent"`

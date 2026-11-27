@@ -403,16 +403,16 @@ func TestDepositHistory(t *testing.T) {
 	require.NoError(t, err, "DepositHistory must not error")
 	if mockTests {
 		exp := []DepositRecordResponse{{
-			Amount:       8.73234,
-			Coin:         currency.BNB,
-			Network:      "BSC",
-			Status:       1,
-			Address:      "0xd709f9d0bbc6b0e746a13142dfe353086edf87c2",
-			AddressTag:   "100345",
-			TxID:         "0xa9ebf3f4f60bc18bd6bdf4616ff8ffa14ef93a08fe79cad40519b31ea1044290",
-			InsertTime:   types.Time(time.UnixMilli(1638342348000)),
-			TransferType: 1,
-			ConfirmTimes: "0/0",
+			Amount:        8.73234,
+			Coin:          currency.BNB,
+			Network:       "BSC",
+			Status:        1,
+			Address:       "0xd709f9d0bbc6b0e746a13142dfe353086edf87c2",
+			AddressTag:    "100345",
+			TransactionID: "0xa9ebf3f4f60bc18bd6bdf4616ff8ffa14ef93a08fe79cad40519b31ea1044290",
+			InsertTime:    types.Time(time.UnixMilli(1638342348000)),
+			TransferType:  1,
+			ConfirmTimes:  "0/0",
 		}}
 		assert.Equal(t, exp, result, "DepositHistory should decode every field")
 	}
@@ -548,14 +548,14 @@ func TestGetSubAccountDepositHistory(t *testing.T) {
 	require.NoError(t, err, "GetSubAccountDepositHistory must not error")
 	if mockTests {
 		exp := []DepositRecordResponse{{
-			Amount:       9.9749,
-			Coin:         currency.BTC,
-			Network:      "btc",
-			Status:       4,
-			Address:      "bc1qxurvdd7tzn09agdvg3j8xpm3f7e978y07wg83s",
-			TxID:         "0x1b4b8c8090d15e3c1b0476b1c19118b1f00066e01de567cd7bc5b6e9c100193f",
-			InsertTime:   types.Time(time.UnixMilli(1652942429211)),
-			ConfirmTimes: "0/0",
+			Amount:        9.9749,
+			Coin:          currency.BTC,
+			Network:       "btc",
+			Status:        4,
+			Address:       "bc1qxurvdd7tzn09agdvg3j8xpm3f7e978y07wg83s",
+			TransactionID: "0x1b4b8c8090d15e3c1b0476b1c19118b1f00066e01de567cd7bc5b6e9c100193f",
+			InsertTime:    types.Time(time.UnixMilli(1652942429211)),
+			ConfirmTimes:  "0/0",
 		}}
 		assert.Equal(t, exp, result, "GetSubAccountDepositHistory should decode every field")
 	}

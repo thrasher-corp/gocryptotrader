@@ -1046,8 +1046,8 @@ func TestKeepListenKeyAliveRenewsEachConnectionsOwnKey(t *testing.T) {
 	}))
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
-	go ex.keepListenKeyAlive(ctx, nil, "KEY_A")
-	go ex.keepListenKeyAlive(ctx, nil, "KEY_B")
+	go ex.keepListenKeyAlive(ctx, new(listenKeyTestConn), "KEY_A")
+	go ex.keepListenKeyAlive(ctx, new(listenKeyTestConn), "KEY_B")
 	require.Eventually(t, func() bool {
 		mu.Lock()
 		defer mu.Unlock()
@@ -1541,7 +1541,7 @@ func TestKeepListenKeyAliveClosesItsKey(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 	go func() {
-		ex.keepListenKeyAlive(ctx, nil, "KEY_A")
+		ex.keepListenKeyAlive(ctx, new(listenKeyTestConn), "KEY_A")
 		close(done)
 	}()
 	cancel()

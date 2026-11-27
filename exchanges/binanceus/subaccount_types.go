@@ -23,12 +23,12 @@ type SubAccountInformationResponse struct {
 
 // SubAccount holds a sub-account
 type SubAccount struct {
-	Email      string     `json:"email"`
-	Status     string     `json:"status"`
-	Activated  bool       `json:"activated"`
-	Mobile     string     `json:"mobile"`
-	GAuth      bool       `json:"gAuth"` // Whether Google Authenticator is enabled
-	CreateTime types.Time `json:"createTime"`
+	Email                      string     `json:"email"`
+	Status                     string     `json:"status"`
+	Activated                  bool       `json:"activated"`
+	Mobile                     string     `json:"mobile"`
+	GoogleAuthenticatorEnabled bool       `json:"gAuth"`
+	CreateTime                 types.Time `json:"createTime"`
 }
 
 // SubAccountTransferHistoryRequest holds the optional filters of a sub-account transfer history request

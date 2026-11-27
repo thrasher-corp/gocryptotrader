@@ -274,7 +274,7 @@ func (e *Exchange) retryUserDataStream(ctx context.Context, conn websocket.Conne
 				return
 			case <-timer.C:
 			}
-			if !isConnected(conn) || e.wsAPI.get() != conn || !e.userData.isWanted() || !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(retryCtx) || e.userData.has(e.GetDefaultCredentials()) {
+			if !conn.IsConnected() || e.wsAPI.get() != conn || !e.userData.isWanted() || !e.Websocket.CanUseAuthenticatedEndpoints() || !e.AreCredentialsValid(retryCtx) || e.userData.has(e.GetDefaultCredentials()) {
 				return
 			}
 			err := e.subscribeWantedUserDataStream(retryCtx, conn)

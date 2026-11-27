@@ -79,7 +79,7 @@ func TestWebsocketAPIGetExchangeInfo(t *testing.T) {
 			IcebergAllowed:                  true,
 			OneCancelsTheOtherAllowed:       true,
 			OneTriggersTheOtherAllowed:      true,
-			OPOAllowed:                      true,
+			OnePaysTheOtherAllowed:          true,
 			QuoteOrderQuantityMarketAllowed: true,
 			AllowTrailingStop:               true,
 			CancelReplaceAllowed:            true,

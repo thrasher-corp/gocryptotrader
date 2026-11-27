@@ -129,6 +129,27 @@ func TestWebsocketManagerSetup(t *testing.T) {
 	assert.Equal(t, maxStreamsPerConnection, setup.MaxWebsocketSubscriptionsPerConnection, "MaxWebsocketSubscriptionsPerConnection should be the most streams a connection carries")
 	assert.True(t, setup.InvalidateOrderbooksOnShutdown, "InvalidateOrderbooksOnShutdown should be set, as UpdateOrderbook defers to the books the streams load")
 
+	t.Run("test exchanges' websockets draw on limits of their own in mock tests and on the shared ones live", func(t *testing.T) {
+		t.Parallel()
+		first, second := newWebsocketTestExchange(t), newWebsocketTestExchange(t)
+		definitions := first.websocketManagerSetup(first.Config).RateLimitDefinitions
+		otherDefinitions := second.websocketManagerSetup(second.Config).RateLimitDefinitions
+		require.Len(t, definitions, len(rateLimits), "the websocket must get every endpoint limit")
+		require.Len(t, otherDefinitions, len(rateLimits), "the websocket must get every endpoint limit")
+		for epl, shared := range rateLimits {
+			require.Containsf(t, definitions, epl, "the websocket must get endpoint limit %d", epl)
+			if shared == nil {
+				assert.Nilf(t, definitions[epl], "endpoint limit %d should have no limiter, as the shared one has none", epl)
+				continue
+			}
+			limiter := definitions[epl]
+			require.NotNilf(t, limiter, "endpoint limit %d must have a limiter", epl)
+			assert.Equalf(t, shared.Weight(), limiter.Weight(), "endpoint limit %d should weigh what the shared one does", epl)
+			assert.Equalf(t, !mockTests, limiter.SharesBudgetWith(shared), "endpoint limit %d should draw on the shared limiter only in live tests", epl)
+			assert.Equalf(t, !mockTests, limiter.SharesBudgetWith(otherDefinitions[epl]), "endpoint limit %d should be shared between test exchanges only in live tests", epl)
+		}
+	})
+
 	t.Run("shutdown invalidates the books the streams loaded", func(t *testing.T) {
 		t.Parallel()
 		ex, _ := newSubscriptionTestExchange(t)
@@ -289,7 +310,7 @@ func TestShutdownWebsocketFor(t *testing.T) {
 		replacement := ex.wsAPI.get()
 		require.NotSame(t, old, replacement, "connecting again must give a new WebSocket API connection")
 		require.NoError(t, closeOld(), "the old connection's close must not error")
-		assert.True(t, isConnected(replacement), "the old connection's close should leave the new connection connected")
+		assert.True(t, replacement.IsConnected(), "the old connection's close should leave the new connection connected")
 	})
 }
 
@@ -794,6 +815,44 @@ func TestDistinctSubscriptions(t *testing.T) {
 		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}},
 	}
 	assert.Equal(t, subscription.List{subs[0], subs[2]}, distinctSubscriptions(subs), "distinctSubscriptions should keep the first subscription to each stream, whatever its pairs' case or delimiter")
+
+	eth := currency.NewPair(currency.ETH, currency.USDT)
+	for _, tc := range []struct {
+		name string
+		subs subscription.List
+		exp  []int
+	}{
+		{name: "pairs in another order", subs: subscription.List{
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc, eth}},
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{eth, btc}},
+		}, exp: []int{0}},
+		{name: "another channel", subs: subscription.List{
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}},
+			{Channel: subscription.AllTradesChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}},
+		}, exp: []int{0, 1}},
+		{name: "another asset", subs: subscription.List{
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}},
+			{Channel: subscription.TickerChannel, Asset: asset.Margin, Pairs: currency.Pairs{btc}},
+		}, exp: []int{0, 1}},
+		{name: "another number of levels", subs: subscription.List{
+			{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}, Levels: 5},
+			{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}, Levels: 10},
+		}, exp: []int{0, 1}},
+		{name: "another interval", subs: subscription.List{
+			{Channel: subscription.CandlesChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}, Interval: kline.OneMin},
+			{Channel: subscription.CandlesChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}, Interval: kline.OneMonth},
+			{Channel: subscription.CandlesChannel, Asset: asset.Spot, Pairs: currency.Pairs{btc}, Interval: kline.OneMin},
+		}, exp: []int{0, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			exp := make(subscription.List, len(tc.exp))
+			for i, j := range tc.exp {
+				exp[i] = tc.subs[j]
+			}
+			assert.Equal(t, exp, distinctSubscriptions(tc.subs), "distinctSubscriptions should keep the first subscription to each stream and every distinct one")
+		})
+	}
 }
 
 func TestOneOrderbookSubscription(t *testing.T) {

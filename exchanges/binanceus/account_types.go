@@ -68,9 +68,9 @@ type APITradingStatus struct {
 
 // APITradingTriggerCondition holds the order counts each ratio is measured over before it can lock API trading
 type APITradingTriggerCondition struct {
-	GTCCancellationRatio    uint64 `json:"GCR"`  // Number of GTC orders
-	IOCOrFOKExpirationRatio uint64 `json:"IFER"` // Number of FOK and IOC orders
-	UnfilledRatio           uint64 `json:"UFR"`  // Number of orders
+	GoodTillCancelCancellationRatio              uint64 `json:"GCR"`  // Number of good-till-cancel orders
+	ImmediateOrCancelOrFillOrKillExpirationRatio uint64 `json:"IFER"` // Number of fill-or-kill and immediate-or-cancel orders
+	UnfilledRatio                                uint64 `json:"UFR"`  // Number of orders
 }
 
 // TradingIndicator holds an order ratio of a symbol: its current value and the value that locks API trading

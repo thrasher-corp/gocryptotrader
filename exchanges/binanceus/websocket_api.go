@@ -209,17 +209,11 @@ func (e *Exchange) acquireWebsocketAPIConnection() (conn websocket.Connection, r
 	}
 	// The websocket counts as connected until its shutdown has closed every connection, and a connection whose reads
 	// failed or that was closed stays down until a new one replaces it
-	if !isConnected(conn) {
+	if !conn.IsConnected() {
 		release()
 		return nil, nil, fmt.Errorf("%w: %s", websocket.ErrNotConnected, websocketAPIMessageFilter)
 	}
 	return conn, release, nil
-}
-
-// isConnected reports whether a connection is up, taking one that cannot tell as up
-func isConnected(conn websocket.Connection) bool {
-	c, ok := conn.(interface{ IsConnected() bool })
-	return !ok || c.IsConnected()
 }
 
 // IsConnected reports whether the WebSocket API connection is established and taking requests
@@ -233,8 +227,9 @@ func (w WebsocketAPI) IsConnected() bool {
 }
 
 // SendWebsocketAPIRequest sends a WebSocket API request drawing on the endpoint limit epl and decodes its result into
-// result, which may be nil. Parameters go as text, as REST sends them: Binance.US checks each parameter's text, so it
-// takes a number or a boolean sent as a string, and a symbols list as its JSON text
+// result, which may be nil for a method that replies without data. Parameters go as text, as REST sends them:
+// Binance.US checks each parameter's text, so it takes a number or a boolean sent as a string, and a symbols list as
+// its JSON text
 func (e *Exchange) SendWebsocketAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params url.Values, result any) error {
 	conn, release, err := e.acquireWebsocketAPIConnection()
 	if err != nil {
@@ -245,7 +240,8 @@ func (e *Exchange) SendWebsocketAPIRequest(ctx context.Context, epl request.Endp
 }
 
 // SendAPIKeyWebsocketAPIRequest sends a WebSocket API request carrying the API key without a signature, which
-// USER_STREAM methods require, and decodes its result into result, which may be nil
+// USER_STREAM methods require, and decodes its result into result, which may be nil for a method that replies without
+// data
 func (e *Exchange) SendAPIKeyWebsocketAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params url.Values, result any) error {
 	conn, release, err := e.acquireWebsocketAPIConnection()
 	if err != nil {
@@ -264,7 +260,7 @@ func (e *Exchange) SendAPIKeyWebsocketAPIRequest(ctx context.Context, epl reques
 }
 
 // SendSignedWebsocketAPIRequest signs a WebSocket API request with the API key and secret, sends it drawing on the
-// endpoint limit epl and decodes its result into result, which may be nil
+// endpoint limit epl and decodes its result into result, which may be nil for a method that replies without data
 func (e *Exchange) SendSignedWebsocketAPIRequest(ctx context.Context, epl request.EndpointLimit, method string, params url.Values, result any) error {
 	conn, release, err := e.acquireWebsocketAPIConnection()
 	if err != nil {
@@ -341,7 +337,8 @@ func signaturePayload(params map[string]string) string {
 	return sb.String()
 }
 
-// sendOnWebsocketAPIConnection sends a request on conn and decodes its result into result, which may be nil
+// sendOnWebsocketAPIConnection sends a request on conn and decodes its result into result, which may be nil for a
+// method that replies without data
 func (e *Exchange) sendOnWebsocketAPIConnection(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, req *WebsocketAPIRequest, result any) error {
 	// The connection writes a request whatever its context, so a request cancelled while it waited, such as an order,
 	// must not be sent
@@ -366,6 +363,9 @@ func (e *Exchange) sendOnWebsocketAPIConnection(ctx context.Context, conn websoc
 		return fmt.Errorf("%w: %s status %d", errWebsocketAPIRequestFailed, req.Method, resp.Status)
 	}
 	if result == nil {
+		if err := checkNoData(resp.Result); err != nil {
+			return fmt.Errorf("%s: %w", req.Method, err)
+		}
 		return nil
 	}
 	if len(resp.Result) == 0 || string(resp.Result) == "null" {

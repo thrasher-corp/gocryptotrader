@@ -130,15 +130,15 @@ const (
 	CreditLineAlertTypeMarginCall      CreditLineAlertType = "MARGIN_CALL"
 )
 
-// OTCOrderStatus is the status of an OTC or OCBS order
-type OTCOrderStatus string
+// OverTheCounterOrderStatus is the status of an over-the-counter or OCBS order
+type OverTheCounterOrderStatus string
 
-// OTC order statuses, which OCBS orders report too. An order still being processed, as every newly placed OTC order
-// is, reports PROCESS until it settles as SUCCESS or FAIL
+// Over-the-counter order statuses, which OCBS orders report too. An order still being processed, as every newly placed
+// over-the-counter order is, reports PROCESS until it settles as SUCCESS or FAIL
 const (
-	OTCOrderStatusProcess OTCOrderStatus = "PROCESS"
-	OTCOrderStatusSuccess OTCOrderStatus = "SUCCESS"
-	OTCOrderStatusFail    OTCOrderStatus = "FAIL"
+	OverTheCounterOrderStatusProcess OverTheCounterOrderStatus = "PROCESS"
+	OverTheCounterOrderStatusSuccess OverTheCounterOrderStatus = "SUCCESS"
+	OverTheCounterOrderStatusFail    OverTheCounterOrderStatus = "FAIL"
 )
 
 // PaymentMethod is the paymentMethod parameter of a fiat withdrawal and of the fiat history filters
@@ -151,9 +151,9 @@ const (
 	PaymentMethodWire              PaymentMethod = "WIRE"
 )
 
-// ErrResponse is the body Binance.US replies with when a request fails: a negative code and a message, or on some /sapi
-// endpoints a success flag of false with a message, which the staking envelope names message
-type ErrResponse struct {
+// ErrorResponse is the body Binance.US replies with when a request fails: a negative code and a message, or on some
+// /sapi endpoints a success flag of false with a message, which the staking envelope names message
+type ErrorResponse struct {
 	Code            types.Number    `json:"code"`
 	Message         string          `json:"msg"`
 	EnvelopeMessage string          `json:"message"`

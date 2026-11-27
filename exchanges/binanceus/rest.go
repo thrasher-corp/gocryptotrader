@@ -57,6 +57,7 @@ const (
 var (
 	errAPIResponse                 = errors.New("Binance.US API error")
 	errInvalidParameterCombination = errors.New("invalid combination of optional parameters")
+	errUnexpectedResponseData      = errors.New("response carries data but no result was given to decode it into")
 )
 
 // SendHTTPRequest sends an unauthenticated request
@@ -178,7 +179,7 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 		return err
 	}
 	if result == nil {
-		return nil
+		return checkNoData(raw)
 	}
 	// The request layer rejects an empty body itself, so only a null body is left to catch
 	if string(raw) == "null" {
@@ -187,13 +188,38 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 	return json.Unmarshal(raw, result)
 }
 
+// checkNoData returns errUnexpectedResponseData unless a response is empty, null, an empty object or an empty array. A
+// request sent without a result is for an endpoint that replies without data, so data a reply does carry is reported
+// rather than dropped
+func checkNoData(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var value any
+	if json.Unmarshal(raw, &value) == nil {
+		switch v := value.(type) {
+		case nil:
+			return nil
+		case map[string]any:
+			if len(v) == 0 {
+				return nil
+			}
+		case []any:
+			if len(v) == 0 {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("%w: %d bytes", errUnexpectedResponseData, len(raw))
+}
+
 // checkErrorResponse returns an error when a response body is a Binance.US error object
 func checkErrorResponse(raw json.RawMessage) error {
 	if len(raw) == 0 || raw[0] != '{' {
 		return nil
 	}
 	// A body that does not decode as an error object is left for the caller's decoding to report
-	var resp *ErrResponse
+	var resp *ErrorResponse
 	if json.Unmarshal(raw, &resp) == nil && resp != nil && (resp.Code.Int64() < 0 || resp.Success != nil && !*resp.Success) {
 		msg := resp.Message
 		if msg == "" {

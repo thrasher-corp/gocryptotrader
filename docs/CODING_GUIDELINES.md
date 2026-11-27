@@ -32,6 +32,12 @@ This document outlines the coding, formatting, and testing standards for impleme
     costs before adding a dependency. This preference does not justify bespoke
     cryptography or unsafe reimplementation of complex protocols.
 
+### Project helpers
+
+- Deduplicate with `common.Seen`, whose `CheckAndRecord` reports whether an
+    item was seen before and records it if not, rather than a local map that
+    is read and then set.
+
 ## Security
 
 See [SECURITY.md](../SECURITY.md) for the project's security policy, supported versions and reporting process.

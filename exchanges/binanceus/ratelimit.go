@@ -191,8 +191,12 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	userDataStreamSubscriptionRate: {ipPool, 2},
 }
 
-// GetRateLimits returns Binance.US's endpoint limits, each with its pool's limiter and its weight
-func GetRateLimits() request.RateLimitDefinitions {
+// rateLimits holds Binance.US's endpoint limits. Binance.US counts its limits per IP address and per account, not per
+// Exchange instance, so every instance shares these limiters
+var rateLimits = newRateLimits()
+
+// newRateLimits returns Binance.US's endpoint limits, each with its pool's limiter and its weight
+func newRateLimits() request.RateLimitDefinitions {
 	limiters := make(map[rateLimitPool]*rate.Limiter, len(poolBudgets))
 	definitions := make(request.RateLimitDefinitions, len(endpointCosts)+1)
 	for epl, cost := range endpointCosts {

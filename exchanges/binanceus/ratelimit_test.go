@@ -11,14 +11,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func TestGetRateLimits(t *testing.T) {
+func TestNewRateLimits(t *testing.T) {
 	t.Parallel()
-	definitions := GetRateLimits()
-	require.Len(t, definitions, len(endpointCosts)+1, "GetRateLimits must define each endpoint limit once")
+	definitions := newRateLimits()
+	require.Len(t, definitions, len(endpointCosts)+1, "newRateLimits must define each endpoint limit once")
 	for name, epl := range map[string]request.EndpointLimit{"unset": request.Unset, "authenticated": request.Auth, "unauthenticated": request.UnAuth} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			assert.NotContainsf(t, definitions, epl, "GetRateLimits should not define the generic endpoint limit %d", epl)
+			assert.NotContainsf(t, definitions, epl, "newRateLimits should not define the generic endpoint limit %d", epl)
 		})
 	}
 
@@ -28,7 +28,7 @@ func TestGetRateLimits(t *testing.T) {
 		require.Truef(t, ok, "endpointCosts must hold endpoint limit %d", epl)
 		require.Containsf(t, poolBudgets, cost.pool, "endpoint limit %d must draw on a pool with a budget", epl)
 		definition := definitions[epl]
-		require.NotNilf(t, definition, "GetRateLimits must give endpoint limit %d a limiter", epl)
+		require.NotNilf(t, definition, "newRateLimits must give endpoint limit %d a limiter", epl)
 		assert.Equalf(t, cost.weight, definition.Weight(), "endpoint limit %d should weigh its cost", epl)
 		assert.InDeltaf(t, float64(newPoolLimiter(cost.pool).Limit()), float64(definition.Limit()), 1e-9, "endpoint limit %d should draw on its pool's budget", epl)
 		if shared, ok := pools[cost.pool]; ok {
@@ -45,8 +45,17 @@ func TestGetRateLimits(t *testing.T) {
 		}
 	}
 
-	require.Contains(t, definitions, wsConnectionMessageRate, "GetRateLimits must define the stream message rate")
+	require.Contains(t, definitions, wsConnectionMessageRate, "newRateLimits must define the stream message rate")
 	assert.Nil(t, definitions[wsConnectionMessageRate], "the stream message rate should have no limiter, so a stream connection uses its own")
+
+	t.Run("independent of the limits every instance shares", func(t *testing.T) {
+		t.Parallel()
+		for epl, limiter := range newRateLimits() {
+			if limiter != nil {
+				assert.Falsef(t, limiter.SharesBudgetWith(rateLimits[epl]), "endpoint limit %d should not draw on the shared limiter", epl)
+			}
+		}
+	})
 }
 
 func TestNewPoolLimiter(t *testing.T) {

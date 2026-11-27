@@ -113,20 +113,20 @@ func TestRequestForQuote(t *testing.T) {
 	}
 }
 
-func TestPlaceOTCTradeOrder(t *testing.T) {
+func TestPlaceOverTheCounterTradeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceOTCTradeOrder(t.Context(), "")
-	require.ErrorIs(t, err, errQuoteIDRequired, "PlaceOTCTradeOrder must reject an empty quote ID")
+	_, err := e.PlaceOverTheCounterTradeOrder(t.Context(), "")
+	require.ErrorIs(t, err, errQuoteIDRequired, "PlaceOverTheCounterTradeOrder must reject an empty quote ID")
 
 	t.Run("posts the quote ID", func(t *testing.T) {
 		t.Parallel()
 		ex := signedRequestExchange(t, http.MethodPost, "/sapi/v1/otc/orders", url.Values{"quoteId": {"15848701022"}}, `{}`)
-		_, err := ex.PlaceOTCTradeOrder(t.Context(), "15848701022")
-		require.NoError(t, err, "PlaceOTCTradeOrder must not error")
+		_, err := ex.PlaceOverTheCounterTradeOrder(t.Context(), "15848701022")
+		require.NoError(t, err, "PlaceOverTheCounterTradeOrder must not error")
 	})
 
 	if !mockTests && !canManipulateRealOrders {
-		t.Skip("canManipulateRealOrders is false; skipping a live OTC order")
+		t.Skip("canManipulateRealOrders is false; skipping a live over-the-counter order")
 	}
 	skipIfCredentialsUnset(t)
 	quoteID := "9ef49bbf386a4a1294350d3331c0bd34"
@@ -139,32 +139,32 @@ func TestPlaceOTCTradeOrder(t *testing.T) {
 		}
 		quoteID = quote.QuoteID
 	}
-	result, err := e.PlaceOTCTradeOrder(t.Context(), quoteID)
-	require.NoError(t, err, "PlaceOTCTradeOrder must not error")
-	require.NotNil(t, result, "PlaceOTCTradeOrder must return the order")
+	result, err := e.PlaceOverTheCounterTradeOrder(t.Context(), quoteID)
+	require.NoError(t, err, "PlaceOverTheCounterTradeOrder must not error")
+	require.NotNil(t, result, "PlaceOverTheCounterTradeOrder must return the order")
 	if mockTests {
-		exp := &PlaceOTCTradeOrderResponse{OrderID: "10002349", CreateTime: types.Time(time.Unix(1641906714, 0)), OrderStatus: OTCOrderStatusProcess}
-		assert.Equal(t, exp, result, "PlaceOTCTradeOrder should decode every field")
+		exp := &PlaceOverTheCounterTradeOrderResponse{OrderID: "10002349", CreateTime: types.Time(time.Unix(1641906714, 0)), OrderStatus: OverTheCounterOrderStatusProcess}
+		assert.Equal(t, exp, result, "PlaceOverTheCounterTradeOrder should decode every field")
 		return
 	}
-	assert.Equal(t, OTCOrderStatusProcess, result.OrderStatus, "PlaceOTCTradeOrder should return an order still being processed")
+	assert.Equal(t, OverTheCounterOrderStatusProcess, result.OrderStatus, "PlaceOverTheCounterTradeOrder should return an order still being processed")
 }
 
-func TestGetOTCTradeOrder(t *testing.T) {
+func TestGetOverTheCounterTradeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOTCTradeOrder(t.Context(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOTCTradeOrder must reject an empty order ID")
+	_, err := e.GetOverTheCounterTradeOrder(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOverTheCounterTradeOrder must reject an empty order ID")
 
 	t.Run("decodes the order", func(t *testing.T) {
 		t.Parallel()
 		body := `{"quoteId":"15848645308","orderId":"10002380","orderStatus":"PROCESS","fromCoin":"SHIB","fromAmount":"10000","toCoin":"KSHIB","toAmount":"10","ratio":"0.001","inverseRatio":"1000","createTime":1641916714}`
 		ex := signedRequestExchange(t, http.MethodGet, "/sapi/v1/otc/orders/10002380", url.Values{}, body)
-		result, err := ex.GetOTCTradeOrder(t.Context(), "10002380")
-		require.NoError(t, err, "GetOTCTradeOrder must not error")
-		exp := &OTCTradeOrderResponse{
+		result, err := ex.GetOverTheCounterTradeOrder(t.Context(), "10002380")
+		require.NoError(t, err, "GetOverTheCounterTradeOrder must not error")
+		exp := &OverTheCounterTradeOrderResponse{
 			QuoteID:      "15848645308",
 			OrderID:      "10002380",
-			OrderStatus:  OTCOrderStatusProcess,
+			OrderStatus:  OverTheCounterOrderStatusProcess,
 			FromCoin:     currency.SHIB,
 			FromAmount:   10000,
 			ToCoin:       currency.NewCode("KSHIB"),
@@ -173,35 +173,35 @@ func TestGetOTCTradeOrder(t *testing.T) {
 			InverseRatio: 1000,
 			CreateTime:   types.Time(time.Unix(1641916714, 0)),
 		}
-		assert.Equal(t, exp, result, "GetOTCTradeOrder should decode every field")
+		assert.Equal(t, exp, result, "GetOverTheCounterTradeOrder should decode every field")
 	})
 
 	t.Run("escapes the order ID in the path", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/sapi/v1/otc/orders/"+url.PathEscape("1/2?3"), r.URL.EscapedPath(), "GetOTCTradeOrder should escape the order ID")
-			assert.Equal(t, url.Values{}, signedQuery(t, r), "GetOTCTradeOrder should send no parameters besides the signed ones")
+			assert.Equal(t, "/sapi/v1/otc/orders/"+url.PathEscape("1/2?3"), r.URL.EscapedPath(), "GetOverTheCounterTradeOrder should escape the order ID")
+			assert.Equal(t, url.Values{}, signedQuery(t, r), "GetOverTheCounterTradeOrder should send no parameters besides the signed ones")
 			writeResponse(t, w, `{}`)
 		})
-		_, err := ex.GetOTCTradeOrder(t.Context(), "1/2?3")
-		require.NoError(t, err, "GetOTCTradeOrder must not error")
+		_, err := ex.GetOverTheCounterTradeOrder(t.Context(), "1/2?3")
+		require.NoError(t, err, "GetOverTheCounterTradeOrder must not error")
 	})
 
 	skipIfCredentialsUnset(t)
-	orders, err := e.GetAllOTCTradeOrders(t.Context(), nil)
-	require.NoError(t, err, "GetAllOTCTradeOrders must not error")
-	require.NotNil(t, orders, "GetAllOTCTradeOrders must return a page of orders")
+	orders, err := e.GetAllOverTheCounterTradeOrders(t.Context(), nil)
+	require.NoError(t, err, "GetAllOverTheCounterTradeOrders must not error")
+	require.NotNil(t, orders, "GetAllOverTheCounterTradeOrders must return a page of orders")
 	if len(orders.Rows) == 0 {
-		t.Skip("the account has no OTC orders to query")
+		t.Skip("the account has no over-the-counter orders to query")
 	}
-	result, err := e.GetOTCTradeOrder(t.Context(), orders.Rows[0].OrderID)
-	require.NoError(t, err, "GetOTCTradeOrder must not error")
-	require.NotNil(t, result, "GetOTCTradeOrder must return the order")
+	result, err := e.GetOverTheCounterTradeOrder(t.Context(), orders.Rows[0].OrderID)
+	require.NoError(t, err, "GetOverTheCounterTradeOrder must not error")
+	require.NotNil(t, result, "GetOverTheCounterTradeOrder must return the order")
 	if mockTests {
-		exp := &OTCTradeOrderResponse{
+		exp := &OverTheCounterTradeOrderResponse{
 			QuoteID:      "4e5446f2cc6f44ab86ab02abf19a2fd2",
 			OrderID:      "10002349",
-			OrderStatus:  OTCOrderStatusSuccess,
+			OrderStatus:  OverTheCounterOrderStatusSuccess,
 			FromCoin:     currency.BTC,
 			FromAmount:   1,
 			ToCoin:       currency.USDT,
@@ -210,53 +210,53 @@ func TestGetOTCTradeOrder(t *testing.T) {
 			InverseRatio: 0.00001978,
 			CreateTime:   types.Time(time.Unix(1641806714, 0)),
 		}
-		assert.Equal(t, exp, result, "GetOTCTradeOrder should decode every field")
+		assert.Equal(t, exp, result, "GetOverTheCounterTradeOrder should decode every field")
 		return
 	}
-	assert.Equal(t, orders.Rows[0].OrderID, result.OrderID, "GetOTCTradeOrder should return the requested order")
+	assert.Equal(t, orders.Rows[0].OrderID, result.OrderID, "GetOverTheCounterTradeOrder should return the requested order")
 }
 
-func TestGetAllOTCTradeOrders(t *testing.T) {
+func TestGetAllOverTheCounterTradeOrders(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1641806714000)
-	_, err := e.GetAllOTCTradeOrders(t.Context(), &OTCTradeOrdersRequest{StartTime: start, EndTime: start.Add(-time.Second)})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOTCTradeOrders must reject a start after the end")
+	_, err := e.GetAllOverTheCounterTradeOrders(t.Context(), &OverTheCounterTradeOrdersRequest{StartTime: start, EndTime: start.Add(-time.Second)})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOverTheCounterTradeOrders must reject a start after the end")
 
 	t.Run("sends the set filters", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
 			name string
-			req  *OTCTradeOrdersRequest
+			req  *OverTheCounterTradeOrdersRequest
 			exp  url.Values
 		}{
 			{name: "nil request", exp: url.Values{}},
 			{
 				name: "every filter",
-				req:  &OTCTradeOrdersRequest{OrderID: "10002349", FromCoin: currency.BTC, ToCoin: currency.USDT, StartTime: start, EndTime: start.Add(time.Hour), Page: 2, Limit: 100},
+				req:  &OverTheCounterTradeOrdersRequest{OrderID: "10002349", FromCoin: currency.BTC, ToCoin: currency.USDT, StartTime: start, EndTime: start.Add(time.Hour), Page: 2, Limit: 100},
 				exp:  url.Values{"orderId": {"10002349"}, "fromCoin": {"BTC"}, "toCoin": {"USDT"}, "startTime": {"1641806714000"}, "endTime": {"1641810314000"}, "page": {"2"}, "limit": {"100"}},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				ex := signedRequestExchange(t, http.MethodGet, "/sapi/v1/otc/orders", tc.exp, `{}`)
-				_, err := ex.GetAllOTCTradeOrders(t.Context(), tc.req)
-				require.NoError(t, err, "GetAllOTCTradeOrders must not error")
+				_, err := ex.GetAllOverTheCounterTradeOrders(t.Context(), tc.req)
+				require.NoError(t, err, "GetAllOverTheCounterTradeOrders must not error")
 			})
 		}
 	})
 
 	skipIfCredentialsUnset(t)
-	result, err := e.GetAllOTCTradeOrders(t.Context(), nil)
-	require.NoError(t, err, "GetAllOTCTradeOrders must not error")
-	require.NotNil(t, result, "GetAllOTCTradeOrders must return a page of orders")
+	result, err := e.GetAllOverTheCounterTradeOrders(t.Context(), nil)
+	require.NoError(t, err, "GetAllOverTheCounterTradeOrders must not error")
+	require.NotNil(t, result, "GetAllOverTheCounterTradeOrders must return a page of orders")
 	if mockTests {
-		exp := &OTCTradeOrdersResponse{
+		exp := &OverTheCounterTradeOrdersResponse{
 			Total: 2,
-			Rows: []OTCTradeOrderResponse{
+			Rows: []OverTheCounterTradeOrderResponse{
 				{
 					QuoteID:      "4e5446f2cc6f44ab86ab02abf19a2fd2",
 					OrderID:      "10002349",
-					OrderStatus:  OTCOrderStatusSuccess,
+					OrderStatus:  OverTheCounterOrderStatusSuccess,
 					FromCoin:     currency.BTC,
 					FromAmount:   1,
 					ToCoin:       currency.USDT,
@@ -268,7 +268,7 @@ func TestGetAllOTCTradeOrders(t *testing.T) {
 				{
 					QuoteID:      "15848645308",
 					OrderID:      "10002380",
-					OrderStatus:  OTCOrderStatusProcess,
+					OrderStatus:  OverTheCounterOrderStatusProcess,
 					FromCoin:     currency.SHIB,
 					FromAmount:   10000,
 					ToCoin:       currency.NewCode("KSHIB"),
@@ -279,7 +279,7 @@ func TestGetAllOTCTradeOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllOTCTradeOrders should decode the total and every field of each order")
+		assert.Equal(t, exp, result, "GetAllOverTheCounterTradeOrders should decode the total and every field of each order")
 	}
 }
 
@@ -324,7 +324,7 @@ func TestGetAllOCBSTradeOrders(t *testing.T) {
 				{
 					QuoteID:     "4e5446f2cc6f44ab86ab02abf19a7654",
 					OrderID:     "10090821212",
-					OrderStatus: OTCOrderStatusSuccess,
+					OrderStatus: OverTheCounterOrderStatusSuccess,
 					FromCoin:    currency.BTC,
 					FromAmount:  1,
 					ToCoin:      currency.USD,
@@ -337,7 +337,7 @@ func TestGetAllOCBSTradeOrders(t *testing.T) {
 				{
 					QuoteID:     "4e5446f2cc6f44ab86ab02abf19abvd",
 					OrderID:     "1000238000",
-					OrderStatus: OTCOrderStatusFail,
+					OrderStatus: OverTheCounterOrderStatusFail,
 					FromCoin:    currency.USD,
 					FromAmount:  1000.5,
 					ToCoin:      currency.ETH,

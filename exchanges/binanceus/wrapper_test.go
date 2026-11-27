@@ -112,6 +112,21 @@ func TestSetDefaults(t *testing.T) {
 			assert.Equalf(t, exp, got, "SetDefaults should set the %s endpoint", endpoint)
 		})
 	}
+
+	t.Run("rate limits shared across instances", func(t *testing.T) {
+		t.Parallel()
+		other := new(Exchange)
+		other.SetDefaults()
+		definitions, otherDefinitions := ex.Requester.GetRateLimiterDefinitions(), other.Requester.GetRateLimiterDefinitions()
+		require.Len(t, definitions, len(rateLimits), "SetDefaults must install every endpoint limit")
+		require.Len(t, otherDefinitions, len(rateLimits), "SetDefaults must install every endpoint limit")
+		for epl, limiter := range rateLimits {
+			require.Containsf(t, definitions, epl, "SetDefaults must install endpoint limit %d", epl)
+			require.Containsf(t, otherDefinitions, epl, "SetDefaults must install endpoint limit %d", epl)
+			assert.Truef(t, limiter.SharesBudgetWith(definitions[epl]), "endpoint limit %d should draw on the package's limiter", epl)
+			assert.Truef(t, definitions[epl].SharesBudgetWith(otherDefinitions[epl]), "endpoint limit %d should draw on the same limiter in both instances", epl)
+		}
+	})
 }
 
 func TestSetup(t *testing.T) {
@@ -481,7 +496,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestSpotTickerPrice(t *testing.T) {
 	t.Parallel()
 	ex := &Exchange{Name: "test"}
-	stats := &PriceChangeStatsResponse{
+	stats := &PriceChangeStatisticsResponse{
 		PriceChangePercent: 1.5, WeightedAveragePrice: 69000, PreviousClosePrice: 68000, LastPrice: 70000, LastQuantity: 0.1,
 		BidPrice: 69999, BidQuantity: 1, AskPrice: 70001, AskQuantity: 2, OpenPrice: 68500, HighPrice: 71000, LowPrice: 67000,
 		Volume: 10, QuoteVolume: 700000, CloseTime: types.Time(time.UnixMilli(1794466395184)),
@@ -2995,6 +3010,25 @@ func TestPagedOrderHistory(t *testing.T) {
 	require.NoError(t, err, "pagedOrderHistory must not error for records in a span's last millisecond")
 	assert.Equal(t, edge, got, "pagedOrderHistory should page the span's last millisecond from the millisecond before it")
 	assert.Contains(t, windows, [2]time.Time{base.Add(2*time.Hour - time.Millisecond), base.Add(2 * time.Hour)}, "the span's last millisecond should be paged from the millisecond before it")
+
+	t.Run("order IDs differing only above 32 bits", func(t *testing.T) {
+		t.Parallel()
+		wide := []record{{7, base}, {1<<32 | 7, base.Add(time.Hour)}}
+		var calls int
+		got, err := pagedOrderHistory(base, base.Add(2*time.Hour), 0, 24*time.Hour, 2, func(start, end time.Time) ([]record, error) {
+			calls++
+			require.LessOrEqual(t, calls, 100, "pagedOrderHistory must not request more pages than the case needs")
+			var page []record
+			for _, r := range wide {
+				if !r.at.Before(start) && !r.at.After(end) && len(page) < 2 {
+					page = append(page, r)
+				}
+			}
+			return page, nil
+		}, timeOf, idOf)
+		require.NoError(t, err, "pagedOrderHistory must not error")
+		assert.Equal(t, wide, got, "pagedOrderHistory should keep each order whose ID differs from another's only above 32 bits")
+	})
 }
 
 func TestGetFeeByType(t *testing.T) {

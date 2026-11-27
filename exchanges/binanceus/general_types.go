@@ -34,8 +34,8 @@ type ExchangeInfoResponse struct {
 	Symbols         []SymbolInfo            `json:"symbols"`
 }
 
-// SymbolInfo holds a symbol's trading rules and filters. Binance.US's matching engine reports OTO, OPO, amend and peg
-// capabilities that its API does not document endpoints or parameters for
+// SymbolInfo holds a symbol's trading rules and filters. Binance.US's matching engine reports one-triggers-the-other,
+// one-pays-the-other, amend and peg capabilities that its API does not document endpoints or parameters for
 type SymbolInfo struct {
 	Symbol string `json:"symbol"`
 	// Status is PRE_TRADING, TRADING, POST_TRADING, END_OF_DAY, HALT, AUCTION_MATCH or BREAK
@@ -52,7 +52,7 @@ type SymbolInfo struct {
 	IcebergAllowed                  bool           `json:"icebergAllowed"`
 	OneCancelsTheOtherAllowed       bool           `json:"ocoAllowed"`
 	OneTriggersTheOtherAllowed      bool           `json:"otoAllowed"`
-	OPOAllowed                      bool           `json:"opoAllowed"`
+	OnePaysTheOtherAllowed          bool           `json:"opoAllowed"`
 	QuoteOrderQuantityMarketAllowed bool           `json:"quoteOrderQtyMarketAllowed"`
 	AllowTrailingStop               bool           `json:"allowTrailingStop"`
 	CancelReplaceAllowed            bool           `json:"cancelReplaceAllowed"`
