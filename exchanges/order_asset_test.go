@@ -55,7 +55,7 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 		},
 		{
 			name: "bitstamp", newExchange: func() exchange.IBotExchange { return new(bitstamp.Exchange) }, wantAsset: asset.Spot,
-			responses: map[string]string{"/order_status/": `{"id":"1","status":"Open","transactions":[]}`},
+			responses: map[string]string{"/order_status/": `{"id":1,"status":"Open","market":"BTC/USD","transactions":[]}`},
 		},
 		{
 			name: "btcmarkets", newExchange: func() exchange.IBotExchange { return new(btcmarkets.Exchange) }, wantAsset: asset.Spot,
@@ -185,7 +185,11 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 					name = "unknown asset"
 				}
 				t.Run(name, func(t *testing.T) {
-					t.Parallel()
+					// Bitfinex lookups can mix v1 and v2 nonce handling on the
+					// shared requester, so run those lookups in sequence.
+					if _, isBitfinex := ex.(*bitfinex.Exchange); !isBitfinex {
+						t.Parallel()
+					}
 					detail, err := ex.GetOrderInfo(t.Context(), "1", pair, requested)
 					if tc.wantErr != nil {
 						assert.ErrorIs(t, err, tc.wantErr, "GetOrderInfo should reject an unknown returned market")
