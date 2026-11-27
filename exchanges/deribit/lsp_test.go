@@ -2,11 +2,13 @@ package deribit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -43,7 +45,7 @@ func testLiquiditySupportProgramParticipantsResponse() *LiquiditySupportProgramP
 // return
 func testLiquiditySupportProgramParticipantsUsageResponse() *LiquiditySupportProgramParticipantsUsageResponse {
 	return &LiquiditySupportProgramParticipantsUsageResponse{
-		CooldownPeriod: 300000,
+		CooldownPeriod: types.DurationMilliseconds(300000 * time.Millisecond),
 		Participants:   []LiquiditySupportProgramParticipantUsage{{UserID: mockLiquiditySupportProgramParticipantUserID, Groups: testLiquiditySupportProgramGroupUsage()}},
 	}
 }
@@ -171,7 +173,7 @@ func TestGetLiquiditySupportProgramUsage(t *testing.T) {
 		}
 		result, err := e.GetLiquiditySupportProgramUsage(t.Context())
 		require.NoError(t, err, "GetLiquiditySupportProgramUsage must not error")
-		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "GetLiquiditySupportProgramUsage should decode every field")
+		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: types.DurationMilliseconds(300000 * time.Millisecond), Groups: testLiquiditySupportProgramGroupUsage()}, result, "GetLiquiditySupportProgramUsage should decode every field")
 	})
 
 	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramUsage(t.Context())

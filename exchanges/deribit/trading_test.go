@@ -521,7 +521,7 @@ func testMarginsResponse() *MarginsResponse {
 func testMarketMakerProtectionConfigs() []MarketMakerProtectionConfigResponse {
 	return []MarketMakerProtectionConfigResponse{{
 		IndexName:                  "btc_usd",
-		Interval:                   60,
+		Interval:                   types.DurationSeconds(60 * time.Second),
 		MarketMakerProtectionGroup: "MassQuoteBot7",
 		QuantityLimit:              0.5,
 		DeltaLimit:                 0.3,
@@ -533,7 +533,7 @@ func testMarketMakerProtectionConfigs() []MarketMakerProtectionConfigResponse {
 // testSetMarketMakerProtectionConfigs is the documented set MMP configuration response the mock requests return, a
 // single configuration where the schema documents a list
 func testSetMarketMakerProtectionConfigs() []MarketMakerProtectionConfigResponse {
-	return []MarketMakerProtectionConfigResponse{{IndexName: "btc_usd", Interval: 60, MarketMakerProtectionGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
+	return []MarketMakerProtectionConfigResponse{{IndexName: "btc_usd", Interval: types.DurationSeconds(60 * time.Second), MarketMakerProtectionGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
 }
 
 // testMarketMakerProtectionStatuses is the documented MMP status response the mock requests return
@@ -716,8 +716,8 @@ func setLiveTradingMarketMakerProtectionConfig(t *testing.T, set func(context.Co
 		if configs[i].MarketMakerProtectionGroup == "" && !configs[i].BlockRFQ && configs[i].Interval != 0 {
 			restore = &SetMarketMakerProtectionConfigRequest{
 				IndexName:        liveTradingIndexName,
-				Interval:         time.Duration(float64(configs[i].Interval) * float64(time.Second)),
-				FrozenTime:       time.Duration(float64(configs[i].FrozenTime) * float64(time.Second)),
+				Interval:         configs[i].Interval.Duration(),
+				FrozenTime:       configs[i].FrozenTime.Duration(),
 				QuantityLimit:    configs[i].QuantityLimit,
 				DeltaLimit:       configs[i].DeltaLimit,
 				VegaLimit:        configs[i].VegaLimit,
@@ -2360,13 +2360,18 @@ func TestMarketMakerProtectionConfigsUnmarshalJSON(t *testing.T) { //nolint:tpar
 	t.Parallel()
 	var result marketMakerProtectionConfigs
 	require.NoError(t, json.Unmarshal([]byte(`{"index_name":"btc_usd","interval":60}`), &result), "Unmarshal must not error for a configuration")
-	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", Interval: 60}}, result, "UnmarshalJSON should decode a configuration as a list of one")
+	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", Interval: types.DurationSeconds(60 * time.Second)}}, result, "UnmarshalJSON should decode a configuration as a list of one")
 
 	require.NoError(t, json.Unmarshal([]byte(`[{"index_name":"btc_usd","id":1},{"index_name":"eth_usd","mmp_group":"bot"}]`), &result), "Unmarshal must not error for a list")
 	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", ID: 1}, {IndexName: "eth_usd", MarketMakerProtectionGroup: "bot"}}, result, "UnmarshalJSON should decode a list of configurations")
 
+	t.Run("frozen time", func(t *testing.T) {
+		require.NoError(t, json.Unmarshal([]byte(`{"index_name":"btc_usd","interval":60,"frozen_time":10}`), &result), "Unmarshal must not error for a configuration with a frozen time")
+		assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", Interval: types.DurationSeconds(60 * time.Second), FrozenTime: types.DurationSeconds(10 * time.Second)}}, result, "UnmarshalJSON should decode the interval and frozen time in seconds")
+	})
+
 	// The cases decode in order into the result the payloads above filled, so a decoder that keeps what it held fails
-	for _, data := range []string{`{"interval":"60"}`, `[1]`, `"btc_usd"`} {
+	for _, data := range []string{`{"interval":"sixty"}`, `[1]`, `"btc_usd"`} {
 		t.Run(subtestName(data), func(t *testing.T) {
 			assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
 		})

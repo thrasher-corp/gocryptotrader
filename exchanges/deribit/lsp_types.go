@@ -48,8 +48,8 @@ type LiquiditySupportProgramParticipantsUsageRequest struct {
 // LiquiditySupportProgramParticipantsUsageResponse contains the assignment usage of each Liquidity Support Program
 // participant under the main account
 type LiquiditySupportProgramParticipantsUsageResponse struct {
-	// CooldownPeriod is the length of the fixed cooldown window in milliseconds
-	CooldownPeriod uint64                                    `json:"cooldown_period_ms"`
+	// CooldownPeriod is the length of the fixed cooldown window
+	CooldownPeriod types.DurationMilliseconds                `json:"cooldown_period_ms"`
 	Participants   []LiquiditySupportProgramParticipantUsage `json:"participants"`
 }
 
@@ -64,8 +64,8 @@ type LiquiditySupportProgramParticipantUsage struct {
 // LiquiditySupportProgramUsageResponse contains the calling participant's assignment usage by cooldown group, "1" to
 // "6" for the crypto tiers or "rwa" for real world asset instruments; a group without a limit or usage may be left out
 type LiquiditySupportProgramUsageResponse struct {
-	// CooldownPeriod is the length of the fixed cooldown window in milliseconds
-	CooldownPeriod uint64                                       `json:"cooldown_period_ms"`
+	// CooldownPeriod is the length of the fixed cooldown window
+	CooldownPeriod types.DurationMilliseconds                   `json:"cooldown_period_ms"`
 	Groups         map[string]LiquiditySupportProgramGroupUsage `json:"groups"`
 }
 

@@ -488,7 +488,7 @@ func wsRelay[T any](ctx context.Context, e *Exchange, respRaw []byte) error {
 
 // generateSubscriptions returns the configured subscriptions with their channels qualified, leaving out those Deribit
 // refuses for the spot it routes to Coinbase Exchange
-func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(ctx context.Context) (subscription.List, error) {
 	subs, err := e.expandSubscriptions(e.Features.Subscriptions)
 	if err != nil {
 		return nil, err
@@ -501,7 +501,7 @@ func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, 
 		// fetched over REST, as the manager generates subscriptions holding the lock that finding the websocket's request
 		// connection waits for
 		if !loaded {
-			instruments, err := e.getInstruments(context.TODO(), &InstrumentsRequest{Currency: anyCurrency, Kind: KindSpot}, false)
+			instruments, err := e.getInstruments(ctx, &InstrumentsRequest{Currency: anyCurrency, Kind: KindSpot}, false)
 			if err == nil {
 				_, err = e.tradablePairs(asset.Spot, instruments)
 			}

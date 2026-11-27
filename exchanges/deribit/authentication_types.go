@@ -1,6 +1,10 @@
 package deribit
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
+)
 
 // AuthenticateRequest requests an access token; the fields a grant type needs are listed with it
 type AuthenticateRequest struct {
@@ -32,12 +36,12 @@ type AccessTokenResponse struct {
 	AccessToken string `json:"access_token"`
 	// TokenType is bearer
 	TokenType string `json:"token_type"`
-	// ExpiresIn is the token's lifetime in seconds
-	ExpiresIn    uint64 `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-	State        string `json:"state"`
-	SessionID    string `json:"sid"`
+	// ExpiresIn is the token's lifetime
+	ExpiresIn    types.DurationSeconds `json:"expires_in"`
+	RefreshToken string                `json:"refresh_token"`
+	Scope        string                `json:"scope"`
+	State        string                `json:"state"`
+	SessionID    string                `json:"sid"`
 	// EnabledFeatures lists the API key's advanced features, restricted_block_trades or block_trade_approval
 	EnabledFeatures []string `json:"enabled_features"`
 	// MandatoryTwoFactorAuthenticationStatus is enabled when privileged methods need two-factor authentication

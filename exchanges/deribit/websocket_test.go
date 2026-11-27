@@ -1,7 +1,9 @@
 package deribit
 
 import (
+	"context"
 	"errors"
+	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -655,7 +657,7 @@ func TestWebsocketHandleNotification(t *testing.T) { //nolint:tparallel // Its n
 		{
 			channel: "estimated_expiration_price.btc_usd",
 			data:    `{"seconds":30164,"timestamp":1792107436016,"price":82119.57,"is_estimated":false}`,
-			exp:     &WebsocketEstimatedExpirationPrice{Timestamp: types.Time(time.UnixMilli(1792107436016)), Seconds: 30164, Price: 82119.57},
+			exp:     &WebsocketEstimatedExpirationPrice{Timestamp: types.Time(time.UnixMilli(1792107436016)), TimeToExpiry: types.DurationSeconds(30164 * time.Second), Price: 82119.57},
 		},
 		{
 			channel: "instrument.state.any.any",
@@ -1173,6 +1175,28 @@ func TestGenerateSubscriptions(t *testing.T) {
 		spotSubscriptions(t, ex, subscription.AllTradesChannel)
 		_, err := ex.generateSubscriptions(t.Context())
 		assert.ErrorIs(t, err, request.ErrBadStatus, "generateSubscriptions should return the failure to load the spot instruments")
+		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded, for the next generation to load")
+	})
+
+	t.Run("loading cancelled", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "Reading the request body should not error")
+			cancel()
+			select {
+			case <-r.Context().Done():
+			case <-time.After(5 * time.Second):
+				assert.Fail(t, "generateSubscriptions should cancel the spot instruments request with its context")
+				_, err = w.Write([]byte(spotInstruments))
+				assert.NoError(t, err, "Writing the response should not error")
+			}
+		}))
+		spotSubscriptions(t, ex, subscription.AllTradesChannel)
+		_, err := ex.generateSubscriptions(ctx)
+		assert.ErrorIs(t, err, context.Canceled, "generateSubscriptions should stop loading the spot instruments once its context is cancelled")
 		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded, for the next generation to load")
 	})
 }

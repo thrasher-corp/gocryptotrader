@@ -2,9 +2,11 @@ package deribit
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestWebsocketAPIGetLiquiditySupportProgramParticipantConfig(t *testing.T) {
@@ -117,7 +119,7 @@ func TestWebsocketAPIGetLiquiditySupportProgramUsage(t *testing.T) {
 		ex, _ := newWebsocketTestExchange(t)
 		result, err := ex.WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
 		require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramUsage must not error")
-		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should decode every field")
+		assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: types.DurationMilliseconds(300000 * time.Millisecond), Groups: testLiquiditySupportProgramGroupUsage()}, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should decode every field")
 	})
 
 	_, err := newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())

@@ -363,10 +363,10 @@ type MarketMakerProtectionGroupRequest struct {
 // MarketMakerProtectionConfigResponse contains an MMP group's configuration
 type MarketMakerProtectionConfigResponse struct {
 	IndexName string `json:"index_name"`
-	// Interval is the monitoring window in seconds, and zero disables MMP
-	Interval uint64 `json:"interval"`
-	// FrozenTime is how long, in seconds, triggered MMP blocks orders before resetting, and zero needs a manual reset
-	FrozenTime uint64 `json:"frozen_time"`
+	// Interval is the monitoring window, and zero disables MMP
+	Interval types.DurationSeconds `json:"interval"`
+	// FrozenTime is how long triggered MMP blocks orders before resetting, and zero needs a manual reset
+	FrozenTime types.DurationSeconds `json:"frozen_time"`
 	// ID identifies the group, including the orders MMP group, which has no name
 	ID uint64 `json:"id"`
 	// MarketMakerProtectionGroup is empty for the orders MMP group
