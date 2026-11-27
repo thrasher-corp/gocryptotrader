@@ -1409,7 +1409,31 @@ func TestAppPages(t *testing.T) {
 		return &AppListResponse[AppAccountResponse]{Data: []AppAccountResponse{{ID: next}}, Pagination: AppPagination{NextURI: "/next", NextStartingAfter: next}}, nil
 	}, id, func(*AppAccountResponse) bool { return false })
 	assert.ErrorIs(t, err, errListPagingStalled, "appPages should error when its pages cycle")
-	assert.ErrorIs(t, appPages(func(*AppPageRequest) (*AppListResponse[AppAccountResponse], error) { return nil, errTestJWT }, id, func(*AppAccountResponse) bool { return false }), errTestJWT, "appPages should return a list error")
+	var listed int
+	assert.ErrorIs(t, appPages(func(*AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
+		listed++
+		require.Equal(t, 1, listed, "appPages must not list again after a list error")
+		return nil, errTestJWT
+	}, id, func(*AppAccountResponse) bool { return false }), errTestJWT, "appPages should return a list error")
+
+	t.Run("returns a later page's list error", func(t *testing.T) {
+		t.Parallel()
+		var requested, visited []string
+		err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
+			requested = append(requested, page.StartingAfter)
+			require.LessOrEqual(t, len(requested), 2, "appPages must not list again after a list error")
+			if page.StartingAfter == "" {
+				return &AppListResponse[AppAccountResponse]{Data: []AppAccountResponse{{ID: "a"}}, Pagination: AppPagination{NextURI: "/v2/accounts?starting_after=a"}}, nil
+			}
+			return nil, errTestJWT
+		}, id, func(a *AppAccountResponse) bool {
+			visited = append(visited, a.ID)
+			return false
+		})
+		assert.ErrorIs(t, err, errTestJWT, "appPages should return a later page's list error")
+		assert.Equal(t, []string{"", "a"}, requested, "appPages should list the next page after the first")
+		assert.Equal(t, []string{"a"}, visited, "appPages should visit the first page's records before the error")
+	})
 }
 
 func TestAppAccountID(t *testing.T) {
@@ -2401,10 +2425,41 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestPlacedOrder(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	_, err := e.placedOrder(ctx, "b6f0a1c2-3d4e-4f50-8a6b-7c8d9e0f1a2b", time.Hour)
-	assert.ErrorIs(t, err, context.Canceled, "placedOrder should stop waiting when its context ends")
+	for _, tc := range []struct {
+		name        string
+		cancelled   bool
+		cancelAfter time.Duration
+	}{
+		{name: "stops waiting when its context has ended", cancelled: true},
+		{name: "stops waiting when its context ends during the wait", cancelAfter: 50 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.cancelled {
+				cancel()
+			}
+			// The read runs aside, so a delay that ignores its context fails the test rather than running until go
+			// test's timeout
+			placed := make(chan error, 1)
+			go func() {
+				_, err := e.placedOrder(ctx, "b6f0a1c2-3d4e-4f50-8a6b-7c8d9e0f1a2b", time.Hour)
+				placed <- err
+			}()
+			if tc.cancelAfter > 0 {
+				timer := time.AfterFunc(tc.cancelAfter, cancel)
+				defer timer.Stop()
+			}
+			select {
+			case err := <-placed:
+				assert.ErrorIs(t, err, context.Canceled, "placedOrder should stop waiting when its context ends")
+				assert.ErrorIs(t, ctx.Err(), context.Canceled, "placedOrder should wait until its context ends")
+			case <-time.After(30 * time.Second):
+				assert.Fail(t, "placedOrder should stop waiting when its context ends")
+			}
+		})
+	}
 }
 
 func TestCreateOrderRequest(t *testing.T) {

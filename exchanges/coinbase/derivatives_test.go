@@ -3,6 +3,7 @@ package coinbase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -273,38 +275,175 @@ func TestGlobalDerivativesSendRequest(t *testing.T) {
 func TestDerivativesRetry(t *testing.T) {
 	t.Parallel()
 	retry := &DerivativesError{Code: derivativesErrorCodeRetry, Message: "retry"}
-	var attempts int
-	err := derivativesRetry(t.Context(), func() error {
-		attempts++
-		if attempts < 3 {
-			return retry
-		}
-		return nil
+	// Each case's context ends within a minute on its bubble's clock, and each callback but the already cancelled
+	// case's bounds its calls, so a backoff or retry loop that goes wrong fails rather than running until go test's
+	// timeout
+	t.Run("retries a request the gateway asks to retry", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			var attempts int
+			var sentAt []time.Duration
+			start := time.Now()
+			err := derivativesRetry(ctx, func() error {
+				attempts++
+				require.LessOrEqual(t, attempts, 3, "derivativesRetry must not send a request again once it succeeds")
+				sentAt = append(sentAt, time.Since(start))
+				if attempts < 3 {
+					return retry
+				}
+				return nil
+			})
+			assert.NoError(t, err, "derivativesRetry should stop once a retried request succeeds")
+			assert.Equal(t, 3, attempts, "derivativesRetry should retry a request the gateway asks to retry")
+			assert.Equal(t, []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond}, sentAt, "derivativesRetry should back off 100 ms, then 200 ms")
+			assert.Equal(t, 300*time.Millisecond, time.Since(start), "derivativesRetry should return as the retried request succeeds")
+		})
 	})
-	require.NoError(t, err, "derivativesRetry must stop once a retried request succeeds")
-	assert.Equal(t, 3, attempts, "derivativesRetry should retry a request the gateway asks to retry")
-
-	attempts = 0
-	err = derivativesRetry(t.Context(), func() error {
-		attempts++
-		// Past the attempts the request succeeds, so a retry that loses its limit fails the checks below rather than
-		// retrying until go test's timeout
-		if attempts > derivativesMaximumRequestAttempts {
-			return nil
-		}
-		return retry
+	t.Run("gives up after its attempts", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			var attempts int
+			var sentAt []time.Duration
+			start := time.Now()
+			err := derivativesRetry(ctx, func() error {
+				attempts++
+				require.LessOrEqual(t, attempts, derivativesMaximumRequestAttempts+1, "derivativesRetry must not send a request again past its attempts")
+				sentAt = append(sentAt, time.Since(start))
+				// Past the attempts the request succeeds, so a retry that loses its limit fails the checks below rather
+				// than retrying until the deadline
+				if attempts > derivativesMaximumRequestAttempts {
+					return nil
+				}
+				return retry
+			})
+			assert.ErrorIs(t, err, retry, "derivativesRetry should return the last refusal")
+			assert.Equal(t, derivativesMaximumRequestAttempts, attempts, "derivativesRetry should give up after its attempts")
+			assert.Equal(t, []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond, 600 * time.Millisecond, time.Second}, sentAt, "derivativesRetry should back off 100 ms more before each attempt")
+			assert.Equal(t, time.Second, time.Since(start), "derivativesRetry should give up as its last attempt is refused")
+		})
 	})
-	assert.ErrorIs(t, err, retry, "derivativesRetry should return the last refusal")
-	assert.Equal(t, derivativesMaximumRequestAttempts, attempts, "derivativesRetry should give up after its attempts")
-
-	attempts = 0
-	other := &DerivativesError{Code: 10001, Message: "error"}
-	assert.ErrorIs(t, derivativesRetry(t.Context(), func() error { attempts++; return other }), other, "derivativesRetry should return any other error at once")
-	assert.Equal(t, 1, attempts, "derivativesRetry should not retry any other error")
-
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	assert.ErrorIs(t, derivativesRetry(ctx, func() error { return retry }), context.Canceled, "derivativesRetry should stop waiting when the context ends")
+	wrapped := func(err error) error { return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err) }
+	terminal := &DerivativesError{Code: 10001, Message: "error"}
+	for _, tc := range []struct {
+		name string
+		// replies are the request's replies in turn, each given after latency
+		replies []error
+		latency time.Duration
+		sentAt  []time.Duration
+		took    time.Duration
+	}{
+		{
+			name:    "returns the success of its last attempt",
+			replies: []error{retry, retry, retry, retry, nil},
+			sentAt:  []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond, 600 * time.Millisecond, time.Second},
+			took:    time.Second,
+		},
+		{
+			name:    "returns the error of its last attempt",
+			replies: []error{retry, retry, retry, retry, terminal},
+			sentAt:  []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond, 600 * time.Millisecond, time.Second},
+			took:    time.Second,
+		},
+		{
+			name:    "retries a refusal an authenticated request wraps until the request succeeds",
+			replies: []error{wrapped(retry), nil},
+			sentAt:  []time.Duration{0, 100 * time.Millisecond},
+			took:    100 * time.Millisecond,
+		},
+		{
+			name:    "returns a terminal refusal an authenticated request wraps as the request gave it",
+			replies: []error{wrapped(retry), wrapped(terminal)},
+			sentAt:  []time.Duration{0, 100 * time.Millisecond},
+			took:    100 * time.Millisecond,
+		},
+		{
+			name:    "returns the last refusal an authenticated request wraps once its attempts run out",
+			replies: []error{wrapped(retry), wrapped(retry), wrapped(retry), wrapped(retry), wrapped(retry)},
+			sentAt:  []time.Duration{0, 100 * time.Millisecond, 300 * time.Millisecond, 600 * time.Millisecond, time.Second},
+			took:    time.Second,
+		},
+		{
+			name:    "backs off from each refusal once it arrives",
+			replies: []error{retry, nil},
+			latency: 80 * time.Millisecond,
+			sentAt:  []time.Duration{0, 180 * time.Millisecond},
+			took:    260 * time.Millisecond,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+				defer cancel()
+				var attempts int
+				var sentAt []time.Duration
+				start := time.Now()
+				err := derivativesRetry(ctx, func() error {
+					attempts++
+					require.LessOrEqual(t, attempts, len(tc.replies), "derivativesRetry must not send a request again past its last reply")
+					sentAt = append(sentAt, time.Since(start))
+					if tc.latency > 0 {
+						time.Sleep(tc.latency)
+					}
+					return tc.replies[attempts-1]
+				})
+				if last := tc.replies[len(tc.replies)-1]; last == nil {
+					assert.NoError(t, err, "derivativesRetry should return the success of its last attempt")
+				} else {
+					assert.Same(t, last, err, "derivativesRetry should return its last attempt's error as the request gave it")
+				}
+				assert.Equal(t, tc.sentAt, sentAt, "derivativesRetry should send each attempt once its backoff after the last refusal ends")
+				assert.Equal(t, tc.took, time.Since(start), "derivativesRetry should return as the last reply arrives")
+			})
+		})
+	}
+	t.Run("returns any other error at once", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			var attempts int
+			other := &DerivativesError{Code: 10001, Message: "error"}
+			start := time.Now()
+			assert.ErrorIs(t, derivativesRetry(ctx, func() error {
+				attempts++
+				require.Equal(t, 1, attempts, "derivativesRetry must not send a request again after any other error")
+				return other
+			}), other, "derivativesRetry should return any other error at once")
+			assert.Equal(t, 1, attempts, "derivativesRetry should not retry any other error")
+			assert.Zero(t, time.Since(start), "derivativesRetry should not wait before returning any other error")
+		})
+	})
+	t.Run("stops waiting when the context ends", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			start := time.Now()
+			assert.ErrorIs(t, derivativesRetry(ctx, func() error { return retry }), context.Canceled, "derivativesRetry should stop waiting when the context ends")
+			assert.Zero(t, time.Since(start), "derivativesRetry should stop waiting at once when the context ends")
+		})
+	})
+	t.Run("stops waiting when the context ends during a backoff", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			time.AfterFunc(50*time.Millisecond, cancel)
+			var attempts int
+			start := time.Now()
+			assert.ErrorIs(t, derivativesRetry(ctx, func() error {
+				attempts++
+				require.Equal(t, 1, attempts, "derivativesRetry must not send a request again once the context ends")
+				return retry
+			}), context.Canceled, "derivativesRetry should stop waiting when the context ends during a backoff")
+			assert.Equal(t, 50*time.Millisecond, time.Since(start), "derivativesRetry should stop waiting as the context ends")
+		})
+	})
 }
 
 func TestDerivativesQueryParams(t *testing.T) {

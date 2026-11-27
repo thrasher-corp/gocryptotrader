@@ -3,6 +3,7 @@ package coinbase
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -279,24 +280,32 @@ func TestDerivativesChannelOf(t *testing.T) {
 	}
 }
 
-// requestConnection is a connection answering each JSON-RPC request with a result, or an error, and recording the
-// requests
+// requestConnection is a connection answering each JSON-RPC request with a result, a gateway error object or an error,
+// and recording the requests, past reauthConnectionRequestLimit refusing each it records
 type requestConnection struct {
 	websocket.Connection
-	result   json.RawMessage
-	err      error
-	requests []JSONRPCRequest
+	result       json.RawMessage
+	gatewayError *DerivativesError
+	err          error
+	requests     []JSONRPCRequest
 }
 
-// SendMessageReturnResponse records a request and answers it with the connection's result
+// SendMessageReturnResponse records a request and answers it with the connection's result or gateway error, or
+// refuses it past the limit
 func (c *requestConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
 	req, ok := payload.(*JSONRPCRequest)
 	if !ok {
 		return nil, errors.New("not a JSON-RPC request")
 	}
 	c.requests = append(c.requests, *req)
+	if len(c.requests) > reauthConnectionRequestLimit {
+		return nil, errRequestPastLimit
+	}
 	if c.err != nil {
 		return nil, c.err
+	}
+	if c.gatewayError != nil {
+		return json.Marshal(map[string]any{"jsonrpc": "2.0", "id": req.ID, "error": c.gatewayError})
 	}
 	return json.Marshal(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": c.result})
 }
@@ -341,7 +350,9 @@ func TestWebsocketDerivativesManage(t *testing.T) {
 		t.Parallel()
 		empty := &requestConnection{Connection: conn, result: json.RawMessage(`[]`)}
 		assert.NoError(t, ex.wsDerivativesSubscribe(t.Context(), empty, nil), "wsDerivativesSubscribe should do nothing without subscriptions")
+		assert.NoError(t, ex.wsDerivativesSubscribe(t.Context(), empty, subscription.List{}), "wsDerivativesSubscribe should do nothing for an empty list")
 		assert.NoError(t, ex.wsDerivativesUnsubscribe(t.Context(), empty, nil), "wsDerivativesUnsubscribe should do nothing without subscriptions")
+		assert.NoError(t, ex.wsDerivativesUnsubscribe(t.Context(), empty, subscription.List{}), "wsDerivativesUnsubscribe should do nothing for an empty list")
 		assert.Empty(t, empty.requests, "subscribing to or unsubscribing from no channels should send nothing")
 	})
 }
@@ -353,11 +364,24 @@ func TestWebsocketDerivativesAuthenticateFailure(t *testing.T) {
 	conn := &requestConnection{err: errors.New("refused")}
 	require.NoError(t, ex.wsDerivativesAuthenticate(t.Context(), conn), "a failed gateway authentication must not fail the connection")
 	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a failed gateway authentication should leave Advanced Trade's authenticated channels on")
+	assert.Len(t, conn.requests, 1, "a refused gateway authentication should be sent once")
 
 	conn = &requestConnection{result: json.RawMessage(`null`)}
 	assert.ErrorIs(t, ex.wsDerivativesSendAuth(t.Context(), conn), errDerivativesWebsocketAuthentication, "wsDerivativesSendAuth should error when no session is issued")
+	assert.Len(t, conn.requests, 1, "an authentication issuing no session should be sent once")
+	assert.Empty(t, ex.derivativesSessions.authenticatedKey(conn), "an authentication issuing no session should leave the connection unauthenticated")
 	ex.SetCredentials(nil)
 	assert.Error(t, ex.wsDerivativesSendAuth(t.Context(), conn), "wsDerivativesSendAuth should error without credentials")
+
+	t.Run("leaves an authenticated connection's session to its caller when issued none", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &requestConnection{result: json.RawMessage(`null`)}
+		authentication := ex.derivativesSessions.authenticated(conn, testAPIKey)
+		assert.ErrorIs(t, ex.wsDerivativesSendAuth(t.Context(), conn), errDerivativesWebsocketAuthentication, "wsDerivativesSendAuth should error when no session is issued")
+		assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(conn), "an authentication issuing no session should leave the connection's recorded session")
+		assert.False(t, ex.derivativesSessions.superseded(conn, authentication), "an authentication issuing no session should not supersede the connection's last")
+	})
 }
 
 // checkedConnection is a closed reauthConnection counting how often it is checked for being connected
@@ -557,10 +581,18 @@ func TestWebsocketDerivativesSupersededRenewalFailure(t *testing.T) {
 		conn := &firstAuthBlockedConnection{connected: true, blocked: make(chan struct{}), release: make(chan struct{})}
 		authentication := ex.derivativesSessions.authenticated(conn, testAPIKey)
 		ex.wsDerivativesScheduleReauthentication(t.Context(), conn, authentication, 2*time.Second)
-		<-conn.blocked
+		// The renewal is released when the case ends as well, so one still held then does not deadlock the bubble
+		release := sync.OnceFunc(func() { close(conn.release) })
+		defer release()
+		select {
+		case <-conn.blocked:
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the renewal must reach the connection")
+		}
 		// The connection authenticates again while its renewal is under way, which then fails as its session expires
-		require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the later authentication must succeed")
-		close(conn.release)
+		err := ex.wsDerivativesSendAuth(t.Context(), conn)
+		release()
+		require.NoError(t, err, "the later authentication must succeed")
 		synctest.Wait()
 		assert.Zero(t, conn.closes(), "a renewal a later authentication superseded should not close the connection")
 		assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(conn), "a renewal a later authentication superseded should keep its session")
@@ -664,6 +696,37 @@ func TestWebsocketDerivativesRenewSession(t *testing.T) {
 	assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), closed, ex.derivativesSessions.authenticated(closed, ""), time.Now()), "a closed connection's session should not be renewed")
 	assert.Zero(t, closed.sent(), "a closed connection should not be sent a renewal")
 	assert.Zero(t, closed.closes(), "a closed connection should not be closed again")
+
+	t.Run("does not send a renewal superseded twice once the connection is unauthenticated", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &reauthConnection{err: errors.New("refused"), connected: true}
+		stale := ex.derivativesSessions.authenticated(conn, testAPIKey)
+		ex.derivativesSessions.authenticated(conn, testAPIKey)
+		ex.derivativesSessions.authenticated(conn, testAPIKey)
+		ex.derivativesSessions.set(conn, "")
+		assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), conn, stale, time.Now()), "a superseded renewal should not be tried once the connection is unauthenticated")
+		assert.Zero(t, conn.sent(), "a superseded renewal should not be sent once the connection is unauthenticated")
+	})
+	t.Run("renews a connection after another connection authenticates", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":0}`), connected: true}
+		authentication := ex.derivativesSessions.authenticated(conn, testAPIKey)
+		ex.derivativesSessions.authenticated(&reauthConnection{connected: true}, testAPIKey)
+		assert.Zero(t, ex.wsDerivativesRenewSession(t.Context(), conn, authentication, time.Now().Add(time.Hour)), "a renewed session should not be tried again")
+		assert.Equal(t, []string{derivativesAuthMethod}, conn.methods(), "another connection's authentication should not supersede a connection's renewal")
+	})
+	t.Run("tries a renewal issued no session again", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &reauthConnection{result: json.RawMessage(`null`), connected: true}
+		authentication := ex.derivativesSessions.authenticated(conn, testAPIKey)
+		assert.Equal(t, derivativesReauthenticateRetry, ex.wsDerivativesRenewSession(t.Context(), conn, authentication, time.Now().Add(time.Hour)), "a renewal issued no session should be tried again while the session has time left")
+		assert.Equal(t, []string{derivativesAuthMethod}, conn.methods(), "a renewal should send one authentication request")
+		assert.Empty(t, ex.derivativesSessions.authenticatedKey(conn), "a renewal issued no session should leave the connection unauthenticated")
+		assert.Zero(t, conn.closes(), "a renewal issued no session should not close a connection whose session has time left")
+	})
 }
 
 func TestDerivativesWebsocketSessions(t *testing.T) {
@@ -681,28 +744,40 @@ func TestDerivativesWebsocketSessions(t *testing.T) {
 	assert.Equal(t, "second-key", sessions.authenticatedKey(second), "set should record the connection's session")
 }
 
-// reauthConnectionRequestLimit is well above the requests these tests expect a reauthConnection to take. One that
-// has taken that many refuses the next and disconnects, so a chain of renewals or retries scheduled too soon stops,
-// for a later count of requests to report, rather than repeating until go test's timeout
+// reauthConnectionRequestLimit is well above the requests these tests expect a requestConnection or reauthConnection
+// to take; past it each refuses a request, a reauthConnection also disconnecting, so a loop sending too many fails
+// rather than running until go test's timeout
 const reauthConnectionRequestLimit = 100
+
+// reauthConnectionFrameLimit is well above the pings a connection kept alive every 15 seconds sends in the hour or so
+// these tests wait for a renewal; past it a reauthConnection refuses a frame and disconnects
+const reauthConnectionFrameLimit = 1000
 
 var errRequestPastLimit = errors.New("request past the test connection's limit")
 
 // reauthConnection is a request connection reporting whether it is connected, safe for a timer to send on, and
-// counting the close frames it sends
+// counting the frames and close frames it sends
 type reauthConnection struct {
 	requestConnection
 	connected   bool
 	mu          sync.Mutex
+	frames      int
 	closeFrames int
 }
 
-// SendRawMessage counts a close frame
+// SendRawMessage counts a frame, refusing it and disconnecting past the limit, and disconnects after a close frame, as
+// the gateway closes a connection that sends one
 func (c *reauthConnection) SendRawMessage(_ context.Context, _ request.EndpointLimit, messageType int, _ []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.frames++
+	if c.frames > reauthConnectionFrameLimit {
+		c.connected = false
+		return errRequestPastLimit
+	}
 	if messageType == gws.CloseMessage {
 		c.closeFrames++
+		c.connected = false
 	}
 	return nil
 }
@@ -761,38 +836,81 @@ func (c *reauthConnection) methods() []string {
 func TestReauthConnectionRequestLimit(t *testing.T) {
 	t.Parallel()
 	req := &JSONRPCRequest{Method: derivativesAuthMethod}
-	t.Run("reauthConnection", func(t *testing.T) {
+	refusal := errors.New("refused")
+	answering := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+	refusing := &reauthConnection{err: refusal, connected: true}
+	blocked := &firstAuthBlockedConnection{connected: true, blocked: make(chan struct{}), release: make(chan struct{})}
+	close(blocked.release)
+	for _, tc := range []struct {
+		name string
+		conn websocket.Connection
+		// connected is left out for requestConnection, which reports no connection state
+		connected func() bool
+		// refusal is the error a connection refusing every request within the limit gives, and refusesFirst is set for
+		// a connection refusing only its first, as a renewal timing out
+		refusal      error
+		refusesFirst bool
+	}{
+		{name: "reauthConnection", conn: answering, connected: answering.IsConnected},
+		{name: "reauthConnection refusing requests", conn: refusing, connected: refusing.IsConnected, refusal: refusal},
+		{name: "requestConnection", conn: &requestConnection{result: json.RawMessage(`["ticker.BTC-PERPETUAL.100ms"]`)}},
+		{name: "requestConnection refusing requests", conn: &requestConnection{err: refusal}, refusal: refusal},
+		{name: "requestConnection answering with a gateway error", conn: &requestConnection{gatewayError: &DerivativesError{Code: -32602, Message: "Invalid params"}}},
+		{name: "firstAuthBlockedConnection", conn: blocked, connected: blocked.IsConnected, refusesFirst: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// The limit is spelt out, so a limit changed in the fakes fails here
+			for n := 1; n <= 100; n++ {
+				resp, err := tc.conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
+				switch {
+				case tc.refusal != nil:
+					require.ErrorIsf(t, err, tc.refusal, "request %d, within the limit, must be refused with the connection's error", n)
+				case n == 1 && tc.refusesFirst:
+					require.Error(t, err, "the first request must be refused")
+				default:
+					require.NoErrorf(t, err, "request %d, within the limit, must not error", n)
+					require.NotEmptyf(t, resp, "request %d, within the limit, must be answered", n)
+				}
+			}
+			if tc.connected != nil {
+				require.True(t, tc.connected(), "the connection must stay connected up to its limit")
+			}
+			for range 2 {
+				_, err := tc.conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
+				assert.ErrorIs(t, err, errRequestPastLimit, "a request past the limit should be refused")
+				if tc.connected != nil {
+					assert.False(t, tc.connected(), "a request past the limit should disconnect the connection")
+				}
+			}
+		})
+	}
+}
+
+func TestReauthConnectionSendRawMessage(t *testing.T) {
+	t.Parallel()
+	t.Run("a close frame disconnects the connection", func(t *testing.T) {
 		t.Parallel()
-		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
-		for range reauthConnectionRequestLimit {
-			resp, err := conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
-			require.NoError(t, err, "a request within the limit must not error")
-			require.NotEmpty(t, resp, "a request within the limit must be answered")
-		}
-		require.True(t, conn.IsConnected(), "the connection must stay connected up to its limit")
-		for range 2 {
-			_, err := conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
-			assert.ErrorIs(t, err, errRequestPastLimit, "a request past the limit should be refused")
-			assert.False(t, conn.IsConnected(), "a request past the limit should disconnect the connection")
-		}
+		conn := &reauthConnection{connected: true}
+		require.NoError(t, conn.SendRawMessage(t.Context(), derivativesNonMatchingEPL, gws.PingMessage, nil), "a ping must be sent")
+		require.True(t, conn.IsConnected(), "a ping must leave the connection connected")
+		require.NoError(t, conn.SendRawMessage(t.Context(), derivativesNonMatchingEPL, gws.CloseMessage, nil), "a close frame must be sent")
+		assert.Equal(t, 1, conn.closes(), "the close frame should be counted")
+		assert.False(t, conn.IsConnected(), "a close frame should disconnect the connection")
 	})
-	t.Run("firstAuthBlockedConnection", func(t *testing.T) {
+	t.Run("refuses frames past the limit", func(t *testing.T) {
 		t.Parallel()
-		conn := &firstAuthBlockedConnection{connected: true, blocked: make(chan struct{}), release: make(chan struct{})}
-		close(conn.release)
-		_, err := conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
-		require.Error(t, err, "the first request must be refused")
-		for range reauthConnectionRequestLimit - 1 {
-			resp, err := conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
-			require.NoError(t, err, "a later request within the limit must not error")
-			require.NotEmpty(t, resp, "a later request within the limit must be answered")
+		conn := &reauthConnection{connected: true}
+		// The limit is spelt out, so a limit changed in the fake fails here
+		for range 1000 {
+			require.NoError(t, conn.SendRawMessage(t.Context(), derivativesNonMatchingEPL, gws.PingMessage, nil), "a frame within the limit must be sent")
 		}
 		require.True(t, conn.IsConnected(), "the connection must stay connected up to its limit")
-		for range 2 {
-			_, err := conn.SendMessageReturnResponse(t.Context(), derivativesNonMatchingEPL, nil, req)
-			assert.ErrorIs(t, err, errRequestPastLimit, "a request past the limit should be refused")
-			assert.False(t, conn.IsConnected(), "a request past the limit should disconnect the connection")
+		for _, messageType := range []int{gws.PingMessage, gws.CloseMessage} {
+			assert.ErrorIsf(t, conn.SendRawMessage(t.Context(), derivativesNonMatchingEPL, messageType, nil), errRequestPastLimit, "a frame of type %d past the limit should be refused", messageType)
+			assert.False(t, conn.IsConnected(), "a frame past the limit should disconnect the connection")
 		}
+		assert.Zero(t, conn.closes(), "a refused close frame should not be counted")
 	})
 }
 
@@ -803,6 +921,63 @@ func TestWebsocketDerivativesAnswerHeartbeat(t *testing.T) {
 	require.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)), "a heartbeat test request must be handled")
 	require.Eventually(t, func() bool { return conn.sent() == 1 }, 30*time.Second, time.Millisecond, "a heartbeat test request must be answered with public/test")
 	assert.Equal(t, "public/test", conn.requests[0].Method, "a heartbeat test request should be answered with public/test")
+	assert.Nil(t, conn.requests[0].Params, "a heartbeat test request's answer should carry no params")
 	require.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"heartbeat"}}`)), "a heartbeat must be handled")
 	assert.Never(t, func() bool { return conn.sent() != 1 }, 20*time.Millisecond, time.Millisecond, "a heartbeat should need no answer")
+
+	t.Run("answers without holding up the reader", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			// The answer's request is held until the case ends, as its reply is one the reader has yet to read
+			held := &firstAuthBlockedConnection{connected: true, blocked: make(chan struct{}), release: make(chan struct{})}
+			// Released on every exit and given a minute on the bubble's clock, so an answer finishing in that time ends
+			// inside the bubble
+			defer func() {
+				close(held.release)
+				time.Sleep(time.Minute)
+				synctest.Wait()
+			}()
+			handled := make(chan error, 1)
+			start := time.Now()
+			go func() {
+				handled <- ex.wsHandleDerivatives(t.Context(), held, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`))
+			}()
+			select {
+			case err := <-handled:
+				require.NoError(t, err, "a heartbeat test request must be handled")
+				assert.Zero(t, time.Since(start), "a heartbeat test request should be handled without waiting")
+			case <-time.After(30 * time.Second):
+				require.Fail(t, "a heartbeat test request must be handled without waiting for its answer's reply")
+			}
+			select {
+			case <-held.blocked:
+			case <-time.After(30 * time.Second):
+				require.Fail(t, "a heartbeat test request must be answered")
+			}
+		})
+	})
+
+	for _, tc := range []struct {
+		name         string
+		err          error
+		gatewayError *DerivativesError
+		sends        int
+	}{
+		{name: "sends an answer the connection refuses once", err: errors.New("refused"), sends: 1},
+		{name: "sends an answer the gateway refuses once", gatewayError: &DerivativesError{Code: -32602, Message: "Invalid params"}, sends: 1},
+		{name: "sends an answer the gateway asks to retry as often as any request", gatewayError: &DerivativesError{Code: derivativesErrorCodeRetry, Message: "retry"}, sends: derivativesMaximumRequestAttempts},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			synctest.Test(t, func(t *testing.T) {
+				refused := &reauthConnection{err: tc.err, gatewayError: tc.gatewayError, connected: true}
+				require.NoError(t, ex.wsHandleDerivatives(t.Context(), refused, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)), "a heartbeat test request must be handled")
+				time.Sleep(time.Minute)
+				synctest.Wait()
+				assert.Equal(t, slices.Repeat([]string{"public/test"}, tc.sends), refused.methods(), "a refused heartbeat answer should be sent as often as the refusal allows")
+			})
+		})
+	}
 }
