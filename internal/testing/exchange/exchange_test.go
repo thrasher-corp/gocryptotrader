@@ -625,6 +625,7 @@ func TestRequestsWhileRecording(t *testing.T) {
 		e, mockURL, send := newMockExchange(t)
 		var ran atomic.Int32
 		var sent []string
+		// Not parallel, as the checks below need the caller and its cleanup to have finished
 		t.Run("caller", func(t *testing.T) {
 			sent = RequestsWhileRecording(t, e, map[string]func(*testing.T){
 				"no request": func(t *testing.T) { //nolint:thelper // A test the helper runs, not a helper
@@ -657,6 +658,7 @@ func TestRequestsWhileRecording(t *testing.T) {
 	t.Run("no tests", func(t *testing.T) {
 		t.Parallel()
 		e, mockURL, send := newMockExchange(t)
+		// Not parallel, as the checks below need the caller and its cleanup to have finished
 		t.Run("caller", func(t *testing.T) {
 			assert.Empty(t, RequestsWhileRecording(t, e, nil, "api", "v3"), "RequestsWhileRecording should return no request")
 			assert.True(t, e.HTTPRecording, "HTTPRecording should stay set until the caller ends")

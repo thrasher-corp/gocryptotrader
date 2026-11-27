@@ -245,6 +245,7 @@ func RequestsWhileRecording(t *testing.T, e exchange.IBotExchange, tests map[str
 		b.HTTPRecording = false
 		assert.NoError(t, MockHTTPInstance(e, optionalPathPostfix...), "MockHTTPInstance should reinstall the mock HTTP client")
 	})
+	// Not parallel, as the requests are read once every test, parallel ones included, has finished
 	t.Run("while recording", func(t *testing.T) {
 		for _, name := range slices.Sorted(maps.Keys(tests)) {
 			t.Run(name, tests[name])
