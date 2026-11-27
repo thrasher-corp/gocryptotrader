@@ -1787,7 +1787,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 		exp = append(exp, s)
 	}
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err)
 	testsubs.EqualLists(t, exp, subs)
 	_, err = subscription.List{{Channel: "wibble"}}.ExpandTemplates(e)

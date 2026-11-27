@@ -192,7 +192,7 @@ func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string,
 }
 
 // generateSubscriptions generates default subscription
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
@@ -949,7 +949,7 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 // generateAuthSubscriptions generates default subscription for the dedicated auth websocket connection. These are
 // agnostic to the asset type and pair as all account level data will be routed through this connection.
 // TODO: Remove this function when template expansion is across all assets
-func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAuthSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

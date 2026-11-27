@@ -1071,7 +1071,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, subs)
 

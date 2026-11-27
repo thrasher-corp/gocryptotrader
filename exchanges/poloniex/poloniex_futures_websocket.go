@@ -120,11 +120,11 @@ func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websock
 	return nil
 }
 
-func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesSubscriptions(_ context.Context) (subscription.List, error) {
 	return futuresDefaultSubscriptions.ExpandTemplates(e)
 }
 
-func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateFuturesPrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	return futuresPrivateDefaultSubscriptions.ExpandTemplates(e)
 }
 
