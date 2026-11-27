@@ -787,7 +787,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 		{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
 	}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	names := make([]string, len(subs))
 	for i, s := range subs {
@@ -796,12 +796,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 	assert.ElementsMatch(t, []string{"btcusdt@ticker", "btcusdt@kline_1m", "btcusdt@depth@100ms"}, names, "generateSubscriptions should expand each spot subscription once for the enabled pairs")
 
 	ex.Features.Subscriptions = append(ex.Features.Subscriptions, &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5})
-	_, err = ex.generateSubscriptions()
+	_, err = ex.generateSubscriptions(t.Context())
 	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateSubscriptions should report an order book subscription left out as partial generation")
 	assert.ErrorIs(t, err, errOrderbookSubscriptionConflict, "generateSubscriptions should say why a subscription was left out")
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error without spot enabled")
 	assert.Empty(t, subs, "generateSubscriptions should generate nothing without spot enabled")
 }
@@ -912,7 +912,7 @@ func newSubscriptionTestExchange(t *testing.T, modify ...func(*websocket.Connect
 	ex := newWebsocketTestExchange(t)
 	ex.Features.Subscriptions = subscription.List{}
 	setup := ex.streamConnectionSetup(ex.Config)
-	setup.GenerateSubscriptions = func() (subscription.List, error) {
+	setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 		return subscription.List{{Channel: "keepalive", QualifiedChannel: "btcusdt@trade", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, nil
 	}
 	for _, m := range modify {
@@ -931,7 +931,7 @@ func newLiveStreamTestExchange(t *testing.T) (*Exchange, websocket.Connection) {
 	ex := newWebsocketTestExchange(t)
 	ex.Features.Subscriptions = subscription.List{}
 	setup := ex.streamConnectionSetup(ex.Config)
-	setup.GenerateSubscriptions = func() (subscription.List, error) {
+	setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 		return subscription.List{{Channel: subscription.AllTradesChannel, QualifiedChannel: "btcusdt@trade", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}}}, nil
 	}
 	useWebsocket(t, ex, setup)

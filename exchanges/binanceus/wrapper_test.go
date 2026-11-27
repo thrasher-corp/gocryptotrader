@@ -641,7 +641,7 @@ func TestUpdateOrderbook(t *testing.T) {
 			handlingOnce, releaseOnce := sync.OnceFunc(func() { close(handling) }), sync.OnceFunc(func() { close(release) })
 			setup := ex.streamConnectionSetup(ex.Config)
 			setup.ResponseMaxLimit = 2 * time.Second
-			setup.GenerateSubscriptions = func() (subscription.List, error) {
+			setup.GenerateSubscriptions = func(context.Context) (subscription.List, error) {
 				return subscription.List{{Channel: "keepalive", QualifiedChannel: "btcusdt@trade", Asset: asset.Spot, Pairs: currency.Pairs{p}}}, nil
 			}
 			setup.Handler = func(ctx context.Context, conn websocket.Connection, data []byte) error {

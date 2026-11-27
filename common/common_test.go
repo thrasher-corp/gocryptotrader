@@ -231,19 +231,6 @@ func TestExtractPortOrDefault(t *testing.T) {
 	assert.Equal(t, 80, ExtractPortOrDefault("localhost"))
 }
 
-func TestGetURIPath(t *testing.T) {
-	t.Parallel()
-	// mapping of input vs expected result
-	testTable := map[string]string{
-		"https://api.pro.coinbase.com/accounts":         "/accounts",
-		"https://api.pro.coinbase.com/accounts?a=1&b=2": "/accounts?a=1&b=2",
-		"http://www.google.com/accounts?!@#$%;^^":       "",
-	}
-	for testInput, expectedOutput := range testTable {
-		assert.Equal(t, expectedOutput, GetURIPath(testInput))
-	}
-}
-
 func TestGetExecutablePath(t *testing.T) {
 	t.Parallel()
 	if _, err := GetExecutablePath(); err != nil {

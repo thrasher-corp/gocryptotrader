@@ -13,7 +13,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.GenerateOptionsDefaultSubscriptions()
+	subs, err := e.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	assert.NotEmpty(t, subs, "Subscriptions should not be empty")
 	for i := range subs {
@@ -23,7 +23,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	err = e.CurrencyPairs.SetAssetEnabled(asset.Options, false)
 	require.NoError(t, err, "SetAssetEnabled must not error")
 
-	subs, err = e.GenerateOptionsDefaultSubscriptions()
+	subs, err = e.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	assert.Empty(t, subs, "Subscriptions should be empty when asset is disabled")
 }
@@ -34,7 +34,7 @@ func TestOptionSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	subs, err := e.GenerateOptionsDefaultSubscriptions()
+	subs, err := e.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 
 	err = e.OptionsSubscribe(t.Context(), &FixtureConnection{}, subs)
@@ -47,7 +47,7 @@ func TestOptionsUnsubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	subs, err := e.GenerateOptionsDefaultSubscriptions()
+	subs, err := e.GenerateOptionsDefaultSubscriptions(t.Context())
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 
 	err = e.OptionsSubscribe(t.Context(), &FixtureConnection{}, subs)

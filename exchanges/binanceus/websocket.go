@@ -489,7 +489,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // generateSubscriptions returns the stream subscriptions of the enabled pairs. A subscription that cannot be expanded,
 // or an order book subscription left out for conflicting with another, is reported as partial generation
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.GetAssetTypes(true).Contains(asset.Spot) {
 		return subscription.List{}, nil
 	}
