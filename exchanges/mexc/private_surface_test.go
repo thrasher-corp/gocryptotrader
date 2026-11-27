@@ -276,8 +276,40 @@ func skipIfExamplePositionHeld(t *testing.T, ex *Exchange) {
 	id := strconv.FormatUint(futuresExamplePositionID, 10)
 	positions, err := ex.GetFuturesOpenPositions(t.Context(), currency.EMPTYPAIR, id)
 	require.NoError(t, err, "GetFuturesOpenPositions must not error")
-	if slices.ContainsFunc(positions, func(p *FuturesPositionResponse) bool { return p != nil && p.PositionID.String() == id }) {
+	if slices.ContainsFunc(positions, func(p *FuturesPositionResponse) bool { return p != nil && p.PositionID.Is(futuresExamplePositionID) }) {
 		t.Skipf("the account holds position %s, which this would change", id)
+	}
+}
+
+func TestSkipIfExamplePositionHeld(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		positions string
+		skipped   bool
+	}{
+		"no position held":                       {positions: `[]`},
+		"another position held":                  {positions: `[{"positionId":1109973832}]`},
+		"example position held":                  {positions: `[{"positionId":1109973831}]`, skipped: true},
+		"example position held, zero-padded":     {positions: `[{"positionId":"01109973831"}]`, skipped: true},
+		"example position held, partly closed":   {positions: `[{"positionId":1109973831,"state":1,"holdVol":3,"closeVol":2}]`, skipped: true},
+		"example position after another held":    {positions: `[{"positionId":1109973832},{"positionId":1109973831}]`, skipped: true},
+		"null entry before the example position": {positions: `[null,{"positionId":1109973831}]`, skipped: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+				method: http.MethodGet,
+				path:   "private/position/open_positions",
+				query:  "positionId=1109973831",
+				data:   tc.positions,
+			}), liveUnavailable)
+			reached := false
+			t.Run("guarded case", func(t *testing.T) {
+				skipIfExamplePositionHeld(t, ex)
+				reached = true
+			})
+			assert.Equalf(t, !tc.skipped, reached, "the guarded case should run only while the example position is not held, here with %s", name)
+		})
 	}
 }
 

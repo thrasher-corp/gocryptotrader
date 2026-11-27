@@ -1115,7 +1115,6 @@ func TestModifyFuturesPlanOrder(t *testing.T) {
 		return &FuturesModifyPlanOrderRequest{Symbol: "BTC_USDT", OrderID: 739206374277809664, TriggerPrice: 101000, Price: 101500, OrderType: FuturesOrderTypeLimit, TriggerType: FuturesTriggerGreaterOrEqual, Trend: FuturesPriceTypeFair}
 	}
 	require.ErrorIs(t, e.ModifyFuturesPlanOrder(t.Context(), nil), common.ErrNilPointer)
-	// The cases run in order before the change below, which calls ModifyFuturesPlanOrder as well
 	for name, tc := range map[string]struct {
 		change func(*FuturesModifyPlanOrderRequest)
 		err    error
@@ -1127,20 +1126,112 @@ func TestModifyFuturesPlanOrder(t *testing.T) {
 		"unpriced limit":   {func(o *FuturesModifyPlanOrderRequest) { o.Price = 0 }, limits.ErrPriceBelowMin},
 		"no trigger type":  {func(o *FuturesModifyPlanOrderRequest) { o.TriggerType = 0 }, errInvalidTriggerType},
 		"no trend":         {func(o *FuturesModifyPlanOrderRequest) { o.Trend = 0 }, errInvalidPriceType},
+		"negative volume":  {func(o *FuturesModifyPlanOrderRequest) { o.Volume = -1 }, limits.ErrAmountBelowMin},
+		"fractional negative volume": {
+			func(o *FuturesModifyPlanOrderRequest) { o.Volume = -0.5 },
+			limits.ErrAmountBelowMin,
+		},
+		"order list change without volume": {
+			func(o *FuturesModifyPlanOrderRequest) { o.From = FuturesModifyPlanOrderFromOrderList },
+			limits.ErrAmountBelowMin,
+		},
+		"order list post-only change without volume": {
+			func(o *FuturesModifyPlanOrderRequest) {
+				o.From, o.OrderType = FuturesModifyPlanOrderFromOrderList, FuturesOrderTypePostOnly
+			},
+			limits.ErrAmountBelowMin,
+		},
+		"order list immediate-or-cancel change without volume": {
+			func(o *FuturesModifyPlanOrderRequest) {
+				o.From, o.OrderType = FuturesModifyPlanOrderFromOrderList, FuturesOrderTypeImmediateOrCancel
+			},
+			limits.ErrAmountBelowMin,
+		},
+		"order list fill-or-kill change without volume": {
+			func(o *FuturesModifyPlanOrderRequest) {
+				o.From, o.OrderType = FuturesModifyPlanOrderFromOrderList, FuturesOrderTypeFillOrKill
+			},
+			limits.ErrAmountBelowMin,
+		},
+		"order list market change without volume": {
+			func(o *FuturesModifyPlanOrderRequest) {
+				o.From, o.OrderType, o.Price = FuturesModifyPlanOrderFromOrderList, FuturesOrderTypeMarket, 0
+			},
+			limits.ErrAmountBelowMin,
+		},
+		"order list change with negative volume": {
+			func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromOrderList, -1 },
+			limits.ErrAmountBelowMin,
+		},
+		"trade list change with negative volume": {
+			func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromTradeList, -1 },
+			limits.ErrAmountBelowMin,
+		},
+		"trade list change with a fractional negative volume": {
+			func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromTradeList, -0.5 },
+			limits.ErrAmountBelowMin,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex, requests := newRefusingTestExchange(t)
 			o := valid()
 			tc.change(o)
-			assert.ErrorIsf(t, e.ModifyFuturesPlanOrder(t.Context(), o), tc.err, "a plan order change with %s should be refused", name)
+			assert.ErrorIsf(t, ex.ModifyFuturesPlanOrder(t.Context(), o), tc.err, "a plan order change with %s should be refused", name)
+			assert.Zero(t, requests.Load(), "nothing should be sent")
 		})
 	}
 
-	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+	handler, requests := countRequests(futuresHandler(t, futuresRoute{
 		method: http.MethodPost,
 		path:   "private/planorder/change_price",
 		body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"orderType":1,"triggerType":1,"trend":2}`,
-	}), liveUnavailable)
+	}))
+	ex := testExchangeFor(t, handler, liveUnavailable)
 	require.NoError(t, ex.ModifyFuturesPlanOrder(t.Context(), valid()), "ModifyFuturesPlanOrder must not error")
+	assert.Equal(t, int32(1), requests.Load(), "one request should be sent")
+
+	for name, tc := range map[string]struct {
+		change func(*FuturesModifyPlanOrderRequest)
+		body   string
+	}{
+		"order list change with volume": {
+			change: func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromOrderList, 3 },
+			body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"vol":3,"orderType":1,"triggerType":1,"trend":2,"from":2}`,
+		},
+		"order list change with a fractional volume": {
+			change: func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromOrderList, 0.5 },
+			body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"vol":0.5,"orderType":1,"triggerType":1,"trend":2,"from":2}`,
+		},
+		"order list market change with volume": {
+			change: func(o *FuturesModifyPlanOrderRequest) {
+				o.From, o.OrderType, o.Price, o.Volume = FuturesModifyPlanOrderFromOrderList, FuturesOrderTypeMarket, 0, 0.5
+			},
+			body: `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":0,"vol":0.5,"orderType":5,"triggerType":1,"trend":2,"from":2}`,
+		},
+		"trade list change with volume": {
+			change: func(o *FuturesModifyPlanOrderRequest) { o.From, o.Volume = FuturesModifyPlanOrderFromTradeList, 3 },
+			body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"vol":3,"orderType":1,"triggerType":1,"trend":2,"from":1}`,
+		},
+		"trade list change without volume": {
+			change: func(o *FuturesModifyPlanOrderRequest) { o.From = FuturesModifyPlanOrderFromTradeList },
+			body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"orderType":1,"triggerType":1,"trend":2,"from":1}`,
+		},
+		"change with volume and no from": {
+			change: func(o *FuturesModifyPlanOrderRequest) { o.Volume = 3 },
+			body:   `{"symbol":"BTC_USDT","orderId":739206374277809664,"triggerPrice":101000,"price":101500,"vol":3,"orderType":1,"triggerType":1,"trend":2}`,
+		},
+	} {
+		t.Run(name+" sent", func(t *testing.T) {
+			t.Parallel()
+			handler, requests := countRequests(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/planorder/change_price", body: tc.body}))
+			ex := testExchangeFor(t, handler, liveUnavailable)
+			o := valid()
+			tc.change(o)
+			require.NoErrorf(t, ex.ModifyFuturesPlanOrder(t.Context(), o), "ModifyFuturesPlanOrder must send the %s", name)
+			assert.Equal(t, int32(1), requests.Load(), "one request should be sent")
+		})
+	}
 }
 
 func TestCancelFuturesPlanOrders(t *testing.T) {
@@ -1229,7 +1320,9 @@ func TestPlaceFuturesTakeProfitStopLossOrder(t *testing.T) {
 		id, err := parseFuturesOrderID(result.String())
 		require.NoError(t, err, "the placed order must have a valid ID")
 		t.Cleanup(func() {
-			assert.NoError(t, answeredOnMerits(ex.CancelFuturesTakeProfitStopLossOrders(ctx, []uint64{id})), "CancelFuturesTakeProfitStopLossOrders should be answered on its merits")
+			// The placement returns no contract; the case's prices are for the tradable one
+			err := ex.CancelFuturesTakeProfitStopLossOrders(ctx, []FuturesCancelTakeProfitStopLossRequest{{Symbol: futuresTradablePair.String(), StopPlanOrderID: id}})
+			assert.NoError(t, answeredOnMerits(err), "CancelFuturesTakeProfitStopLossOrders should be answered on its merits")
 		})
 	})
 
@@ -1262,33 +1355,78 @@ func TestCancelFuturesTakeProfitStopLossOrders(t *testing.T) {
 	t.Run("live", func(t *testing.T) {
 		t.Parallel()
 		ex := liveExchange(t, liveManipulatesOrders)
-		require.NoError(t, answeredOnMerits(ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 2})), "CancelFuturesTakeProfitStopLossOrders must be answered on its merits")
+		err := ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), []FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {Symbol: "ETH_USDT", StopPlanOrderID: 2}})
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesTakeProfitStopLossOrders must be answered on its merits")
 	})
 
-	require.ErrorIs(t, e.CancelFuturesTakeProfitStopLossOrders(t.Context(), nil), errStopPlanOrderIDRequired)
-	require.ErrorIs(t, e.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 0}), errStopPlanOrderIDRequired)
-	ids := make([]uint64, futuresBatchLimit+1)
-	for i := range ids {
-		ids[i] = uint64(i) + 1
+	tooMany := make([]FuturesCancelTakeProfitStopLossRequest, futuresBatchLimit+1)
+	for i := range tooMany {
+		tooMany[i] = FuturesCancelTakeProfitStopLossRequest{Symbol: "BTC_USDT", StopPlanOrderID: uint64(i) + 1}
 	}
-	require.ErrorIs(t, e.CancelFuturesTakeProfitStopLossOrders(t.Context(), ids), errTooManyOrders)
+	tooManyLastWithoutID := slices.Clone(tooMany)
+	tooManyLastWithoutID[futuresBatchLimit].StopPlanOrderID = 0
+	for name, tc := range map[string]struct {
+		orders []FuturesCancelTakeProfitStopLossRequest
+		err    error
+	}{
+		"an empty list":                   {nil, errStopPlanOrderIDRequired},
+		"an empty list that is not nil":   {[]FuturesCancelTakeProfitStopLossRequest{}, errStopPlanOrderIDRequired},
+		"a first order without a symbol":  {[]FuturesCancelTakeProfitStopLossRequest{{StopPlanOrderID: 1}, {Symbol: "ETH_USDT", StopPlanOrderID: 2}}, currency.ErrSymbolStringEmpty},
+		"a second order without a symbol": {[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {StopPlanOrderID: 2}}, currency.ErrSymbolStringEmpty},
+		"a middle order without a symbol": {[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {StopPlanOrderID: 2}, {Symbol: "ETH_USDT", StopPlanOrderID: 3}}, currency.ErrSymbolStringEmpty},
+		"a first order without an ID":     {[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT"}, {Symbol: "ETH_USDT", StopPlanOrderID: 2}}, errStopPlanOrderIDRequired},
+		"a second order without an ID":    {[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {Symbol: "ETH_USDT"}}, errStopPlanOrderIDRequired},
+		"a middle order without an ID": {
+			[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {Symbol: "ETH_USDT"}, {Symbol: "BTC_USDT", StopPlanOrderID: 3}},
+			errStopPlanOrderIDRequired,
+		},
+		"a first order without an ID before a second without a symbol": {
+			[]FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT"}, {StopPlanOrderID: 2}},
+			errStopPlanOrderIDRequired,
+		},
+		"an order without a symbol or an ID": {[]FuturesCancelTakeProfitStopLossRequest{{}}, currency.ErrSymbolStringEmpty},
+		"51 orders":                          {tooMany, errTooManyOrders},
+		"51 orders, the last without an ID":  {tooManyLastWithoutID, errTooManyOrders},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex, requests := newRefusingTestExchange(t)
+			assert.ErrorIsf(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), tc.orders), tc.err, "%s should be refused", name)
+			assert.Zero(t, requests.Load(), "nothing should be sent")
+		})
+	}
 
-	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-		method: http.MethodPost,
-		path:   "private/stoporder/cancel",
-		body:   `[{"stopPlanOrderId":1},{"stopPlanOrderId":2}]`,
-	}), liveUnavailable)
-	require.NoError(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 2}), "CancelFuturesTakeProfitStopLossOrders must not error")
+	for name, tc := range map[string]struct {
+		orders []FuturesCancelTakeProfitStopLossRequest
+		body   string
+	}{
+		"two orders": {
+			orders: []FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 1}, {Symbol: "ETH_USDT", StopPlanOrderID: 2}},
+			body:   `[{"symbol":"BTC_USDT","stopPlanOrderId":1},{"symbol":"ETH_USDT","stopPlanOrderId":2}]`,
+		},
+		"one order": {
+			orders: []FuturesCancelTakeProfitStopLossRequest{{Symbol: "BTC_USDT", StopPlanOrderID: 357859177}},
+			body:   `[{"symbol":"BTC_USDT","stopPlanOrderId":357859177}]`,
+		},
+	} {
+		t.Run(name+" sent", func(t *testing.T) {
+			t.Parallel()
+			handler, requests := countRequests(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/stoporder/cancel", body: tc.body}))
+			ex := testExchangeFor(t, handler, liveUnavailable)
+			require.NoErrorf(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), tc.orders), "CancelFuturesTakeProfitStopLossOrders must send %s", name)
+			assert.Equal(t, int32(1), requests.Load(), "one request should be sent")
+		})
+	}
 
 	t.Run("50 take-profit and stop-loss orders cancelled, 51 refused", func(t *testing.T) {
 		t.Parallel()
-		ids := make([]uint64, 51)
+		orders := make([]FuturesCancelTakeProfitStopLossRequest, 51)
 		sent := make([]string, 50)
-		for i := range ids {
-			ids[i] = 357859177 + uint64(i)
+		for i := range orders {
+			orders[i] = FuturesCancelTakeProfitStopLossRequest{Symbol: "BTC_USDT", StopPlanOrderID: 357859177 + uint64(i)}
 		}
 		for i := range sent {
-			sent[i] = `{"stopPlanOrderId":` + strconv.FormatUint(ids[i], 10) + `}`
+			sent[i] = `{"symbol":"BTC_USDT","stopPlanOrderId":` + strconv.FormatUint(orders[i].StopPlanOrderID, 10) + `}`
 		}
 		requests := make(chan struct{}, 2)
 		handler := futuresHandler(t, futuresRoute{
@@ -1303,9 +1441,10 @@ func TestCancelFuturesTakeProfitStopLossOrders(t *testing.T) {
 			}
 			handler(w, r)
 		}, liveUnavailable)
-		require.NoError(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), ids[:50]), "CancelFuturesTakeProfitStopLossOrders must send the 50 cancels MEXC takes in one request")
-		require.ErrorIs(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), ids), errTooManyOrders, "CancelFuturesTakeProfitStopLossOrders must refuse a 51st cancel before sending")
-		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+		require.NoError(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), orders[:50]), "CancelFuturesTakeProfitStopLossOrders must send the 50 cancels MEXC takes in one request")
+		require.Len(t, requests, 1, "the 50 must go in one request")
+		require.ErrorIs(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), orders), errTooManyOrders, "CancelFuturesTakeProfitStopLossOrders must refuse a 51st cancel before sending")
+		assert.Len(t, requests, 1, "the 51 should go in no request")
 	})
 }
 

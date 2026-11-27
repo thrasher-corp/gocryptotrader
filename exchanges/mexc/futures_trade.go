@@ -501,6 +501,9 @@ func (e *Exchange) ModifyFuturesPlanOrder(ctx context.Context, req *FuturesModif
 	if isFuturesLimitOrderType(req.OrderType) && req.Price <= 0 {
 		return fmt.Errorf("%w: price %v", limits.ErrPriceBelowMin, req.Price)
 	}
+	if req.Volume < 0 || (req.From == FuturesModifyPlanOrderFromOrderList && req.Volume == 0) {
+		return fmt.Errorf("%w: volume %v", limits.ErrAmountBelowMin, req.Volume)
+	}
 	if req.TriggerType != FuturesTriggerGreaterOrEqual && req.TriggerType != FuturesTriggerLessOrEqual {
 		return fmt.Errorf("%w: %d", errInvalidTriggerType, req.TriggerType)
 	}
@@ -561,18 +564,22 @@ func (e *Exchange) PlaceFuturesTakeProfitStopLossOrder(ctx context.Context, req 
 }
 
 // CancelFuturesTakeProfitStopLossOrders cancels up to 50 take-profit and stop-loss orders
-func (e *Exchange) CancelFuturesTakeProfitStopLossOrders(ctx context.Context, stopPlanOrderIDs []uint64) error {
-	if len(stopPlanOrderIDs) == 0 || slices.Contains(stopPlanOrderIDs, 0) {
+func (e *Exchange) CancelFuturesTakeProfitStopLossOrders(ctx context.Context, orders []FuturesCancelTakeProfitStopLossRequest) error {
+	if len(orders) == 0 {
 		return errStopPlanOrderIDRequired
 	}
-	if len(stopPlanOrderIDs) > futuresBatchLimit {
-		return fmt.Errorf("%w: %d orders, at most %d", errTooManyOrders, len(stopPlanOrderIDs), futuresBatchLimit)
+	if len(orders) > futuresBatchLimit {
+		return fmt.Errorf("%w: %d orders, at most %d", errTooManyOrders, len(orders), futuresBatchLimit)
 	}
-	body := make([]FuturesCancelTakeProfitStopLossRequest, len(stopPlanOrderIDs))
-	for i, id := range stopPlanOrderIDs {
-		body[i].StopPlanOrderID = id
+	for i := range orders {
+		if orders[i].Symbol == "" {
+			return currency.ErrSymbolStringEmpty
+		}
+		if orders[i].StopPlanOrderID == 0 {
+			return errStopPlanOrderIDRequired
+		}
 	}
-	return e.SendFuturesHTTPRequest(ctx, futuresCancelTakeProfitStopLossEPL, http.MethodPost, "private/stoporder/cancel", nil, body, nil, true)
+	return e.SendFuturesHTTPRequest(ctx, futuresCancelTakeProfitStopLossEPL, http.MethodPost, "private/stoporder/cancel", nil, orders, nil, true)
 }
 
 // CancelAllFuturesTakeProfitStopLossOrders cancels the take-profit and stop-loss orders of a position when

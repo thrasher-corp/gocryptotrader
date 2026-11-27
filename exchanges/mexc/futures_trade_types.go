@@ -69,6 +69,12 @@ const (
 	FuturesExecuteCycle7Days   = 2
 )
 
+// Futures plan order change sources, which name the screen a plan order change came from
+const (
+	FuturesModifyPlanOrderFromTradeList = 1
+	FuturesModifyPlanOrderFromOrderList = 2
+)
+
 // Futures trailing order callback types
 const (
 	FuturesCallbackPercentage = 1
@@ -340,10 +346,13 @@ type FuturesModifyPlanOrderRequest struct {
 	OrderID      uint64  `json:"orderId"`
 	TriggerPrice float64 `json:"triggerPrice"`
 	Price        float64 `json:"price"`
-	OrderType    uint8   `json:"orderType"`
-	TriggerType  uint8   `json:"triggerType"`
-	Trend        uint8   `json:"trend"`
-	// From names the screen a modification came from: 1 the trade list and 2 the order list
+	// Volume is in contracts, and a change from the order list must carry it
+	Volume      float64 `json:"vol,omitempty"`
+	OrderType   uint8   `json:"orderType"`
+	TriggerType uint8   `json:"triggerType"`
+	Trend       uint8   `json:"trend"`
+	// From names the screen a modification came from: FuturesModifyPlanOrderFromTradeList or
+	// FuturesModifyPlanOrderFromOrderList
 	From uint8 `json:"from,omitempty"`
 }
 
@@ -422,6 +431,7 @@ type FuturesTakeProfitStopLossOrdersRequest struct {
 
 // FuturesCancelTakeProfitStopLossRequest names a take-profit and stop-loss order to cancel
 type FuturesCancelTakeProfitStopLossRequest struct {
+	Symbol          string `json:"symbol"`
 	StopPlanOrderID uint64 `json:"stopPlanOrderId"`
 }
 
