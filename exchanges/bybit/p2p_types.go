@@ -430,16 +430,16 @@ type P2POrder struct {
 	Status                 uint64       `json:"status"`
 	SelfUnreadMessageCount types.Number `json:"selfUnreadMsgCount"`
 	CreateDate             types.Time   `json:"createDate"`
-	// TransferLastSeconds and AppealLastSeconds are the seconds left to pay and to appeal
-	TransferLastSeconds types.Number      `json:"transferLastSeconds"`
-	AppealLastSeconds   types.Number      `json:"appealLastSeconds"`
-	UserID              string            `json:"userId"`
-	SellerRealName      string            `json:"sellerRealName"`
-	BuyerRealName       string            `json:"buyerRealName"`
-	JudgeInfo           P2PJudgeInfo      `json:"judgeInfo"`
-	UnreadMessageCount  types.Number      `json:"unreadMsgCount"`
-	Extension           P2POrderExtension `json:"extension"`
-	BulkOrderFlag       bool              `json:"bulkOrderFlag"`
+	// TransferTimeRemaining and AppealTimeRemaining are the time left to pay and to appeal
+	TransferTimeRemaining types.DurationSeconds `json:"transferLastSeconds"`
+	AppealTimeRemaining   types.DurationSeconds `json:"appealLastSeconds"`
+	UserID                string                `json:"userId"`
+	SellerRealName        string                `json:"sellerRealName"`
+	BuyerRealName         string                `json:"buyerRealName"`
+	JudgeInfo             P2PJudgeInfo          `json:"judgeInfo"`
+	UnreadMessageCount    types.Number          `json:"unreadMsgCount"`
+	Extension             P2POrderExtension     `json:"extension"`
+	BulkOrderFlag         bool                  `json:"bulkOrderFlag"`
 }
 
 // P2PJudgeInfo holds the arbitration state of a P2P order appeal
@@ -496,18 +496,18 @@ type P2POrderDetailResponse struct {
 	// PaymentTermList holds the payment methods the seller offers
 	PaymentTermList []P2POrderPaymentTerm `json:"paymentTermList"`
 	Remark          string                `json:"remark"`
-	// TransferLastSeconds and AppealLastSeconds are the seconds left to pay and to appeal
-	TransferLastSeconds types.Number        `json:"transferLastSeconds"`
-	RecentOrderNumber   uint64              `json:"recentOrderNum"`
-	RecentExecuteRate   types.Number        `json:"recentExecuteRate"`
-	AppealLastSeconds   types.Number        `json:"appealLastSeconds"`
-	AppealContent       string              `json:"appealContent"`
-	AppealType          uint64              `json:"appealType"`
-	AppealNickName      string              `json:"appealNickName"`
-	CanAppeal           string              `json:"canAppeal"`
-	TotalAppealTimes    types.Number        `json:"totalAppealTimes"`
-	AppealedTimes       types.Number        `json:"appealedTimes"`
-	PaymentTermResult   P2POrderPaymentTerm `json:"paymentTermResult"`
+	// TransferTimeRemaining and AppealTimeRemaining are the time left to pay and to appeal
+	TransferTimeRemaining types.DurationSeconds `json:"transferLastSeconds"`
+	RecentOrderNumber     uint64                `json:"recentOrderNum"`
+	RecentExecuteRate     types.Number          `json:"recentExecuteRate"`
+	AppealTimeRemaining   types.DurationSeconds `json:"appealLastSeconds"`
+	AppealContent         string                `json:"appealContent"`
+	AppealType            uint64                `json:"appealType"`
+	AppealNickName        string                `json:"appealNickName"`
+	CanAppeal             string                `json:"canAppeal"`
+	TotalAppealTimes      types.Number          `json:"totalAppealTimes"`
+	AppealedTimes         types.Number          `json:"appealedTimes"`
+	PaymentTermResult     P2POrderPaymentTerm   `json:"paymentTermResult"`
 	// OrderFinishMinute is the time allowed to finish the order; its unit is undocumented despite the name
 	OrderFinishMinute uint64 `json:"orderFinishMinute"`
 	// ConfirmedPayTerm is the payment method the buyer selected
@@ -554,11 +554,11 @@ type P2POrderDetailResponse struct {
 	TransactionID       string        `json:"transactionId"`
 	// DisplayRefund is undocumented; only 0 has been recorded
 	DisplayRefund types.Number `json:"displayRefund"`
-	// ChainWithdrawLastSeconds and ChainTransferLastSeconds are the seconds left for on-chain withdrawal and transfer
-	ChainWithdrawLastSeconds types.Number `json:"chainWithdrawLastSeconds"`
-	ChainTransferLastSeconds types.Number `json:"chainTransferLastSeconds"`
-	OrderSource              string       `json:"orderSource"`
-	CancelReason             string       `json:"cancelReason"`
+	// ChainWithdrawTimeRemaining and ChainTransferTimeRemaining are the time left for on-chain withdrawal and transfer
+	ChainWithdrawTimeRemaining types.DurationSeconds `json:"chainWithdrawLastSeconds"`
+	ChainTransferTimeRemaining types.DurationSeconds `json:"chainTransferLastSeconds"`
+	OrderSource                string                `json:"orderSource"`
+	CancelReason               string                `json:"cancelReason"`
 	// NeedBuyerExamineCancel is set while a seller's cancel request awaits the buyer's review
 	NeedBuyerExamineCancel         bool          `json:"needBuyerExamineCancel"`
 	SellerCancelExamineRemainTime  types.Number  `json:"sellerCancelExamineRemainTime"`
@@ -680,16 +680,16 @@ type P2PPendingOrder struct {
 	Status                 uint64       `json:"status"`
 	SelfUnreadMessageCount types.Number `json:"selfUnreadMsgCount"`
 	CreateDate             types.Time   `json:"createDate"`
-	// TransferLastSeconds and AppealLastSeconds are the seconds left to pay and to appeal
-	TransferLastSeconds types.Number      `json:"transferLastSeconds"`
-	AppealLastSeconds   types.Number      `json:"appealLastSeconds"`
-	UserID              string            `json:"userId"`
-	SellerRealName      string            `json:"sellerRealName"`
-	BuyerRealName       string            `json:"buyerRealName"`
-	JudgeInfo           P2PJudgeInfo      `json:"judgeInfo"`
-	UnreadMessageCount  types.Number      `json:"unreadMsgCount"`
-	Extension           P2POrderExtension `json:"extension"`
-	BulkOrderFlag       bool              `json:"bulkOrderFlag"`
+	// TransferTimeRemaining and AppealTimeRemaining are the time left to pay and to appeal
+	TransferTimeRemaining types.DurationSeconds `json:"transferLastSeconds"`
+	AppealTimeRemaining   types.DurationSeconds `json:"appealLastSeconds"`
+	UserID                string                `json:"userId"`
+	SellerRealName        string                `json:"sellerRealName"`
+	BuyerRealName         string                `json:"buyerRealName"`
+	JudgeInfo             P2PJudgeInfo          `json:"judgeInfo"`
+	UnreadMessageCount    types.Number          `json:"unreadMsgCount"`
+	Extension             P2POrderExtension     `json:"extension"`
+	BulkOrderFlag         bool                  `json:"bulkOrderFlag"`
 }
 
 // P2PMarkOrderAsPaidRequest holds the parameters for Mark Order as Paid

@@ -482,10 +482,10 @@ func TestGetInstitutionalLoanDelayLiquidationStatus(t *testing.T) {
 	require.NoError(t, err, "GetInstitutionalLoanDelayLiquidationStatus must not error")
 	if mockTests {
 		exp := &InstitutionalLoanDelayLiquidationStatusResponse{
-			LoanToValue:                      0.9123,
-			LiquidationStatus:                3,
-			DelayLiquidationStartTime:        types.Time(time.UnixMilli(1789012118462)),
-			DelayLiquidationRemainingSeconds: 1200,
+			LoanToValue:                   0.9123,
+			LiquidationStatus:             3,
+			DelayLiquidationStartTime:     types.Time(time.UnixMilli(1789012118462)),
+			DelayLiquidationTimeRemaining: types.DurationSeconds(1200 * time.Second),
 		}
 		assert.Equal(t, exp, result, "GetInstitutionalLoanDelayLiquidationStatus should decode every field")
 		return

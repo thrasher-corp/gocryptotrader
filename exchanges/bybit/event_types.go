@@ -30,16 +30,16 @@ type EventInstrument struct {
 	QuoteCoin         currency.Code `json:"quoteCoin"`
 	SettleCoin        currency.Code `json:"settleCoin"`
 	EventContractType string        `json:"eventContractType"`
-	// DurationWindowInSeconds applies to Up_Down contracts; the docs type it as a string that is empty for the other
+	// DurationWindow applies to Up_Down contracts; the docs type it as a string that is empty for the other
 	// types, while Bybit sends a number
-	DurationWindowInSeconds types.Number `json:"durationWindow"`
-	RVThreshold             types.Number `json:"rvThreshold"`
-	Rebate                  types.Number `json:"rebate"`
-	TakerFeeRate            types.Number `json:"takerFeeRate"`
-	MakerFeeRate            types.Number `json:"makerFeeRate"`
-	LaunchTime              types.Time   `json:"launchTime"`
-	DeliveryTime            types.Time   `json:"deliveryTime"`
-	Status                  string       `json:"status"`
+	DurationWindow types.DurationSeconds `json:"durationWindow"`
+	RVThreshold    types.Number          `json:"rvThreshold"`
+	Rebate         types.Number          `json:"rebate"`
+	TakerFeeRate   types.Number          `json:"takerFeeRate"`
+	MakerFeeRate   types.Number          `json:"makerFeeRate"`
+	LaunchTime     types.Time            `json:"launchTime"`
+	DeliveryTime   types.Time            `json:"deliveryTime"`
+	Status         string                `json:"status"`
 	// TargetPrice is set for Target contracts only
 	TargetPrice types.Number `json:"targetPrice"`
 	// LowerBound and UpperBound exclusively bound the range of Range contracts
@@ -54,11 +54,11 @@ type EventInstrument struct {
 	QuotationLimit     []EventQuotationLimit `json:"quotationLimit"`
 }
 
-// EventFeeRateRule is the base markup that applies while settlement is a range of seconds away
+// EventFeeRateRule is the base markup that applies while the time to settlement is within a range
 type EventFeeRateRule struct {
-	MinSecondsToDelivery uint64       `json:"minSecToDelivery"`
-	MaxSecondsToDelivery uint64       `json:"maxSecToDelivery"`
-	BaseMarkup           types.Number `json:"baseMarkup"`
+	MinTimeToDelivery types.DurationSeconds `json:"minSecToDelivery"`
+	MaxTimeToDelivery types.DurationSeconds `json:"maxSecToDelivery"`
+	BaseMarkup        types.Number          `json:"baseMarkup"`
 }
 
 // EventLotSizeFilter holds an event contract's order amount limits and quoting intervals
@@ -66,19 +66,19 @@ type EventLotSizeFilter struct {
 	MinOrderAmount      types.Number `json:"minOrderAmount"`
 	MaxOrderAmount      types.Number `json:"maxOrderAmount"`
 	OrderAmountTickSize types.Number `json:"orderAmountTickSize"`
-	// QuoteMaxValidMilliseconds is the longest a single quote stays valid
-	QuoteMaxValidMilliseconds uint64 `json:"quoteMaxValidMs"`
-	// QuoteMinIntervalPerUserMilliseconds is the shortest interval between a user's quote requests
-	QuoteMinIntervalPerUserMilliseconds uint64 `json:"quoteMinIntervalPerUserMs"`
+	// QuoteMaxValidity is the longest a single quote stays valid
+	QuoteMaxValidity types.DurationMilliseconds `json:"quoteMaxValidMs"`
+	// QuoteMinIntervalPerUser is the shortest interval between a user's quote requests
+	QuoteMinIntervalPerUser types.DurationMilliseconds `json:"quoteMinIntervalPerUserMs"`
 }
 
-// EventQuotationLimit holds the quote amount limits that apply while settlement is a range of seconds away
+// EventQuotationLimit holds the quote amount limits that apply while the time to settlement is within a range
 type EventQuotationLimit struct {
-	MinSecondsToDelivery  uint64       `json:"minSecToDelivery"`
-	MaxSecondsToDelivery  uint64       `json:"maxSecToDelivery"`
-	QuoteMaxAmountPerUser types.Number `json:"quoteMaxAmountPerUser"`
-	QuoteMinAmountPerUser types.Number `json:"quoteMinAmountPerUser"`
-	QuoteMinAmount        types.Number `json:"quoteMinAmount"`
+	MinTimeToDelivery     types.DurationSeconds `json:"minSecToDelivery"`
+	MaxTimeToDelivery     types.DurationSeconds `json:"maxSecToDelivery"`
+	QuoteMaxAmountPerUser types.Number          `json:"quoteMaxAmountPerUser"`
+	QuoteMinAmountPerUser types.Number          `json:"quoteMinAmountPerUser"`
+	QuoteMinAmount        types.Number          `json:"quoteMinAmount"`
 }
 
 // EventOrderbookResponse is an event contract's payout ratio orderbook
@@ -136,12 +136,12 @@ type EventOrder struct {
 	OrderStatus string `json:"orderStatus"`
 	Symbol      string `json:"symbol"`
 	// SymbolID is quoted here but a number in Get Instrument Info and the order stream
-	SymbolID                             types.Number  `json:"symbolId"`
-	BaseCoin                             currency.Code `json:"baseCoin"`
-	QuoteCoin                            currency.Code `json:"quoteCoin"`
-	SettleCoin                           currency.Code `json:"settleCoin"`
-	EventContractDirection               string        `json:"ecDirection"`
-	EventContractDurationWindowInSeconds types.Number  `json:"ecDurationWindow"`
+	SymbolID                    types.Number          `json:"symbolId"`
+	BaseCoin                    currency.Code         `json:"baseCoin"`
+	QuoteCoin                   currency.Code         `json:"quoteCoin"`
+	SettleCoin                  currency.Code         `json:"settleCoin"`
+	EventContractDirection      string                `json:"ecDirection"`
+	EventContractDurationWindow types.DurationSeconds `json:"ecDurationWindow"`
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	EventContractType        string       `json:"ecContractType"`
@@ -204,14 +204,14 @@ type EventActiveOrder struct {
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only
-	EventContractLowerBound              types.Number `json:"ecLowerBound"`
-	EventContractUpperBound              types.Number `json:"ecUpperBound"`
-	EventContractDurationWindowInSeconds types.Number `json:"ecDurationWindow"`
-	EventContractIndexPrice              types.Number `json:"ecIndexPrice"`
-	OrderAveragePayoutRatio              types.Number `json:"orderAvgPayoutRatio"`
-	CreateType                           string       `json:"createType"`
-	CreatedTime                          types.Time   `json:"createdTime"`
-	UpdatedTime                          types.Time   `json:"updatedTime"`
+	EventContractLowerBound     types.Number          `json:"ecLowerBound"`
+	EventContractUpperBound     types.Number          `json:"ecUpperBound"`
+	EventContractDurationWindow types.DurationSeconds `json:"ecDurationWindow"`
+	EventContractIndexPrice     types.Number          `json:"ecIndexPrice"`
+	OrderAveragePayoutRatio     types.Number          `json:"orderAvgPayoutRatio"`
+	CreateType                  string                `json:"createType"`
+	CreatedTime                 types.Time            `json:"createdTime"`
+	UpdatedTime                 types.Time            `json:"updatedTime"`
 }
 
 // EventPositionInfoRequest holds the filters for GetEventPositionInfo; every position is returned when Symbol is empty
@@ -270,16 +270,16 @@ type EventSettlement struct {
 	TransactionID string `json:"transId"`
 	Symbol        string `json:"symbol"`
 	// SymbolID is quoted here but a number in Get Instrument Info and the order stream
-	SymbolID                             types.Number  `json:"symbolId"`
-	BaseCoin                             currency.Code `json:"baseCoin"`
-	SettleCoin                           currency.Code `json:"settleCoin"`
-	Side                                 string        `json:"side"`
-	EventContractType                    string        `json:"ecContractType"`
-	EventContractDirection               string        `json:"ecDirection"`
-	SettlePrice                          types.Number  `json:"settlePrice"`
-	EntryPrice                           types.Number  `json:"entryPrice"`
-	GrossPayoutRatio                     types.Number  `json:"grossPayoutRatio"`
-	EventContractDurationWindowInSeconds types.Number  `json:"ecDurationWindow"`
+	SymbolID                    types.Number          `json:"symbolId"`
+	BaseCoin                    currency.Code         `json:"baseCoin"`
+	SettleCoin                  currency.Code         `json:"settleCoin"`
+	Side                        string                `json:"side"`
+	EventContractType           string                `json:"ecContractType"`
+	EventContractDirection      string                `json:"ecDirection"`
+	SettlePrice                 types.Number          `json:"settlePrice"`
+	EntryPrice                  types.Number          `json:"entryPrice"`
+	GrossPayoutRatio            types.Number          `json:"grossPayoutRatio"`
+	EventContractDurationWindow types.DurationSeconds `json:"ecDurationWindow"`
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only
@@ -332,12 +332,12 @@ type EventTrade struct {
 	TimeInForce      string        `json:"timeInForce"`
 	CrossSequence    types.Number  `json:"crossSeq"`
 	// EventContractPayout is the settlement payout of the execution
-	EventContractPayout                  types.Number `json:"ecPayout"`
-	EventContractDurationWindowInSeconds types.Number `json:"ecDurationWindow"`
-	SettleTime                           types.Time   `json:"settleTimeMs"`
-	EventContractOrderValue              types.Number `json:"ecOrderValue"`
-	EventContractType                    string       `json:"ecContractType"`
-	EventContractDirection               string       `json:"ecDirection"`
+	EventContractPayout         types.Number          `json:"ecPayout"`
+	EventContractDurationWindow types.DurationSeconds `json:"ecDurationWindow"`
+	SettleTime                  types.Time            `json:"settleTimeMs"`
+	EventContractOrderValue     types.Number          `json:"ecOrderValue"`
+	EventContractType           string                `json:"ecContractType"`
+	EventContractDirection      string                `json:"ecDirection"`
 	// EventContractTargetPrice is set for Target contracts only
 	EventContractTargetPrice types.Number `json:"ecTargetPrice"`
 	// EventContractLowerBound and EventContractUpperBound are set for Range contracts only

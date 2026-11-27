@@ -236,7 +236,7 @@ type InstitutionalLoanDelayLiquidationStatusResponse struct {
 	LoanToValue types.Number `json:"ltv"`
 	// LiquidationStatus is 0 normal, 1 passive liquidation, 2 callback liquidation or 3 delay liquidation in progress
 	LiquidationStatus uint64 `json:"liquidationStatus"`
-	// DelayLiquidationStartTime and DelayLiquidationRemainingSeconds are set only while LiquidationStatus is 3
-	DelayLiquidationStartTime        types.Time   `json:"delayLiqStartTime"`
-	DelayLiquidationRemainingSeconds types.Number `json:"delayLiqRemainingSec"`
+	// DelayLiquidationStartTime and DelayLiquidationTimeRemaining are set only while LiquidationStatus is 3
+	DelayLiquidationStartTime     types.Time            `json:"delayLiqStartTime"`
+	DelayLiquidationTimeRemaining types.DurationSeconds `json:"delayLiqRemainingSec"`
 }

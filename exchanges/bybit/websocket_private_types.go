@@ -307,17 +307,17 @@ type WebsocketStrategy struct {
 	Symbol   string       `json:"symbol"`
 	Size     types.Number `json:"size"`
 	Side     string       `json:"side"`
-	// DurationInSeconds is for TWAP strategies only
-	DurationInSeconds uint64 `json:"duration"`
+	// Duration is for TWAP strategies only
+	Duration types.DurationSeconds `json:"duration"`
 	// Status is 2 running, 3 terminated, 4 terminated with orders unfilled, 5 paused or 6 not triggered yet
 	Status uint64 `json:"status"`
 	// TerminateType is 0 not terminated, 1 stopped by the user, 2 completed or 3 insufficient balance
-	TerminateType             uint64       `json:"terminateType"`
-	TerminateRemark           string       `json:"terminateRemark"`
-	ExecutedDurationInSeconds uint64       `json:"executedDuration"`
-	ExecutedSize              types.Number `json:"executedSize"`
-	ExecutedAveragePrice      types.Number `json:"executedAvgPrice"`
-	ExecutedStartTime         types.Time   `json:"executedStartTimeE3"`
+	TerminateType        uint64                `json:"terminateType"`
+	TerminateRemark      string                `json:"terminateRemark"`
+	ExecutedDuration     types.DurationSeconds `json:"executedDuration"`
+	ExecutedSize         types.Number          `json:"executedSize"`
+	ExecutedAveragePrice types.Number          `json:"executedAvgPrice"`
+	ExecutedStartTime    types.Time            `json:"executedStartTimeE3"`
 	// ExecutedEndTime is zero until the strategy ends
 	ExecutedEndTime types.Time   `json:"executedEndTimeE3"`
 	CreatedTime     types.Time   `json:"createdTimeE3"`
@@ -333,8 +333,8 @@ type WebsocketStrategy struct {
 	MaxChasePrice           types.Number `json:"maxChasePrice"`   // Chase and iceberg only
 	ChaseOrderPrice         types.Number `json:"chaseOrderPrice"` // Chase only
 	StrategyPrefer          string       `json:"strategyPrefer"`
-	// IntervalInSeconds is the time between orders, for TWAP strategies only
-	IntervalInSeconds uint64 `json:"interval"`
+	// Interval is the time between a TWAP strategy's orders
+	Interval types.DurationSeconds `json:"interval"`
 	// LeverageType is 0 normal or 1 margin, for spot only
 	LeverageType uint64        `json:"leverageType"`
 	PostOnly     types.Boolean `json:"postOnly"` // Iceberg only

@@ -135,12 +135,12 @@ type Strategy struct {
 	StrategyName string       `json:"strategyName"`
 	// StrategyPrefer is limit, priceSpeedBalance, fastestExecution or quickExecution
 	StrategyPrefer string `json:"strategyPrefer"`
-	// DurationInSeconds, ExecutedDurationInSeconds and IntervalInSeconds are for TWAP and POV orders
-	DurationInSeconds         uint64       `json:"duration"`
-	ExecutedDurationInSeconds uint64       `json:"executedDuration"`
-	IsRandom                  bool         `json:"isRandom"`
-	IntervalInSeconds         uint64       `json:"interval"`
-	LimitPrice                types.Number `json:"limitPrice"`
+	// Duration, ExecutedDuration and Interval are for TWAP and POV orders
+	Duration         types.DurationSeconds `json:"duration"`
+	ExecutedDuration types.DurationSeconds `json:"executedDuration"`
+	IsRandom         bool                  `json:"isRandom"`
+	Interval         types.DurationSeconds `json:"interval"`
+	LimitPrice       types.Number          `json:"limitPrice"`
 	// ChasePercentScaledBy1E4 is in basis points: 100 is 1%
 	ChasePercentScaledBy1E4 types.Number `json:"chasePercentE4"`
 	ChaseDistance           types.Number `json:"chaseDistance"`
@@ -161,11 +161,11 @@ type Strategy struct {
 	ArbitrageOrders     []json.RawMessage `json:"arbitrageOrders"`
 	PositionValue       types.Number      `json:"positionValue"`
 	FilledPositionValue types.Number      `json:"filledPositionValue"`
-	// Mode, ParticipationRate, ReferenceWindowInSeconds and DepthReference are set for POV orders
-	Mode                     string       `json:"mode"`
-	ParticipationRate        types.Number `json:"participationRate"`
-	ReferenceWindowInSeconds types.Number `json:"referenceWindow"`
-	DepthReference           types.Number `json:"depthReference"`
+	// Mode, ParticipationRate, ReferenceWindow and DepthReference are set for POV orders
+	Mode              string                `json:"mode"`
+	ParticipationRate types.Number          `json:"participationRate"`
+	ReferenceWindow   types.DurationSeconds `json:"referenceWindow"`
+	DepthReference    types.Number          `json:"depthReference"`
 }
 
 // GetStrategyOrderListRequest holds the filters for listing a strategy's orders

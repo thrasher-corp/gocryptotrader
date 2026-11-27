@@ -283,7 +283,7 @@ func TestGetAccountInfo(t *testing.T) {
 			SpotHedgingStatus:          "ON",
 			UpdatedTime:                types.Time(time.Unix(1697078946, 0)),
 			DisconnectionProtectStatus: "OFF",
-			TimeWindow:                 10,
+			TimeWindow:                 types.DurationSeconds(10 * time.Second),
 			SelfMatchPreventionGroup:   12,
 		}
 		assert.Equal(t, exp, result, "GetAccountInfo should decode every field")
@@ -776,12 +776,12 @@ func TestGetDisconnectionProtectInfo(t *testing.T) {
 				{
 					Product:                    "SPOT",
 					DisconnectionProtectStatus: "ON",
-					TimeWindowInSeconds:        10,
+					TimeWindow:                 types.DurationSeconds(10 * time.Second),
 				},
 				{
 					Product:                    "DERIVATIVES",
 					DisconnectionProtectStatus: "ON",
-					TimeWindowInSeconds:        30,
+					TimeWindow:                 types.DurationSeconds(30 * time.Second),
 				},
 			},
 		}
@@ -962,8 +962,8 @@ func TestGetMarketMakerProtectionState(t *testing.T) {
 				{
 					BaseCoin:                         currency.BTC,
 					MarketMakerProtectionEnabled:     true,
-					WindowInMilliseconds:             5000,
-					FrozenPeriodInMilliseconds:       100000,
+					Window:                           types.DurationMilliseconds(5 * time.Second),
+					FrozenPeriod:                     types.DurationMilliseconds(100 * time.Second),
 					QuantityLimit:                    0.01,
 					DeltaLimit:                       0.01,
 					VegaLimit:                        500000,
