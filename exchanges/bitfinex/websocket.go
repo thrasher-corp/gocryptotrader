@@ -217,7 +217,7 @@ func (e *Exchange) wsSendAuth(ctx context.Context, conn websocket.Connection) er
 // generateSubscriptions returns the public connections' subscriptions from the configured ones. Spot and margin trade
 // the same markets, so a margin subscription asking for a spot one's channel is carried by it, as Bitfinex refuses a
 // connection's second subscription to a channel
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	if err != nil {
 		return nil, err
@@ -253,7 +253,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 
 // generateAccountSubscriptions returns the account channel, which authenticating subscribes the account connection
 // to, when authenticated websocket use is available; without it there is no account connection
-func (e *Exchange) generateAccountSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAccountSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}

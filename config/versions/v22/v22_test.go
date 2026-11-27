@@ -1,337 +1,174 @@
 package v22_test
 
 import (
-	"context"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v22 "github.com/thrasher-corp/gocryptotrader/config/versions/v22"
 )
 
-// The v21 and v22 default subscriptions as the config saves them
-const (
-	tickerEntry    = `{"enabled":true,"channel":"ticker","asset":"all"}`
-	tradesEntry    = `{"enabled":true,"channel":"allTrades","asset":"all"}`
-	spotCandles    = `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"}`
-	marginCandles  = `{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"}`
-	fundingCandles = `{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"}`
-	orderbookEntry = `{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}`
-	usdtCandles    = `{"enabled":true,"channel":"candles","asset":"usdtmarginedfutures","interval":"1m"}`
-	coinCandles    = `{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"}`
-	usdtStatus     = `{"enabled":true,"channel":"status","asset":"usdtmarginedfutures"}`
-	coinStatus     = `{"enabled":true,"channel":"status","asset":"coinmarginedfutures"}`
-)
-
-var (
-	previousDefaults = []string{tickerEntry, tradesEntry, spotCandles, marginCandles, fundingCandles, orderbookEntry}
-	currentDefaults  = []string{tickerEntry, tradesEntry, spotCandles, marginCandles, fundingCandles, usdtCandles, coinCandles, orderbookEntry, usdtStatus, coinStatus}
-)
-
-// subscriptions returns a Bitfinex config holding the subscription entries
-func subscriptions(entries ...string) string {
-	return `{"name":"Bitfinex","features":{"subscriptions":[` + strings.Join(entries, ",") + `]}}`
-}
-
-// with returns entries with the entry at index i replaced
-func with(entries []string, i int, entry string) []string {
-	out := append([]string(nil), entries...)
-	out[i] = entry
-	return out
-}
-
-// field returns an entry with a field added before its closing brace
-func field(entry, f string) string {
-	return strings.TrimSuffix(entry, "}") + "," + f + "}"
-}
-
-// replaced returns entries with each pair of old and new strings replaced
-func replaced(entries []string, oldnew ...string) []string {
-	r := strings.NewReplacer(oldnew...)
-	out := make([]string, len(entries))
-	for i := range entries {
-		out[i] = r.Replace(entries[i])
-	}
-	return out
-}
-
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should list every exchange, leaving the migration to pick Bitfinex out in any case")
+	assert.Equal(t, []string{"*"}, new(v22.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
 }
 
-func TestMigrationLeavesOtherExchanges(t *testing.T) {
+func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	statusEntries := append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"status","asset":"spot"}`)
-	// The config loader takes the last of a repeated name, whatever the case of its key
-	names := map[string]string{
-		"Kraken":                           `"name":"Kraken",`,
-		"Bitfinexx":                        `"name":"Bitfinexx",`,
-		"xBitfinex":                        `"name":"xBitfinex",`,
-		"Bitfinzz":                         `"name":"Bitfinzz",`,
-		"spaced Bitfinex":                  `"name":" Bitfinex ",`,
-		"bitfinex then Kraken":             `"name":"bitfinex","name":"Kraken",`,
-		"bitfinex then capitalised Kraken": `"name":"bitfinex","Name":"Kraken",`,
-		"no name":                          ``,
-	}
-	// An upgrade would change the previous defaults, and a downgrade the enabled spot status, so each exchange has both
-	for entriesName, entries := range map[string][]string{"previous defaults": previousDefaults, "enabled spot status": statusEntries} {
-		bitfinex := subscriptions(entries...)
-		for exchangeName, field := range names {
-			input := strings.Replace(bitfinex, `"name":"Bitfinex",`, field, 1)
-			for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-				"UpgradeExchange":   new(v22.Version).UpgradeExchange,
-				"DowngradeExchange": new(v22.Version).DowngradeExchange,
-			} {
-				t.Run(entriesName+"/"+exchangeName+"/"+name, func(t *testing.T) {
-					t.Parallel()
-					got, err := migrate(t.Context(), []byte(input))
-					require.NoErrorf(t, err, "%s must not error for %s", name, input)
-					assert.Equalf(t, input, string(got), "%s should leave another exchange's configuration unchanged: %s", name, input)
-				})
-			}
-		}
-	}
-}
 
-func TestMigrationFindsBitfinexAsTheLoaderDoes(t *testing.T) {
-	t.Parallel()
-	// The config loader takes the last of a repeated name, whatever the case of its key
-	for caseName, name := range map[string]string{
-		"lower case name":           `"name":"bitfinex",`,
-		"repeated name":             `"name":"Kraken","name":"Bitfinex",`,
-		"repeated capitalised name": `"name":"Kraken","Name":"bitfinex",`,
-	} {
-		t.Run(caseName, func(t *testing.T) {
-			t.Parallel()
-			named := func(entries ...string) string {
-				return strings.Replace(subscriptions(entries...), `"name":"Bitfinex",`, name, 1)
-			}
-			got, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(named(previousDefaults...)))
-			require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-			assert.JSONEqf(t, named(currentDefaults...), string(got), "UpgradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
-			got, err = new(v22.Version).DowngradeExchange(t.Context(), []byte(named(currentDefaults...)))
-			require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-			assert.JSONEqf(t, named(previousDefaults...), string(got), "DowngradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
-		})
-	}
-}
-
-func TestUpgradeExchangeSubscriptions(t *testing.T) {
-	t.Parallel()
-	for name, entries := range map[string][]string{
-		"previous defaults":         previousDefaults,
-		"reordered":                 {orderbookEntry, fundingCandles, tickerEntry, marginCandles, tradesEntry, spotCandles},
-		"upper case assets":         replaced(previousDefaults, `"all"`, `"ALL"`, `"spot"`, `"SPOT"`, `"margin"`, `"MARGIN"`, `"marginfunding"`, `"MARGINFUNDING"`),
-		"title case assets":         replaced(previousDefaults, `"all"`, `"All"`, `"spot"`, `"Spot"`),
-		"nanosecond interval":       with(previousDefaults, 2, strings.Replace(spotCandles, `"1m"`, `60000000000`, 1)),
-		"seconds interval":          with(previousDefaults, 3, strings.Replace(marginCandles, `"1m"`, `"60s"`, 1)),
-		"unit interval":             with(previousDefaults, 4, strings.Replace(fundingCandles, `"1m"`, `"1min"`, 1)),
-		"duration interval":         with(previousDefaults, 2, strings.Replace(spotCandles, `"1m"`, `"1m0s"`, 1)),
-		"zero ticker interval":      with(previousDefaults, 0, field(tickerEntry, `"interval":"0s"`)),
-		"zero trades levels":        with(previousDefaults, 1, field(tradesEntry, `"levels":0`)),
-		"null trades levels":        with(previousDefaults, 1, field(tradesEntry, `"levels":null`)),
-		"empty ticker params":       with(previousDefaults, 0, field(tickerEntry, `"params":{}`)),
-		"null trades params":        with(previousDefaults, 1, field(tradesEntry, `"params":null`)),
-		"explicit unauthenticated":  with(with(previousDefaults, 0, field(tickerEntry, `"authenticated":false`)), 5, field(orderbookEntry, `"authenticated":false`)),
-		"null authenticated":        with(previousDefaults, 1, field(tradesEntry, `"authenticated":null`)),
-		"repeated key last applies": with(previousDefaults, 2, strings.Replace(spotCandles, `"asset":"spot"`, `"asset":"margin","asset":"spot"`, 1)),
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			version := new(v22.Version)
-			got, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(entries...)))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, subscriptions(currentDefaults...), string(got), "UpgradeExchange should replace the previous defaults with the current defaults")
-			again, err := version.UpgradeExchange(t.Context(), got)
-			require.NoError(t, err, "repeated UpgradeExchange must not error")
-			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
-		})
-	}
-}
-
-func TestDowngradeExchangeSubscriptions(t *testing.T) {
-	t.Parallel()
-	t.Run("status subscriptions", func(t *testing.T) {
+	const oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
 		t.Parallel()
-		for name, tc := range map[string]struct{ entries, exp []string }{
-			"wildcard status": {
-				entries: with(currentDefaults, 8, strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"all"`, 1)),
-				exp:     with(currentDefaults, 8, `{"enabled":false,"channel":"status","asset":"all"}`),
-			},
-			"spot status": {
-				entries: append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
-				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"spot","pairs":"BTC-USD"}`),
-			},
-			"perpetual status kept": {
-				entries: append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
-				exp:     append(append([]string(nil), previousDefaults...), strings.Replace(usdtStatus, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, 1)),
-			},
-			"disabled status kept": {
-				entries: append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
-				exp:     append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"status","asset":"all"}`),
-			},
-		} {
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				got, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
-				require.NoError(t, err, "DowngradeExchange must not error")
-				assert.JSONEq(t, subscriptions(tc.exp...), string(got), "DowngradeExchange should disable the status subscriptions the previous version cannot subscribe to")
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
 			})
 		}
 	})
-	for name, entries := range map[string][]string{
-		"current defaults":  currentDefaults,
-		"reordered":         {coinStatus, orderbookEntry, usdtCandles, tickerEntry, fundingCandles, usdtStatus, marginCandles, coinCandles, tradesEntry, spotCandles},
-		"upper case assets": replaced(currentDefaults, `"usdtmarginedfutures"`, `"USDTMARGINEDFUTURES"`, `"coinmarginedfutures"`, `"COINMARGINEDFUTURES"`),
-		"mixed case assets": replaced(currentDefaults, `"usdtmarginedfutures"`, `"USDTMarginedFutures"`, `"all"`, `"All"`),
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
+				out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
+	for _, tc := range []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "old defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
+		{
+			name: "custom endpoints with the version prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
+		},
+		{
+			name: "custom endpoints without the prefix are kept",
+			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+		},
+		{
+			name: "unrelated endpoints are kept",
+			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
 	} {
-		t.Run(name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			version := new(v22.Version)
-			got, err := version.DowngradeExchange(t.Context(), []byte(subscriptions(entries...)))
+			out, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
+		})
+	}
+
+	in := []byte(`{"name":"GateIO","api":{}}`)
+	out, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
+	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
+
+	_, err = new(v22.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+}
+
+func TestDowngradeExchange(t *testing.T) {
+	t.Parallel()
+
+	t.Run("migrates GateIO named in any case", func(t *testing.T) {
+		t.Parallel()
+		for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
+			})
+		}
+	})
+	t.Run("leaves other exchanges unchanged", func(t *testing.T) {
+		t.Parallel()
+		const newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
+		for _, name := range []string{"Gate", "Binance", "GateIOX"} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
+				out, err := new(v22.Version).DowngradeExchange(t.Context(), in)
+				require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+				assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
+			})
+		}
+	})
+
+	for _, tc := range []struct {
+		name string
+		in   string
+		exp  string
+	}{
+		{
+			name: "new defaults are removed and the unchanged testnet default is kept",
+			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+		},
+		{
+			name: "a custom bare host regains the version prefix and a custom path gains a final slash",
+			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/gate/","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
+		},
+		{
+			name: "custom paths over http or ending in the version prefix gain a final slash",
+			in:   `{"RestSpotURL":"http://localhost:8080/gateway","RestFuturesURL":"https://proxy.example/gate-fx/api/v4"}`,
+			exp:  `{"RestSpotURL":"http://localhost:8080/gateway/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/"}`,
+		},
+		{
+			name: "a custom bare host with a port regains the version prefix and a host ending in a slash is kept",
+			in:   `{"RestSpotURL":"https://proxy.example:8443","RestFuturesURL":"https://proxy.example/"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example:8443/api/v4/","RestFuturesURL":"https://proxy.example/"}`,
+		},
+		{
+			name: "endpoints already carrying the prefix and placeholders are kept",
+			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
 			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, subscriptions(previousDefaults...), string(got), "DowngradeExchange should replace the current defaults with the previous defaults")
-			again, err := version.DowngradeExchange(t.Context(), got)
-			require.NoError(t, err, "repeated DowngradeExchange must not error")
-			assert.Equal(t, got, again, "DowngradeExchange should be idempotent")
+			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
 		})
 	}
+
+	_, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
+	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
 }
 
-func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
+// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
+func TestRoundTrip(t *testing.T) {
 	t.Parallel()
-	customised := map[string][]string{
-		"empty":                    {},
-		"missing entry":            previousDefaults[:5],
-		"extra entry":              append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`),
-		"repeated entry":           with(previousDefaults, 3, spotCandles),
-		"exchange specific name":   with(previousDefaults, 5, strings.Replace(orderbookEntry, `"orderbook"`, `"book"`, 1)),
-		"capitalised channel":      with(previousDefaults, 0, strings.Replace(tickerEntry, `"ticker"`, `"Ticker"`, 1)),
-		"disabled":                 with(previousDefaults, 0, strings.Replace(tickerEntry, `"enabled":true`, `"enabled":false`, 1)),
-		"enabled omitted":          with(previousDefaults, 1, strings.Replace(tradesEntry, `"enabled":true,`, ``, 1)),
-		"enabled null":             with(previousDefaults, 2, strings.Replace(spotCandles, `"enabled":true`, `"enabled":null`, 1)),
-		"custom interval":          with(previousDefaults, 2, strings.Replace(spotCandles, `"1m"`, `"5m"`, 1)),
-		"null interval":            with(previousDefaults, 3, strings.Replace(marginCandles, `"1m"`, `null`, 1)),
-		"interval omitted":         with(previousDefaults, 2, strings.Replace(spotCandles, `,"interval":"1m"`, ``, 1)),
-		"ticker interval":          with(previousDefaults, 0, field(tickerEntry, `"interval":"1m"`)),
-		"quoted interval number":   with(previousDefaults, 2, strings.Replace(spotCandles, `"1m"`, `"60000000000"`, 1)),
-		"wildcard candles":         with(previousDefaults, 2, strings.Replace(spotCandles, `"spot"`, `"all"`, 1)),
-		"other asset":              with(previousDefaults, 0, strings.Replace(tickerEntry, `"all"`, `"spot"`, 1)),
-		"authenticated public":     with(previousDefaults, 0, field(tickerEntry, `"authenticated":true`)),
-		"pairs":                    with(previousDefaults, 0, field(tickerEntry, `"pairs":"BTC-USD"`)),
-		"custom levels":            with(previousDefaults, 5, strings.Replace(orderbookEntry, `100`, `25`, 1)),
-		"null levels":              with(previousDefaults, 5, strings.Replace(orderbookEntry, `100`, `null`, 1)),
-		"levels omitted":           with(previousDefaults, 5, strings.Replace(orderbookEntry, `,"levels":100`, ``, 1)),
-		"fractional levels":        with(previousDefaults, 5, strings.Replace(orderbookEntry, `100`, `100.5`, 1)),
-		"custom precision":         with(previousDefaults, 5, strings.Replace(orderbookEntry, `"R0"`, `"P0"`, 1)),
-		"lower case precision":     with(previousDefaults, 5, strings.Replace(orderbookEntry, `"R0"`, `"r0"`, 1)),
-		"extra parameter":          with(previousDefaults, 5, strings.Replace(orderbookEntry, `"prec":"R0"`, `"prec":"R0","freq":"F1"`, 1)),
-		"funding period omitted":   with(previousDefaults, 4, strings.Replace(fundingCandles, `"params":{"_period":"p30"},`, ``, 1)),
-		"custom funding period":    with(previousDefaults, 4, strings.Replace(fundingCandles, `"p30"`, `"p2"`, 1)),
-		"ticker parameter":         with(previousDefaults, 0, field(tickerEntry, `"params":{"freq":"F1"}`)),
-		"unknown field":            with(previousDefaults, 1, field(tradesEntry, `"custom":"retained"`)),
-		"capitalised field":        with(previousDefaults, 1, strings.Replace(tradesEntry, `"enabled"`, `"Enabled"`, 1)),
-		"current defaults":         currentDefaults,
-		"previous and status only": append(append([]string(nil), previousDefaults...), usdtStatus),
-	}
-	for name, entries := range customised {
-		t.Run("upgrade/"+name, func(t *testing.T) {
+	for _, endpoint := range []string{"https://proxy.example/gate/api/v4/", "https://proxy.example/gateway/", "https://proxy.example/"} {
+		t.Run(endpoint, func(t *testing.T) {
 			t.Parallel()
-			input := subscriptions(entries...)
-			got, err := new(v22.Version).UpgradeExchange(t.Context(), []byte(input))
-			require.NoError(t, err, "UpgradeExchange must accept customised subscriptions")
-			assert.Equal(t, input, string(got), "UpgradeExchange should preserve customised subscriptions byte-for-byte")
-		})
-	}
-	for name, entries := range map[string][]string{
-		"missing coin margined status":  currentDefaults[:9],
-		"disabled usdt margined status": with(currentDefaults, 8, strings.Replace(usdtStatus, `"enabled":true`, `"enabled":false`, 1)),
-		"custom perpetual candles":      with(currentDefaults, 5, strings.Replace(usdtCandles, `"1m"`, `"5m"`, 1)),
-		"status pairs":                  with(currentDefaults, 9, field(coinStatus, `"pairs":"ETHF0-BTCF0"`)),
-		"previous defaults":             previousDefaults,
-	} {
-		t.Run("downgrade/"+name, func(t *testing.T) {
-			t.Parallel()
-			input := subscriptions(entries...)
-			got, err := new(v22.Version).DowngradeExchange(t.Context(), []byte(input))
-			require.NoError(t, err, "DowngradeExchange must accept customised subscriptions")
-			assert.Equal(t, input, string(got), "DowngradeExchange should preserve customised subscriptions byte-for-byte")
-		})
-	}
-}
-
-func TestMigrationWithoutSubscriptions(t *testing.T) {
-	t.Parallel()
-	for inputName, input := range map[string]string{
-		"no features":        `{"name":"Bitfinex"}`,
-		"empty features":     `{"name":"Bitfinex","features":{}}`,
-		"null subscriptions": `{"name":"Bitfinex","features":{"subscriptions":null}}`,
-	} {
-		for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-			"UpgradeExchange":   new(v22.Version).UpgradeExchange,
-			"DowngradeExchange": new(v22.Version).DowngradeExchange,
-		} {
-			t.Run(inputName+"/"+name, func(t *testing.T) {
-				t.Parallel()
-				got, err := migrate(t.Context(), []byte(input))
-				require.NoErrorf(t, err, "%s must not error for %s", name, input)
-				assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
-			})
-		}
-	}
-}
-
-func TestMigrationRejectsMalformedConfigs(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct{ input, errContains string }{
-		"subscriptions object": {input: `{"name":"Bitfinex","features":{"subscriptions":{}}}`, errContains: "error decoding Bitfinex subscriptions"},
-		"subscription string":  {input: `{"name":"Bitfinex","features":{"subscriptions":["ticker","allTrades"]}}`, errContains: "error decoding Bitfinex subscriptions"},
-		"params string":        {input: subscriptions(with(previousDefaults, 5, strings.Replace(orderbookEntry, `{"prec":"R0"}`, `"R0"`, 1))...), errContains: "error decoding Bitfinex subscriptions"},
-		"malformed exchange":   {input: `{"name":"Bitfinex","features":{"subscriptions":}}`, errContains: "error decoding exchange name"},
-	} {
-		for direction, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-			"upgrade":   new(v22.Version).UpgradeExchange,
-			"downgrade": new(v22.Version).DowngradeExchange,
-		} {
-			t.Run(direction+"/"+name, func(t *testing.T) {
-				t.Parallel()
-				got, err := migrate(t.Context(), []byte(tc.input))
-				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
-				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
-			})
-		}
-	}
-}
-
-func TestRegisteredMigration(t *testing.T) {
-	t.Parallel()
-	previous := strings.Join(previousDefaults, ",")
-	current := strings.Join(currentDefaults, ",")
-	// The config loader finds Bitfinex's configuration whatever the case of its name
-	for _, name := range []string{"Bitfinex", "bitfinex", "BITFINEX"} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			// Other exchanges with the same subscriptions are not migrated
-			input := []byte(`{"version":21,"exchanges":[{"name":"` + name + `","features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`)
-			unchanged, err := versions.Manager.Deploy(t.Context(), input, 21)
-			require.NoError(t, err, "Deploy must leave an existing v21 configuration valid")
-			assert.Equal(t, input, unchanged, "Deploy should retain v21 Bitfinex subscriptions until the v22 upgrade")
-
-			out, err := versions.Manager.Deploy(t.Context(), input, 22)
-			require.NoError(t, err, "Deploy must apply the registered v22 upgrade")
-			expected := `{"version":22,"exchanges":[{"name":"` + name + `","features":{"subscriptions":[` + current + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`
-			assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitfinex and advance to v22")
-
-			downgraded, err := versions.Manager.Deploy(t.Context(), out, 21)
-			require.NoError(t, err, "Deploy must downgrade from v22")
-			assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v21 Bitfinex subscriptions")
-
-			reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 22)
-			require.NoError(t, err, "Deploy must reapply v22")
-			assert.JSONEq(t, expected, string(reupgraded), "Reapplying v22 should reproduce the upgraded configuration")
+			in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"` + endpoint + `"}}}`)
+			up, err := new(v22.Version).UpgradeExchange(t.Context(), in)
+			require.NoError(t, err, "UpgradeExchange must not error")
+			down, err := new(v22.Version).DowngradeExchange(t.Context(), up)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
 		})
 	}
 }

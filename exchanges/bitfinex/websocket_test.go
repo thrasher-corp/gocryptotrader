@@ -462,7 +462,7 @@ func TestWebsocketSharedBookToggle(t *testing.T) {
 		} else {
 			require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Margin, currency.NewBTCUSD()), "DisablePair must not error")
 		}
-		_, err := ex.generateSubscriptions()
+		_, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		require.Equal(t, shared, ex.wsSharedChannels.carriesMargin(s), "the book's channel must carry margin's data only while margin enables its pair")
 	}
@@ -1559,7 +1559,7 @@ func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // The cases s
 			}
 		}
 	}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	seenChannels := make(common.Seen[string], len(subs))
 	for _, sub := range subs {
@@ -1572,17 +1572,17 @@ func TestGenerateSubscriptions(t *testing.T) { //nolint:tparallel // The cases s
 	}
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	accountSubs, err := ex.generateAccountSubscriptions()
+	accountSubs, err := ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error")
 	assert.Empty(t, accountSubs, "generateAccountSubscriptions should generate nothing without authenticated websocket use")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	accountSubs, err = ex.generateAccountSubscriptions()
+	accountSubs, err = ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error")
 	assert.Equal(t, subscription.List{{Channel: subscription.MyAccountChannel, Authenticated: true, Asset: asset.All}}, accountSubs, "generateAccountSubscriptions should generate the account channel")
 }
 
-// version21Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
-const version21Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
+// version23Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
+const version23Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
 	`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"},` +
 	`{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"},` +
 	`{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}]`
@@ -1591,9 +1591,9 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
-	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version21Subscriptions), "features", "subscriptions")
+	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version23Subscriptions), "features", "subscriptions")
 	require.NoError(t, err, "jsonparser.Set must not error")
-	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 22 keeps them
+	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 24 keeps them
 	withoutPerpetualPairs := withPerpetualPairs
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
 		withoutPerpetualPairs = jsonparser.Delete(withoutPerpetualPairs, "currencyPairs", "pairs", a.String())
@@ -1613,10 +1613,10 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				saved, err := jsonparser.Set(tc.saved, []byte(strconv.Quote(name)), "name")
 				require.NoError(t, err, "jsonparser.Set must not error")
 				path := filepath.Join(t.TempDir(), "config.json")
-				require.NoError(t, os.WriteFile(path, []byte(`{"version":21,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
+				require.NoError(t, os.WriteFile(path, []byte(`{"version":23,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
 				var cfg config.Config
-				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 21 configuration")
-				assert.Equal(t, 22, cfg.Version, "ReadConfigFromFile should advance the configuration to version 22")
+				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 23 configuration")
+				assert.Equal(t, 24, cfg.Version, "ReadConfigFromFile should advance the configuration to version 24")
 				require.NoError(t, cfg.CheckExchangeConfigValues(), "CheckExchangeConfigValues must accept the upgraded configuration")
 				exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
 				require.NoError(t, err, "GetExchangeConfig must not error")
@@ -1628,7 +1628,7 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				ex.Accounts = accounts.MustNewAccounts(ex)
 				require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
 				ex.Name = t.Name()
-				subs, err := ex.generateSubscriptions()
+				subs, err := ex.generateSubscriptions(t.Context())
 				require.NoError(t, err, "generateSubscriptions must not error for the upgraded configuration")
 				// The cases share subs, which later statements search again
 				for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding} {

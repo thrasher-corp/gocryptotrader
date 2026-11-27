@@ -132,9 +132,12 @@ func instantiateTradablePairs() {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
+	requester := e.Requester
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.Name = t.Name()
+	// Deribit limits ticker requests per IP address, so this instance shares the package instance's rate limits
+	require.NoError(t, e.SetRequester(requester), "SetRequester must not error")
 	_, err := e.UpdateTicker(t.Context(), currency.Pair{}, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -589,12 +592,21 @@ func TestWSRetrieveInstrumentsData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// skipIfSwitchedOff skips a live test whose method Deribit refuses with method_switched_off_by_admin (13025)
+func skipIfSwitchedOff(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && strings.Contains(err.Error(), "method_switched_off_by_admin") {
+		t.Skip("Deribit has temporarily switched off this method")
+	}
+}
+
 func TestGetLastSettlementsByCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLastSettlementsByCurrency(t.Context(), currency.EMPTYCODE, "delivery", "5", 0, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := e.GetLastSettlementsByCurrency(t.Context(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -605,6 +617,7 @@ func TestWSRetrieveLastSettlementsByCurrency(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := e.WSRetrieveLastSettlementsByCurrency(t.Context(), currency.BTC, "delivery", "5", 0, time.Now().Add(-time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -615,6 +628,7 @@ func TestWSRetrieveLastSettlementsByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	result, err := e.WSRetrieveLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -625,6 +639,7 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 
 	result, err := e.GetLastSettlementsByInstrument(t.Context(), formatFuturesTradablePair(futuresTradablePair), "settlement", "5", 0, time.Now().Add(-2*time.Hour))
+	skipIfSwitchedOff(t, err)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4022,7 +4037,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err)
 	exp := subscription.List{}
 	for _, s := range e.Features.Subscriptions {
