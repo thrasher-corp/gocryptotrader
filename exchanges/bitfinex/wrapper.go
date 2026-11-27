@@ -1526,8 +1526,17 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, w *withdraw.
 		return nil, err
 	}
 	req := &WithdrawalRequest{Wallet: wallet, Method: method, Amount: w.Amount, Address: w.Crypto.Address, PaymentID: w.Crypto.AddressTag, Note: w.Description, TravelRule: travel}
-	// A Lightning withdrawal pays an invoice, which takes the address's place and sets the amount
+	// A Lightning withdrawal pays an invoice, which takes the address's place and states the amount requested, so the
+	// invoice must ask for the request's amount, read as the shortest decimal of its float, which the withdrawal manager
+	// records
 	if method == TransactionMethodLightning {
+		invoiceAmount, err := lightningInvoiceAmount(w.Crypto.Address)
+		if err != nil {
+			return nil, err
+		}
+		if amount, err := gctmath.DecimalFromFloat(w.Amount); err != nil || !amount.Equal(invoiceAmount) {
+			return nil, fmt.Errorf("%w: the invoice asks for %s BTC and the request for %v", errLightningInvoiceAmountMismatch, invoiceAmount, w.Amount)
+		}
 		req.Invoice, req.Address, req.Amount = w.Crypto.Address, "", 0
 	}
 	n, err := e.RequestWithdrawal(ctx, req)
@@ -1555,6 +1564,45 @@ func withdrawalTravelRule(t *withdraw.TravelRule) (*TravelRuleDetails, error) {
 	}
 	details.FirstName, details.LastName = strings.Join(name[:len(name)-1], " "), name[len(name)-1]
 	return details, nil
+}
+
+// lightningInvoiceAmount returns the BTC a Bitcoin mainnet Lightning invoice asks for, which BOLT11 writes in the
+// invoice's human-readable part, the text before its last 1: lnbc, then a whole number of BTC, or of thousandths,
+// millionths, billionths or trillionths of one with the multiplier m, u, n or p. It refuses an invoice without an
+// amount, which leaves the amount to the payer, trillionths that are no whole number of millisatoshis, and a number
+// past 64 bits
+func lightningInvoiceAmount(invoice string) (decimal.Decimal, error) {
+	humanReadable, _, ok := strings.CutLast(strings.ToLower(invoice), "1")
+	if !ok {
+		return decimal.Decimal{}, fmt.Errorf("%w: no separator", errInvalidLightningInvoice)
+	}
+	amount, ok := strings.CutPrefix(humanReadable, "lnbc")
+	if !ok {
+		return decimal.Decimal{}, fmt.Errorf("%w: %q is not a Bitcoin mainnet invoice", errInvalidLightningInvoice, humanReadable)
+	}
+	if amount == "" {
+		return decimal.Decimal{}, errLightningInvoiceAmountMissing
+	}
+	var places int
+	switch amount[len(amount)-1] {
+	case 'm':
+		places = 3
+	case 'u':
+		places = 6
+	case 'n':
+		places = 9
+	case 'p':
+		places = 12
+	}
+	digits := amount
+	if places != 0 {
+		digits = amount[:len(amount)-1]
+	}
+	units, err := strconv.ParseUint(digits, 10, 64)
+	if err != nil || places == 12 && units%10 != 0 {
+		return decimal.Decimal{}, fmt.Errorf("%w: amount %q", errInvalidLightningInvoice, amount)
+	}
+	return decimal.NewFromString(strconv.FormatUint(units, 10) + "e-" + strconv.Itoa(places))
 }
 
 // WithdrawFiatFunds withdraws fiat by wire from the exchange wallet, or the wallet the request's wallet ID names,

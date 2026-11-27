@@ -983,7 +983,11 @@ func TestGetHistoricTrades(t *testing.T) {
 				for i := range trades {
 					ids[i] = trades[i].TID
 				}
-				assert.Equalf(t, []string{"1", "2"}, ids, "GetHistoricTrades should return the %s trades before the end, oldest first, and leave out those at it", tc.name)
+				require.Equalf(t, []string{"1", "2"}, ids, "GetHistoricTrades must return the %s trades before the end, oldest first, and leave out those at it", tc.name)
+				for j, i := range []int{3, 2} {
+					got := &trades[j]
+					assert.Equalf(t, tradeFields(ex.Name, tc.pair, tc.asset, historicTradeSide(tc.asset), 70000+float64(i)/100, 0.01, time.UnixMilli(times[i])), tradeFields(got.Exchange, got.CurrencyPair, got.AssetType, got.Side, got.Price, got.Amount, got.Timestamp), "GetHistoricTrades should return the expected fields for %s trade %s", tc.name, got.TID)
+				}
 				assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}}, windows, "GetHistoricTrades should read one page of %s trades for the window", tc.name)
 			})
 		}
@@ -1140,18 +1144,18 @@ func TestGetHistoricTrades(t *testing.T) {
 				trades, err := ex.GetHistoricTrades(t.Context(), tc.pair, tc.asset, start, end)
 				require.NoErrorf(t, err, "GetHistoricTrades must not error for three pages of %s trades", tc.name)
 				require.Lenf(t, trades, len(times), "GetHistoricTrades must return every %s trade of three pages once", tc.name)
-				ids := make(map[string]bool, len(trades))
+				byID := make(map[string]int, len(trades))
 				for i := range trades {
 					require.Falsef(t, i > 0 && trades[i].Timestamp.Before(trades[i-1].Timestamp), "GetHistoricTrades must return %s trades oldest first", tc.name)
-					ids[trades[i].TID] = true
+					byID[trades[i].TID] = i
 				}
-				var missing []string
 				for i := range times {
-					if id := strconv.Itoa(len(times) - i); !ids[id] {
-						missing = append(missing, id)
-					}
+					id := strconv.Itoa(len(times) - i)
+					j, ok := byID[id]
+					require.Truef(t, ok, "GetHistoricTrades must return %s trade %s of the three pages", tc.name, id)
+					got := &trades[j]
+					require.Equalf(t, tradeFields(ex.Name, tc.pair, tc.asset, historicTradeSide(tc.asset), 70000+float64(i)/100, 0.01+float64(i)/1e6, time.UnixMilli(times[i])), tradeFields(got.Exchange, got.CurrencyPair, got.AssetType, got.Side, got.Price, got.Amount, got.Timestamp), "GetHistoricTrades must return the expected fields for %s trade %s", tc.name, id)
 				}
-				assert.Emptyf(t, missing, "GetHistoricTrades should return every %s trade of the three pages", tc.name)
 				assert.Equalf(t, [][2]int64{{start.UnixMilli(), end.UnixMilli()}, {start.UnixMilli(), times[tradesPageLimit-1]}, {start.UnixMilli(), times[2*tradesPageLimit-2]}}, windows, "GetHistoricTrades should read each page of %s trades from the start to its predecessor's oldest trade", tc.name)
 			})
 		}
@@ -5044,24 +5048,62 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) { //nolint:tparallel // the f
 	t.Run("scenarios", func(t *testing.T) {
 		t.Run("Lightning invoice", func(t *testing.T) {
 			t.Parallel()
-			var sent []string
-			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				response := `[[["LNX",["LNX"]]]]`
-				if r.URL.Path == "/v2/auth/w/withdraw" {
-					body, err := io.ReadAll(r.Body)
-					assert.NoError(t, err, "Reading the withdrawal's body should not error")
-					sent = append(sent, string(body))
-					response = `[1568742390999,"acc_wd-req",null,null,[13080092,null,"lnx",null,"exchange",0.001,null,null,0],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`
-				}
-				_, err := w.Write([]byte(response))
-				assert.NoError(t, err, "Writing the response should not error")
-			}))
-			req := &withdraw.Request{Exchange: ex.Name, Currency: currency.NewCode("LNX"), Amount: 0.001, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: "lnbc1invoice"}}
-			resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), req)
-			require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for a Lightning withdrawal")
-			assert.Equal(t, "13080092", resp.ID, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
-			require.Len(t, sent, 1, "WithdrawCryptocurrencyFunds must send one withdrawal")
-			assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"lnbc1invoice"}`, sent[0], "a Lightning withdrawal should send its invoice in place of an address and an amount")
+			for _, tc := range []struct {
+				name    string
+				invoice string
+				chain   string
+				amount  float64
+				fee     float64
+				err     error
+			}{
+				{name: "asking for no amount", invoice: "lnbc1invoice", amount: 0.001, err: errLightningInvoiceAmountMissing},
+				{name: "asking for the amount", invoice: testLightningInvoice, amount: 0.0025},
+				{name: "asking for the amount in upper case", invoice: strings.ToUpper(testLightningInvoice), amount: 0.0025},
+				{name: "asking for the amount in trillionths", invoice: testLightningInvoicePico, amount: 0.00967878534},
+				{name: "asking for the amount of 1,000 satoshis", invoice: "lnbc10u1" + testLightningInvoiceData, amount: 0.00001},
+				{name: "asking for the amount of a satoshi", invoice: "lnbc10n1" + testLightningInvoiceData, amount: 0.00000001},
+				{name: "asking for the amount of 1.001 bitcoin", invoice: "lnbc1001m1" + testLightningInvoiceData, amount: 1.001},
+				{name: "asking for the amount of 0.200000001 bitcoin", invoice: "lnbc200000001n1" + testLightningInvoiceData, amount: 0.200000001},
+				{name: "asking for the amount in trillionths in upper case", invoice: strings.ToUpper(testLightningInvoicePico), amount: 0.00967878534},
+				{name: "asking for the amount over the chain named, with a fee given", invoice: testLightningInvoice, chain: "lnx", amount: 0.0025, fee: 0.0001},
+				{name: "asking for another amount", invoice: testLightningInvoice, amount: 0.001, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for another amount over the chain named in upper case", invoice: testLightningInvoice, chain: "LNX", amount: 0.001, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for an amount the request rounds to eight decimals", invoice: testLightningInvoicePico, amount: 0.00967879, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for a millisatoshi more than the request", invoice: testLightningInvoicePico, amount: 0.00967878533, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for a tenth of a millisatoshi less than the request", invoice: testLightningInvoicePico, amount: 0.009678785341, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for a tenth of a millisatoshi more than the request", invoice: testLightningInvoicePico, amount: 0.009678785339, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for the request's amount less its fee", invoice: testLightningInvoice, amount: 0.0026, fee: 0.0001, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for the request's amount with its fee added", invoice: testLightningInvoice, amount: 0.0024, fee: 0.0001, err: errLightningInvoiceAmountMismatch},
+				{name: "asking for 25 bitcoin, a millisatoshi less than the request", invoice: "lnbc251" + testLightningInvoiceData, amount: 25.00000000001, err: errLightningInvoiceAmountMismatch},
+				{name: "for a request amount that is not a number", invoice: testLightningInvoice, amount: math.NaN(), err: errLightningInvoiceAmountMismatch},
+				{name: "on testnet", invoice: "lntb2500u1" + testLightningInvoiceData, amount: 0.0025, err: errInvalidLightningInvoice},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					var sent []string
+					ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						response := `[[["LNX",["LNX"]]]]`
+						if r.URL.Path == "/v2/auth/w/withdraw" {
+							body, err := io.ReadAll(r.Body)
+							assert.NoError(t, err, "Reading the withdrawal's body should not error")
+							sent = append(sent, string(body))
+							response = `[1568742390999,"acc_wd-req",null,null,[13080092,null,"lnx",null,"exchange",0.001,null,null,0],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`
+						}
+						_, err := w.Write([]byte(response))
+						assert.NoError(t, err, "Writing the response should not error")
+					}))
+					req := &withdraw.Request{Exchange: ex.Name, Currency: currency.NewCode("LNX"), Amount: tc.amount, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: tc.invoice, Chain: tc.chain, FeeAmount: tc.fee}}
+					resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), req)
+					require.ErrorIsf(t, err, tc.err, "WithdrawCryptocurrencyFunds must return the expected error for a Lightning invoice %s", tc.name)
+					if tc.err != nil {
+						assert.Emptyf(t, sent, "WithdrawCryptocurrencyFunds should send no withdrawal for a Lightning invoice %s", tc.name)
+						return
+					}
+					assert.Equal(t, "13080092", resp.ID, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+					require.Len(t, sent, 1, "WithdrawCryptocurrencyFunds must send one withdrawal")
+					assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"`+tc.invoice+`"}`, sent[0], "a Lightning withdrawal should send its invoice in place of an address and an amount")
+				})
+			}
 		})
 
 		t.Run("travel rule", func(t *testing.T) {
@@ -5174,6 +5216,62 @@ func TestWithdrawalTravelRule(t *testing.T) {
 			got, err := withdrawalTravelRule(&tc.travel)
 			require.ErrorIsf(t, err, tc.err, "withdrawalTravelRule must return the expected error for %s", tc.name)
 			assert.Equalf(t, tc.exp, got, "withdrawalTravelRule should return the travel rule details of %s", tc.name)
+		})
+	}
+}
+
+// testLightningInvoice asks for 2500u, 0.0025 BTC, and testLightningInvoicePico for 9678785340p, 0.00967878534 BTC: two
+// of BOLT11's examples, https://github.com/lightning/bolts/blob/191462825ae341f0a27098765c075f01ca9bc6c2/11-payment-encoding.md#examples.
+// testLightningInvoiceData is the first's data part, after its human-readable part and separator
+const (
+	testLightningInvoice     = "lnbc2500u1" + testLightningInvoiceData
+	testLightningInvoiceData = "pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpu9qrsgquk0rl77nj30yxdy8j9vdx85fkpmdla2087ne0xh8nhedh8w27kyke0lp53ut353s06fv3qfegext0eh0ymjpf39tuven09sam30g4vgpfna3rh"
+	testLightningInvoicePico = "lnbc9678785340p1pwmna7lpp5gc3xfm08u9qy06djf8dfflhugl6p7lgza6dsjxq454gxhj9t7a0sd8dgfkx7cmtwd68yetpd5s9xar0wfjn5gpc8qhrsdfq24f5ggrxdaezqsnvda3kkum5wfjkzmfqf3jkgem9wgsyuctwdus9xgrcyqcjcgpzgfskx6eqf9hzqnteypzxz7fzypfhg6trddjhygrcyqezcgpzfysywmm5ypxxjemgw3hxjmn8yptk7untd9hxwg3q2d6xjcmtv4ezq7pqxgsxzmnyyqcjqmt0wfjjq6t5v4khxsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygsxqyjw5qcqp2rzjq0gxwkzc8w6323m55m4jyxcjwmy7stt9hwkwe2qxmy8zpsgg7jcuwz87fcqqeuqqqyqqqqlgqqqqn3qq9q9qrsgqrvgkpnmps664wgkp43l22qsgdw4ve24aca4nymnxddlnp8vh9v2sdxlu5ywdxefsfvm0fq3sesf08uf6q9a2ke0hc9j6z6wlxg5z5kqpu2v9wz"
+)
+
+func TestLightningInvoiceAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		invoice string
+		exp     string
+		err     error
+	}{
+		{name: "two bitcoin", invoice: "lnbc21" + testLightningInvoiceData, exp: "2"},
+		{name: "ten bitcoin", invoice: "lnbc101" + testLightningInvoiceData, exp: "10"},
+		{name: "1140 thousandths", invoice: "lnbc1140m1" + testLightningInvoiceData, exp: "1.14"},
+		{name: "13 thousandths", invoice: "lnbc13m1" + testLightningInvoiceData, exp: "0.013"},
+		{name: "2500 millionths", invoice: testLightningInvoice, exp: "0.0025"},
+		{name: "1000 millionths", invoice: "lnbc1000u1" + testLightningInvoiceData, exp: "0.001"},
+		{name: "1001 thousandths", invoice: "lnbc1001m1" + testLightningInvoiceData, exp: "1.001"},
+		{name: "15 millionths", invoice: "lnbc15u1" + testLightningInvoiceData, exp: "0.000015"},
+		{name: "11 billionths", invoice: "lnbc11n1" + testLightningInvoiceData, exp: "0.000000011"},
+		{name: "9678785340 trillionths", invoice: testLightningInvoicePico, exp: "0.00967878534"},
+		{name: "990 trillionths", invoice: "lnbc990p1" + testLightningInvoiceData, exp: "0.00000000099"},
+		{name: "one millisatoshi", invoice: "lnbc10p1" + testLightningInvoiceData, exp: "0.00000000001"},
+		{name: "ten millisatoshis", invoice: "lnbc100p1" + testLightningInvoiceData, exp: "0.0000000001"},
+		{name: "a bitcoin and a millisatoshi in trillionths", invoice: "lnbc1000000000010p1" + testLightningInvoiceData, exp: "1.00000000001"},
+		{name: "upper case", invoice: strings.ToUpper(testLightningInvoice), exp: "0.0025"},
+		{name: "no amount", invoice: "lnbc1" + testLightningInvoiceData, err: errLightningInvoiceAmountMissing},
+		{name: "trillionths short of a millisatoshi", invoice: "lnbc2500000001p1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "12 trillionths", invoice: "lnbc12p1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "unknown multiplier", invoice: "lnbc2500x1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "multiplier alone", invoice: "lnbcu1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "signed amount", invoice: "lnbc+2500u1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "amount with an underscore", invoice: "lnbc2_500u1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "testnet", invoice: "lntb2500u1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "signet", invoice: "lntbs2500u1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "regtest", invoice: "lnbcrt2500u1" + testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "no separator", invoice: testLightningInvoiceData, err: errInvalidLightningInvoice},
+		{name: "empty", err: errInvalidLightningInvoice},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := lightningInvoiceAmount(tc.invoice)
+			require.ErrorIsf(t, err, tc.err, "lightningInvoiceAmount must return the expected error for %s", tc.name)
+			if tc.err == nil {
+				assert.Truef(t, decimal.MustFromString(tc.exp).Equal(got), "lightningInvoiceAmount should return %s BTC for %s, not %s", tc.exp, tc.name, got)
+			}
 		})
 	}
 }
@@ -6772,4 +6870,19 @@ func TestChangePositionMargin(t *testing.T) { //nolint:tparallel // serial subte
 			Exchange: e.Name, Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, AllocatedMargin: 1150.61,
 		}, resp, "ChangePositionMargin should return the position's new collateral")
 	}
+}
+
+// historicTradeSide returns the side of a trade the history test server sends with a positive amount: a pair's trade
+// buys, and a funding trade provides funding, so sells
+func historicTradeSide(a asset.Item) order.Side {
+	if a == asset.MarginFunding {
+		return order.Sell
+	}
+	return order.Buy
+}
+
+// tradeFields returns a trade's exchange, base and quote currencies, asset, side, price, amount and time as text, for
+// comparing a trade GetHistoricTrades returns with the one the case expects
+func tradeFields(exchangeName string, p currency.Pair, a asset.Item, side order.Side, price, amount float64, at time.Time) []string {
+	return []string{exchangeName, p.Base.String(), p.Quote.String(), a.String(), side.String(), strconv.FormatFloat(price, 'f', -1, 64), strconv.FormatFloat(amount, 'f', -1, 64), at.UTC().Format(time.RFC3339Nano)}
 }

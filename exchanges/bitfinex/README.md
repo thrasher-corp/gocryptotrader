@@ -157,7 +157,8 @@ several needs its chain given. Bitfinex names Tether's USDT `UST`, which the wra
   as first names and a last name split at the name's last space, which is how Bitfinex takes a name; its financial
   institution names the provider the withdrawal goes to.
 + A Lightning withdrawal, over Bitfinex's `lnx` method, sends the request's address as its invoice and leaves out the
-  amount, which Bitfinex does not use for one.
+  amount, which Bitfinex does not use for one. The invoice states the amount requested, so an invoice without one, or
+  for another amount than the request's, read as the shortest decimal of its float, is refused.
 + `GetFeeByType` gives a cryptocurrency withdrawal the fee Bitfinex sets for its currency, or for a Tether token, which
   Bitfinex prices by chain, the fee of the token's chain. A fee request names no chain, so a token withdrawn over
   several, such as USDT, is refused.
