@@ -1,8 +1,6 @@
 package bybit
 
 import (
-	"strings"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -44,7 +42,7 @@ type CryptoLoanCollateralCoinsResponse struct {
 // CryptoLoanCollateralRatioConfig holds the collateral ratio tiers shared by a group of coins
 type CryptoLoanCollateralRatioConfig struct {
 	CollateralRatioList []CryptoLoanCollateralRatio `json:"collateralRatioList"`
-	Currencies          CryptoLoanCurrencies        `json:"currencies"`
+	Currencies          currency.Currencies         `json:"currencies"`
 }
 
 // CryptoLoanCollateralRatio holds the collateral ratio of a collateral quantity tier
@@ -52,28 +50,6 @@ type CryptoLoanCollateralRatio struct {
 	CollateralRatio types.Number `json:"collateralRatio"`
 	MaxValue        types.Number `json:"maxValue"`
 	MinValue        types.Number `json:"minValue"`
-}
-
-// CryptoLoanCurrencies holds coins Bybit sends as one comma separated string, such as "BTC,ETH,XRP"
-type CryptoLoanCurrencies []currency.Code
-
-// UnmarshalJSON decodes a comma separated string of coins
-func (c *CryptoLoanCurrencies) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	if s == "" {
-		*c = nil
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	codes := make(CryptoLoanCurrencies, len(parts))
-	for i := range parts {
-		codes[i] = currency.NewCode(strings.TrimSpace(parts[i]))
-	}
-	*c = codes
-	return nil
 }
 
 // CryptoLoanCurrencyLiquidation holds the order in which a collateral coin is liquidated

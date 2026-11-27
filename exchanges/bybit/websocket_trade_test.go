@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -927,20 +925,14 @@ func TestWebsocketCancelOrder(t *testing.T) {
 // getWebsocketInstance returns a websocket instance copy for live bi-directional testing
 func getWebsocketInstance(t *testing.T) *Exchange {
 	t.Helper()
-	cfg := &config.Config{}
-	root, err := testutils.RootPathFromCWD()
-	require.NoError(t, err, "RootPathFromCWD must not error")
-	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
 	pairs := &e.CurrencyPairs
 	ex := new(Exchange)
-	ex.SetDefaults()
-	bConf, err := cfg.GetExchangeConfig("Bybit")
-	require.NoError(t, err, "GetExchangeConfig must not error")
-	bConf.API.AuthenticatedSupport = true
-	bConf.API.AuthenticatedWebsocketSupport = true
-	bConf.API.Credentials.Key = apiCredentials.Key
-	bConf.API.Credentials.Secret = apiCredentials.Secret
-	require.NoError(t, ex.Setup(bConf), "Setup must not error")
+	require.NoError(t, testexch.SetupWithConfig(ex, func(c *config.Exchange) {
+		c.API.AuthenticatedSupport = true
+		c.API.AuthenticatedWebsocketSupport = true
+		c.API.Credentials.Key = apiCredentials.Key
+		c.API.Credentials.Secret = apiCredentials.Secret
+	}), "SetupWithConfig must not error")
 	ex.CurrencyPairs.Load(pairs)
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	return ex

@@ -293,6 +293,30 @@ func TestFeesUnmarshalBSONValue(t *testing.T) {
 	}
 }
 
+func TestFeesIsZero(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		fees Fees
+		exp  bool
+	}{
+		{name: "not reported", fees: Fees{}, exp: true},
+		{name: "no fees", fees: newTestFees(t)},
+		{name: "one currency", fees: newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: 0.15})},
+		{name: "several currencies", fees: newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 0.01}, FeeAmount{Currency: currency.USDT, Amount: -0.2})},
+		{name: "zero amount", fees: newTestFees(t, FeeAmount{Currency: currency.BTC})},
+		{name: "several zero amounts", fees: newTestFees(t, FeeAmount{Currency: currency.BTC}, FeeAmount{Currency: currency.USDT})},
+		{name: "rebate", fees: newTestFees(t, FeeAmount{Currency: currency.USDT, Amount: -0.2})},
+		{name: "amounts summing to zero", fees: newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 0.2}, FeeAmount{Currency: currency.USDT, Amount: -0.2})},
+		{name: "three currencies", fees: newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 0.01}, FeeAmount{Currency: currency.ETH, Amount: 0.5}, FeeAmount{Currency: currency.USDT, Amount: -0.2})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.fees.IsZero(), "IsZero should report only fees that were not reported as zero")
+		})
+	}
+}
+
 func TestFeesEqual(t *testing.T) {
 	t.Parallel()
 	btc := newTestFees(t, FeeAmount{Currency: currency.BTC, Amount: 1})

@@ -418,44 +418,108 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
 	require.Error(t, callRecord(t, http.MethodPost, "/test/array-err", []byte(`[{}]`)), "HTTPRecord must error for invalid array JSON")
 
-	// Requests recording into one file at once each keep their entry. Each request is held once it has read its body
-	// until every request has read its own, so that they all reach the file together; a recorder reading bodies under
-	// its file lock would hold the others back until the deadline instead
-	const recordings = 20
-	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-	defer cancel()
-	var bodiesRead atomic.Int32
-	var heldBack atomic.Bool
-	allRead := make(chan struct{})
-	resps := make([]*http.Response, recordings)
-	for i := range resps {
-		resp := makeResponse(t, http.MethodPost, "https://api.abc.com/test/concurrent/"+strconv.Itoa(i), content)
-		t.Cleanup(func() { assert.NoError(t, resp.Body.Close(), "Close should not error") })
-		getBody := resp.Request.GetBody
-		resp.Request.GetBody = func() (io.ReadCloser, error) {
-			if bodiesRead.Add(1) == recordings {
-				close(allRead)
+	t.Run("concurrent recordings each keep their entry", func(t *testing.T) {
+		// Each barrier expects 20 arrivals. Holding the file lock across GetBody, the returned reader's first Read or the
+		// Read that supplies its last byte makes a waiter time out or the twentieth arrival's TryLock fail
+		const recordings = 20
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		gotBody, startedRead, readBody := newBarrier(ctx.Done(), recordings), newBarrier(ctx.Done(), recordings), newBarrier(ctx.Done(), recordings)
+		bodies := make([][]byte, recordings)
+		resps := make([]*http.Response, recordings)
+		for i := range resps {
+			bodies[i] = []byte(`{"recording":` + strconv.Itoa(i) + `}`)
+			resp := makeResponse(t, http.MethodPost, "https://api.abc.com/test/concurrent/"+strconv.Itoa(i), bodies[i])
+			t.Cleanup(func() { assert.NoError(t, resp.Body.Close(), "Close should not error") })
+			// The transport has read a sent request's own body, so only GetBody can supply it
+			resp.Request.Body = http.NoBody
+			getBody := resp.Request.GetBody
+			resp.Request.GetBody = func() (io.ReadCloser, error) {
+				gotBody.wait()
+				body, err := getBody()
+				return &heldReader{ReadCloser: body, size: len(bodies[i]), atStart: startedRead.wait, atEnd: readBody.wait}, err
 			}
-			select {
-			case <-allRead:
-			case <-ctx.Done():
-				heldBack.Store(true)
-			}
-			return getBody()
+			resps[i] = resp
 		}
-		resps[i] = resp
+		var wg sync.WaitGroup
+		for _, resp := range resps {
+			wg.Go(func() {
+				assert.NoError(t, HTTPRecord(resp, service, content, 4), "HTTPRecord should not error when recording concurrently")
+			})
+		}
+		wg.Wait()
+		for _, b := range []struct {
+			point string
+			*barrier
+		}{{"GetBody", gotBody}, {"its first body read", startedRead}, {"the end of its body", readBody}} {
+			assert.Equalf(t, int32(recordings), b.arrived.Load(), "HTTPRecord should reach %s once for each request", b.point)
+			assert.Falsef(t, b.timedOut.Load(), "HTTPRecord should reach %s for every request before waiting for another recording", b.point)
+			assert.Falsef(t, b.lockHeld.Load(), "HTTPRecord should not hold its file lock while every request is at %s", b.point)
+		}
+		payload, err := os.ReadFile(filePath)
+		require.NoError(t, err, "ReadFile must not error")
+		var recorded VCRMock
+		require.NoError(t, json.Unmarshal(payload, &recorded), "Unmarshal must not error")
+		for i, body := range bodies {
+			entries := recorded.Routes["/test/concurrent/"+strconv.Itoa(i)][http.MethodPost]
+			if assert.Lenf(t, entries, 1, "HTTPRecord should keep one entry for recording %d", i) {
+				assert.JSONEqf(t, string(body), entries[0].BodyParams, "HTTPRecord should keep recording %d's own request body", i)
+			}
+		}
+	})
+}
+
+// barrier holds each caller of wait until n callers have arrived or done is closed, and notes whether the recording
+// lock was held when the last arrived
+type barrier struct {
+	done     <-chan struct{}
+	n        int32
+	arrived  atomic.Int32
+	timedOut atomic.Bool
+	lockHeld atomic.Bool
+	all      chan struct{}
+}
+
+func newBarrier(done <-chan struct{}, n int32) *barrier {
+	return &barrier{done: done, n: n, all: make(chan struct{})}
+}
+
+func (b *barrier) wait() {
+	if b.arrived.Add(1) == b.n {
+		if httpRecordMu.TryLock() {
+			httpRecordMu.Unlock()
+		} else {
+			b.lockHeld.Store(true)
+		}
+		close(b.all)
 	}
-	var wg sync.WaitGroup
-	for _, resp := range resps {
-		wg.Go(func() {
-			assert.NoError(t, HTTPRecord(resp, service, content, 4), "HTTPRecord should not error when recording concurrently")
-		})
+	select {
+	case <-b.all:
+	case <-b.done:
+		select {
+		case <-b.all:
+		default:
+			b.timedOut.Store(true)
+		}
 	}
-	wg.Wait()
-	assert.False(t, heldBack.Load(), "HTTPRecord should read a request's body before waiting for other recordings")
-	for i := range recordings {
-		assertRouteMethodLen(t, "/test/concurrent/"+strconv.Itoa(i), http.MethodPost, 1)
+}
+
+// heldReader runs atStart before its first Read and atEnd once size bytes have been read from it
+type heldReader struct {
+	io.ReadCloser
+	size           int
+	read           int
+	started, ended sync.Once
+	atStart, atEnd func()
+}
+
+func (r *heldReader) Read(p []byte) (int, error) {
+	r.started.Do(r.atStart)
+	n, err := r.ReadCloser.Read(p)
+	if r.read += n; r.read >= r.size {
+		r.ended.Do(r.atEnd)
 	}
+	return n, err
 }
 
 func TestIsExcluded(t *testing.T) {

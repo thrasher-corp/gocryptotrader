@@ -68,7 +68,7 @@ func TestGetCryptoLoanCollateralCoins(t *testing.T) {
 							MinValue:        10000,
 						},
 					},
-					Currencies: CryptoLoanCurrencies{currency.ATOM, currency.AAVE, currency.BTC, currency.BOB},
+					Currencies: currency.Currencies{currency.ATOM, currency.AAVE, currency.BTC, currency.BOB},
 				},
 			},
 			CurrencyLiquidationList: []CryptoLoanCurrencyLiquidation{
@@ -82,19 +82,6 @@ func TestGetCryptoLoanCollateralCoins(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result.CollateralRatioConfigList, "GetCryptoLoanCollateralCoins should return collateral ratio tiers")
-}
-
-func TestCryptoLoanCurrenciesUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	var got CryptoLoanCurrencies
-	require.NoError(t, json.Unmarshal([]byte(`"ATOM,AAVE,BTC,BOB"`), &got), "Unmarshal must not error")
-	exp := CryptoLoanCurrencies{currency.ATOM, currency.AAVE, currency.BTC, currency.BOB}
-	assert.Equal(t, exp, got, "Unmarshal should decode every coin")
-
-	require.NoError(t, json.Unmarshal([]byte(`""`), &got), "Unmarshal must not error on an empty string")
-	assert.Nil(t, got, "Unmarshal should decode an empty string as no coins")
-
-	assert.Error(t, json.Unmarshal([]byte(`1`), &got), "Unmarshal should reject a number")
 }
 
 func TestGetCryptoLoanMaxCollateralReductionAmount(t *testing.T) {

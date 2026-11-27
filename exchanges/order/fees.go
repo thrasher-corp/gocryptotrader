@@ -156,6 +156,12 @@ func (f *Fees) UnmarshalBSONValue(typ byte, data []byte) error {
 	return nil
 }
 
+// IsZero implements bson.Zeroer, reporting fees that were not reported as zero. Without it, a driver omitting empty
+// fields with OmitZeroStruct judges Fees by its exported fields, of which it has none, and drops reported fees too
+func (f Fees) IsZero() bool {
+	return !f.reported
+}
+
 // equal returns whether f and o hold the same presence and amounts
 func (f Fees) equal(o Fees) bool {
 	return f.reported == o.reported && slices.Equal(f.amounts, o.amounts)
