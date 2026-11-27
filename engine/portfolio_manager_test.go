@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -195,4 +196,47 @@ func (m *mockExchange) GetBase() *exchange.Base {
 
 func (m *mockExchange) GetCredentials(context.Context) (*accounts.Credentials, error) {
 	return &accounts.Credentials{Key: m.GetName()}, nil
+}
+
+func TestPortfolioManagerGetAddresses(t *testing.T) {
+	t.Parallel()
+	var nilManager *portfolioManager
+	assert.Nil(t, nilManager.GetAddresses(), "GetAddresses should return nil for a nil manager")
+
+	base := &portfolio.Base{Addresses: []portfolio.Address{{Address: "one"}}}
+	m, err := setupPortfolioManager(NewExchangeManager(), 0, base)
+	require.NoError(t, err, "setupPortfolioManager must not error")
+	assert.Nil(t, m.GetAddresses(), "GetAddresses should return nil until the manager runs")
+
+	m.started.Store(true)
+	got := m.GetAddresses()
+	require.Len(t, got, 1, "GetAddresses must return the address")
+	got[0].Address = "changed"
+	assert.Equal(t, "one", base.Addresses[0].Address, "GetAddresses should return a copy")
+}
+
+func TestInitPortfolioManager(t *testing.T) {
+	t.Parallel()
+	const address = "test-wallet-address"
+	bot := &Engine{
+		ExchangeManager: NewExchangeManager(),
+		Config:          &config.Config{Portfolio: &portfolio.Base{Addresses: []portfolio.Address{{Address: address, WhiteListed: true}}}},
+	}
+	bot.initPortfolioManager(t.Context())
+	require.NotNil(t, bot.portfolioManager, "initPortfolioManager must set up the manager while it is disabled")
+	assert.False(t, bot.portfolioManager.IsRunning(), "a disabled portfolio manager should not run")
+
+	withdrawManager, err := SetupWithdrawManager(bot.ExchangeManager, bot.portfolioManager, false)
+	require.NoError(t, err, "SetupWithdrawManager must not error")
+	assert.False(t, withdrawManager.portfolioManager.IsWhiteListed(address), "a stopped portfolio manager should whitelist nothing")
+
+	require.NoError(t, bot.SetSubsystem(PortfolioManagerName, true), "SetSubsystem must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, bot.SetSubsystem(PortfolioManagerName, false), "SetSubsystem should not error")
+	})
+	assert.True(t, withdrawManager.portfolioManager.IsWhiteListed(address), "the withdraw manager should see the portfolio manager enabled at runtime")
+
+	existing := bot.portfolioManager
+	bot.initPortfolioManager(t.Context())
+	assert.Same(t, existing, bot.portfolioManager, "initPortfolioManager should keep an existing manager")
 }

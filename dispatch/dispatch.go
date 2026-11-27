@@ -15,6 +15,7 @@ import (
 var (
 	ErrNotRunning               = errors.New("dispatcher not running")
 	ErrDispatcherAlreadyRunning = errors.New("dispatcher already running")
+	ErrPipeClosed               = errors.New("dispatch pipe closed")
 )
 
 var (
@@ -148,6 +149,8 @@ func (d *Dispatcher) stop() error {
 		}
 		d.routes[key] = nil
 	}
+	// The closed pipes are counted out here, as unsubscribe returns early once the dispatcher has stopped
+	d.subscriberCount.Store(0)
 	d.routesMtx.Unlock()
 
 	log.Debugln(log.DispatchMgr, "Dispatch manager shutdown")

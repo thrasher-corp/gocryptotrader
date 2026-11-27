@@ -51,9 +51,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	t.Parallel()
 	em, pm := withdrawManagerTestHelper(t)
 	m, err := SetupWithdrawManager(em, pm, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "SetupWithdrawManager must not error")
 	bank := banking.Account{
 		Enabled:             true,
 		ID:                  "test-bank-01",
@@ -84,40 +82,33 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "SubmitWithdrawal should return ErrFunctionNotSupported for a fiat withdrawal the exchange does not support")
 
 	req.Type = withdraw.Crypto
 	req.Currency = currency.BTC
 	req.Crypto.Address = "1337"
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	assert.ErrorIs(t, err, withdraw.ErrStrAddressNotWhiteListed)
+	assert.ErrorIs(t, err, withdraw.ErrStrAddressNotWhiteListed, "SubmitWithdrawal should refuse an address that is not whitelisted")
 
 	var wg sync.WaitGroup
-	err = pm.Start(t.Context(), &wg)
-	if err != nil {
-		t.Error(err)
-	}
-	err = pm.AddAddress("1337", "", req.Currency, 1337)
-	if err != nil {
-		t.Error(err)
-	}
-	adds := pm.GetAddresses()
+	require.NoError(t, pm.Start(t.Context(), &wg), "portfolio manager Start must not error")
+	require.NoError(t, pm.AddAddress("1337", "", req.Currency, 1337), "AddAddress must not error")
+	adds := pm.base.Addresses
 	adds[0].WhiteListed = true
-	assert.NoError(t, err)
 
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	assert.ErrorIs(t, err, withdraw.ErrStrExchangeNotSupportedByAddress)
+	assert.ErrorIs(t, err, withdraw.ErrStrExchangeNotSupportedByAddress, "SubmitWithdrawal should refuse an address that does not list the exchange")
 
 	adds[0].SupportedExchanges = withdrawManagerTestExchangeName
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SubmitWithdrawal should return ErrAuthenticationSupportNotEnabled for an exchange without authenticated API support")
 
 	_, err = m.SubmitWithdrawal(t.Context(), nil)
-	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+	assert.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "SubmitWithdrawal should refuse a nil request")
 
 	m.isDryRun = true
 	_, err = m.SubmitWithdrawal(t.Context(), req)
-	assert.NoError(t, err)
+	assert.NoError(t, err, "SubmitWithdrawal should not error in dry run mode")
 }
 
 func TestWithdrawEventByID(t *testing.T) {

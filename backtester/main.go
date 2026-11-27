@@ -260,7 +260,7 @@ func main() {
 			}
 			for i := range tasks {
 				if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
-					err = runManager.StopTask(tasks[i].MetaData.ID)
+					_, err = runManager.StopTask(tasks[i].MetaData.ID)
 					if err != nil {
 						log.Errorln(common.Backtester, err)
 						continue

@@ -182,8 +182,8 @@ func (m *OrderManager) cancelAllOrders(ctx context.Context, exchanges []exchange
 	}
 }
 
-// Cancel will find the order in the OrderManager, send a cancel request
-// to the exchange and if successful, update the status of the order
+// Cancel sends a cancel request to the exchange and, once the exchange has cancelled the order, marks the order
+// cancelled when the OrderManager holds it
 func (m *OrderManager) Cancel(ctx context.Context, cancel *order.Cancel) error {
 	return m.cancel(ctx, cancel, true)
 }
@@ -235,11 +235,13 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 		err = fmt.Errorf("%v - Failed to cancel order: %w", cancel.Exchange, err)
 		return err
 	}
-	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
-	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w",
-			cancel.Exchange, cancel.OrderID, err)
-		return err
+	od, lookupErr := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
+	if lookupErr != nil {
+		// An order the OrderManager does not hold, such as one placed outside it, has no stored status to update
+		msg := fmt.Sprintf("Exchange %s order ID=%v cancelled.", exch.GetName(), cancel.OrderID)
+		log.Debugln(log.OrderMgr, msg)
+		m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
+		return nil
 	}
 	od.Status = order.Cancelled
 	err = m.orderStore.updateExisting(od)

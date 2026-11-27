@@ -256,7 +256,7 @@ func (m *portfolioManager) GetAddresses() []portfolio.Address {
 	if m == nil || !m.IsRunning() {
 		return nil
 	}
-	return m.base.Addresses
+	return m.base.GetAddresses()
 }
 
 // GetPortfolio returns a copy of the internal portfolio base for
