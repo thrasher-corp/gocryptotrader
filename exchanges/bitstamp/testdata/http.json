@@ -545,7 +545,7 @@
   "/api/v2/collateral_change_impact/": {
    "POST": [
     {
-     "bodyParams": "collateral_deltas=%7B%22BTC%22%3A%22-0.01%22%2C%22USD%22%3A%22120%22%7D&margin_mode=CROSS",
+     "bodyParams": "{\"margin_mode\":\"CROSS\",\"collateral_deltas\":{\"BTC\":\"-0.01\",\"USD\":\"120\"}}",
      "data": {
       "estimated_initial_margin_ratio": "50.00",
       "estimated_liquidation_prices": {
@@ -685,7 +685,7 @@
   "/api/v2/crypto-transactions/deposits/1/": {
    "POST": [
     {
-     "bodyParams": "originator_info=%7B%22retail_info%22%3A%7B%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%7D%7D&originator_thirdparty=true",
+     "bodyParams": "{\"originator_thirdparty\":true,\"originator_info\":{\"retail_info\":{\"first_name\":\"John\",\"last_name\":\"Doe\"}}}",
      "data": null,
      "headers": {
       "Content-Type": [
@@ -1705,7 +1705,7 @@
   "/api/v2/get_max_order_amount/": {
    "POST": [
     {
-     "bodyParams": "additional_collateral=%7B%22USD%22%3A%22120%22%7D&leverage=3&margin_mode=ISOLATED&market=BTC%2FUSD-PERP&order_type=LIMIT&price=84000&side=BUY",
+     "bodyParams": "{\"market\":\"BTC/USD-PERP\",\"margin_mode\":\"ISOLATED\",\"leverage\":3,\"order_type\":\"LIMIT\",\"side\":\"BUY\",\"price\":84000,\"additional_collateral\":{\"USD\":\"120\"}}",
      "data": {
       "maximum_order_amount": "1.23456",
       "maximum_order_amount_currency": "BTC",
@@ -4934,7 +4934,7 @@
    ],
    "POST": [
     {
-     "bodyParams": "description=Cold+wallet+owner&retail_info=%7B%22country%22%3A%22AU%22%2C%22date_of_birth%22%3A%221990-01-31%22%2C%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%7D",
+     "bodyParams": "{\"retail_info\":{\"first_name\":\"John\",\"last_name\":\"Doe\",\"date_of_birth\":\"1990-01-31\",\"country\":\"AU\"},\"description\":\"Cold wallet owner\"}",
      "data": {
       "description": "Cold wallet owner",
       "id": "258b8c23-48c0-4916-bba9-0dd47bcdd7cf",

@@ -149,7 +149,29 @@ func TestWithHeaders(t *testing.T) {
 
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
-	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
-	assert.False(t, hasRetryNotAllowed(t.Context()))
-	assert.False(t, hasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
+	assert.True(t, HasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
+	assert.False(t, HasRetryNotAllowed(t.Context()))
+	assert.False(t, HasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
+}
+
+func TestHasRetryNotAllowed(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		mark func(context.Context) context.Context
+		exp  bool
+	}{
+		{name: "marked", mark: WithRetryNotAllowed, exp: true},
+		{name: "marked beneath other values", mark: func(ctx context.Context) context.Context {
+			return WithVerbose(WithDelayNotAllowed(WithRetryNotAllowed(ctx)))
+		}, exp: true},
+		{name: "unmarked", mark: func(ctx context.Context) context.Context { return ctx }},
+		{name: "marked only with other values", mark: func(ctx context.Context) context.Context { return WithDelayNotAllowed(WithVerbose(ctx)) }},
+		{name: "another value under its key", mark: func(ctx context.Context) context.Context { return context.WithValue(ctx, retryNotAllowedKey{}, true) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, HasRetryNotAllowed(tc.mark(t.Context())), "HasRetryNotAllowed should report only a context WithRetryNotAllowed marked")
+		})
+	}
 }

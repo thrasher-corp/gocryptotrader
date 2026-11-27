@@ -575,7 +575,7 @@
       "trace_id": "trace_007"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"contract_martingale\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"direction\\\":\\\"buy\\\",\\\"invest_amount\\\":\\\"1000\\\",\\\"leverage\\\":\\\"5\\\",\\\"max_orders\\\":5,\\\"price_deviation\\\":\\\"0.02\\\",\\\"take_profit_ratio\\\":\\\"0.05\\\"}\"}",
+     "bodyParams": "{\"strategy_type\":\"contract_martingale\",\"market\":\"BTC_USDT\",\"create_params\":{\"invest_amount\":\"1000\",\"price_deviation\":\"0.02\",\"max_orders\":5,\"take_profit_ratio\":\"0.05\",\"direction\":\"buy\",\"leverage\":\"5\"}}",
      "headers": {}
     }
    ]
@@ -596,7 +596,7 @@
       "trace_id": "trace_005"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"futures_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"direction\\\":\\\"long\\\",\\\"grid_num\\\":20,\\\"high_price\\\":\\\"110000\\\",\\\"leverage\\\":\\\"5\\\",\\\"low_price\\\":\\\"90000\\\",\\\"money\\\":\\\"1000\\\",\\\"price_type\\\":0}\"}",
+     "bodyParams": "{\"strategy_type\":\"futures_grid\",\"market\":\"BTC_USDT\",\"create_params\":{\"money\":\"1000\",\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20,\"price_type\":0,\"leverage\":\"5\",\"direction\":\"long\"}}",
      "headers": {}
     }
    ]
@@ -617,7 +617,7 @@
       "trace_id": "trace_004"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"infinite_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"money\\\":\\\"1000\\\",\\\"price_floor\\\":\\\"80000\\\",\\\"profit_per_grid\\\":\\\"0.003\\\"}\"}",
+     "bodyParams": "{\"strategy_type\":\"infinite_grid\",\"market\":\"BTC_USDT\",\"create_params\":{\"money\":\"1000\",\"price_floor\":\"80000\",\"profit_per_grid\":\"0.003\"}}",
      "headers": {}
     }
    ]
@@ -638,7 +638,7 @@
       "trace_id": "trace_003"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"margin_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"direction\\\":\\\"long\\\",\\\"grid_num\\\":20,\\\"high_price\\\":\\\"110000\\\",\\\"leverage\\\":\\\"3\\\",\\\"low_price\\\":\\\"90000\\\",\\\"money\\\":\\\"1000\\\",\\\"price_type\\\":0}\"}",
+     "bodyParams": "{\"strategy_type\":\"margin_grid\",\"market\":\"BTC_USDT\",\"create_params\":{\"money\":\"1000\",\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20,\"price_type\":0,\"leverage\":\"3\",\"direction\":\"long\"}}",
      "headers": {}
     }
    ]
@@ -790,7 +790,7 @@
       "trace_id": "trace_002"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"spot_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"grid_num\\\":20,\\\"high_price\\\":\\\"110000\\\",\\\"low_price\\\":\\\"90000\\\",\\\"money\\\":\\\"1000\\\",\\\"price_type\\\":1}\"}",
+     "bodyParams": "{\"strategy_type\":\"spot_grid\",\"market\":\"BTC_USDT\",\"create_params\":{\"money\":\"1000\",\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20,\"price_type\":1}}",
      "headers": {}
     }
    ]
@@ -811,7 +811,7 @@
       "trace_id": "trace_006"
      },
      "queryString": "",
-     "bodyParams": "{\"strategy_type\":\"spot_martingale\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"invest_amount\\\":\\\"1000\\\",\\\"max_orders\\\":5,\\\"price_deviation\\\":\\\"0.02\\\",\\\"take_profit_ratio\\\":\\\"0.05\\\"}\"}",
+     "bodyParams": "{\"strategy_type\":\"spot_martingale\",\"market\":\"BTC_USDT\",\"create_params\":{\"invest_amount\":\"1000\",\"price_deviation\":\"0.02\",\"max_orders\":5,\"take_profit_ratio\":\"0.05\"}}",
      "headers": {}
     }
    ]
@@ -3726,7 +3726,7 @@
       "min_amount": "7.06"
      },
      "queryString": "",
-     "bodyParams": "money=USDT\u0026items=%5B%7B%22asset%22%3A%22BTC%22%2C%22ratio%22%3A%2233%22%7D%2C%7B%22asset%22%3A%22ETH%22%2C%22ratio%22%3A%2233%22%7D%2C%7B%22asset%22%3A%22SOL%22%2C%22ratio%22%3A%2234%22%7D%5D",
+     "bodyParams": "{\"money\":\"USDT\",\"items\":[{\"asset\":\"BTC\",\"ratio\":\"33\"},{\"asset\":\"ETH\",\"ratio\":\"33\"},{\"asset\":\"SOL\",\"ratio\":\"34\"}]}",
      "headers": {}
     }
    ]
@@ -3785,7 +3785,7 @@
       "fund_source": "spot"
      },
      "queryString": "",
-     "bodyParams": "plan_period_type=monthly\u0026plan_period_day=1\u0026plan_period_hour=0\u0026plan_money=USDT\u0026plan_amount=10\u0026items=%5B%7B%22asset%22%3A%22BTC%22%2C%22ratio%22%3A%22100%22%7D%5D",
+     "bodyParams": "{\"plan_period_type\":\"monthly\",\"plan_period_day\":1,\"plan_period_hour\":0,\"plan_money\":\"USDT\",\"plan_amount\":\"10\",\"items\":[{\"asset\":\"BTC\",\"ratio\":\"100\"}]}",
      "headers": {}
     }
    ]
@@ -10566,7 +10566,7 @@
       ]
      },
      "queryString": "",
-     "bodyParams": "order_id=12344\u0026type=redeem\u0026collaterals=%5B%7B%22amount%22%3A%220.5%22%2C%22currency%22%3A%22BTC%22%7D%5D",
+     "bodyParams": "{\"order_id\":12344,\"type\":\"redeem\",\"collaterals\":[{\"currency\":\"BTC\",\"amount\":\"0.5\"}]}",
      "headers": {}
     }
    ]
@@ -10852,7 +10852,7 @@
       ]
      },
      "queryString": "",
-     "bodyParams": "order_id=1234\u0026repay_items=%5B%7B%22currency%22%3A%22USDT%22%2C%22repaid_all%22%3Atrue%7D%2C%7B%22amount%22%3A%221%22%2C%22currency%22%3A%22BTC%22%2C%22repaid_all%22%3Afalse%7D%5D",
+     "bodyParams": "{\"order_id\":1234,\"repay_items\":[{\"currency\":\"USDT\",\"repaid_all\":true},{\"currency\":\"BTC\",\"amount\":\"1\",\"repaid_all\":false}]}",
      "headers": {}
     }
    ]
@@ -19015,7 +19015,7 @@
     {
      "data": null,
      "queryString": "",
-     "bodyParams": "{\"name\":\"updated_key\",\"perms\":\"[{\\\"name\\\":\\\"wallet\\\",\\\"read_only\\\":true}]\"}",
+     "bodyParams": "{\"name\":\"updated_key\",\"perms\":[{\"name\":\"wallet\",\"read_only\":true}]}",
      "headers": {}
     }
    ]
@@ -20963,7 +20963,7 @@
     {
      "data": null,
      "queryString": "",
-     "bodyParams": "{\"currency\":\"[\\\"F16\\\"]\",\"is_all\":false}",
+     "bodyParams": "{\"currency\":[\"F16\"],\"is_all\":false}",
      "headers": {}
     }
    ]

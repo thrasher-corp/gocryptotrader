@@ -145,7 +145,7 @@ func (e *Exchange) keepListenKeyAlive(ctx context.Context, conn websocket.Connec
 			// The manager can close one connection without closing ShutdownC: it rolls back the
 			// connections already made when a later one fails. Stop renewing a key whose socket is gone,
 			// so a rolled-back connection does not go on burning one of the account's listen keys.
-			if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
+			if !conn.IsConnected() {
 				return
 			}
 			if err := e.ExtendListenKey(ctx, listenKey); err != nil {

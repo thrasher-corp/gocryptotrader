@@ -313,7 +313,7 @@ func applyHeaders(destination, headers http.Header) {
 // declined and drains and closes response bodies before retrying or returning
 // a retry-decision error.
 func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, incomingErr error, attempt int, verbose bool) (bool, error) {
-	if hasRetryNotAllowed(ctx) {
+	if HasRetryNotAllowed(ctx) {
 		return false, urlErrorForLog(incomingErr)
 	}
 
