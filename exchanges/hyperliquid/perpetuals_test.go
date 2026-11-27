@@ -410,10 +410,10 @@ func TestGetPerpetualDeployAuctionStatus(t *testing.T) {
 	result, err := e.GetPerpetualDeployAuctionStatus(t.Context())
 	require.NoError(t, err, "GetPerpetualDeployAuctionStatus must not error")
 	if mockTests {
-		exp := &GasAuctionResponse{StartTime: types.Time(time.Unix(1791180000, 0)), DurationSeconds: 111600, StartGas: 1098.12115292, EndGas: 571.8561851}
+		exp := &GasAuctionResponse{StartTime: types.Time(time.Unix(1791180000, 0)), Duration: types.DurationSeconds(31 * time.Hour), StartGas: 1098.12115292, EndGas: 571.8561851}
 		assert.Equal(t, exp, result, "GetPerpetualDeployAuctionStatus should decode a won auction")
 	} else {
-		assert.NotZero(t, result.DurationSeconds, "GetPerpetualDeployAuctionStatus should return the auction's duration")
+		assert.NotZero(t, result.Duration, "GetPerpetualDeployAuctionStatus should return the auction's duration")
 	}
 
 	_, err = newUnavailableServerExchange(t).GetPerpetualDeployAuctionStatus(t.Context())

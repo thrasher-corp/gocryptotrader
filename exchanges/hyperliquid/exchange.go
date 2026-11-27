@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -1239,7 +1240,7 @@ func formatTokenTransferAmount(amount float64, token *SpotTokenMetadata) (string
 	}
 	// The shortest text that reads back as the amount is sent when it fits the places allowed, as formatting to more places
 	// than it needs can add the float's binary residue as digits
-	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= decimals {
+	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); gctmath.FractionalDigits(shortest) <= decimals {
 		return shortest, nil
 	}
 	formatted, err := floatToDecimals(amount, decimals)
@@ -1249,14 +1250,6 @@ func formatTokenTransferAmount(amount float64, token *SpotTokenMetadata) (string
 	return formatted, nil
 }
 
-// decimalPlaces returns how many digits a number's text has after its decimal point
-func decimalPlaces(text string) int {
-	if point := strings.IndexByte(text, '.'); point >= 0 {
-		return len(text) - point - 1
-	}
-	return 0
-}
-
 // formatTransferAmount formats a positive, finite USDC transfer amount as the shortest text that reads back as it when
 // that has at most eight decimals, as formatTokenTransferAmount does a token's; one with more is rounded to eight when
 // that changes it by less than 1e-12 and leaves it above zero, as for a sum's binary residue, and refused otherwise
@@ -1264,7 +1257,7 @@ func formatTransferAmount(amount float64) (string, error) {
 	if err := validateTransferAmount(amount); err != nil {
 		return "", err
 	}
-	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= 8 {
+	if shortest := strconv.FormatFloat(amount, 'f', -1, 64); gctmath.FractionalDigits(shortest) <= 8 {
 		return shortest, nil
 	}
 	formatted, err := floatToWire(amount)

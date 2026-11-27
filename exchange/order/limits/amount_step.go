@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -132,20 +132,12 @@ func (a AmountStep) CommonBaseIncrement(other AmountStep) (decimal.Decimal, erro
 	denominatorGCD.GCD(nil, nil, firstRat.Denom(), secondRat.Denom())
 
 	resultRat := new(big.Rat).SetFrac(&numeratorLCM, &denominatorGCD)
-	scale := max(fractionalDigits(firstString), fractionalDigits(secondString))
+	scale := max(gctmath.FractionalDigits(firstString), gctmath.FractionalDigits(secondString))
 	result, err := decimal.NewFromString(resultRat.FloatString(scale))
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("cannot convert common base increment: %w", err)
 	}
 	return result, nil
-}
-
-func fractionalDigits(value string) int {
-	point := strings.IndexByte(value, '.')
-	if point == -1 {
-		return 0
-	}
-	return len(value) - point - 1
 }
 
 func (a AmountStep) orderIncrement() (decimal.Decimal, error) {

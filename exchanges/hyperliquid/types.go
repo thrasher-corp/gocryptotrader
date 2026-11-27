@@ -812,11 +812,11 @@ func unmarshalTuple(data []byte, targets ...any) error {
 // the auction has been won, and EndGas, the winning price, is zero until then
 type GasAuctionResponse struct {
 	// StartTime is sent in Unix seconds
-	StartTime       types.Time   `json:"startTimeSeconds"`
-	DurationSeconds uint64       `json:"durationSeconds"`
-	StartGas        types.Number `json:"startGas"`
-	CurrentGas      types.Number `json:"currentGas"`
-	EndGas          types.Number `json:"endGas"`
+	StartTime  types.Time            `json:"startTimeSeconds"`
+	Duration   types.DurationSeconds `json:"durationSeconds"`
+	StartGas   types.Number          `json:"startGas"`
+	CurrentGas types.Number          `json:"currentGas"`
+	EndGas     types.Number          `json:"endGas"`
 }
 
 // GossipPriorityAuctionStatusResponse contains the previous auctions' winners, which form the current gossip priority

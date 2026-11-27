@@ -3192,26 +3192,6 @@ func TestFormatTokenTransferAmount(t *testing.T) {
 	}
 }
 
-func TestDecimalPlaces(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		text string
-		exp  int
-	}{
-		{text: "10"},
-		{text: "0.5", exp: 1},
-		{text: "84.9371054562", exp: 10},
-		{text: "0.30000000000000004", exp: 17},
-		{text: "0.000000000000000001", exp: 18},
-		{text: "0.0000000000000000001", exp: 19},
-	} {
-		t.Run(tc.text, func(t *testing.T) {
-			t.Parallel()
-			assert.Equalf(t, tc.exp, decimalPlaces(tc.text), "decimalPlaces should count the digits after the decimal point of %s", tc.text)
-		})
-	}
-}
-
 // TestTokenTransferDecimals sends each token transfer of a UBTC balance as a portfolio margin account held it on 26
 // October, whose ten decimals, which UBTC's wei decimals allow, Hyperliquid accepts
 //

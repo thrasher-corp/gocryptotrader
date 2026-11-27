@@ -92,7 +92,7 @@ func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int 
 	// in the backend's last fractional place. The scaled difference is a whole
 	// number of those units, so only an equal result can hide discarded digits.
 	if result != 0 || decimal.MaxFractionalDigits == 0 ||
-		fractionalDigits(target)+fractionalDigits(sum) <= decimal.MaxFractionalDigits {
+		FractionalDigits(target.String())+FractionalDigits(sum.String()) <= decimal.MaxFractionalDigits {
 		return result
 	}
 
@@ -107,13 +107,12 @@ func CompareSignedPercentageDifferenceDecimal(x, y, target decimal.Decimal) int 
 	return difference.Cmp(targetRat)
 }
 
-func fractionalDigits(value decimal.Decimal) int {
-	text := value.String()
-	point := strings.IndexByte(text, '.')
-	if point == -1 {
-		return 0
+// FractionalDigits returns how many digits a number's fixed-point decimal text has after its decimal point
+func FractionalDigits(text string) int {
+	if point := strings.IndexByte(text, '.'); point >= 0 {
+		return len(text) - point - 1
 	}
-	return len(text) - point - 1
+	return 0
 }
 
 // DecimalFromFloat returns the shortest decimal which rounds to value, or an error when value is not finite or the

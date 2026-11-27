@@ -174,11 +174,11 @@ func TestGetSpotDeployState(t *testing.T) {
 				ExistingTokenGenesisBalances: []ExistingTokenBalance{{Token: 1, Balance: 300000}},
 				BlacklistUsers:               []string{"0x0000000000000000000000000000000000000019"},
 			}},
-			GasAuction: GasAuctionResponse{StartTime: types.Time(time.Unix(1733929200, 0)), DurationSeconds: 111600, StartGas: 181305.90046, CurrentGas: 181300, EndGas: 181291.247358},
+			GasAuction: GasAuctionResponse{StartTime: types.Time(time.Unix(1733929200, 0)), Duration: types.DurationSeconds(31 * time.Hour), StartGas: 181305.90046, CurrentGas: 181300, EndGas: 181291.247358},
 		}
 		assert.Equal(t, exp, result, "GetSpotDeployState should decode every field, including a genesis balance of the maximum uint64 wei")
 	} else {
-		assert.NotZero(t, result.GasAuction.DurationSeconds, "GetSpotDeployState should return the spot deploy gas auction")
+		assert.NotZero(t, result.GasAuction.Duration, "GetSpotDeployState should return the spot deploy gas auction")
 	}
 
 	_, err = newUnavailableServerExchange(t).GetSpotDeployState(t.Context(), testTraderAddress)
@@ -192,10 +192,10 @@ func TestGetSpotPairDeployAuctionStatus(t *testing.T) {
 	result, err := e.GetSpotPairDeployAuctionStatus(t.Context())
 	require.NoError(t, err, "GetSpotPairDeployAuctionStatus must not error")
 	if mockTests {
-		exp := &GasAuctionResponse{StartTime: types.Time(time.Unix(1791180000, 0)), DurationSeconds: 111600, StartGas: 500, CurrentGas: 500}
+		exp := &GasAuctionResponse{StartTime: types.Time(time.Unix(1791180000, 0)), Duration: types.DurationSeconds(31 * time.Hour), StartGas: 500, CurrentGas: 500}
 		assert.Equal(t, exp, result, "GetSpotPairDeployAuctionStatus should decode a running auction")
 	} else {
-		assert.NotZero(t, result.DurationSeconds, "GetSpotPairDeployAuctionStatus should return the auction's duration")
+		assert.NotZero(t, result.Duration, "GetSpotPairDeployAuctionStatus should return the auction's duration")
 	}
 
 	_, err = newUnavailableServerExchange(t).GetSpotPairDeployAuctionStatus(t.Context())

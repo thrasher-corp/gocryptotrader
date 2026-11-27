@@ -1631,8 +1631,8 @@ func TestGetGossipPriorityAuctionStatus(t *testing.T) {
 		exp := &GossipPriorityAuctionStatusResponse{
 			PreviousWinners: []string{"192.0.2.10", "198.51.100.20"},
 			Auctions: []GasAuctionResponse{
-				{StartTime: types.Time(time.Unix(1791279360, 0)), DurationSeconds: 180, StartGas: 14.4468832, EndGas: 1.45386754},
-				{StartTime: types.Time(time.Unix(1791279360, 0)), DurationSeconds: 180, StartGas: 1.5771516, CurrentGas: 0.19290462},
+				{StartTime: types.Time(time.Unix(1791279360, 0)), Duration: types.DurationSeconds(3 * time.Minute), StartGas: 14.4468832, EndGas: 1.45386754},
+				{StartTime: types.Time(time.Unix(1791279360, 0)), Duration: types.DurationSeconds(3 * time.Minute), StartGas: 1.5771516, CurrentGas: 0.19290462},
 			},
 		}
 		assert.Equal(t, exp, result, "GetGossipPriorityAuctionStatus should decode the winners and every auction field")
@@ -1904,7 +1904,7 @@ func TestGossipPriorityAuctionStatusResponseUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`[["192.0.2.10"],[{"startTimeSeconds":1791279360,"durationSeconds":180,"startGas":"2.0","currentGas":"1.0","endGas":null}]]`), &status), "Unmarshal must not error")
 	exp := GossipPriorityAuctionStatusResponse{
 		PreviousWinners: []string{"192.0.2.10"},
-		Auctions:        []GasAuctionResponse{{StartTime: types.Time(time.Unix(1791279360, 0)), DurationSeconds: 180, StartGas: 2, CurrentGas: 1}},
+		Auctions:        []GasAuctionResponse{{StartTime: types.Time(time.Unix(1791279360, 0)), Duration: types.DurationSeconds(3 * time.Minute), StartGas: 2, CurrentGas: 1}},
 	}
 	assert.Equal(t, exp, status, "GossipPriorityAuctionStatusResponse should decode its winners and auctions")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`[["192.0.2.10"]]`), &status), errInvalidTupleLength, "GossipPriorityAuctionStatusResponse should reject a short tuple")

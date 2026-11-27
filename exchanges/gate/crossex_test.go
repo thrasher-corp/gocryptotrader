@@ -909,7 +909,7 @@ func TestCloseCrossExchangePosition(t *testing.T) {
 
 func TestSetCrossExchangePositionMarginMode(t *testing.T) {
 	t.Parallel()
-	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewBTCUSDC())
 	_, err := e.SetCrossExchangePositionMarginMode(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetCrossExchangePositionMarginMode must reject a nil request")
 	_, err = e.SetCrossExchangePositionMarginMode(t.Context(), &CrossExchangeMarginModeRequest{})
@@ -939,7 +939,7 @@ func TestGetCrossExchangePositionMarginMode(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewBTCUSDC())
 	result, err := e.GetCrossExchangePositionMarginMode(t.Context(), &symbol)
 	require.NoError(t, err, "GetCrossExchangePositionMarginMode must not error")
 	if mockTests {
@@ -951,7 +951,7 @@ func TestGetCrossExchangePositionMarginMode(t *testing.T) {
 
 func TestUpdateCrossExchangeIsolatedMargin(t *testing.T) {
 	t.Parallel()
-	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewPair(currency.BTC, currency.USDC))
+	symbol := newCrossExchangeSymbol("HYPERLIQUID", asset.Futures, currency.NewBTCUSDC())
 	_, err := e.UpdateCrossExchangeIsolatedMargin(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateCrossExchangeIsolatedMargin must reject a nil request")
 	_, err = e.UpdateCrossExchangeIsolatedMargin(t.Context(), &CrossExchangeIsolatedMarginRequest{})
