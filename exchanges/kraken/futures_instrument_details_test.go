@@ -23,7 +23,7 @@ func TestGetFuturesInstruments(t *testing.T) {
 			exp: &FuturesInstrumentsResponse{
 				Instruments: []FuturesInstrument{
 					{
-						MakerProtectionMilliseconds: 20,
+						MakerProtectionWindow:       types.DurationMilliseconds(20 * time.Millisecond),
 						Category:                    "Pre-IPO",
 						ContractSize:                1,
 						ContractValueTradePrecision: 2,
@@ -55,11 +55,11 @@ func TestGetFuturesInstruments(t *testing.T) {
 						RebateLevels:           map[string]types.Number{"0.5": 0.002, "2.5": 0.005},
 					},
 					{
-						MakerProtectionMilliseconds: 20,
-						ContractSize:                1,
-						FundingRateCoefficient:      8,
-						ImpactMidSize:               1000,
-						ISIN:                        "GB00J62YGL67",
+						MakerProtectionWindow:  types.DurationMilliseconds(20 * time.Millisecond),
+						ContractSize:           1,
+						FundingRateCoefficient: 8,
+						ImpactMidSize:          1000,
+						ISIN:                   "GB00J62YGL67",
 						MarginSchedules: map[string]FuturesMarginSchedule{
 							"europa": {
 								Retail: []FuturesMarginLevel{{InitialMargin: 0.1, MaintenanceMargin: 0.05}},
@@ -255,7 +255,7 @@ func TestGetFuturesTradingInstruments(t *testing.T) {
 						Type:                        "flexible_futures",
 						ContractValueTradePrecision: 2,
 						Description:                 "Anthropic Pre-IPO Perpetual",
-						MakerProtectionMilliseconds: 20,
+						MakerProtectionWindow:       types.DurationMilliseconds(20 * time.Millisecond),
 						FeeScheduleUID:              "873d5b70-3446-45cd-9cdf-956a025605c2",
 						RebateLevels:                map[string]types.Number{"0.5": 0.002, "2.5": 0.005},
 						Restricted:                  true,

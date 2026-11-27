@@ -40,15 +40,15 @@ type MaintenanceEvent struct {
 	Title         string    `json:"title"`
 	ExpectedStart time.Time `json:"expected_start_utc"`
 	ExpectedEnd   time.Time `json:"expected_end_utc"`
-	// TimeToStartSeconds is evaluated when the response is served, and responses are cached, so a live countdown should
+	// TimeToStart can go stale between websocket updates or in a cached REST response, so a live countdown should
 	// be derived from ExpectedStart
-	TimeToStartSeconds int64     `json:"time_to_start_s"`
-	Phase              string    `json:"phase"`
-	AffectedServices   []string  `json:"affected_services"`
-	OrderSubmission    string    `json:"order_submission"`
-	RecommendedAction  string    `json:"recommended_action"`
-	CancelBefore       time.Time `json:"cancel_before_utc"`
-	SourceURL          string    `json:"source_url"`
+	TimeToStart       types.DurationSeconds `json:"time_to_start_s"`
+	Phase             string                `json:"phase"`
+	AffectedServices  []string              `json:"affected_services"`
+	OrderSubmission   string                `json:"order_submission"`
+	RecommendedAction string                `json:"recommended_action"`
+	CancelBefore      time.Time             `json:"cancel_before_utc"`
+	SourceURL         string                `json:"source_url"`
 }
 
 // EmergencyEvent is an unresolved incident advisory

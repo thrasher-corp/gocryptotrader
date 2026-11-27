@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // tradingTestDeadline is 2026-10-09T00:10:30Z, given in another zone to prove deadlines are sent in UTC
@@ -730,7 +731,7 @@ func TestGetWebsocketToken(t *testing.T) {
 	result, err := e.GetWebsocketToken(t.Context())
 	require.NoError(t, err, "GetWebsocketToken must not error")
 	if mockTests {
-		exp := &WebsocketTokenResponse{Token: "1Dwc4lzSwNWOAwkMdqhssNNFhs1ed606d1WcF3XfEMw", ExpiresInSeconds: 900}
+		exp := &WebsocketTokenResponse{Token: "1Dwc4lzSwNWOAwkMdqhssNNFhs1ed606d1WcF3XfEMw", ExpiresIn: types.DurationSeconds(900 * time.Second)}
 		assert.Equal(t, exp, result, "GetWebsocketToken should decode every field")
 		return
 	}

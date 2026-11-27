@@ -70,20 +70,21 @@ type EarnAutoCompound struct {
 // EarnLockType is how an earn strategy holds funds. Type is flex for Kraken Rewards, which earns on spot balances once
 // enabled for the whole account and cannot be allocated to directly; bonded for a strategy with bonding and unbonding
 // periods; or instant for a bonded strategy without them. Only bonded strategies set the bonding, unbonding and exit
-// queue fields, and only bonded and instant strategies set PayoutFrequencySeconds
+// queue fields, and only bonded and instant strategies set PayoutFrequency
 type EarnLockType struct {
-	BondingPeriodSeconds uint64 `json:"bonding_period"`
+	BondingPeriod types.DurationSeconds `json:"bonding_period"`
 	// BondingPeriodVariable is set when the bonding period's length varies
 	BondingPeriodVariable bool `json:"bonding_period_variable"`
 	// BondingRewards is set when funds earn while bonding, paid once bonding completes
 	BondingRewards bool `json:"bonding_rewards"`
-	// ExitQueuePeriodSeconds is how long deallocated funds wait in an exit queue, still earning, before they start
-	// unbonding; there is no exit queue when it is 0
-	ExitQueuePeriodSeconds uint64 `json:"exit_queue_period"`
-	// PayoutFrequencySeconds is the interval at which rewards are credited to the account's ledger
-	PayoutFrequencySeconds uint64 `json:"payout_frequency"`
-	Type                   string `json:"type"`
-	UnbondingPeriodSeconds uint64 `json:"unbonding_period"`
+	// ExitQueuePeriod is how long deallocated funds wait in an exit queue, still earning, before they start
+	// unbonding; there is no exit queue when it is 0. Kraken gives it no unit, so it is read in seconds, the unit
+	// documented for the other periods
+	ExitQueuePeriod types.DurationSeconds `json:"exit_queue_period"`
+	// PayoutFrequency is the interval at which rewards are credited to the account's ledger
+	PayoutFrequency types.DurationSeconds `json:"payout_frequency"`
+	Type            string                `json:"type"`
+	UnbondingPeriod types.DurationSeconds `json:"unbonding_period"`
 	// UnbondingPeriodVariable is set when the unbonding period's length varies
 	UnbondingPeriodVariable bool `json:"unbonding_period_variable"`
 	// UnbondingRewards is set when funds earn, and are paid, while unbonding

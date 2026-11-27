@@ -344,6 +344,6 @@ type CancelOrderBatchResponse struct {
 // WebsocketTokenResponse holds a websocket authentication token
 type WebsocketTokenResponse struct {
 	Token string `json:"token"`
-	// ExpiresInSeconds is how long the token stays valid for connecting
-	ExpiresInSeconds uint64 `json:"expires"`
+	// ExpiresIn is how long the token stays valid for connecting
+	ExpiresIn types.DurationSeconds `json:"expires"`
 }

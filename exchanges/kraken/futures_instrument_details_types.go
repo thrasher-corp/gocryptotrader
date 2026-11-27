@@ -25,9 +25,9 @@ type FuturesInstrumentsResponse struct {
 // FuturesInstrument holds a market's specification. Kraken documents its tags as never populated, so they are left
 // out, and documents OptionType, StrikePrice and RebateLevels for Get trading instruments only, but sends them here too
 type FuturesInstrument struct {
-	// MakerProtectionMilliseconds is how long an order that could take liquidity is held before matching, so resting
+	// MakerProtectionWindow is how long an order that could take liquidity is held before matching, so resting
 	// orders can react; it is 0 for a market without maker protection
-	MakerProtectionMilliseconds uint64 `json:"makerProtectionMillis"`
+	MakerProtectionWindow types.DurationMilliseconds `json:"makerProtectionMillis"`
 	// Category is the market's category, such as Layer 1, DeFi or Forex
 	Category     string  `json:"category"`
 	ContractSize float64 `json:"contractSize"`
@@ -163,10 +163,10 @@ type FuturesTradingInstrument struct {
 	// a multiple of a power of ten, such as 10 for -1
 	ContractValueTradePrecision int64  `json:"contractValueTradePrecision"`
 	Description                 string `json:"description"`
-	// MakerProtectionMilliseconds is how long an order that could take liquidity is held before matching, so resting
+	// MakerProtectionWindow is how long an order that could take liquidity is held before matching, so resting
 	// orders can react; it is 0 for a market without maker protection
-	MakerProtectionMilliseconds uint64 `json:"makerProtectionMillis"`
-	PostOnly                    bool   `json:"postOnly"`
+	MakerProtectionWindow types.DurationMilliseconds `json:"makerProtectionMillis"`
+	PostOnly              bool                       `json:"postOnly"`
 	// Suspended is true when the market is not accepting orders, as it is suspended, pending settlement or inactive; a
 	// post-only market is not suspended
 	Suspended bool `json:"suspended"`
