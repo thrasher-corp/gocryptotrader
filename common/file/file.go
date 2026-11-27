@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 )
 
+var errSameFile = errors.New("source and destination refer to the same file")
+
 // DefaultPermissionOctal is the default file and folder permission octal used throughout GCT
 const DefaultPermissionOctal fs.FileMode = 0o770
 
@@ -58,6 +60,21 @@ func Move(sourcePath, destPath string) error {
 	inputFile, err := os.Open(sourcePath)
 	if err != nil {
 		return err
+	}
+
+	sourceInfo, err := inputFile.Stat()
+	if err != nil {
+		inputFile.Close()
+		return err
+	}
+	destinationInfo, err := os.Stat(destPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		inputFile.Close()
+		return err
+	}
+	if err == nil && os.SameFile(sourceInfo, destinationInfo) {
+		inputFile.Close()
+		return errSameFile
 	}
 
 	destDir := filepath.Dir(destPath)
