@@ -193,10 +193,10 @@ type DerivativesWebsocketMarkPriceOption struct {
 type DerivativesWebsocketEstimatedExpirationPrice struct {
 	// Timestamp is sent although the docs leave it out
 	Timestamp types.Time `json:"timestamp"`
-	// Seconds is the time left until the nearest expiry
-	Seconds     uint64  `json:"seconds"`
-	Price       float64 `json:"price"`
-	IsEstimated bool    `json:"is_estimated"`
+	// TimeToExpiry is the time left until the nearest expiry
+	TimeToExpiry types.DurationSeconds `json:"seconds"`
+	Price        float64               `json:"price"`
+	IsEstimated  bool                  `json:"is_estimated"`
 	// LeftTicks and TotalTicks count the expiry period's time ticks, while IsEstimated is set
 	LeftTicks  uint64 `json:"left_ticks"`
 	TotalTicks uint64 `json:"total_ticks"`

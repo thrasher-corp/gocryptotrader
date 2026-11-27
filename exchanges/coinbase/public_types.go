@@ -208,22 +208,22 @@ type FCMScheduledMaintenance struct {
 
 // FutureProductDetails describes a future: a US derivative, a retired INTX perpetual, or a gateway instrument
 type FutureProductDetails struct {
-	Venue                    string                   `json:"venue"`
-	ContractCode             string                   `json:"contract_code"`
-	ContractExpiry           time.Time                `json:"contract_expiry"`
-	ContractSize             types.Number             `json:"contract_size"`
-	ContractRootUnit         string                   `json:"contract_root_unit"`
-	GroupDescription         string                   `json:"group_description"`
-	ContractExpiryTimezone   string                   `json:"contract_expiry_timezone"`
-	GroupShortDescription    string                   `json:"group_short_description"`
-	RiskManagedBy            string                   `json:"risk_managed_by"`
-	ContractExpiryType       string                   `json:"contract_expiry_type"`
-	PerpetualDetails         *PerpetualProductDetails `json:"perpetual_details"`
-	ContractDisplayName      string                   `json:"contract_display_name"`
-	TimeToExpiryMilliseconds types.Number             `json:"time_to_expiry_ms"`
-	NonCrypto                bool                     `json:"non_crypto"`
-	ContractExpiryName       string                   `json:"contract_expiry_name"`
-	TwentyFourBySeven        bool                     `json:"twenty_four_by_seven"`
+	Venue                  string                     `json:"venue"`
+	ContractCode           string                     `json:"contract_code"`
+	ContractExpiry         time.Time                  `json:"contract_expiry"`
+	ContractSize           types.Number               `json:"contract_size"`
+	ContractRootUnit       string                     `json:"contract_root_unit"`
+	GroupDescription       string                     `json:"group_description"`
+	ContractExpiryTimezone string                     `json:"contract_expiry_timezone"`
+	GroupShortDescription  string                     `json:"group_short_description"`
+	RiskManagedBy          string                     `json:"risk_managed_by"`
+	ContractExpiryType     string                     `json:"contract_expiry_type"`
+	PerpetualDetails       *PerpetualProductDetails   `json:"perpetual_details"`
+	ContractDisplayName    string                     `json:"contract_display_name"`
+	TimeToExpiry           types.DurationMilliseconds `json:"time_to_expiry_ms"`
+	NonCrypto              bool                       `json:"non_crypto"`
+	ContractExpiryName     string                     `json:"contract_expiry_name"`
+	TwentyFourBySeven      bool                       `json:"twenty_four_by_seven"`
 	// FundingInterval, OpenInterest, FundingRate and FundingTime are set for a perpetual style US derivative, which
 	// pays funding hourly
 	FundingInterval         Duration               `json:"funding_interval"`

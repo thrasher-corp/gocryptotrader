@@ -2,12 +2,14 @@ package coinbase
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetCurrencies(t *testing.T) {
@@ -129,7 +131,7 @@ func TestGetCurrencies(t *testing.T) {
 						MinimumWithdrawalAmount: 0.00000001,
 						MaximumWithdrawalAmount: 5000000,
 						NetworkConfirmations:    300,
-						ProcessingTimeSeconds:   21,
+						ProcessingTime:          types.DurationSeconds(21 * time.Second),
 						IsEVMNetwork:            true,
 					},
 				},
@@ -168,7 +170,7 @@ func TestGetCurrencies(t *testing.T) {
 					CryptoTransactionLink:   "https://bithomp.com/explorer/{{txId}}",
 					PushPaymentMethods:      []string{"crypto"},
 					GroupTypes:              []string{},
-					ProcessingTimeSeconds:   600,
+					ProcessingTime:          types.DurationSeconds(10 * time.Minute),
 					MinimumWithdrawalAmount: 0.35,
 					MaximumWithdrawalAmount: 10000000,
 				},

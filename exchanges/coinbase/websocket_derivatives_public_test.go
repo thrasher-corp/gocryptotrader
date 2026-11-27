@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var testETHUSDCPerpetual = currency.NewPairWithDelimiter("ETH", "USDC-PERPETUAL", currency.UnderscoreDelimiter)
@@ -176,7 +177,7 @@ func TestWebsocketHandleDerivativesPublic(t *testing.T) {
 			{Timestamp: testMarketDataMilli(1792374088719), InstrumentName: "BTC-26MAR27-75000-C", MarkPrice: 0.1607, ImpliedVolatility: 0.3876},
 			{Timestamp: testMarketDataMilli(1792374088719), InstrumentName: "BTC-27NOV26-66000-C", MarkPrice: 0.2086, ImpliedVolatility: 0.4926},
 		},
-		"estimated expiration price":   &DerivativesWebsocketEstimatedExpirationPrice{Timestamp: testMarketDataMilli(1792374092012), Seconds: 22708, Price: 82343.41},
+		"estimated expiration price":   &DerivativesWebsocketEstimatedExpirationPrice{Timestamp: testMarketDataMilli(1792374092012), TimeToExpiry: types.DurationSeconds(22708 * time.Second), Price: 82343.41},
 		"platform state 1000mog_usdc":  &DerivativesWebsocketPlatformState{PriceIndex: "1000mog_usdc", Reasons: json.RawMessage(`[]`)},
 		"platform state 1000pepe_usdc": &DerivativesWebsocketPlatformState{PriceIndex: "1000pepe_usdc", Reasons: json.RawMessage(`[]`)},
 	}

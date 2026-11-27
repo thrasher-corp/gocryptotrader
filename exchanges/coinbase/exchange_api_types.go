@@ -47,10 +47,10 @@ type ExchangeCurrencyDetails struct {
 	PushPaymentMethods    []string `json:"push_payment_methods"`
 	GroupTypes            []string `json:"group_types"`
 	DisplayName           string   `json:"display_name"`
-	// ProcessingTimeSeconds is how long a withdrawal takes to process, in seconds
-	ProcessingTimeSeconds   float64 `json:"processing_time_seconds"`
-	MinimumWithdrawalAmount float64 `json:"min_withdrawal_amount"`
-	MaximumWithdrawalAmount float64 `json:"max_withdrawal_amount"`
+	// ProcessingTime is how long a withdrawal takes to process
+	ProcessingTime          types.DurationSeconds `json:"processing_time_seconds"`
+	MinimumWithdrawalAmount float64               `json:"min_withdrawal_amount"`
+	MaximumWithdrawalAmount float64               `json:"max_withdrawal_amount"`
 }
 
 // ExchangeCurrencyNetwork is a network a currency is deposited and withdrawn on. Fields Coinbase sends null for are
@@ -70,8 +70,8 @@ type ExchangeCurrencyNetwork struct {
 	MaximumWithdrawalAmount float64 `json:"max_withdrawal_amount"`
 	// NetworkConfirmations is how many confirmations a deposit on the network needs
 	NetworkConfirmations uint64 `json:"network_confirmations"`
-	// ProcessingTimeSeconds is how long a withdrawal on the network takes to process, in seconds
-	ProcessingTimeSeconds uint64 `json:"processing_time_seconds"`
+	// ProcessingTime is how long a withdrawal on the network takes to process
+	ProcessingTime types.DurationSeconds `json:"processing_time_seconds"`
 	// DestinationTagRegex matches the destination tag or memo the network's withdrawals take, when they take one
 	DestinationTagRegex string `json:"destination_tag_regex"`
 	IsEVMNetwork        bool   `json:"is_evm_network"`

@@ -2187,6 +2187,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 		if err := cancels[i].Validate(cancels[i].StandardCancel()); err != nil {
 			return nil, err
 		}
+		if isDerivativesAsset(cancels[i].AssetType) {
+			return nil, fmt.Errorf("%w: batch cancels of %s orders", common.ErrFunctionNotSupported, cancels[i].AssetType)
+		}
 		if !isAdvancedTradeAsset(cancels[i].AssetType) {
 			return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, cancels[i].AssetType)
 		}

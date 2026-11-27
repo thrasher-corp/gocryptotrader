@@ -413,16 +413,15 @@ func (c *switchedConnection) IsConnected() bool { return c.up.Load() }
 
 func TestWebsocketDerivativesSendAuth(t *testing.T) {
 	t.Parallel()
-	t.Run("caps a lifetime longer than a duration holds", func(t *testing.T) {
+	t.Run("refuses a lifetime longer than a duration holds", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
 		conn := &switchedConnection{result: json.RawMessage(`{"access_token":"t","expires_in":18446744073709551615}`)}
 		conn.up.Store(true)
-		// Disconnecting ends any renewal, so a renewal that is wrongly due at once stops with the test
+		// Disconnecting ends any renewal, so a renewal wrongly scheduled stops with the test
 		t.Cleanup(func() { conn.up.Store(false) })
-		require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
-		// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
-		assert.Never(t, func() bool { return conn.sent() > 1 }, 100*time.Millisecond, time.Millisecond, "a session whose lifetime is longer than a duration holds should not be renewed at once")
+		require.ErrorIs(t, ex.wsDerivativesSendAuth(t.Context(), conn), errDerivativesWebsocketAuthentication, "the connection's authentication must refuse a lifetime longer than a duration holds")
+		assert.Never(t, func() bool { return conn.sent() > 1 }, 100*time.Millisecond, time.Millisecond, "a refused session should not be renewed")
 	})
 	t.Run("renews after its caller's context ends", func(t *testing.T) {
 		t.Parallel()
@@ -456,6 +455,96 @@ func TestWebsocketDerivativesSendAuth(t *testing.T) {
 			synctest.Wait()
 			assert.Equal(t, 5, conn.sent(), "each renewal should schedule the next, and only it")
 		})
+	})
+	t.Run("renews a session when its lifetime calls for it", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, expiresIn string
+			renewAfter      time.Duration
+		}{
+			{"an hour, five minutes before it ends", "3600", 55 * time.Minute},
+			{"a few seconds, halfway through", "2.5", 1250 * time.Millisecond},
+			{"under a second, halfway through", "0.5", 250 * time.Millisecond},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t)
+				synctest.Test(t, func(t *testing.T) {
+					conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":` + tc.expiresIn + `}`), connected: true}
+					require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
+					// From here on the connection refuses requests, so a renewal due too soon is retried until the session
+					// nearly expires and then given up, rather than renewing without end at the same instant
+					conn.mu.Lock()
+					conn.err = errors.New("renewal refused")
+					conn.mu.Unlock()
+					time.Sleep(tc.renewAfter - time.Nanosecond)
+					synctest.Wait()
+					assert.Equal(t, 1, conn.sent(), "a session should not be renewed before its renewal is due")
+					time.Sleep(time.Nanosecond)
+					synctest.Wait()
+					assert.Equal(t, 2, conn.sent(), "a session should be renewed once its renewal is due")
+					conn.mu.Lock()
+					renewal := conn.requests[len(conn.requests)-1].Method
+					conn.mu.Unlock()
+					assert.Equal(t, derivativesAuthMethod, renewal, "a session's renewal should authenticate it again")
+				})
+			})
+		}
+	})
+	t.Run("does not renew a session without a lifetime", func(t *testing.T) {
+		t.Parallel()
+		for name, result := range map[string]string{
+			"no lifetime":         `{"access_token":"t","expires_in":0}`,
+			"lifetime left out":   `{"access_token":"t"}`,
+			"a negative lifetime": `{"access_token":"t","expires_in":-1}`,
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				ex := newWebsocketTestExchange(t)
+				conn := &switchedConnection{result: json.RawMessage(result)}
+				conn.up.Store(true)
+				// Disconnecting stops a renewal wrongly scheduled once it finds the connection closed
+				t.Cleanup(func() { conn.up.Store(false) })
+				require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
+				assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(conn), "the connection should be authenticated")
+				ex.derivativesSessions.m.Lock()
+				_, scheduled := ex.derivativesSessions.renewals[conn]
+				ex.derivativesSessions.m.Unlock()
+				assert.False(t, scheduled, "a session without a lifetime should not be scheduled for renewal")
+			})
+		}
+	})
+	t.Run("accepts a lifetime of 9223372036 seconds, the most whole seconds a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":9223372036}`), connected: true}
+			require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must accept the most whole seconds a duration holds")
+			assert.Equal(t, testAPIKey, ex.derivativesSessions.authenticatedKey(conn), "the connection should be authenticated")
+			// From here on the connection refuses requests, so a renewal due too soon is retried until the session nearly
+			// expires and then given up
+			conn.mu.Lock()
+			conn.err = errors.New("renewal refused")
+			conn.mu.Unlock()
+			// The bubble's clock starts in 2000 and a timer cannot run past 2262, so the session is watched for a century
+			time.Sleep(time.Until(time.Now().AddDate(100, 0, 0)))
+			synctest.Wait()
+			assert.Equal(t, 1, conn.sent(), "a session lasting the most whole seconds a duration holds should not be renewed within a century")
+		})
+	})
+	t.Run("refuses a lifetime of 9223372037 seconds, past what a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &switchedConnection{result: json.RawMessage(`{"access_token":"t","expires_in":9223372037}`)}
+		conn.up.Store(true)
+		// Disconnecting stops a renewal wrongly scheduled once it finds the connection closed
+		t.Cleanup(func() { conn.up.Store(false) })
+		require.ErrorIs(t, ex.wsDerivativesSendAuth(t.Context(), conn), errDerivativesWebsocketAuthentication, "the connection's authentication must refuse a lifetime longer than a duration holds")
+		assert.Empty(t, ex.derivativesSessions.authenticatedKey(conn), "a refused session should leave the connection unauthenticated")
+		ex.derivativesSessions.m.Lock()
+		_, scheduled := ex.derivativesSessions.renewals[conn]
+		ex.derivativesSessions.m.Unlock()
+		assert.False(t, scheduled, "a refused session should not be scheduled for renewal")
 	})
 }
 

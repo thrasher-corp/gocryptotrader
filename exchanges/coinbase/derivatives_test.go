@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -22,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // writeJSONRPC writes a JSON-RPC response body, with the HTTP status the gateway answers an error with
@@ -140,7 +140,7 @@ func TestGlobalDerivativesAuthenticate(t *testing.T) {
 	require.NoError(t, err, "endpointHost must not error")
 	resp, err := ex.GlobalDerivatives().Authenticate(t.Context())
 	require.NoError(t, err, "Authenticate must not error")
-	exp := &DerivativesAuthResponse{AccessToken: "token", ExpiresIn: 900, RefreshToken: "refresh", Scope: "trade view", TokenType: "bearer", EnabledFeatures: []string{}}
+	exp := &DerivativesAuthResponse{AccessToken: "token", ExpiresIn: types.DurationSeconds(15 * time.Minute), RefreshToken: "refresh", Scope: "trade view", TokenType: "bearer", EnabledFeatures: []string{}}
 	assert.Equal(t, exp, resp, "Authenticate should decode every field")
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().Authenticate(t.Context())
@@ -393,7 +393,7 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	assert.Error(t, err, "SendRequest should error without a connection")
 }
 
-func TestGlobalDerivativesAccessToken(t *testing.T) {
+func TestGlobalDerivativesAPIAccessToken(t *testing.T) {
 	t.Parallel()
 
 	t.Run("concurrent requests share one renewal", func(t *testing.T) {
@@ -502,19 +502,86 @@ func TestGlobalDerivativesAccessToken(t *testing.T) {
 		assert.EqualValues(t, 2, authCalls.Load(), "accessToken should renew once for each request")
 	})
 
-	t.Run("keeps a token whose lifetime is longer than a duration holds", func(t *testing.T) {
+	t.Run("refuses a token whose lifetime is longer than a duration holds", func(t *testing.T) {
 		t.Parallel()
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":18446744073709551615}}`)
 		}))
 		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+		_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "accessToken must refuse a lifetime longer than a duration holds")
+		_, ok := ex.derivativesToken.get(testAPIKey)
+		assert.False(t, ok, "accessToken should not keep a token whose lifetime it cannot hold")
+	})
+
+	t.Run("caches a token for the lifetime issued", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, expiresIn string
+			lifetime        time.Duration
+		}{
+			{"an hour", "3600", time.Hour},
+			{"15 minutes", "900", 15 * time.Minute},
+			{"a fractional lifetime", "1800.75", 30*time.Minute + 750*time.Millisecond},
+			{"a quoted lifetime", `"1800"`, 30 * time.Minute},
+			{"no lifetime", "0", 0},
+			{"a negative lifetime", "-1", -time.Second},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"issued","expires_in":`+tc.expiresIn+`}}`)
+				}))
+				ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+				before := time.Now()
+				_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+				after := time.Now()
+				require.NoError(t, err, "accessToken must not error")
+				assert.Equal(t, "issued", token, "accessToken should return the token issued")
+				ex.derivativesToken.m.Lock()
+				cached, ok := ex.derivativesToken.tokens[testAPIKey]
+				ex.derivativesToken.m.Unlock()
+				require.True(t, ok, "accessToken must cache the token issued")
+				assert.Equal(t, "issued", cached.token, "accessToken should cache the token issued")
+				assert.False(t, cached.expires.Before(before.Add(tc.lifetime)), "accessToken should cache the token until its lifetime ends")
+				assert.False(t, cached.expires.After(after.Add(tc.lifetime)), "accessToken should cache the token no longer than its lifetime")
+				_, reusable := ex.derivativesToken.get(testAPIKey)
+				assert.Equal(t, tc.lifetime >= derivativesTokenRefreshMargin, reusable, "accessToken should let later requests reuse only a token lasting beyond the refresh margin")
+			})
+		}
+	})
+
+	t.Run("keeps a token lasting 9223372036 seconds, the most whole seconds a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":9223372036}}`)
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
 		_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
-		require.NoError(t, err, "accessToken must not error")
-		require.Equal(t, "lasting", token, "accessToken must return the token issued")
-		// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
+		require.NoError(t, err, "accessToken must accept the most whole seconds a duration holds")
+		assert.Equal(t, "lasting", token, "accessToken should return the token issued")
 		token, ok := ex.derivativesToken.get(testAPIKey)
-		assert.True(t, ok, "accessToken should keep a token whose lifetime is longer than a duration holds")
+		assert.True(t, ok, "accessToken should keep a token lasting the most whole seconds a duration holds")
 		assert.Equal(t, "lasting", token, "accessToken should keep the token issued")
+		ex.derivativesToken.m.Lock()
+		cached := ex.derivativesToken.tokens[testAPIKey]
+		ex.derivativesToken.m.Unlock()
+		assert.Greater(t, time.Until(cached.expires), 9223372036*time.Second-time.Hour, "accessToken should cache the token for its whole lifetime")
+	})
+
+	t.Run("refuses a token lasting 9223372037 seconds, past what a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":9223372037}}`)
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+		_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "accessToken must refuse a lifetime longer than a duration holds")
+		assert.Empty(t, token, "accessToken should return no token for a lifetime it cannot hold")
+		ex.derivativesToken.m.Lock()
+		_, ok := ex.derivativesToken.tokens[testAPIKey]
+		ex.derivativesToken.m.Unlock()
+		assert.False(t, ok, "accessToken should cache no token whose lifetime it cannot hold")
 	})
 }
 
@@ -613,15 +680,6 @@ func TestDerivativesTimesBeforeEpochRefused(t *testing.T) { //nolint:tparallel /
 			assert.ErrorIsf(t, call(), errDerivativesTimeBeforeEpoch, "%s should refuse a time before 1970", name)
 		})
 	}
-}
-
-func TestDerivativesTokenLifetime(t *testing.T) {
-	t.Parallel()
-	assert.Equal(t, 15*time.Minute, derivativesTokenLifetime(900), "derivativesTokenLifetime should read a lifetime in seconds")
-	assert.Zero(t, derivativesTokenLifetime(0), "derivativesTokenLifetime should give no lifetime for none")
-	longest := time.Duration(math.MaxInt64/int64(time.Second)) * time.Second
-	assert.Equal(t, longest, derivativesTokenLifetime(uint64(math.MaxInt64/time.Second)+1), "derivativesTokenLifetime should cap a lifetime a duration cannot hold")
-	assert.Equal(t, longest, derivativesTokenLifetime(math.MaxUint64), "derivativesTokenLifetime should cap the largest lifetime")
 }
 
 func TestDerivativesRequestID(t *testing.T) {

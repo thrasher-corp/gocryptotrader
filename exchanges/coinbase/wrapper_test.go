@@ -4638,17 +4638,19 @@ func TestCancelBatchOrders(t *testing.T) {
 			err     error
 		}{
 			// The gateway cancels no list of order IDs, so its orders are refused rather than cancelled one at a time
-			{"an Advanced Trade and a gateway order", []order.Cancel{{OrderID: testSandboxOrderID, AssetType: asset.Spot}, {OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures}}, asset.ErrNotSupported},
-			{"an Advanced Trade order before a gateway order", []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, gateway}, asset.ErrNotSupported},
-			{"an Advanced Trade order after a gateway order", []order.Cancel{gateway, {OrderID: "order-1", AssetType: asset.Spot}}, asset.ErrNotSupported},
-			{"a gateway order named twice", []order.Cancel{gateway, gateway}, asset.ErrNotSupported},
-			{"gateway orders apart from their margin type", []order.Cancel{gateway, {OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, asset.ErrNotSupported},
-			{"an isolated margin gateway order", []order.Cancel{{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, asset.ErrNotSupported},
-			{"a coin margined gateway order", []order.Cancel{{OrderID: "BTC-1", AssetType: asset.CoinMarginedFutures}}, asset.ErrNotSupported},
-			{"a gateway order with its pair", []order.Cancel{{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures}}, asset.ErrNotSupported},
+			{"an Advanced Trade and a gateway order", []order.Cancel{{OrderID: testSandboxOrderID, AssetType: asset.Spot}, {OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures}}, common.ErrFunctionNotSupported},
+			{"an Advanced Trade order before a gateway order", []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, gateway}, common.ErrFunctionNotSupported},
+			{"an Advanced Trade order after a gateway order", []order.Cancel{gateway, {OrderID: "order-1", AssetType: asset.Spot}}, common.ErrFunctionNotSupported},
+			{"an Advanced Trade order before a coin margined gateway order", []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, {OrderID: "BTC-1", AssetType: asset.CoinMarginedFutures}}, common.ErrFunctionNotSupported},
+			{"a gateway order named twice", []order.Cancel{gateway, gateway}, common.ErrFunctionNotSupported},
+			{"a USDC and a coin margined gateway order", []order.Cancel{gateway, {OrderID: "BTC-1", AssetType: asset.CoinMarginedFutures}}, common.ErrFunctionNotSupported},
+			{"gateway orders apart from their margin type", []order.Cancel{gateway, {OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, common.ErrFunctionNotSupported},
+			{"an isolated margin gateway order", []order.Cancel{{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures, MarginType: margin.Isolated}}, common.ErrFunctionNotSupported},
+			{"a coin margined gateway order", []order.Cancel{{OrderID: "BTC-1", AssetType: asset.CoinMarginedFutures}}, common.ErrFunctionNotSupported},
+			{"a gateway order with its pair", []order.Cancel{{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures}}, common.ErrFunctionNotSupported},
 			{"a client order ID alone", []order.Cancel{{ClientOrderID: "client-only", AssetType: asset.Spot}}, order.ErrOrderIDNotSet},
-			{"a gateway order after 100 orders", append(cancelsOf(asset.Spot, 100), gateway), asset.ErrNotSupported},
-			{"a gateway order after 101 orders", append(cancelsOf(asset.Spot, 101), gateway), asset.ErrNotSupported},
+			{"a gateway order after 100 orders", append(cancelsOf(asset.Spot, 100), gateway), common.ErrFunctionNotSupported},
+			{"a gateway order after 101 orders", append(cancelsOf(asset.Spot, 101), gateway), common.ErrFunctionNotSupported},
 			{"an order without an ID after 100 orders", append(cancelsOf(asset.Spot, 100), order.Cancel{AssetType: asset.Spot}), order.ErrOrderIDNotSet},
 			{"101 orders", cancelsOf(asset.Spot, 101), errTooManyOrders},
 			{"150 orders", cancelsOf(asset.Spot, 150), errTooManyOrders},
@@ -4681,14 +4683,39 @@ func TestCancelBatchOrders(t *testing.T) {
 		ex, venue := newDerivativesWebsocketTestExchange(t)
 		require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the wrapper's private requests")
 		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{gateway, {OrderID: "USDC-2", AssetType: asset.USDCMarginedFutures}})
-		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse gateway orders while the gateway's websocket is connected")
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse gateway orders while the gateway's websocket is connected")
 		assert.Nil(t, resp, "CancelBatchOrders should report no status for gateway orders")
 		assert.Empty(t, venue.requestsFor("private/cancel"), "CancelBatchOrders should send no cancel over the gateway's websocket")
 	})
-	t.Run("refuses every asset but spot and futures", func(t *testing.T) {
+	t.Run("refuses one gateway order while the gateway's websocket is connected", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the mock gateway websocket records what the exchange sends over it")
+		}
+		for name, c := range map[string]order.Cancel{
+			"usdc margined":                        {OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures},
+			"usdc margined with a client order ID": {OrderID: "USDC-1", ClientOrderID: "batch-label", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures},
+			"coin margined":                        {OrderID: "BTC-1", Pair: testCoinPerpetual, AssetType: asset.CoinMarginedFutures},
+			"coin margined with a client order ID": {OrderID: "BTC-1", ClientOrderID: "batch-label", Pair: testCoinPerpetual, AssetType: asset.CoinMarginedFutures},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				ex, venue := newDerivativesWebsocketTestExchange(t)
+				require.True(t, ex.derivativesOverWebsocket(t.Context(), true), "the gateway's authenticated websocket must carry the wrapper's private requests")
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{c})
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse one %s order while the gateway's websocket is connected", c.AssetType)
+				assert.NotErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should not refuse %s as an asset Coinbase does not trade", c.AssetType)
+				assert.Nilf(t, resp, "CancelBatchOrders should report no status for one %s order", c.AssetType)
+				for _, method := range []string{"private/cancel", "private/cancel_by_label"} {
+					assert.Emptyf(t, venue.requestsFor(method), "CancelBatchOrders should send no %s over the gateway's websocket", method)
+				}
+			})
+		}
+	})
+	t.Run("refuses every asset Coinbase does not trade", func(t *testing.T) {
 		t.Parallel()
 		for _, a := range append(asset.Items{asset.Empty, asset.All}, asset.Supported()...) {
-			if a == asset.Spot || a == asset.Futures {
+			if a == asset.Spot || a == asset.Futures || a == asset.USDCMarginedFutures || a == asset.CoinMarginedFutures {
 				continue
 			}
 			name := a.String()
@@ -4704,8 +4731,27 @@ func TestCancelBatchOrders(t *testing.T) {
 				}))
 				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: a}})
 				assert.ErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse an order of %s", name)
+				assert.NotErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should not refuse an order of %s as a batch cancel the gateway lacks", name)
 				assert.Nilf(t, resp, "CancelBatchOrders should report no status for an order of %s", name)
 				assert.Zerof(t, requests.Load(), "CancelBatchOrders should send nothing for an order of %s", name)
+			})
+		}
+	})
+	t.Run("refuses the gateway's orders as a batch cancel it lacks", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range []asset.Item{asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				var requests atomic.Int32
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					http.NotFound(w, r)
+				}))
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: a}})
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should refuse a batch of %s orders as a function the gateway lacks", a)
+				assert.NotErrorIsf(t, err, asset.ErrNotSupported, "CancelBatchOrders should not refuse %s as an asset Coinbase does not trade", a)
+				assert.Nilf(t, resp, "CancelBatchOrders should report no status for %s orders", a)
+				assert.Zerof(t, requests.Load(), "CancelBatchOrders should send nothing for %s orders", a)
 			})
 		}
 	})
