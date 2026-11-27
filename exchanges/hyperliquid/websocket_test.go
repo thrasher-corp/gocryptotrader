@@ -4819,14 +4819,14 @@ func TestExpandWebsocketSubscriptions(t *testing.T) {
 func TestGenerateConnectionSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	public, err := ex.generatePublicSubscriptions()
+	public, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	require.Len(t, public, 12, "generatePublicSubscriptions must generate each market feed of each enabled market")
 	for _, sub := range public {
 		assert.Falsef(t, sub.Authenticated, "generatePublicSubscriptions should leave out the account feed %s", sub)
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	account, err := ex.generateAccountSubscriptions()
+	account, err := ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error")
 	require.Len(t, account, 2, "generateAccountSubscriptions must generate the account feeds while the account connection is down")
 	for _, sub := range account {
@@ -4834,16 +4834,16 @@ func TestGenerateConnectionSubscriptions(t *testing.T) {
 	}
 
 	ex.API.AuthenticatedWebsocketSupport = false
-	account, err = ex.generateAccountSubscriptions()
+	account, err = ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error without authenticated websocket support")
 	assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authenticated websocket support")
 	ex.API.AuthenticatedWebsocketSupport = true
 	setTestCredentials(ex, &accounts.Credentials{Key: "invalid"})
-	account, err = ex.generateAccountSubscriptions()
+	account, err = ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error without an account address")
 	assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without an account address")
 	setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress, SubAccount: testSubAccountAddress})
-	account, err = ex.generateAccountSubscriptions()
+	account, err = ex.generateAccountSubscriptions(t.Context())
 	require.NoError(t, err, "generateAccountSubscriptions must not error for a subaccount")
 	assert.Len(t, account, 2, "generateAccountSubscriptions should generate the account feeds of a subaccount")
 
@@ -4855,13 +4855,13 @@ func TestGenerateConnectionSubscriptions(t *testing.T) {
 		userFills := &subscription.Subscription{Enabled: true, Channel: wsChannelUserFills, Authenticated: true}
 		aggregated := &subscription.Subscription{Enabled: true, Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}
 		ex.Features.Subscriptions = subscription.List{book, userFills, aggregated, {Enabled: true, Channel: "bogus", Authenticated: true}}
-		public, err := ex.generatePublicSubscriptions()
+		public, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not fail for the account feeds' configuration")
 		require.Len(t, public, 1, "generatePublicSubscriptions must generate the market feed")
-		_, err = ex.generateAccountSubscriptions()
+		_, err = ex.generateAccountSubscriptions(t.Context())
 		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "generateAccountSubscriptions should refuse two userFills variants")
 		ex.API.AuthenticatedWebsocketSupport = false
-		account, err := ex.generateAccountSubscriptions()
+		account, err := ex.generateAccountSubscriptions(t.Context())
 		require.NoError(t, err, "generateAccountSubscriptions must not error without authenticated websocket support")
 		assert.Empty(t, account, "generateAccountSubscriptions should generate nothing without authenticated websocket support")
 	})
@@ -4911,7 +4911,7 @@ func TestReserveAccountFeeds(t *testing.T) {
 			t.Parallel()
 			ex := newWebsocketTestExchange(t)
 			ex.Features.Subscriptions = tc.configured
-			_, err := ex.generatePublicSubscriptions()
+			_, err := ex.generatePublicSubscriptions(t.Context())
 			require.NoError(t, err, "generatePublicSubscriptions must not error")
 			assert.Equal(t, tc.exp, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep room for each account feed the account connection subscribes, once")
 		})
@@ -4921,26 +4921,26 @@ func TestReserveAccountFeeds(t *testing.T) {
 	counted, requests := newCountingServerExchange(t, nil)
 	counted.API.AuthenticatedWebsocketSupport = true
 	counted.Features.Subscriptions = subscription.List{{Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "xyz"}}}
-	_, err := counted.generatePublicSubscriptions()
+	_, err := counted.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, []string{wsChannelOpenOrders}, reservedAccountFeedTypes(counted), "generatePublicSubscriptions should keep room for an account feed naming a DEX")
 	assert.Empty(t, requests(), "generatePublicSubscriptions should make no request to keep room for the account feeds")
 
 	ex := newWebsocketTestExchange(t)
-	_, err = ex.generatePublicSubscriptions()
+	_, err = ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	require.Len(t, reservedAccountFeedTypes(ex), 2, "generatePublicSubscriptions must keep room for the default account feeds")
 	ex.Features.Subscriptions = subscription.List{myOrders.Clone()}
-	_, err = ex.generatePublicSubscriptions()
+	_, err = ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, []string{wsChannelOrderUpdates}, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep room only for the account feed still configured")
 	ex.API.AuthenticatedWebsocketSupport = false
-	_, err = ex.generatePublicSubscriptions()
+	_, err = ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error without authenticated websocket support")
 	assert.Empty(t, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep no room without authenticated websocket support")
 	ex.API.AuthenticatedWebsocketSupport = true
 	setTestCredentials(ex, &accounts.Credentials{Key: "invalid"})
-	_, err = ex.generatePublicSubscriptions()
+	_, err = ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error without an account address")
 	assert.Empty(t, reservedAccountFeedTypes(ex), "generatePublicSubscriptions should keep no room without an account address")
 }
@@ -4958,13 +4958,13 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 			{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
 		})
-		subs, err := ex.generatePublicSubscriptions()
+		subs, err := ex.generatePublicSubscriptions(t.Context())
 		assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report the market feeds it leaves out")
 		require.Len(t, subs, maximumWebsocketSubscriptions-2, "generatePublicSubscriptions must leave room for the two account feeds")
 		assert.Equal(t, "d997", subs[len(subs)-1].Params["dex"], "generatePublicSubscriptions should leave out the market feeds configured last")
 
 		ex.API.AuthenticatedWebsocketSupport = false
-		subs, err = ex.generatePublicSubscriptions()
+		subs, err = ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error while no account feed needs room")
 		assert.Len(t, subs, maximumWebsocketSubscriptions, "generatePublicSubscriptions should generate every market feed while no account feed needs room")
 
@@ -4976,7 +4976,7 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 			{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
 		})
-		subs, err = ex.generatePublicSubscriptions()
+		subs, err = ex.generatePublicSubscriptions(t.Context())
 		assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report an invalid market feed it leaves out as a partial generation")
 		assert.ErrorIs(t, err, errWebsocketParameter, "generatePublicSubscriptions should report why it refused an invalid market feed")
 		assert.Len(t, subs, maximumWebsocketSubscriptions-1, "generatePublicSubscriptions should keep every valid market feed that fits and a feed configured twice")
@@ -4986,7 +4986,7 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 			account[i] = &subscription.Subscription{Enabled: true, Channel: wsChannelOpenOrders, Authenticated: true, Params: map[string]any{"dex": "d" + strconv.Itoa(i)}}
 		}
 		ex.Features.Subscriptions = slices.Concat(market[:1], account)
-		subs, err = ex.generatePublicSubscriptions()
+		subs, err = ex.generatePublicSubscriptions(t.Context())
 		assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generatePublicSubscriptions should report a market feed left out by account feeds filling the limit")
 		assert.Empty(t, subs, "generatePublicSubscriptions should leave out every market feed while the account feeds fill the limit")
 	})
@@ -5067,7 +5067,7 @@ func TestCapMarketFeeds(t *testing.T) {
 func TestAwaitedAccountFeeds(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestExchange(t)
-	_, err := ex.generatePublicSubscriptions()
+	_, err := ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	myOrders := &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true}
 	myTrades := &subscription.Subscription{Channel: subscription.MyTradesChannel, Authenticated: true}
@@ -5096,7 +5096,7 @@ func TestAwaitedAccountFeeds(t *testing.T) {
 	// myTrades stays held after the configuration drops it until the account connection's flush removes it, which comes
 	// after the market feeds subscribe
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
-	_, err = ex.generatePublicSubscriptions()
+	_, err = ex.generatePublicSubscriptions(t.Context())
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	assert.Equal(t, 1, ex.awaitedAccountFeeds(t.Context(), subscription.List{market}), "awaitedAccountFeeds should leave a slot for the one reserved feed")
 	assert.Equal(t, 1, ex.awaitedAccountFeeds(t.Context(), subscription.List{myTrades}), "awaitedAccountFeeds should leave the reserved feed's slot beside a held feed the configuration dropped")
@@ -5843,7 +5843,7 @@ func TestManageWebsocketSubscription(t *testing.T) {
 	t.Run("room kept for account feeds", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
-		_, err := ex.generatePublicSubscriptions()
+		_, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		// The default account feeds keep two slots, so these market feeds leave room for one more
 		held := make(subscription.List, maximumWebsocketSubscriptions-3)
@@ -6407,7 +6407,7 @@ func TestAbandonedWebsocketSubscribe(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
 		// The default account feeds, myOrders and myTrades, each keep a slot
-		_, err := ex.generatePublicSubscriptions()
+		_, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		account := accountConn(t, ex)
 		account.mu.Lock()
@@ -6436,7 +6436,7 @@ func TestAbandonedWebsocketSubscribe(t *testing.T) {
 		require.ErrorIs(t, subscribeWebsocketTest(t, ex, subscription.List{{Channel: subscription.MyTradesChannel, Authenticated: true}}), websocket.ErrSignatureTimeout, "Subscribe must time out without an acknowledgement")
 		setTestCredentials(ex, &accounts.Credentials{Key: testOtherAddress})
 		// The default account feeds of the newly watched address, myOrders and myTrades, each keep a slot
-		_, err := ex.generatePublicSubscriptions()
+		_, err := ex.generatePublicSubscriptions(t.Context())
 		require.NoError(t, err, "generatePublicSubscriptions must not error")
 		held := make(subscription.List, maximumWebsocketSubscriptions-3)
 		for i := range held {

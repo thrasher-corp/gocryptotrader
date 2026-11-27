@@ -1756,7 +1756,7 @@ func (e *Exchange) expandWebsocketSubscriptions(account bool) (subscription.List
 // the account feeds they leave room for, as the public connection subscribes before the account connection. The market
 // feeds past that room are left out, so that a flush removes held ones to make way for account feeds the configuration
 // adds
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePublicSubscriptions(_ context.Context) (subscription.List, error) {
 	reserved := e.reserveAccountFeeds(context.TODO())
 	subs, err := e.expandWebsocketSubscriptions(false)
 	if err != nil && !errors.Is(err, websocket.ErrSubscriptionPartial) {
@@ -1860,7 +1860,7 @@ func (e *Exchange) awaitedAccountFeeds(ctx context.Context, held subscription.Li
 
 // generateAccountSubscriptions returns the configured account feeds, which the account connection subscribes when
 // account feeds are available
-func (e *Exchange) generateAccountSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateAccountSubscriptions(_ context.Context) (subscription.List, error) {
 	if err := e.accountFeedsAvailable(context.TODO()); err != nil {
 		// Authenticated websocket support is off by default, which leaves the account feeds out without a warning
 		if !errors.Is(err, errWebsocketAccountFeedsDisabled) {
