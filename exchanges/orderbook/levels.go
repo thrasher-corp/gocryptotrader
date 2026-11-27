@@ -133,6 +133,7 @@ updates:
 					// Update
 					(*l)[y].Amount = updts[x].Amount
 					(*l)[y].StrAmount = updts[x].StrAmount
+					(*l)[y].OrderCount = updts[x].OrderCount
 				}
 				continue updates
 			case compare((*l)[y].Price, updts[x].Price):
@@ -176,9 +177,10 @@ updates:
 					popped = true
 					continue // continue through node depth
 				}
-				// no price change, amend amount and continue update
+				// no price change, amend amount and order count and continue update
 				(*l)[y].Amount = updts[x].Amount
 				(*l)[y].StrAmount = updts[x].StrAmount
+				(*l)[y].OrderCount = updts[x].OrderCount
 				continue updates // continue to next update
 			}
 

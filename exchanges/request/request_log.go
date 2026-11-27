@@ -37,7 +37,7 @@ func isSensitiveLogKey(name string) bool {
 	return false
 }
 
-var sensitiveLogKeySuffixes = []string{"key", "keyid", "sign", "signature", "authent", "authorization", "passphrase", "password", "secret", "token", "cookie", "tfa", "user"}
+var sensitiveLogKeySuffixes = []string{"key", "keyid", "sig", "sign", "signature", "authent", "authorization", "passphrase", "password", "secret", "token", "cookie", "tfa", "user"}
 
 // redactEncodedValues keeps field order and non-sensitive values so a redacted query or form body still reads like the request that was sent.
 func redactEncodedValues(encoded string) string {

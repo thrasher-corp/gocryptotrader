@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 	"uuid"
 
@@ -172,6 +173,112 @@ func TestLoadSnapshot(t *testing.T) {
 	assert.Equal(t, 10.0, ob.Asks[0].Amount, "Top ask amount should be correct")
 	assert.Equal(t, 1337.0, ob.Bids[0].Price, "Top bid price should be correct")
 	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Top bid amount should be correct")
+}
+
+func TestLoadUnlessStreamed(t *testing.T) {
+	t.Parallel()
+	websocketBook := &Book{Bids: Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 5}
+	restBook := &Book{Bids: Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now(), RestSnapshot: true, DeferToWebsocketWithin: time.Minute}
+	for _, tc := range []struct {
+		name     string
+		prepare  func(*testing.T, *Depth)
+		incoming *Book
+		loaded   bool
+	}{
+		{name: "snapshot", incoming: websocketBook, loaded: true},
+		{name: "deferring snapshot into an empty depth", incoming: restBook, loaded: true},
+		{name: "deferring snapshot over a websocket book", prepare: func(t *testing.T, d *Depth) {
+			t.Helper()
+			require.NoError(t, d.LoadSnapshot(websocketBook), "LoadSnapshot must load the websocket book")
+		}, incoming: restBook},
+		{name: "deferring snapshot over a websocket book not updated within its window", prepare: func(t *testing.T, d *Depth) {
+			t.Helper()
+			require.NoError(t, d.LoadSnapshot(websocketBook), "LoadSnapshot must load the websocket book")
+			d.insertedAt = time.Now().Add(-2 * time.Minute)
+		}, incoming: restBook, loaded: true},
+		{name: "deferring snapshot over an invalid websocket book", prepare: func(t *testing.T, d *Depth) {
+			t.Helper()
+			require.NoError(t, d.LoadSnapshot(websocketBook), "LoadSnapshot must load the websocket book")
+			_ = d.Invalidate(errors.New("test"))
+		}, incoming: restBook, loaded: true},
+		{name: "deferring snapshot over a REST snapshot", prepare: func(t *testing.T, d *Depth) {
+			t.Helper()
+			require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 3, Amount: 1}}, LastUpdated: time.Now(), RestSnapshot: true}), "LoadSnapshot must load the REST snapshot")
+		}, incoming: restBook, loaded: true},
+		{name: "snapshot not deferring over a websocket book", prepare: func(t *testing.T, d *Depth) {
+			t.Helper()
+			require.NoError(t, d.LoadSnapshot(websocketBook), "LoadSnapshot must load the websocket book")
+		}, incoming: &Book{Bids: Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now(), RestSnapshot: true}, loaded: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := NewDepth(id)
+			if tc.prepare != nil {
+				tc.prepare(t, d)
+			}
+			before, _ := d.Retrieve()
+			loaded, err := d.loadUnlessStreamed(tc.incoming)
+			require.NoError(t, err, "loadUnlessStreamed must not error")
+			assert.Equal(t, tc.loaded, loaded, "loadUnlessStreamed should report whether it loaded the snapshot")
+			got, err := d.Retrieve()
+			require.NoError(t, err, "Retrieve must not error")
+			if !tc.loaded {
+				assert.Equal(t, before, got, "loadUnlessStreamed should leave the websocket book as it was")
+				return
+			}
+			assert.Equal(t, tc.incoming.Bids, got.Bids, "loadUnlessStreamed should load the snapshot's bids")
+			assert.Equal(t, tc.incoming.RestSnapshot, got.RestSnapshot, "loadUnlessStreamed should record whether the snapshot came from REST")
+		})
+	}
+	t.Run("deferring snapshot over a websocket book updated exactly its window ago", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			d := NewDepth(id)
+			require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now(), LastUpdateID: 5}), "LoadSnapshot must load the websocket book")
+			time.Sleep(time.Minute)
+			loaded, err := d.loadUnlessStreamed(&Book{Bids: Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now(), RestSnapshot: true, DeferToWebsocketWithin: time.Minute})
+			require.NoError(t, err, "loadUnlessStreamed must not error")
+			assert.True(t, loaded, "loadUnlessStreamed should load a snapshot once the websocket book was updated its window ago")
+		})
+	})
+	t.Run("snapshot without a time", func(t *testing.T) {
+		t.Parallel()
+		loaded, err := NewDepth(id).loadUnlessStreamed(&Book{Bids: Levels{{Price: 1, Amount: 1}}})
+		assert.ErrorIs(t, err, ErrLastUpdatedNotSet, "loadUnlessStreamed should refuse a snapshot without a time")
+		assert.False(t, loaded, "loadUnlessStreamed should report a refused snapshot unloaded")
+	})
+}
+
+func TestInvalidateWebsocketSnapshot(t *testing.T) {
+	t.Parallel()
+	reason := errors.New("websocket gone")
+	t.Run("websocket book", func(t *testing.T) {
+		t.Parallel()
+		d := NewDepth(id)
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+		d.InvalidateWebsocketSnapshot(reason)
+		_, err := d.Retrieve()
+		assert.ErrorIs(t, err, ErrOrderbookInvalid, "InvalidateWebsocketSnapshot should invalidate a book a websocket loaded")
+		assert.ErrorIs(t, err, reason, "InvalidateWebsocketSnapshot should give the reason")
+	})
+	t.Run("REST snapshot", func(t *testing.T) {
+		t.Parallel()
+		d := NewDepth(id)
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now(), RestSnapshot: true}), "LoadSnapshot must not error")
+		d.InvalidateWebsocketSnapshot(reason)
+		assert.True(t, d.IsValid(), "InvalidateWebsocketSnapshot should leave a REST snapshot valid")
+	})
+	t.Run("already invalid", func(t *testing.T) {
+		t.Parallel()
+		d := NewDepth(id)
+		require.NoError(t, d.LoadSnapshot(&Book{Bids: Levels{{Price: 1, Amount: 1}}, LastUpdated: time.Now()}), "LoadSnapshot must not error")
+		first := errors.New("first reason")
+		_ = d.Invalidate(first)
+		d.InvalidateWebsocketSnapshot(reason)
+		_, err := d.Retrieve()
+		assert.ErrorIs(t, err, first, "InvalidateWebsocketSnapshot should keep the reason an invalid book has")
+		assert.NotErrorIs(t, err, reason, "InvalidateWebsocketSnapshot should not replace the reason an invalid book has")
+	})
 }
 
 func TestInvalidate(t *testing.T) {

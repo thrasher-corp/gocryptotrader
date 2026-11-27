@@ -1,0 +1,118 @@
+{
+ "book.BTC_USD.10": [
+  [
+   {"id":1,"method":"subscribe","code":0,"channel":"book.BTC_USD.10"},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book","depth":10,"data":[{"asks":[["80775.54","0.82815","11"],["80776.11","0.03095","1"],["80779.94","0.01118","1"],["80779.95","0.04378","1"],["80780.60","0.00250","1"],["80781.32","0.00280","1"],["80781.33","0.00280","1"],["80781.51","0.16691","2"],["80782.21","0.00537","1"],["80782.68","0.11840","1"]],"bids":[["80775.53","0.32012","12"],["80775.52","0.00280","1"],["80775.00","0.00300","1"],["80774.47","0.00495","1"],["80774.18","0.00330","1"],["80774.17","0.00018","1"],["80773.45","0.00350","1"],["80773.23","0.02144","1"],["80773.22","0.06191","1"],["80772.86","0.00990","1"]],"t":1792893126892,"tt":1792893126884,"u":382097463058304,"cs":275810051}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80779.94","0","0"],["80781.40","0.11840","1"],["80781.48","0.20353","1"],["80781.50","0.20000","1"],["80781.51","0","0"],["80782.68","0","0"]],"bids":[]},"t":1792893127100,"tt":1792893127095,"u":382097463890240,"pu":382097463058304,"cs":2058499354}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80779.94","0.01119","1"],["80781.35","0.11840","1"],["80781.40","0","0"],["80782.21","0","0"]],"bids":[]},"t":1792893127203,"tt":1792893127131,"u":382097464031296,"pu":382097463890240,"cs":1157135304}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80779.94","0","0"],["80780.58","0.14625","1"],["80781.35","0","0"],["80781.48","0","0"],["80781.50","0","0"],["80782.21","0.00537","1"],["80782.71","0.08568","3"],["80783.44","0.11840","1"]],"bids":[]},"t":1792893127306,"tt":1792893127261,"u":382097464465088,"pu":382097464031296,"cs":-887747321}]}}
+  ],
+  [
+   {"id":3,"method":"subscribe","code":0,"channel":"book.BTC_USD.10"},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book","depth":10,"data":[{"asks":[["80775.54","0.82815","11"],["80776.09","0.01258","1"],["80776.11","0.03095","1"],["80779.73","0.01369","2"],["80779.95","0.04378","1"],["80780.57","0.01846","1"],["80780.58","0.23841","2"],["80780.60","0.00250","1"],["80781.33","0.00280","1"],["80782.21","0.00537","1"]],"bids":[["80775.53","0.17540","9"],["80775.17","0.00280","1"],["80774.47","0.00495","1"],["80774.17","0.00018","1"],["80773.90","0.00300","1"],["80773.23","0.02144","1"],["80773.22","0.06521","2"],["80772.86","0.00990","1"],["80772.54","0.00350","1"],["80771.62","0.00533","1"]],"t":1792893129400,"tt":1792893129368,"u":382097469645120,"cs":-194067139}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80779.73","0.00250","1"]],"bids":[["80775.53","0.17538","8"]]},"t":1792893129503,"tt":1792893129495,"u":382097469896256,"pu":382097469645120,"cs":-743216932}]}}
+  ]
+ ],
+ "book.ETH_USD.10": [
+  [
+   {"id":32,"method":"subscribe","code":0,"channel":"book.ETH_USD.10"},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"ETH_USD","subscription":"book.ETH_USD.10","channel":"book","depth":10,"data":[{"asks":[["2359.75","3.5136","7"],["2359.83","1.6505","1"],["2359.91","0.2428","1"],["2359.92","0.2428","1"],["2359.94","1.0188","2"],["2359.97","0.2891","1"],["2359.99","0.4147","1"],["2360.00","0.0860","1"],["2360.02","0.2889","1"],["2360.03","0.8505","4"]],"bids":[["2359.74","6.7928","7"],["2359.73","1.4923","1"],["2359.69","0.2465","1"],["2359.61","0.0042","1"],["2359.60","0.8118","1"],["2359.59","3.2354","3"],["2359.56","1.3625","2"],["2359.54","2.6086","2"],["2359.49","0.7426","1"],["2359.48","0.4303","1"]],"t":1792893036064,"tt":1792893036032,"u":390670046219552,"cs":-826150402}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"ETH_USD","subscription":"book.ETH_USD.10","channel":"book","depth":10,"data":[{"asks":[["2359.75","3.5136","7"],["2359.83","1.6505","1"],["2359.91","0.2428","1"],["2359.94","1.0188","2"],["2359.97","0.2891","1"],["2359.99","0.4147","1"],["2360.00","0.0860","1"],["2360.02","0.2889","1"],["2360.03","0.8505","4"],["2360.04","0.0626","1"]],"bids":[["2359.74","6.7928","7"],["2359.73","1.4923","1"],["2359.69","0.2465","1"],["2359.61","0.0042","1"],["2359.60","0.8118","1"],["2359.59","3.2354","3"],["2359.56","1.3625","2"],["2359.54","2.6086","2"],["2359.49","0.7426","1"],["2359.48","0.4303","1"]],"t":1792893036570,"tt":1792893036530,"u":390670048243712,"cs":2113598248}]}}
+  ]
+ ],
+ "book.BTC_USDT.10": [
+  [
+   {"id":1,"method":"subscribe","code":0,"channel":"book.BTC_USDT.10"},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book","depth":10,"data":[{"asks":[["80631.30","0.11038","4"],["80631.80","0.01862","1"],["80632.02","0.00002","1"],["80632.91","0.03597","1"],["80632.92","0.11431","2"],["80633.39","0.00620","1"],["80638.41","0.04792","1"],["80638.47","0.09948","1"],["80639.00","0.00003","1"],["80639.66","0.03863","1"]],"bids":[["80631.29","0.08716","4"],["80630.09","0.10061","1"],["80630.01","0.04347","1"],["80629.67","0.12000","2"],["80629.08","0.04635","2"],["80628.39","0.05352","2"],["80627.50","0.00012","1"],["80627.49","0.01580","1"],["80627.48","0.04162","1"],["80627.47","0.11378","1"]],"t":1792908873236,"tt":1792908873230,"u":382144282646080,"cs":-1478674977}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80631.29","0.10598","5"]]},"t":1792908873748,"tt":1792908873726,"u":382144284552512,"pu":382144282646080,"cs":1492576697}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80633.39","0","0"],["80639.81","0.00596","1"]],"bids":[]},"t":1792908874671,"tt":1792908874664,"u":382144286986112,"pu":382144284552512,"cs":-1076064929}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80631.29","0.08790","4"]]},"t":1792908875285,"tt":1792908875259,"u":382144288487520,"pu":382144286986112,"cs":688542287}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80632.02","0","0"],["80640.56","0.00012","1"]],"bids":[["80631.29","0.08788","3"]]},"t":1792908876516,"tt":1792908876495,"u":382144294359712,"pu":382144288487520,"cs":1846431553}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80632.02","0.00002","1"],["80632.91","0","0"]],"bids":[["80631.29","0.17220","5"],["80629.09","0.01580","1"],["80627.50","0","0"],["80627.49","0","0"],["80627.46","0.05984","2"]]},"t":1792908876620,"tt":1792908876616,"u":382144295801184,"pu":382144294359712,"cs":596432151}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80631.30","0.08441","3"],["80640.54","0.00012","1"],["80640.56","0","0"]],"bids":[["80629.09","0","0"],["80627.50","0.00012","1"],["80627.49","0.03263","1"],["80627.46","0","0"]]},"t":1792908876723,"tt":1792908876721,"u":382144296436576,"pu":382144295801184,"cs":1577291087}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80640.53","0.00012","1"],["80640.54","0","0"]],"bids":[["80629.09","0.01580","1"],["80627.50","0","0"]]},"t":1792908876826,"tt":1792908876793,"u":382144296777440,"pu":382144296436576,"cs":699554769}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80640.52","0.00012","1"],["80640.53","0","0"]],"bids":[["80629.09","0","0"],["80627.50","0.00012","1"]]},"t":1792908876928,"tt":1792908876924,"u":382144297125664,"pu":382144296777440,"cs":1577291025}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80629.09","0.01580","1"],["80627.47","0","0"]]},"t":1792908877032,"tt":1792908877026,"u":382144297517728,"pu":382144297125664,"cs":1492893993}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80636.02","0.00620","1"],["80640.52","0","0"]],"bids":[["80629.75","0.00620","1"],["80627.48","0","0"]]},"t":1792908877135,"tt":1792908877131,"u":382144298234752,"pu":382144297517728,"cs":795571186}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80629.09","0","0"],["80627.48","0.04162","1"]]},"t":1792908877236,"tt":1792908877214,"u":382144298532640,"pu":382144298234752,"cs":-1186758647}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80639.65","0.02837","1"],["80639.81","0","0"]],"bids":[["80627.51","0.00012","1"],["80627.49","0","0"]]},"t":1792908877339,"tt":1792908877336,"u":382144298988512,"pu":382144298532640,"cs":-2093893467}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80629.09","0.01580","1"],["80627.51","0","0"],["80627.49","0.03263","1"],["80627.48","0","0"]]},"t":1792908877441,"tt":1792908877434,"u":382144299290144,"pu":382144298988512,"cs":794558211}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80638.99","0.00003","1"],["80639.65","0","0"]],"bids":[]},"t":1792908877544,"tt":1792908877518,"u":382144299752608,"pu":382144299290144,"cs":761269171}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[["80631.30","0.11069","4"],["80638.99","0","0"],["80639.81","0.00596","1"]],"bids":[]},"t":1792908877748,"tt":1792908877696,"u":382144300310400,"pu":382144299752608,"cs":2021586230}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80627.50","0","0"],["80627.49","0.03275","2"],["80627.48","0.04162","1"]]},"t":1792908877952,"tt":1792908877947,"u":382144300871328,"pu":382144300310400,"cs":-514968774}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80627.50","0.00012","1"],["80627.49","0.03263","1"],["80627.48","0","0"]]},"t":1792908878056,"tt":1792908878020,"u":382144301030880,"pu":382144300871328,"cs":2021586230}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"book.BTC_USDT.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[]},"t":1792908878463,"tt":1792908878459,"u":382144301981024,"pu":382144301030880,"cs":2021586230}]}}
+  ]
+ ],
+ "ticker.BTC_USD": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"ticker.BTC_USD","channel":"ticker","data":[{"h":"81007.04","l":"79128.21","a":"80787.84","c":"-0.0002","b":"80787.84","bs":"0.05028","k":"80787.85","ks":"0.53190","i":"BTC_USD","v":"2215.1469","vv":"177736579.59","oi":"0","t":1792892978711}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"ticker.BTC_USD","channel":"ticker","data":[{"h":"81007.04","l":"79128.21","a":"80787.84","c":"-0.0002","b":"80787.84","bs":"0.05030","k":"80787.85","ks":"0.54183","i":"BTC_USD","v":"2215.1469","vv":"177736579.59","oi":"0","t":1792892978822}]}}
+  ]
+ ],
+ "ticker.BTC_USDT": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"ticker.BTC_USDT","channel":"ticker","data":[{"h":"81099.29","l":"79232.39","a":"80956.49","c":"0","b":"80951.66","bs":"0.01872","k":"80951.67","ks":"0.20126","i":"BTC_USDT","v":"1071.3429","vv":"85918558.94","oi":"0","t":1792894311364}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USDT","subscription":"ticker.BTC_USDT","channel":"ticker","data":[{"h":"81099.29","l":"79232.39","a":"80956.49","c":"0","b":"80951.66","bs":"0.10302","k":"80951.67","ks":"0.20126","i":"BTC_USDT","v":"1071.3429","vv":"85918558.94","oi":"0","t":1792894311485}]}}
+  ]
+ ],
+ "ticker.BTCUSD-PERP": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"ticker.BTCUSD-PERP","channel":"ticker","data":[{"h":"81004.7","l":"79117.7","a":"80750.3","c":"-0.0013","b":"80750.3","bs":"0.0087","k":"80750.4","ks":"0.0331","i":"BTCUSD-PERP","v":"2512.7932","vv":"201559679.09","oi":"6179.5730","t":1792893199728}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"ticker.BTCUSD-PERP","channel":"ticker","data":[{"h":"81004.7","l":"79117.7","a":"80750.3","c":"-0.0013","b":"80750.3","bs":"0.0087","k":"80750.4","ks":"0.0301","i":"BTCUSD-PERP","v":"2512.7932","vv":"201559679.09","oi":"6179.5730","t":1792893199787}]}}
+  ]
+ ],
+ "ticker.1INCH_USD": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"1INCH_USD","subscription":"ticker.1INCH_USD","channel":"ticker","data":[{"h":"0.09042","l":"0.08718","a":"0.08901","c":"-0.0156","b":"0.08901","bs":"2110.5","k":"0.08911","ks":"1947.4","i":"1INCH_USD","v":"10676.7","vv":"946.10","oi":"0","t":1792909196186}]}}
+  ]
+ ],
+ "trade.BTC_USD": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"trade.BTC_USD","channel":"trade","data":[{"d":"1792893186501857915","t":1792893186501,"p":"80750.57","q":"0.04871","s":"SELL","i":"BTC_USD","m":"4611686018750829343"},{"d":"1792893186501857914","t":1792893186501,"p":"80750.57","q":"0.13482","s":"SELL","i":"BTC_USD","m":"4611686018750829343"},{"d":"1792893186501857913","t":1792893186501,"p":"80750.57","q":"0.03096","s":"SELL","i":"BTC_USD","m":"4611686018750829343"}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"trade.BTC_USD","channel":"trade","data":[{"d":"1792893243492520623","t":1792893243492,"p":"80750.57","q":"0.00002","s":"SELL","i":"BTC_USD","m":"4611686018750829344"}]}}
+  ]
+ ],
+ "candlestick.1m.BTC_USD": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"candlestick.1m.BTC_USD","channel":"candlestick","interval":"1m","data":[{"o":"80776.63","h":"80786.75","l":"80776.63","c":"80782.70","v":"0.51772","t":1792893060000,"ut":1792893119493},{"o":"80775.53","h":"80775.53","l":"80755.60","c":"80755.60","v":"0.30336","t":1792893120000,"ut":1792893142422},{"o":"80750.57","h":"80750.57","l":"80750.57","c":"80750.57","v":"0.24306","t":1792893180000,"ut":1792893186501}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"candlestick.1m.BTC_USD","channel":"candlestick","interval":"1m","data":[{"o":"80750.57","h":"80750.57","l":"80750.57","c":"80750.57","v":"0","t":1792893240000,"ut":1792893240000}]}}
+  ]
+ ],
+ "index.BTCUSD-INDEX": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-INDEX","subscription":"index.BTCUSD-INDEX","channel":"index","data":[{"v":"80784.28","t":1792892978000}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-INDEX","subscription":"index.BTCUSD-INDEX","channel":"index","data":[{"v":"80784.28","t":1792892979000}]}}
+  ]
+ ],
+ "mark.BTC_USD": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"mark.BTC_USD","channel":"mark","data":[{"v":"80783.17","t":1792893005000}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"mark.BTC_USD","channel":"mark","data":[{"v":"80783.15","t":1792893006000}]}}
+  ]
+ ],
+ "mark.BTCUSD-PERP": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"mark.BTCUSD-PERP","channel":"mark","data":[{"v":"80784.0","t":1792892978000}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"mark.BTCUSD-PERP","channel":"mark","data":[{"v":"80783.9","t":1792892979000}]}}
+  ]
+ ],
+ "funding.BTCUSD-PERP": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"funding.BTCUSD-PERP","channel":"funding","data":[{"v":"0.000009839","t":1792893185000}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"funding.BTCUSD-PERP","channel":"funding","data":[{"v":"0.000009839","t":1792893245000}]}}
+  ]
+ ],
+ "estimatedfunding.BTCUSD-PERP": [
+  [
+   {"id":1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"estimatedfunding.BTCUSD-PERP","channel":"estimatedfunding","data":[{"v":"0.000003673","t":1792893179000}]}},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-PERP","subscription":"estimatedfunding.BTCUSD-PERP","channel":"estimatedfunding","data":[{"v":"0.000003673","t":1792893239000}]}}
+  ]
+ ],
+ "settlement.BTCUSD-261030": [
+  [
+   {"id":1,"method":"subscribe","code":0,"channel":"settlement.BTCUSD-261030"},
+   {"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTCUSD-261030","subscription":"settlement.BTCUSD-261030","channel":"settlement","data":[{"v":"80860.9","t":1793347200000}]}}
+  ]
+ ]
+}

@@ -333,7 +333,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 
 	var subscriptionError error
 	for _, ws := range m.snapshotConnectionManager() {
-		if ws.setup.SubscriptionsNotRequired {
+		if ws.setup.SubscriptionsNotRequired || (ws.setup.AuthenticatedOnly && !m.CanUseAuthenticatedEndpoints()) {
 			continue
 		}
 

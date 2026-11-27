@@ -14,7 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var errOrderbookInvalidated = errors.New("orderbook invalidated")
+var (
+	errOrderbookInvalidated = errors.New("orderbook invalidated")
+	errWebsocketShutdown    = errors.New("websocket shut down")
+)
 
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream.
@@ -143,4 +146,14 @@ func (o *Orderbook) InvalidateOrderbook(p currency.Pair, a asset.Item) error {
 	// In this context we don't need that, since this method only returns an error if it cannot invalidate
 	_ = depth.Invalidate(errOrderbookInvalidated)
 	return nil
+}
+
+// InvalidateWebsocketOrderbooks invalidates the orderbooks the websocket loaded, for a websocket that has shut down and
+// no longer maintains them; one a REST snapshot replaced since is left as it is
+func (o *Orderbook) InvalidateWebsocketOrderbooks() {
+	o.m.RLock()
+	defer o.m.RUnlock()
+	for _, depth := range o.ob {
+		depth.InvalidateWebsocketSnapshot(errWebsocketShutdown)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -600,6 +601,74 @@ func TestMatchesEmailPattern(t *testing.T) {
 	success = MatchesEmailPattern("someonesemail@email.com")
 	if !success {
 		t.Error("MatchesEmailPattern() unexpected test validation result")
+	}
+}
+
+func TestUnixMilliParam(t *testing.T) {
+	t.Parallel()
+	west := time.FixedZone("UTC-5", -5*60*60)
+	for _, tc := range []struct {
+		name string
+		t    time.Time
+		exp  uint64
+		err  error
+	}{
+		{name: "zero time"},
+		{name: "after the epoch", t: time.UnixMilli(1700000000123), exp: 1700000000123},
+		{name: "before the epoch", t: time.UnixMilli(-1), err: ErrTimeBeforeUnixEpoch},
+		{name: "the epoch", t: time.Unix(0, 0)},
+		{name: "the epoch in a zone west of UTC", t: time.Unix(0, 0).In(west)},
+		{name: "a nanosecond before the epoch", t: time.Unix(0, -1), err: ErrTimeBeforeUnixEpoch},
+		{name: "a nanosecond after the epoch", t: time.Unix(0, 1)},
+		{name: "the zero time in a zone west of UTC", t: time.Time{}.In(west)},
+		{name: "a nanosecond after the zero time", t: time.Time{}.Add(time.Nanosecond), err: ErrTimeBeforeUnixEpoch},
+		{name: "the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64), exp: math.MaxInt64},
+		{name: "the end of the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64).Add(time.Millisecond - time.Nanosecond), exp: math.MaxInt64},
+		{name: "after the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64).Add(time.Millisecond), err: ErrTimeTooLate},
+		{name: "so long before the epoch its milliseconds would wrap", t: time.Date(-300000000, 1, 1, 0, 0, 0, 0, time.UTC), err: ErrTimeBeforeUnixEpoch},
+		{name: "so long after the epoch its milliseconds would wrap to zero", t: time.Unix(18446744073709551, 616000000), err: ErrTimeTooLate},
+		{name: "a millisecond after its milliseconds wrap to zero", t: time.Unix(18446744073709551, 617000000), err: ErrTimeTooLate},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := UnixMilliParam(tc.t)
+			require.ErrorIsf(t, err, tc.err, "UnixMilliParam must return the expected error for %s", tc.t)
+			assert.Equalf(t, tc.exp, got, "UnixMilliParam should give %s in Unix milliseconds", tc.t)
+		})
+	}
+}
+
+func TestUnixNanoParam(t *testing.T) {
+	t.Parallel()
+	west := time.FixedZone("UTC-5", -5*60*60)
+	for _, tc := range []struct {
+		name string
+		t    time.Time
+		exp  uint64
+		err  error
+	}{
+		{name: "zero time"},
+		{name: "after the epoch", t: time.Unix(0, 1700000000123456789), exp: 1700000000123456789},
+		{name: "before the epoch", t: time.Unix(0, -1), err: ErrTimeBeforeUnixEpoch},
+		{name: "the epoch", t: time.Unix(0, 0)},
+		{name: "the epoch in a zone west of UTC", t: time.Unix(0, 0).In(west)},
+		{name: "a nanosecond after the epoch", t: time.Unix(0, 1), exp: 1},
+		{name: "the zero time in a zone west of UTC", t: time.Time{}.In(west)},
+		{name: "a nanosecond after the zero time", t: time.Time{}.Add(time.Nanosecond), err: ErrTimeBeforeUnixEpoch},
+		{name: "the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64), exp: math.MaxInt64},
+		{name: "after the last nanosecond an int64 holds", t: time.Unix(0, math.MaxInt64).Add(time.Nanosecond), err: ErrTimeTooLate},
+		{name: "after the last millisecond an int64 holds", t: time.UnixMilli(math.MaxInt64).Add(time.Millisecond), err: ErrTimeTooLate},
+		{name: "so long after the epoch its nanoseconds would wrap to zero", t: time.Unix(18446744073, 709551616), err: ErrTimeTooLate},
+		{name: "so long after the epoch its milliseconds would wrap to zero", t: time.Unix(18446744073709551, 616000000), err: ErrTimeTooLate},
+		{name: "a year an int64 of nanoseconds wraps", t: time.Date(2600, 1, 1, 0, 0, 0, 0, time.UTC), err: ErrTimeTooLate},
+		{name: "a year before the first an int64 of nanoseconds holds", t: time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC), err: ErrTimeBeforeUnixEpoch},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := UnixNanoParam(tc.t)
+			require.ErrorIsf(t, err, tc.err, "UnixNanoParam must return the expected error for %s", tc.t)
+			assert.Equalf(t, tc.exp, got, "UnixNanoParam should give %s in Unix nanoseconds", tc.t)
+		})
 	}
 }
 

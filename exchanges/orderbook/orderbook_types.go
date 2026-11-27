@@ -124,6 +124,12 @@ type Book struct {
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity
 	RestSnapshot bool
+	// DeferToWebsocketWithin keeps in place, when this REST snapshot is processed, a valid book that a websocket loaded
+	// and has updated within this long: the snapshot is then neither loaded nor published, so the websocket's update
+	// sequence carries on. A book the websocket has not updated for longer, as one it stopped maintaining, takes the
+	// snapshot. An exchange setting it has its websocket manager invalidate those books when it shuts down, see
+	// websocket.ManagerSetup.InvalidateOrderbooksOnShutdown, so REST snapshots replace them at once
+	DeferToWebsocketWithin time.Duration
 	// Checks if the orderbook needs ID alignment as well as price alignment
 	IDAlignment bool
 	// Determines if there is a max depth of orderbooks and after an append we
@@ -203,4 +209,21 @@ func (l *LevelsArrayPriceAmount) UnmarshalJSON(data []byte) error {
 // Levels converts the LevelsArrayPriceAmount to a orderbook.Levels type
 func (l *LevelsArrayPriceAmount) Levels() Levels {
 	return Levels(*l)
+}
+
+// LevelsArrayPriceAmountOrderCount is a side of an order book decoded from a JSON array of [price, amount, order count]
+// arrays, whose values may be numbers or quoted numbers
+type LevelsArrayPriceAmountOrderCount Levels
+
+// UnmarshalJSON implements json.Unmarshaler
+func (l *LevelsArrayPriceAmountOrderCount) UnmarshalJSON(data []byte) error {
+	var v [][3]types.Number
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*l = make(LevelsArrayPriceAmountOrderCount, len(v))
+	for x := range v {
+		(*l)[x] = Level{Price: v[x][0].Float64(), Amount: v[x][1].Float64(), OrderCount: v[x][2].Int64()}
+	}
+	return nil
 }
