@@ -1440,8 +1440,7 @@ func TestGetOrderInfo(t *testing.T) {
 				Amount:               0.001,
 				ExecutedAmount:       0.001,
 				AverageExecutedPrice: 63469.3,
-				Cost:                 63.4693,
-				CostAsset:            currency.USDT,
+				ExecutedQuoteAmount:  63.4693,
 				Fee:                  0.00000022,
 				FeeAsset:             currency.BTC,
 				Date:                 time.UnixMilli(1744150000073),
@@ -1466,8 +1465,7 @@ func TestGetOrderInfo(t *testing.T) {
 				ExecutedAmount:       0.001,
 				RemainingAmount:      0.001,
 				AverageExecutedPrice: 70000,
-				Cost:                 70,
-				CostAsset:            currency.USDT,
+				ExecutedQuoteAmount:  70,
 				Fee:                  0.14,
 				FeeAsset:             currency.USDT,
 				Date:                 time.UnixMilli(1744150000173),
@@ -1489,7 +1487,6 @@ func TestGetOrderInfo(t *testing.T) {
 				Price:           60000,
 				Amount:          0.001,
 				RemainingAmount: 0.001,
-				CostAsset:       currency.USDT,
 				FeeAsset:        currency.BTC,
 				Date:            time.UnixMilli(1744150000273),
 				LastUpdated:     time.UnixMilli(1744150300274),
@@ -2610,10 +2607,24 @@ func TestSubmitOrder(t *testing.T) {
 		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Limit, Side: order.Buy, Price: 60000, Amount: 1, ClientOrderID: "spot"})
 		require.NoError(t, err, "SubmitOrder must not error")
 		assert.Equal(t, 59000.0, resp.AverageExecutedPrice, "SubmitOrder should return the average fill price")
-		assert.Equal(t, 29500.0, resp.Cost, "SubmitOrder should return the quote total filled")
-		assert.Equal(t, 0.5, resp.Purchased, "SubmitOrder should return the base bought")
+		assert.Equal(t, 0.5, resp.ExecutedAmount, "SubmitOrder should return the base amount filled")
+		assert.Equal(t, 29500.0, resp.ExecutedQuoteAmount, "SubmitOrder should return the quote total filled")
 		assert.Equal(t, 0.001, resp.Fee, "SubmitOrder should return the fee")
 	})
+
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin} {
+		t.Run(a.String()+" market buy", func(t *testing.T) {
+			t.Parallel()
+			ex := newFixedResponseExchange(t, "/api/v4/spot/orders", `{"id":"42","currency_pair":"BTC_USDT","status":"closed","finish_as":"filled","type":"market","side":"buy","amount":"100","left":"0.25","filled_amount":"0.0015","filled_total":"99.75"}`)
+			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Type: order.Market, Side: order.Buy, QuoteAmount: 100})
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, 100.0, resp.QuoteAmount, "SubmitOrder should return the quote budget")
+			assert.Equal(t, 0.0015, resp.ExecutedAmount, "SubmitOrder should return the base fill")
+			assert.Equal(t, 99.75, resp.ExecutedQuoteAmount, "SubmitOrder should return the reported quote fill")
+			assert.Zero(t, resp.Amount, "SubmitOrder should leave the base order amount unknown")
+			assert.Zero(t, resp.RemainingAmount, "SubmitOrder should leave the remaining base amount unknown")
+		})
+	}
 
 	t.Run("refused orders and failed or unreadable replies", func(t *testing.T) {
 		t.Parallel()
@@ -2700,57 +2711,60 @@ func TestSubmitOrder(t *testing.T) {
 			name:   "spot",
 			submit: &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, ClientOrderID: "spot-limit"},
 			exp: &order.SubmitResponse{
-				Exchange:      e.Name,
-				Type:          order.Limit,
-				Side:          order.Buy,
-				Pair:          getPair(t, asset.Spot),
-				AssetType:     asset.Spot,
-				Price:         10000,
-				Amount:        0.001,
-				ClientOrderID: "t-spot-limit",
-				Date:          time.UnixMilli(1744150000073),
-				LastUpdated:   time.UnixMilli(1744150000074),
-				Status:        order.Open,
-				OrderID:       "1852454425",
-				FeeAsset:      currency.BTC,
+				Exchange:        e.Name,
+				Type:            order.Limit,
+				Side:            order.Buy,
+				Pair:            getPair(t, asset.Spot),
+				AssetType:       asset.Spot,
+				Price:           10000,
+				Amount:          0.001,
+				RemainingAmount: 0.001,
+				ClientOrderID:   "t-spot-limit",
+				Date:            time.UnixMilli(1744150000073),
+				LastUpdated:     time.UnixMilli(1744150000074),
+				Status:          order.Open,
+				OrderID:         "1852454425",
+				FeeAsset:        currency.BTC,
 			},
 		},
 		{
 			name:   "margin",
 			submit: &order.Submit{AssetType: asset.Margin, Type: order.Limit, Side: order.Sell, Price: 200000, Amount: 0.001, ClientOrderID: "margin-limit"},
 			exp: &order.SubmitResponse{
-				Exchange:      e.Name,
-				Type:          order.Limit,
-				Side:          order.Sell,
-				Pair:          getPair(t, asset.Margin),
-				AssetType:     asset.Margin,
-				Price:         200000,
-				Amount:        0.001,
-				ClientOrderID: "t-margin-limit",
-				Date:          time.UnixMilli(1744150000173),
-				LastUpdated:   time.UnixMilli(1744150000174),
-				Status:        order.Open,
-				OrderID:       "1852454426",
-				FeeAsset:      currency.USDT,
+				Exchange:        e.Name,
+				Type:            order.Limit,
+				Side:            order.Sell,
+				Pair:            getPair(t, asset.Margin),
+				AssetType:       asset.Margin,
+				Price:           200000,
+				Amount:          0.001,
+				RemainingAmount: 0.001,
+				ClientOrderID:   "t-margin-limit",
+				Date:            time.UnixMilli(1744150000173),
+				LastUpdated:     time.UnixMilli(1744150000174),
+				Status:          order.Open,
+				OrderID:         "1852454426",
+				FeeAsset:        currency.USDT,
 			},
 		},
 		{
 			name:   "cross margin",
 			submit: &order.Submit{AssetType: asset.CrossMargin, Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, TimeInForce: order.PostOnly},
 			exp: &order.SubmitResponse{
-				Exchange:    e.Name,
-				Type:        order.Limit,
-				Side:        order.Buy,
-				Pair:        getPair(t, asset.CrossMargin),
-				AssetType:   asset.CrossMargin,
-				TimeInForce: order.PostOnly,
-				Price:       10000,
-				Amount:      0.001,
-				Date:        time.UnixMilli(1744150000273),
-				LastUpdated: time.UnixMilli(1744150000274),
-				Status:      order.Open,
-				OrderID:     "1852454427",
-				FeeAsset:    currency.BTC,
+				Exchange:        e.Name,
+				Type:            order.Limit,
+				Side:            order.Buy,
+				Pair:            getPair(t, asset.CrossMargin),
+				AssetType:       asset.CrossMargin,
+				TimeInForce:     order.PostOnly,
+				Price:           10000,
+				Amount:          0.001,
+				RemainingAmount: 0.001,
+				Date:            time.UnixMilli(1744150000273),
+				LastUpdated:     time.UnixMilli(1744150000274),
+				Status:          order.Open,
+				OrderID:         "1852454427",
+				FeeAsset:        currency.BTC,
 			},
 		},
 		{
@@ -3207,8 +3221,7 @@ func TestGetActiveOrders(t *testing.T) {
 				ExecutedAmount:       0.5,
 				RemainingAmount:      0.5,
 				AverageExecutedPrice: 5.00032,
-				Cost:                 2.50016,
-				CostAsset:            currency.USDT,
+				ExecutedQuoteAmount:  2.50016,
 				Fee:                  0.005,
 				FeeAsset:             currency.BTC,
 				Date:                 time.UnixMilli(1744150000123),
@@ -3445,115 +3458,26 @@ func TestGetOrderHistory(t *testing.T) {
 		}
 	})
 
-	// The routed rows use fixed pairs and their own servers, so they run in either test mode
-	routedPairs := mockTestPairs()
-	usdtPair, coinPair := routedPairs[asset.USDTMarginedFutures].String(), routedPairs[asset.CoinMarginedFutures].String()
-	deliveryPair, optionsPair := routedPairs[asset.DeliveryFutures].String(), routedPairs[asset.Options].String()
-	usdtFills := `[{"id":1,"create_time":1744150000,"contract":"` + usdtPair + `","order_id":"11","size":"-4","price":"30000","fee":"0.25","role":"maker"},` +
-		`{"id":2,"create_time":1744150001,"contract":"` + usdtPair + `","order_id":"12","size":"2","price":"30000","fee":"0.125","role":"taker"}]`
-	for _, tc := range []struct {
-		name   string
-		a      asset.Item
-		routes map[string]string
-		costs  []float64
-	}{
-		{name: "a linear contract is valued by its multiplier", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades":             usdtFills,
-			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0.25"}`,
-		}, costs: []float64{30000, 15000}},
-		{name: "an inverse contract is worth a dollar a contract", a: asset.CoinMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/btc/my_trades":             `[{"id":3,"create_time":1744150000,"contract":"` + coinPair + `","order_id":"13","size":"100","price":"25000","fee":"0.0000002","role":"taker"}]`,
-			"/api/v4/futures/btc/contracts/" + coinPair: `{"name":"` + coinPair + `","type":"inverse","quanto_multiplier":"0"}`,
-		}, costs: []float64{0.004}},
-		{name: "a delivery contract is valued by its multiplier", a: asset.DeliveryFutures, routes: map[string]string{
-			"/api/v4/delivery/usdt/my_trades":                 `[{"id":4,"create_time":1744150000,"contract":"` + deliveryPair + `","order_id":"14","size":"-2","price":"30000","fee":"0.5","role":"maker"}]`,
-			"/api/v4/delivery/usdt/contracts/" + deliveryPair: `{"name":"` + deliveryPair + `","type":"direct","quanto_multiplier":"0.5"}`,
-		}, costs: []float64{30000}},
-		{name: "an options contract is valued by its multiplier", a: asset.Options, routes: map[string]string{
-			"/api/v4/options/my_trades":                `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
-			"/api/v4/options/contracts/" + optionsPair: `{"name":"` + optionsPair + `","multiplier":"0.25"}`,
-		}, costs: []float64{50}},
-		{name: "a contract Gate does not describe leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades": usdtFills,
-		}, costs: []float64{0, 0}},
-		{name: "a contract with no multiplier leaves the cost unset", a: asset.USDTMarginedFutures, routes: map[string]string{
-			"/api/v4/futures/usdt/my_trades":             usdtFills,
-			"/api/v4/futures/usdt/contracts/" + usdtPair: `{"name":"` + usdtPair + `","type":"direct","quanto_multiplier":"0"}`,
-		}, costs: []float64{0, 0}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
-			if tc.a == asset.Options {
-				req.Pairs = currency.Pairs{routedPairs[tc.a]}
-			}
-			got, err := newRoutedExchange(t, tc.routes).GetOrderHistory(t.Context(), req)
-			require.NoError(t, err, "GetOrderHistory must not error")
-			require.Len(t, got, len(tc.costs), "GetOrderHistory must return every fill")
-			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
-			require.NoError(t, err, "getSettlementCurrency must not error")
-			for i := range got {
-				assert.Equalf(t, tc.costs[i], got[i].Cost, "GetOrderHistory should value fill %d in the settlement currency", i)
-				assert.Equalf(t, settle, got[i].CostAsset, "GetOrderHistory should keep fill %d's cost in the settlement currency", i)
-				assert.Equalf(t, got[i].Amount, got[i].ExecutedAmount, "GetOrderHistory should report fill %d as fully executed", i)
-				assert.Equalf(t, got[i].Price, got[i].AverageExecutedPrice, "GetOrderHistory should report fill %d's price as its average", i)
-				assert.Equalf(t, got[i].Date, got[i].LastUpdated, "GetOrderHistory should date fill %d's last update by the fill", i)
-			}
-		})
-	}
-
-	t.Run("each contract is looked up once", func(t *testing.T) {
+	t.Run("two futures fills for the same order", func(t *testing.T) {
 		t.Parallel()
-		var lookups atomic.Int32
-		ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			body := usdtFills
-			if strings.Contains(r.URL.Path, "/contracts/") {
-				lookups.Add(1)
-				body = `{"type":"direct","quanto_multiplier":"0.25"}`
-			}
-			_, err := fmt.Fprint(w, body)
-			assert.NoError(t, err, "writing the response should not error")
-		})
+		ex := newFixedResponseExchange(t, "/api/v4/futures/usdt/my_trades",
+			`[{"id":1,"create_time":1744150000,"contract":"BTC_USDT","order_id":"11","size":"-4","price":"30000","fee":"0.25","role":"maker"},`+
+				`{"id":2,"create_time":1744150001,"contract":"BTC_USDT","order_id":"11","size":"-2","price":"31000","fee":"0.125","role":"taker"}]`)
 		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: asset.USDTMarginedFutures})
 		require.NoError(t, err, "GetOrderHistory must not error")
-		require.Len(t, got, 2, "GetOrderHistory must return both fills")
-		assert.Equal(t, int32(1), lookups.Load(), "GetOrderHistory should look up a contract once for all its fills")
+		require.Len(t, got, 2, "GetOrderHistory must return every fill")
+		for i, want := range []order.TradeHistory{
+			{TID: "1", Price: 30000, Amount: 4, Fee: 0.25, FeeAsset: "USDT", Side: order.Short, IsMaker: true, Timestamp: time.Unix(1744150000, 0), Exchange: ex.Name},
+			{TID: "2", Price: 31000, Amount: 2, Fee: 0.125, FeeAsset: "USDT", Side: order.Short, Timestamp: time.Unix(1744150001, 0), Exchange: ex.Name},
+		} {
+			assert.Equal(t, order.Detail{
+				Exchange: ex.Name, OrderID: "11", Side: order.Short,
+				Pair:      currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+				AssetType: asset.USDTMarginedFutures, Date: want.Timestamp, LastUpdated: want.Timestamp,
+				Trades: []order.TradeHistory{want},
+			}, got[i], "order history should report the trade and leave cumulative execution unknown")
+		}
 	})
-
-	for _, tc := range []struct {
-		name           string
-		a              asset.Item
-		fillsPath      string
-		fills          string
-		withOptionPair bool
-	}{
-		{name: "a futures contract lookup ended by the context", a: asset.USDTMarginedFutures, fillsPath: "/api/v4/futures/usdt/my_trades", fills: usdtFills},
-		{
-			name: "an options contract lookup ended by the context", a: asset.Options, fillsPath: "/api/v4/options/my_trades", withOptionPair: true,
-			fills: `[{"id":5,"create_time":1744150000,"contract":"` + optionsPair + `","order_id":15,"size":-2,"price":"100","role":"taker"}]`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ctx, cancel := context.WithCancel(t.Context())
-			t.Cleanup(cancel)
-			ex := newServedExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == tc.fillsPath {
-					_, err := fmt.Fprint(w, tc.fills)
-					assert.NoError(t, err, "writing the response should not error")
-					return
-				}
-				cancel()
-				w.WriteHeader(http.StatusInternalServerError)
-			})
-			req := &order.MultiOrderRequest{Type: order.AnyType, Side: order.AnySide, AssetType: tc.a}
-			if tc.withOptionPair {
-				req.Pairs = currency.Pairs{routedPairs[tc.a]}
-			}
-			_, err := ex.GetOrderHistory(ctx, req)
-			assert.ErrorIs(t, err, context.Canceled, "GetOrderHistory should return the context's error rather than fills without their cost")
-		})
-	}
 
 	t.Run("fills on pairs that have left the available pairs", func(t *testing.T) {
 		t.Parallel()
@@ -3570,11 +3494,10 @@ func TestGetOrderHistory(t *testing.T) {
 			a    asset.Item
 			pair currency.Pair
 			side order.Side
-			cost float64
 		}{
-			{name: "a delisted spot pair", a: asset.Spot, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Buy, cost: 6},
+			{name: "a delisted spot pair", a: asset.Spot, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Buy},
 			{name: "an expired delivery contract", a: asset.DeliveryFutures, pair: currency.NewPairWithDelimiter("BTC", "USDT_20200925", currency.UnderscoreDelimiter), side: order.Short},
-			{name: "a delisted perpetual contract", a: asset.USDTMarginedFutures, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Long, cost: 60},
+			{name: "a delisted perpetual contract", a: asset.USDTMarginedFutures, pair: currency.NewPairWithDelimiter("ZZZ", "USDT", currency.UnderscoreDelimiter), side: order.Long},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				got, err := ex.GetOrderHistory(ctx, &order.MultiOrderRequest{AssetType: tc.a, Side: order.AnySide, Type: order.AnyType})
@@ -3582,27 +3505,7 @@ func TestGetOrderHistory(t *testing.T) {
 				require.Len(t, got, 1, "GetOrderHistory must return the fill")
 				assert.Equal(t, tc.pair, got[0].Pair, "GetOrderHistory should parse the fill's symbol")
 				assert.Equal(t, tc.side, got[0].Side, "GetOrderHistory should return the fill's side")
-				assert.Equal(t, tc.cost, got[0].Cost, "GetOrderHistory should value the fill, or leave an expired contract's unknown size unvalued")
-			})
-		}
-	})
-
-	t.Run("a spot fill's cost is in its trade quote", func(t *testing.T) {
-		t.Parallel()
-		for _, tc := range []struct {
-			name, quote string
-			exp         currency.Code
-		}{
-			{name: "trade quote", quote: `,"trade_quote":"USDC"`, exp: currency.USDC},
-			{name: "pair quote without a trade quote", exp: currency.USDT},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				got, err := newFixedResponseExchange(t, "/api/v4/spot/my_trades", `[{"id":"1","currency_pair":"BTC_USDT","side":"buy","amount":"1","price":"2"`+tc.quote+`}]`).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-				require.NoError(t, err, "GetOrderHistory must not error")
-				require.Len(t, got, 1, "GetOrderHistory must return the fill")
-				assert.Equal(t, tc.exp, got[0].CostAsset, "GetOrderHistory should give the fill's cost asset")
-				assert.Equal(t, 2.0, got[0].Cost, "GetOrderHistory should value the fill at its price")
+				assert.Zero(t, got[0].ExecutedQuoteAmount, "a single trade should leave the cumulative quote amount unknown")
 			})
 		}
 	})
@@ -3621,21 +3524,13 @@ func TestGetOrderHistory(t *testing.T) {
 	// account
 	spotFill := func(a asset.Item) order.FilteredOrders {
 		return order.FilteredOrders{{
-			Exchange:             e.Name,
-			OrderID:              "987345678235",
-			Side:                 order.Buy,
-			Pair:                 getPair(t, a),
-			AssetType:            a,
-			Price:                65000,
-			Amount:               0.5,
-			ExecutedAmount:       0.5,
-			AverageExecutedPrice: 65000,
-			Cost:                 32500,
-			CostAsset:            currency.USDT,
-			Fee:                  0.0005,
-			FeeAsset:             currency.BTC,
-			Date:                 time.UnixMicro(1744150000123456),
-			LastUpdated:          time.UnixMicro(1744150000123456),
+			Exchange:    e.Name,
+			OrderID:     "987345678235",
+			Side:        order.Buy,
+			Pair:        getPair(t, a),
+			AssetType:   a,
+			Date:        time.UnixMicro(1744150000123456),
+			LastUpdated: time.UnixMicro(1744150000123456),
 			Trades: []order.TradeHistory{{
 				TID:       "1232893233",
 				Price:     65000,
@@ -3651,7 +3546,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	// futuresFill is a futures fill, which Gate sizes negative for a sell, in contracts and identified by its own fill
 	// ID besides the ID of the order it filled
-	futuresFill := func(a asset.Item, orderID, fillID string, side order.Side, price, amount, fee, cost float64, isMaker bool, date time.Time) order.FilteredOrders {
+	futuresFill := func(a asset.Item, orderID, fillID string, side order.Side, price, amount, fee float64, isMaker bool, date time.Time) order.FilteredOrders {
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		require.NoErrorf(t, err, "getSettlementCurrency must not error for %s", a)
 		// Gate reports no fee on an options fill
@@ -3660,21 +3555,13 @@ func TestGetOrderHistory(t *testing.T) {
 			feeAsset = settle
 		}
 		return order.FilteredOrders{{
-			Exchange:             e.Name,
-			OrderID:              orderID,
-			Side:                 side,
-			Pair:                 getPair(t, a),
-			AssetType:            a,
-			Price:                price,
-			AverageExecutedPrice: price,
-			Amount:               amount,
-			ExecutedAmount:       amount,
-			Cost:                 cost,
-			CostAsset:            settle,
-			Fee:                  fee,
-			FeeAsset:             feeAsset,
-			Date:                 date,
-			LastUpdated:          date,
+			Exchange:    e.Name,
+			OrderID:     orderID,
+			Side:        side,
+			Pair:        getPair(t, a),
+			AssetType:   a,
+			Date:        date,
+			LastUpdated: date,
 			Trades: []order.TradeHistory{{
 				TID:       fillID,
 				Price:     price,
@@ -3688,16 +3575,15 @@ func TestGetOrderHistory(t *testing.T) {
 			}},
 		}}
 	}
-	// The recorded contracts size BTC_USDT and the delivery contract at 0.0001, the option at 0.01, and BTC_USD is
-	// inverse, so worth one dollar a contract
+
 	usdtContracts, usdtPrice := 30.0, 31500.5
-	usdtFill := futuresFill(asset.USDTMarginedFutures, "21893289840", "121234235", order.Short, usdtPrice, usdtContracts, 0.0473, usdtContracts*usdtPrice*0.0001, true, time.UnixMilli(1744150000123))
+	usdtFill := futuresFill(asset.USDTMarginedFutures, "21893289840", "121234235", order.Short, usdtPrice, usdtContracts, 0.0473, true, time.UnixMilli(1744150000123))
 	coinContracts, coinPrice := 100.0, 100.123
-	coinFill := futuresFill(asset.CoinMarginedFutures, "21893289839", "121234231", order.Long, coinPrice, coinContracts, 0.01, coinContracts/coinPrice, false, time.UnixMilli(1514764800123))
+	coinFill := futuresFill(asset.CoinMarginedFutures, "21893289839", "121234231", order.Long, coinPrice, coinContracts, 0.01, false, time.UnixMilli(1514764800123))
 	deliveryContracts, deliveryPrice := 100.0, 100.123
-	deliveryFill := futuresFill(asset.DeliveryFutures, "21893289839", "121234231", order.Short, deliveryPrice, deliveryContracts, 0.01, deliveryContracts*deliveryPrice*0.0001, true, time.UnixMilli(1514764800123))
+	deliveryFill := futuresFill(asset.DeliveryFutures, "21893289839", "121234231", order.Short, deliveryPrice, deliveryContracts, 0.01, true, time.UnixMilli(1514764800123))
 	optionsContracts, optionsPrice := 1.0, 100.0
-	optionsFill := futuresFill(asset.Options, "6", "7", order.Short, optionsPrice, optionsContracts, 0, optionsContracts*optionsPrice*0.01, true, time.Unix(1631763397, 0))
+	optionsFill := futuresFill(asset.Options, "6", "7", order.Short, optionsPrice, optionsContracts, 0, true, time.Unix(1631763397, 0))
 	for _, tc := range []struct {
 		a         asset.Item
 		withPairs bool
@@ -3763,56 +3649,6 @@ func TestHistoryPair(t *testing.T) {
 			p, err := ex.historyPair(tc.symbol, asset.DeliveryFutures)
 			require.ErrorIs(t, err, tc.err, "historyPair must return the expected error")
 			assert.Equal(t, tc.exp, p, "historyPair should return the expected pair")
-		})
-	}
-}
-
-func TestLookupContractSize(t *testing.T) {
-	t.Parallel()
-	usdtPair, deliveryPair, optionsPair := getPair(t, asset.USDTMarginedFutures), getPair(t, asset.DeliveryFutures), getPair(t, asset.Options)
-	ex := newRoutedExchange(t, map[string]string{
-		"/api/v4/futures/usdt/contracts/" + usdtPair.String():      `{"type":"direct","quanto_multiplier":"0.0001"}`,
-		"/api/v4/delivery/usdt/contracts/" + deliveryPair.String(): `{"type":"direct","quanto_multiplier":"0.5"}`,
-		"/api/v4/options/contracts/" + optionsPair.String():        `{"multiplier":"0.25"}`,
-	})
-	for _, tc := range []struct {
-		name string
-		a    asset.Item
-		pair currency.Pair
-		exp  *contractSize
-	}{
-		{name: "futures contract", a: asset.USDTMarginedFutures, pair: usdtPair, exp: &contractSize{contractType: "direct", multiplier: 0.0001}},
-		{name: "delivery contract", a: asset.DeliveryFutures, pair: deliveryPair, exp: &contractSize{contractType: "direct", multiplier: 0.5}},
-		{name: "options contract", a: asset.Options, pair: optionsPair, exp: &contractSize{multiplier: 0.25}},
-		{name: "a contract Gate does not describe", a: asset.CoinMarginedFutures, pair: getPair(t, asset.CoinMarginedFutures)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			settle, err := getSettlementCurrency(currency.EMPTYPAIR, tc.a)
-			require.NoError(t, err, "getSettlementCurrency must not error")
-			assert.Equal(t, tc.exp, ex.lookupContractSize(t.Context(), tc.a, settle, tc.pair), "lookupContractSize should return the contract's size")
-		})
-	}
-}
-
-func TestContractSizeSettledValue(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name             string
-		size             *contractSize
-		contracts, price float64
-		exp              float64
-	}{
-		{name: "an unknown contract has no value", contracts: 4, price: 30000},
-		{name: "a linear contract scales by its multiplier", size: &contractSize{contractType: "direct", multiplier: 0.25}, contracts: 4, price: 30000, exp: 30000},
-		{name: "an inverse contract is worth a unit of its quote", size: &contractSize{contractType: contractTypeInverse}, contracts: 100, price: 25000, exp: 0.004},
-		{name: "an inverse contract has no value at no price", size: &contractSize{contractType: contractTypeInverse}, contracts: 100},
-		{name: "a contract without a multiplier has no value", size: &contractSize{contractType: "direct"}, contracts: 4, price: 30000},
-		{name: "an options contract scales by its multiplier", size: &contractSize{multiplier: 0.25}, contracts: 2, price: 100, exp: 50},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.exp, tc.size.settledValue(tc.contracts, tc.price), "settledValue should value the contracts in their settlement currency")
 		})
 	}
 }
@@ -5102,13 +4938,13 @@ func TestDeriveSpotWebsocketOrderResponse(t *testing.T) { //nolint:tparallel // 
 		Date:                 time.UnixMilli(1735720637188),
 		LastUpdated:          time.UnixMilli(1735720637188),
 		Amount:               0.0001,
+		ExecutedAmount:       0.0001,
 		AverageExecutedPrice: 93503.3,
 		Type:                 order.Market,
 		Side:                 order.Sell,
 		Status:               order.Filled,
 		TimeInForce:          order.ImmediateOrCancel,
-		Cost:                 9.35033,
-		Purchased:            9.35033,
+		ExecutedQuoteAmount:  9.35033,
 	}, got)
 }
 
@@ -5173,13 +5009,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735720637188),
 					LastUpdated:          time.UnixMilli(1735720637188),
 					Amount:               0.0001,
+					ExecutedAmount:       0.0001,
 					AverageExecutedPrice: 93503.3,
 					Type:                 order.Market,
 					Side:                 order.Sell,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 9.35033,
-					Purchased:            9.35033,
+					ExecutedQuoteAmount:  9.35033,
 				},
 				{
 					Exchange:             e.Name,
@@ -5189,15 +5025,13 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					ClientOrderID:        "t-1735720637126962151",
 					Date:                 time.UnixMilli(1735720637142),
 					LastUpdated:          time.UnixMilli(1735720637142),
-					RemainingAmount:      0.000008,
-					Amount:               9.99152,
+					QuoteAmount:          9.99152,
 					AverageExecutedPrice: 0.01224,
 					Type:                 order.Market,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.ImmediateOrCancel,
-					Cost:                 9.991512,
-					Purchased:            816.3,
+					ExecutedQuoteAmount:  9.991512,
 				},
 				{
 					Exchange:             e.Name,
@@ -5208,14 +5042,14 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597363),
 					LastUpdated:          time.UnixMilli(1735778597363),
 					Amount:               200,
+					ExecutedAmount:       200,
 					Price:                0.03673,
 					AverageExecutedPrice: 0.03673,
 					Type:                 order.Limit,
 					Side:                 order.Buy,
 					Status:               order.Filled,
 					TimeInForce:          order.FillOrKill,
-					Cost:                 7.346,
-					Purchased:            200,
+					ExecutedQuoteAmount:  7.346,
 				},
 				{
 					Exchange:        e.Name,
@@ -5267,8 +5101,8 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					ClientOrderID:        "t-123456",
 					Date:                 time.UnixMilli(1734081653247),
 					LastUpdated:          time.UnixMilli(1734081653249),
-					RemainingAmount:      0.143511,
-					Amount:               70,
+					QuoteAmount:          70,
+					ExecutedAmount:       0.00299,
 					AverageExecutedPrice: 23363.3742475,
 					Type:                 order.Market,
 					Side:                 order.Buy,
@@ -5276,8 +5110,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					TimeInForce:          order.ImmediateOrCancel,
 					Fee:                  0.0000028704,
 					FeeAsset:             currency.BTC,
-					Cost:                 69.856489,
-					Purchased:            0.00299,
+					ExecutedQuoteAmount:  69.856489,
 				},
 				{
 					Exchange:             e.Name,
@@ -5289,6 +5122,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					LastUpdated:          time.UnixMilli(1734081653251),
 					RemainingAmount:      0.4,
 					Amount:               1,
+					ExecutedAmount:       0.6,
 					Price:                60000,
 					AverageExecutedPrice: 60000,
 					Type:                 order.Limit,
@@ -5297,15 +5131,14 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					TimeInForce:          order.GoodTillCancel,
 					Fee:                  36,
 					FeeAsset:             currency.USDT,
-					Cost:                 36000,
-					Purchased:            36000, // A sell's purchase is in the quote currency, so filled_amount does not apply
+					ExecutedQuoteAmount:  36000,
 				},
 			},
 		},
 		{
 			name: "batch of spot orders with error at end",
 			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
-			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
+			// The batch reply omits base fills and averages, but reports the filled quote totals.
 			orders: [][]byte{
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"BTC_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
 				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"BTC_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
@@ -5313,34 +5146,34 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			},
 			expected: []*order.SubmitResponse{
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816782",
-					AssetType:       asset.Spot,
-					Pair:            getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-740",
-					Date:            time.UnixMilli(1736980695949),
-					LastUpdated:     time.UnixMilli(1736980695949),
-					Amount:          9.98,
-					RemainingAmount: 0.047239,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816782",
+					AssetType:           asset.Spot,
+					Pair:                getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-740",
+					Date:                time.UnixMilli(1736980695949),
+					LastUpdated:         time.UnixMilli(1736980695949),
+					QuoteAmount:         9.98,
+					ExecutedQuoteAmount: 9.932761,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
-					Exchange:        e.Name,
-					OrderID:         "775453816824",
-					AssetType:       asset.Spot,
-					Pair:            getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-741",
-					Date:            time.UnixMilli(1736980695956),
-					LastUpdated:     time.UnixMilli(1736980695956),
-					RemainingAmount: 0.00000000962,
-					Amount:          0.00289718,
-					Type:            order.Market,
-					Side:            order.Buy,
-					Status:          order.Filled,
-					TimeInForce:     order.FillOrKill,
+					Exchange:            e.Name,
+					OrderID:             "775453816824",
+					AssetType:           asset.Spot,
+					Pair:                getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					ClientOrderID:       "t-741",
+					Date:                time.UnixMilli(1736980695956),
+					LastUpdated:         time.UnixMilli(1736980695956),
+					QuoteAmount:         0.00289718,
+					ExecutedQuoteAmount: 0.00289717038,
+					Type:                order.Market,
+					Side:                order.Buy,
+					Status:              order.Filled,
+					TimeInForce:         order.FillOrKill,
 				},
 				{
 					Exchange:        e.Name,
@@ -5378,29 +5211,6 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	}
 }
 
-func TestSpotFillTotals(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name                                    string
-		side                                    order.Side
-		filledTotal, averagePrice, filledAmount types.Number
-		cost, purchased                         float64
-	}{
-		{name: "unfilled", side: order.Buy},
-		{name: "buy with a filled amount", side: order.Buy, filledTotal: 29500, averagePrice: 59000, filledAmount: 0.5, cost: 29500, purchased: 0.5},
-		{name: "buy without a filled amount", side: order.Buy, filledTotal: 30, averagePrice: 4, cost: 30, purchased: 7.5},
-		{name: "sell", side: order.Sell, filledTotal: 29500, averagePrice: 59000, filledAmount: 0.5, cost: 29500, purchased: 29500},
-		{name: "buy with a filled amount and no average price", side: order.Buy, filledTotal: 29500, filledAmount: 0.5, purchased: 0.5},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			cost, purchased := spotFillTotals(tc.side, tc.filledTotal, tc.averagePrice, tc.filledAmount)
-			assert.Equal(t, tc.cost, cost, "spotFillTotals should return the cost")
-			assert.Equal(t, tc.purchased, purchased, "spotFillTotals should return the purchased amount")
-		})
-	}
-}
-
 func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) { //nolint:tparallel // top-level parallel is safe; the subtest shares e with the conversions below
 	t.Parallel()
 
@@ -5426,6 +5236,7 @@ func TestDeriveFuturesWebsocketOrderResponse(t *testing.T) { //nolint:tparallel 
 		Date:                 time.UnixMilli(1735787107449),
 		LastUpdated:          time.UnixMilli(1735787107450),
 		Amount:               2,
+		ExecutedAmount:       2,
 		AverageExecutedPrice: 0.0000002625,
 		Type:                 order.Market,
 		Side:                 order.Long,
@@ -5512,6 +5323,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735787107449),
 					LastUpdated:          time.UnixMilli(1735787107450),
 					Amount:               2,
+					ExecutedAmount:       2,
 					AverageExecutedPrice: 0.0000002625,
 					Type:                 order.Market,
 					Side:                 order.Long,
@@ -5528,6 +5340,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1735778597374),
 					LastUpdated:          time.UnixMilli(1735778597374),
 					Amount:               2,
+					ExecutedAmount:       2,
 					AverageExecutedPrice: 0.03654,
 					Type:                 order.Market,
 					Side:                 order.Short,
@@ -5572,6 +5385,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1740108860761),
 					LastUpdated:          time.UnixMilli(1740108860761),
 					Amount:               1,
+					ExecutedAmount:       1,
 					AverageExecutedPrice: 98172.9,
 					Type:                 order.Market,
 					Side:                 order.Long,
@@ -5586,6 +5400,7 @@ func TestDeriveFuturesWebsocketOrderResponses(t *testing.T) {
 					Date:                 time.UnixMilli(1740109172060),
 					LastUpdated:          time.UnixMilli(1740109172060),
 					Amount:               1,
+					ExecutedAmount:       1,
 					AverageExecutedPrice: 98113.1,
 					Type:                 order.Market,
 					Side:                 order.Short,
@@ -5893,8 +5708,7 @@ func TestSpotOrderDetail(t *testing.T) {
 		ExecutedAmount:       0.5,
 		RemainingAmount:      0.25,
 		AverageExecutedPrice: 64990,
-		Cost:                 32495,
-		CostAsset:            currency.USDT,
+		ExecutedQuoteAmount:  32495,
 		Fee:                  0.0005,
 		FeeAsset:             currency.BTC,
 		Date:                 created,
@@ -5906,7 +5720,6 @@ func TestSpotOrderDetail(t *testing.T) {
 	unified.TradeQuote = currency.USDC
 	got, err = e.spotOrderDetail(unified, pair, asset.Margin)
 	require.NoError(t, err, "spotOrderDetail must not error for a unified account order")
-	exp.CostAsset = currency.USDC
 	assert.Equal(t, exp, got, "spotOrderDetail should report the cost in the quote currency the order traded in")
 
 	badSide := newOrder()
@@ -6113,6 +5926,7 @@ func TestDeriveFuturesSubmitResponse(t *testing.T) {
 		TimeInForce:          order.GoodTillCancel,
 		Price:                65000,
 		Amount:               100,
+		ExecutedAmount:       60,
 		RemainingAmount:      40,
 		AverageExecutedPrice: 64995,
 		ClientOrderID:        "t-15675394",

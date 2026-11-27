@@ -498,23 +498,29 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		if err != nil {
 			return err
 		}
-		details[x] = order.Detail{
-			Amount:         o.Amount.Float64(),
-			Exchange:       e.Name,
-			OrderID:        o.ID,
-			ClientOrderID:  getClientOrderIDFromText(o.Text),
-			Side:           side,
-			Type:           orderType,
-			Pair:           o.CurrencyPair,
-			AssetType:      a,
-			Price:          o.Price.Float64(),
-			ExecutedAmount: o.Amount.Float64() - o.Left.Float64(),
-			Date:           o.CreateTime.Time(),
-			LastUpdated:    o.UpdateTime.Time(),
+		tif, err := order.StringToTimeInForce(o.TimeInForce)
+		if err != nil {
+			return err
 		}
-		// The order store keeps the last status, fee and cost it is given, so only a finish event's are relayed: a delayed
-		// earlier push would otherwise reopen a finished order or put back an older fee. The remaining amount is left out
-		// as the store ignores a zero, so a filled order would keep the remainder of its last partial fill
+		amount, quoteAmount, executed, remaining := spotOrderQuantities(a, side, orderType, o.Amount, o.Left, o.FilledAmount)
+		details[x] = order.Detail{
+			Amount:          amount,
+			QuoteAmount:     quoteAmount,
+			Exchange:        e.Name,
+			OrderID:         o.ID,
+			ClientOrderID:   getClientOrderIDFromText(o.Text),
+			Side:            side,
+			Type:            orderType,
+			TimeInForce:     tif,
+			Pair:            o.CurrencyPair,
+			AssetType:       a,
+			Price:           o.Price.Float64(),
+			ExecutedAmount:  executed,
+			RemainingAmount: remaining,
+			Date:            o.CreateTime.Time(),
+			LastUpdated:     o.UpdateTime.Time(),
+		}
+		// Relay final status and totals on finish events so earlier pushes cannot replace them.
 		if o.Event != finishEvent {
 			continue
 		}
@@ -523,11 +529,7 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 				return err
 			}
 		}
-		details[x].Cost = o.FilledTotal.Float64()
-		details[x].CostAsset = o.TradeQuote
-		if details[x].CostAsset.IsEmpty() {
-			details[x].CostAsset = o.CurrencyPair.Quote
-		}
+		details[x].ExecutedQuoteAmount = o.FilledTotal.Float64()
 		details[x].Fee = o.Fee.Float64()
 		if details[x].Fee > 0 { // The store keeps a stored fee when given none, so a lone currency would relabel it
 			details[x].FeeAsset = o.FeeCurrency

@@ -312,6 +312,8 @@ func (e *Exchange) wsProcessOrderUpdate(ctx context.Context, msg *websocketMessa
 	if err != nil {
 		return err
 	}
+	// The push lacks a cumulative quote total, and multiplying the rounded
+	// average by the filled amount can exceed the exact total reported by REST.
 	detail := &order.Detail{
 		Exchange:             e.Name,
 		OrderID:              u.OrderID,
@@ -325,7 +327,6 @@ func (e *Exchange) wsProcessOrderUpdate(ctx context.Context, msg *websocketMessa
 		Price:                u.OrderPrice.Float64(),
 		ExecutedAmount:       u.AccumulatedAmount.Float64(),
 		AverageExecutedPrice: u.AveragePrice.Float64(),
-		Cost:                 u.AveragePrice.Float64() * u.AccumulatedAmount.Float64(),
 		LastUpdated:          u.UpdateTime.Time(),
 	}
 	switch {

@@ -1096,7 +1096,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		MarginType:      marginTypeFromMode(status.MarginMode),
 		TriggerPrice:    triggerPrice(status.StopPrice.Float64(), status.ActivationPrice.Float64()),
 		FeeAsset:        feeAsset,
-		CostAsset:       feeAsset,
 		Trades:          make([]order.TradeHistory, len(status.Transactions)),
 	}
 	var totals tradeTotals
@@ -1125,7 +1124,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if status.Status == OrderStatusOpen {
 		d.ExecutedAmount = openExecutedAmount(d.ExecutedAmount, d.Amount, d.RemainingAmount)
 	}
-	d.Cost = totals.cost.InexactFloat64()
+	d.ExecutedQuoteAmount = totals.cost.InexactFloat64()
 	d.Fee = totals.fee.InexactFloat64()
 	d.AverageExecutedPrice = totals.averagePrice()
 	d.Status = orderStatus(status.Status, d.ExecutedAmount > 0)
@@ -1489,7 +1488,6 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 				AssetType: asset.Spot,
 				Pair:      currency.NewPairWithDelimiter(pair.Base.String(), pair.Quote.String(), currency.ForwardSlashDelimiter),
 				FeeAsset:  pair.Quote,
-				CostAsset: pair.Quote,
 				Date:      tx.DateTime,
 			}
 			aggregated[tx.OrderID] = d
@@ -1645,7 +1643,6 @@ func aggregatedOrder(aggregated map[uint64]*order.Detail, exchangeName string, t
 			AssetType:  asset.PerpetualContract,
 			Pair:       pair,
 			FeeAsset:   t.FeeCurrency.Upper(),
-			CostAsset:  t.FeeCurrency.Upper(),
 			Leverage:   t.Leverage.Float64(),
 			MarginType: marginTypeFromMode(t.MarginMode),
 			Date:       t.DateTime.Time(),
@@ -1708,7 +1705,7 @@ func aggregatedOrders(aggregated map[uint64]*order.Detail) ([]order.Detail, erro
 		}
 		d.Amount = totals.amount.InexactFloat64()
 		d.ExecutedAmount = d.Amount
-		d.Cost = totals.cost.InexactFloat64()
+		d.ExecutedQuoteAmount = totals.cost.InexactFloat64()
 		d.Fee = totals.fee.InexactFloat64()
 		if totals.amount.IsPositive() {
 			d.AverageExecutedPrice = totals.averagePrice()

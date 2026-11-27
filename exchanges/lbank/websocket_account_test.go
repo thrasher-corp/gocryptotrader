@@ -857,7 +857,7 @@ func TestWebsocketAccountHandlers(t *testing.T) {
 		&order.Detail{
 			Exchange: ex.Name, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell", Pair: pair, AssetType: asset.Spot,
 			Side: order.Sell, Status: order.PartiallyFilled, Price: 80000, Amount: 0.005, ExecutedAmount: 0.003, RemainingAmount: 0.002,
-			AverageExecutedPrice: 80000.5, Cost: 240.0015, LastUpdated: time.UnixMilli(1792888874775),
+			AverageExecutedPrice: 80000.5, LastUpdated: time.UnixMilli(1792888874775),
 		},
 		[]fill.Data{{
 			ID: "da88f354d5e04c4ea12128aa5bdcb301", TradeID: "da88f354d5e04c4ea12128aa5bdcb301", Exchange: ex.Name, AssetType: asset.Spot,
@@ -884,6 +884,26 @@ func TestWebsocketAccountHandlers(t *testing.T) {
 
 func TestWebsocketProcessOrderUpdate(t *testing.T) {
 	t.Parallel()
+	t.Run("exact REST total after a rounded websocket average", func(t *testing.T) {
+		t.Parallel()
+		ex := newChannelTestExchange(t)
+		frame := `{"orderUpdate":{"accAmt":"0.00125","avgPrice":"80000.38","symbol":"btc_usdt","type":"buy_market","orderAmt":"101","orderStatus":1,"uuid":"market-buy","updateTime":1792888874775},"type":"orderUpdate"}`
+		require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "the order update must be relayed")
+		updates := relayedPayloads(ex)
+		require.Len(t, updates, 1, "the push must relay one update")
+		stored, ok := updates[0].(*order.Detail)
+		require.True(t, ok, "the update must contain an order detail")
+		assert.Zero(t, stored.ExecutedQuoteAmount, "the push should leave the unreported cumulative quote total unknown")
+		assert.Equal(t, 80000.38, stored.AverageExecutedPrice, "the push should retain the reported average")
+		lookup, err := ex.orderDetail(&OrderResponse{
+			OrderID: "market-buy", Type: "buy_market", OriginalQuoteOrderQuantity: 101,
+			ExecutedQuantity: 0.00125, CumulativeQuoteQuantity: 100.0004645, Status: 3,
+		}, stored.Pair)
+		require.NoError(t, err, "the REST snapshot must map to an order detail")
+		require.NoError(t, stored.UpdateOrderFromDetail(lookup), "the REST snapshot must merge")
+		assert.Equal(t, order.PartiallyFilledCancelled, stored.Status, "the exact REST snapshot should close the order")
+		assert.Equal(t, 100.0004645, stored.ExecutedQuoteAmount, "the REST snapshot should supply the exact quote total")
+	})
 	t.Run("order type", func(t *testing.T) {
 		t.Parallel()
 		ex := newChannelTestExchange(t)
@@ -926,7 +946,7 @@ func TestWebsocketProcessOrderUpdate(t *testing.T) {
 				detail := &order.Detail{
 					Exchange: ex.Name, OrderID: "d0db191d-1a2b-4418-9c3d-fbb1aa2c2ea9", ClientOrderID: "gct-sell", Pair: pair, AssetType: asset.Spot,
 					Side: tc.side, Type: tc.orderType, TimeInForce: tc.tif, Status: order.PartiallyFilled, Price: 80000, Amount: 0.005,
-					ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015, LastUpdated: time.UnixMilli(1792888874775),
+					ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, LastUpdated: time.UnixMilli(1792888874775),
 				}
 				// A market buy's order amount is the quote amount it spends, which leaves its remaining amount unknown
 				if orderType == "buy_market" {
@@ -959,7 +979,7 @@ func TestWebsocketProcessOrderUpdate(t *testing.T) {
 			exp := []any{
 				&order.Detail{
 					Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.PartiallyFilled, Price: 80001,
-					Amount: 0.005, ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5, Cost: 240.0015,
+					Amount: 0.005, ExecutedAmount: 0.003, RemainingAmount: 0.002, AverageExecutedPrice: 80000.5,
 					LastUpdated: time.UnixMilli(1792888874775),
 				},
 				[]fill.Data{{
@@ -968,14 +988,14 @@ func TestWebsocketProcessOrderUpdate(t *testing.T) {
 				}},
 				&order.Detail{
 					Exchange: ex.Name, OrderID: "o1", Pair: pair, AssetType: asset.Spot, Side: order.Buy, Status: order.Filled, Price: 80001,
-					Amount: 0.005, ExecutedAmount: 0.005, AverageExecutedPrice: 80000.3, Cost: 400.0015, LastUpdated: time.UnixMilli(1792888875775),
+					Amount: 0.005, ExecutedAmount: 0.005, AverageExecutedPrice: 80000.3, LastUpdated: time.UnixMilli(1792888875775),
 				},
 				[]fill.Data{{
 					ID: "t2", TradeID: "t2", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Buy, OrderID: "o1",
 					Price: 80000, Amount: 0.002, Timestamp: time.UnixMilli(1792888875775),
 				}},
 			}
-			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the order's remaining amount and cost")
+			assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay each update with the remaining amount and reported average price")
 		})
 		t.Run("frame without its update", func(t *testing.T) {
 			require.ErrorIs(t, ex.wsProcessOrderUpdate(t.Context(), &websocketMessage{}), common.ErrNoResponse, "wsProcessOrderUpdate must report a frame without its update")
@@ -997,7 +1017,7 @@ func TestWebsocketProcessOrderUpdate(t *testing.T) {
 		exp := []any{
 			&order.Detail{
 				Exchange: ex.Name, OrderID: "o2", Pair: pair, AssetType: asset.Spot, Side: order.Sell, Status: order.PartiallyFilled, Price: 20,
-				Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 21.75, Cost: 87, LastUpdated: time.UnixMilli(1792888874775),
+				Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 21.75, LastUpdated: time.UnixMilli(1792888874775),
 			},
 			[]fill.Data{{
 				ID: "t3", TradeID: "t3", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Sell, OrderID: "o2",

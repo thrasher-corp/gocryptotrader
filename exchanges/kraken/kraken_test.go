@@ -1067,6 +1067,112 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSpotOrderExecutionMappings(t *testing.T) {
+	t.Parallel()
+	const orderResponse = `{"status":"closed","opentm":1700000000,"closetm":1700000060,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"61"},"vol":"2","vol_exec":"1.5","cost":"90","fee":"0.3","price":"60","trades":["trade-1","trade-2"]}`
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response string
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/"+krakenQueryOrders):
+			response = `{"error":[],"result":{"order-123":` + orderResponse + `}}`
+		case strings.HasSuffix(r.URL.Path, "/"+krakenClosedOrders):
+			response = `{"error":[],"result":{"closed":{"order-123":` + orderResponse + `},"count":1}}`
+		default:
+			assert.Failf(t, "unexpected request", "path: %s", r.URL.Path)
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "writing the order response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair}, true), "spot pair must be enabled")
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+
+	orderTime := time.Unix(1700000000, 0)
+	closeTime := time.Unix(1700000060, 0)
+	gotInfo, err := ex.GetOrderInfo(t.Context(), "order-123", currency.EMPTYPAIR, asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	expInfo := &order.Detail{
+		Price:               60,
+		Amount:              2,
+		ExecutedAmount:      1.5,
+		RemainingAmount:     0.5,
+		ExecutedQuoteAmount: 90,
+		Fee:                 0.3,
+		Exchange:            ex.Name,
+		OrderID:             "order-123",
+		Type:                order.Limit,
+		Side:                order.Buy,
+		Status:              order.Closed,
+		AssetType:           asset.Spot,
+		Date:                orderTime,
+		CloseTime:           closeTime,
+		Pair:                currency.NewPairWithDelimiter("XBT", "USD", "_"),
+		Trades: []order.TradeHistory{
+			{TID: "trade-1"},
+			{TID: "trade-2"},
+		},
+	}
+	assert.Equal(t, expInfo, gotInfo, "GetOrderInfo should map all order fields")
+
+	gotHistory, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
+		Side:      order.AnySide,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	require.Len(t, gotHistory, 1, "GetOrderHistory must return the fixture order")
+	expHistory := order.Detail{
+		Price:                61,
+		Amount:               2,
+		AverageExecutedPrice: 60,
+		ExecutedAmount:       1.5,
+		RemainingAmount:      0.5,
+		ExecutedQuoteAmount:  90,
+		Exchange:             ex.Name,
+		OrderID:              "order-123",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.Closed,
+		Date:                 orderTime,
+		CloseTime:            closeTime,
+		LastUpdated:          closeTime,
+		Pair:                 currency.NewPairWithDelimiter("XBT", "USD", "_"),
+	}
+	assert.Equal(t, expHistory, gotHistory[0], "GetOrderHistory should map all order fields")
+
+	t.Run("rounded average", func(t *testing.T) {
+		t.Parallel()
+		const roundedResponse = `{"status":"closed","opentm":1700000000,"closetm":1700000060,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"61"},"vol":"2","vol_exec":"1.5","cost":"90.01","fee":"0.3","price":"60.0"}`
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			response := `{"error":[],"result":{"order-124":` + roundedResponse + `}}`
+			if strings.HasSuffix(r.URL.Path, "/"+krakenClosedOrders) {
+				response = `{"error":[],"result":{"closed":{"order-124":` + roundedResponse + `},"count":1}}`
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "writing the order response should not error")
+		}))
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair}, true), "spot pair must be enabled")
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+		gotInfo, err := ex.GetOrderInfo(t.Context(), "order-124", currency.EMPTYPAIR, asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Equal(t, 90.01, gotInfo.ExecutedQuoteAmount, "GetOrderInfo should map the reported cost")
+		gotHistory, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{Type: order.AnyType, AssetType: asset.Spot, Side: order.AnySide})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		require.Len(t, gotHistory, 1, "GetOrderHistory must return the fixture order")
+		assert.Equal(t, 90.01, gotHistory[0].ExecutedQuoteAmount, "GetOrderHistory should map the reported cost")
+	})
+}
+
 // TestGetOrderInfo exercises GetOrderInfo
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
@@ -1080,25 +1186,50 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
+	t.Run("market acknowledgement", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method, "order submission should use POST")
+			assert.Equal(t, "/0/private/AddOrder", r.URL.Path, "request should use the placement endpoint")
+			_, err := w.Write([]byte(`{"error":[],"result":{"txid":["TEST-ORDER"]}}`))
+			assert.NoError(t, err, "the acknowledgement should be written")
+		}))
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "the mock client must be configured")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "the mock endpoint must be configured")
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0"})
+		got, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 1,
+		})
+		require.NoError(t, err, "the market order must be accepted")
+		assert.Equal(t, "TEST-ORDER", got.OrderID, "the response should retain the venue order ID")
+		assert.Equal(t, order.New, got.Status, "an acknowledgement should keep the market order active")
+		assert.Zero(t, got.ExecutedAmount, "an acknowledgement should leave execution unknown")
+	})
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	orderSubmission := &order.Submit{
-		Exchange:  e.Name,
-		Pair:      spotTestPair,
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
-		AssetType: asset.Spot,
-	}
-	response, err := e.SubmitOrder(t.Context(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(e) {
-		assert.NoError(t, err, "SubmitOrder should not error")
-		assert.Equal(t, order.New, response.Status, "SubmitOrder should return a New order status")
-	} else {
-		assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SubmitOrder should error correctly")
-	}
+		orderSubmission := &order.Submit{
+			Exchange:  e.Name,
+			Pair:      spotTestPair,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Price:     1,
+			Amount:    1,
+			ClientID:  "meowOrder",
+			AssetType: asset.Spot,
+		}
+		response, err := e.SubmitOrder(t.Context(), orderSubmission)
+		if sharedtestvalues.AreAPICredentialsSet(e) {
+			assert.NoError(t, err, "SubmitOrder should not error")
+			assert.Equal(t, order.New, response.Status, "SubmitOrder should return a New order status")
+		} else {
+			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SubmitOrder should error correctly")
+		}
+	})
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
@@ -1769,6 +1900,9 @@ func TestWsOpenOrders(t *testing.T) {
 				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
 				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
 				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
+				// Kraken reports cost outside the quote currency for viqc orders, and fill updates
+				// omit oflags, so the handler cannot tell which unit it is.
+				assert.Zero(t, v.ExecutedQuoteAmount, "websocket cost should not populate ExecutedQuoteAmount")
 				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
 				assert.Equal(t, 0.00687, v.Fee, "Fee")
 			case 2:

@@ -925,8 +925,14 @@ func (e *Exchange) validateSubmitPrelude(ctx context.Context, s *order.Submit) (
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.Amount <= 0 {
+	actualMarketOrder := s.Type == order.Market && s.TimeInForce != order.ImmediateOrCancel && s.TimeInForce != order.FillOrKill
+	marginMarketBuy := actualMarketOrder && s.AssetType == asset.Margin && s.Side == order.Buy
+	quoteSizedMarket := actualMarketOrder && (s.AssetType == asset.Spot || marginMarketBuy) && s.QuoteAmount > 0
+	if s.Amount < 0 || (s.Amount == 0 && !quoteSizedMarket) {
 		return nil, limits.ErrAmountBelowMin
+	}
+	if marginMarketBuy && s.QuoteAmount <= 0 {
+		return nil, fmt.Errorf("%w: margin market buys require QuoteAmount", order.ErrAmountMustBeSet)
 	}
 	// Spread orders are checked on their own path, as their prices are
 	// differentials between legs and may be zero or negative. Otherwise a
@@ -1045,6 +1051,8 @@ func derivePlaceOrderRequest(s *order.Submit, p *submitPrelude, oType string) *P
 				orderRequest.Amount = s.QuoteAmount
 				orderRequest.TargetCurrency = targetCurrencyQuote
 			}
+		} else if s.AssetType == asset.Margin && s.Side == order.Buy {
+			orderRequest.Amount = s.QuoteAmount
 		}
 	}
 	// OKX applies reduceOnly to MARGIN orders and FUTURES/SWAP orders in net
@@ -2282,8 +2290,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 
-	amount, remaining, quoteAmount := orderAmounts(orderDetail, status)
-	cost, costAsset := orderCost(assetType, orderDetail, pair)
+	amount, remaining, quoteAmount := orderAmounts(assetType, orderType, orderDetail.Side, orderDetail.QuantityType, orderDetail.Size.Float64(), orderDetail.AccumulatedFillSize.Float64(), status)
 	return &order.Detail{
 		Amount:               amount,
 		Exchange:             e.Name,
@@ -2292,8 +2299,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Side:                 orderDetail.Side,
 		Type:                 orderType,
 		Pair:                 pair,
-		Cost:                 cost,
-		CostAsset:            costAsset,
 		AssetType:            assetType,
 		Status:               status,
 		Price:                orderDetail.Price.Float64(),
@@ -2318,46 +2323,24 @@ func okxFee(fee types.Number) float64 {
 	return 0 - fee.Float64()
 }
 
-// orderCost returns the cost of an order's fills and the currency it is in.
-// OKX states accFillSz in the base currency for spot and margin orders, so the
-// average price times it is a cost in the quote currency; futures, perpetual
-// swap and option orders fill in contracts, whose cost needs each contract's
-// value, so theirs is left unset rather than reported in contracts.
-func orderCost(a asset.Item, o *OrderDetail, pair currency.Pair) (float64, currency.Code) {
-	if a != asset.Spot && a != asset.Margin {
-		return 0, currency.EMPTYCODE
-	}
-	return o.AveragePrice.Float64() * o.AccumulatedFillSize.Float64(), pair.Quote
-}
-
 // tgtCcy values name the currency a spot market order states its size in.
 const (
 	targetCurrencyBase  = "base_ccy"
-	targetCurrencyQuote = "quote_ccy"
+	targetCurrencyQuote = quantityTypeQuoteCurrency
 )
 
-// orderAmounts returns an order's size and unfilled size in the base currency,
-// and its size in the quote currency when OKX states it that way: tgtCcy
-// quote_ccy sizes a spot market order in the quote currency, while accFillSz
-// is always in the base currency. It sizes them as wsProcessOrders does.
-func orderAmounts(o *OrderDetail, status order.Status) (amount, remaining, quoteAmount float64) {
-	amount = o.Size.Float64()
-	executed := o.AccumulatedFillSize.Float64()
-	if o.QuantityType == targetCurrencyQuote {
-		quoteAmount = amount
-		switch avgPrice := o.AveragePrice.Float64(); {
-		case status == order.Filled:
-			amount = executed
-		case avgPrice > 0:
-			amount = quoteAmount / avgPrice
-		default:
-			amount = 0
-		}
+// orderAmounts keeps the original quote budget separate when the base size is unknown.
+func orderAmounts(a asset.Item, typ order.Type, side order.Side, targetCurrency string, size, executed float64, status order.Status) (amount, remaining, quoteAmount float64) {
+	spotQuoteSized := a == asset.Spot && (targetCurrency == targetCurrencyQuote || (targetCurrency == "" && side == order.Buy))
+	marginQuoteSized := a == asset.Margin && side == order.Buy
+	if typ == order.Market && (spotQuoteSized || marginQuoteSized) {
+		return 0, 0, size
 	}
+	amount = size
 	if status != order.Filled && amount > executed {
 		remaining = amount - executed
 	}
-	return amount, remaining, quoteAmount
+	return amount, remaining, 0
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -2598,15 +2581,12 @@ allOrders:
 			if err != nil {
 				return nil, err
 			}
-			amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
-			cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+			amount, remaining, quoteAmount := orderAmounts(req.AssetType, oType, orderList[i].Side, orderList[i].QuantityType, orderList[i].Size.Float64(), orderList[i].AccumulatedFillSize.Float64(), orderStatus)
 			resp = append(resp, order.Detail{
 				Amount:               amount,
 				Pair:                 pair,
 				Price:                orderList[i].Price.Float64(),
 				AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
-				Cost:                 cost,
-				CostAsset:            costAsset,
 				ExecutedAmount:       orderList[i].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remaining,
 				QuoteAmount:          quoteAmount,
@@ -2897,8 +2877,7 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 				if err != nil {
 					return err
 				}
-				amount, remaining, quoteAmount := orderAmounts(&orderList[i], orderStatus)
-				cost, costAsset := orderCost(req.AssetType, &orderList[i], pair)
+				amount, remaining, quoteAmount := orderAmounts(req.AssetType, oType, orderList[i].Side, orderList[i].QuantityType, orderList[i].Size.Float64(), orderList[i].AccumulatedFillSize.Float64(), orderStatus)
 				resp = append(resp, order.Detail{
 					Price:                orderList[i].Price.Float64(),
 					AverageExecutedPrice: orderList[i].AveragePrice.Float64(),
@@ -2918,8 +2897,6 @@ func (e *Exchange) getStandardOrderHistoryDetails(ctx context.Context, req *orde
 					Date:                 orderList[i].CreationTime.Time(),
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
-					Cost:                 cost,
-					CostAsset:            costAsset,
 					TimeInForce:          tif,
 				})
 			}
@@ -3779,25 +3756,17 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			if err != nil {
 				return nil, err
 			}
-			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
-				// Size is quote amount.
-				orderAmount /= positions[j].AveragePrice
+			orderAmount := positions[j].Size.Float64()
+			executedContracts := positions[j].AccumulatedFillSize.Float64()
+			var remainingAmount float64
+			if orderStatus != order.Filled && orderAmount > executedContracts {
+				remainingAmount = orderAmount - executedContracts
 			}
-
-			remainingAmount := float64(0)
-			if orderStatus != order.Filled {
-				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
-			}
-			// OKX sizes fills in contracts: a linear contract's notional is
-			// ctVal x contracts x price in the settlement currency, an
-			// inverse contract's is ctVal x contracts in USD, so its cost in
-			// the base settlement currency divides by the price.
-			var cost float64
+			// Inverse contract values are in the instrument quote currency.
+			// Linear contract values are in the base currency and need the fill price.
+			executedQuoteAmount := executedContracts * multiplier
 			if contractSettlementType != futures.Inverse {
-				cost = positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64() * multiplier
-			} else if avgPx := positions[j].AveragePrice.Float64(); avgPx > 0 {
-				cost = multiplier * positions[j].AccumulatedFillSize.Float64() / avgPx
+				executedQuoteAmount *= positions[j].AveragePrice.Float64()
 			}
 			// The amount, its executed and remaining parts are scaled by the
 			// contract value so they share a unit, while ContractAmount keeps
@@ -3805,9 +3774,10 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
-				Amount:               orderAmount.Float64() * multiplier,
-				ContractAmount:       orderAmount.Float64(),
-				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64() * multiplier,
+				Amount:               orderAmount * multiplier,
+				ContractAmount:       orderAmount,
+				ExecutedAmount:       executedContracts * multiplier,
+				ExecutedQuoteAmount:  executedQuoteAmount,
 				RemainingAmount:      remainingAmount * multiplier,
 				Fee:                  okxFee(positions[j].TransactionFee),
 				FeeAsset:             positions[j].FeeCurrency,
@@ -3821,8 +3791,6 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				Date:                 positions[j].CreationTime.Time(),
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
-				Cost:                 cost,
-				CostAsset:            contract.SettlementCurrency,
 				TimeInForce:          tif,
 			})
 		}

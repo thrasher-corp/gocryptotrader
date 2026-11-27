@@ -2114,8 +2114,7 @@ func (e *Exchange) formatV5OrderDetail(data *V5Order, item asset.Item) (order.De
 		Amount:               data.Volume.Float64(),
 		ExecutedAmount:       data.TradeVolume.Float64(),
 		RemainingAmount:      data.Volume.Float64() - data.TradeVolume.Float64(),
-		Cost:                 data.TradeTurnover.Float64(),
-		CostAsset:            currency.USDT,
+		ExecutedQuoteAmount:  data.TradeTurnover.Float64(),
 		AverageExecutedPrice: data.TradeAveragePrice.Float64(),
 		Fee:                  -data.Fee.Float64(),
 		FeeAsset:             currency.USDT,
@@ -2124,7 +2123,7 @@ func (e *Exchange) formatV5OrderDetail(data *V5Order, item asset.Item) (order.De
 		AssetType:            item,
 		MarginType:           marginType,
 	}
-	detail.InferCostsAndTimes()
+	detail.InferExecutionAndTimes()
 	return detail, nil
 }
 
@@ -2189,23 +2188,24 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, err
 		}
 		orderDetail = order.Detail{
-			Exchange:       e.Name,
-			OrderID:        orderID,
-			ClientOrderID:  resp.ClientOrderID,
-			AccountID:      strconv.FormatUint(resp.AccountID, 10),
-			Pair:           p,
-			Type:           orderType,
-			Side:           orderSide,
-			TimeInForce:    timeInForce,
-			Date:           resp.CreatedAt.Time(),
-			Status:         orderStatus,
-			Price:          resp.Price.Float64(),
-			Amount:         resp.Amount.Float64(),
-			ExecutedAmount: firstNonZero(resp.FieldAmount, resp.FilledAmount),
-			Cost:           firstNonZero(resp.FieldCashAmount, resp.FilledCashAmount),
-			Fee:            firstNonZero(resp.FieldFees, resp.FilledFees),
-			AssetType:      a,
+			Exchange:            e.Name,
+			OrderID:             orderID,
+			ClientOrderID:       resp.ClientOrderID,
+			AccountID:           strconv.FormatUint(resp.AccountID, 10),
+			Pair:                p,
+			Type:                orderType,
+			Side:                orderSide,
+			TimeInForce:         timeInForce,
+			Date:                resp.CreatedAt.Time(),
+			Status:              orderStatus,
+			Price:               resp.Price.Float64(),
+			Amount:              resp.Amount.Float64(),
+			ExecutedAmount:      firstNonZero(resp.FieldAmount, resp.FilledAmount),
+			ExecutedQuoteAmount: firstNonZero(resp.FieldCashAmount, resp.FilledCashAmount),
+			Fee:                 firstNonZero(resp.FieldFees, resp.FilledFees),
+			AssetType:           a,
 		}
+		setSpotOrderQuantities(&orderDetail)
 	case asset.CoinMarginedFutures:
 		orderInfo, err := e.GetSwapOrderInfo(ctx, pair, orderID, "")
 		if err != nil {
@@ -2232,7 +2232,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Amount:               data.Volume,
 			ExecutedAmount:       data.TradeVolume,
 			RemainingAmount:      data.Volume - data.TradeVolume,
-			Cost:                 data.TradeTurnover,
+			ExecutedQuoteAmount:  data.TradeTurnover,
 			AverageExecutedPrice: data.TradeAveragePrice,
 			Fee:                  -data.Fee,
 			FeeAsset:             data.FeeAsset,
@@ -2253,7 +2253,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if !data.CancelledAt.Time().IsZero() {
 			orderDetail.CloseTime = data.CancelledAt.Time()
 		}
-		orderDetail.InferCostsAndTimes()
+		orderDetail.InferExecutionAndTimes()
 	case asset.USDTMarginedFutures:
 		var orderInfo *V5OrderQueryResponse
 		var lookupErr error
@@ -2312,8 +2312,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Amount:               data.Volume,
 			ExecutedAmount:       data.TradeVolume,
 			RemainingAmount:      data.Volume - data.TradeVolume,
-			Cost:                 data.TradeTurnover,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  data.TradeTurnover,
 			AverageExecutedPrice: data.TradeAveragePrice,
 			Fee:                  -data.Fee,
 			FeeAsset:             data.FeeAsset,
@@ -2334,7 +2333,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if !data.CanceledAt.Time().IsZero() {
 			orderDetail.CloseTime = data.CanceledAt.Time()
 		}
-		orderDetail.InferCostsAndTimes()
+		orderDetail.InferExecutionAndTimes()
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -2440,19 +2439,21 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			for x := range resp {
 				orderDetail := order.Detail{
-					OrderID:         strconv.FormatUint(resp[x].ID, 10),
-					ClientOrderID:   resp[x].ClientOrderID,
-					Price:           resp[x].Price.Float64(),
-					Amount:          resp[x].Amount.Float64(),
-					ExecutedAmount:  resp[x].FilledAmount.Float64(),
-					RemainingAmount: resp[x].Amount.Float64() - resp[x].FilledAmount.Float64(),
-					Pair:            req.Pairs[i],
-					Exchange:        e.Name,
-					Date:            resp[x].CreatedAt.Time(),
-					AccountID:       strconv.FormatUint(resp[x].AccountID, 10),
-					Fee:             resp[x].FilledFees.Float64(),
+					OrderID:             strconv.FormatUint(resp[x].ID, 10),
+					ClientOrderID:       resp[x].ClientOrderID,
+					Price:               resp[x].Price.Float64(),
+					Amount:              resp[x].Amount.Float64(),
+					ExecutedAmount:      firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+					ExecutedQuoteAmount: firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
+					Pair:                req.Pairs[i],
+					Exchange:            e.Name,
+					Date:                resp[x].CreatedAt.Time(),
+					AccountID:           strconv.FormatUint(resp[x].AccountID, 10),
+					Fee:                 firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
+					AssetType:           req.AssetType,
 				}
 				setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
+				setSpotOrderQuantities(&orderDetail)
 				orders = append(orders, orderDetail)
 			}
 		}
@@ -2633,6 +2634,17 @@ func getOrderHistoryWindows(startTime, endTime time.Time, maxRange time.Duration
 	return windows, nil
 }
 
+// setSpotOrderQuantities separates the quote budget of spot market buys from base fills.
+func setSpotOrderQuantities(detail *order.Detail) {
+	if detail.Type == order.Market && detail.Side == order.Buy {
+		detail.QuoteAmount = detail.Amount
+		detail.Amount = 0
+	} else if detail.Amount > detail.ExecutedAmount && detail.Status != order.Filled {
+		detail.RemainingAmount = detail.Amount - detail.ExecutedAmount
+	}
+	detail.InferExecutionAndTimes()
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
@@ -2678,23 +2690,22 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						}
 						seen[resp[x].ID] = struct{}{}
 						orderDetail := order.Detail{
-							OrderID:         strconv.FormatUint(resp[x].ID, 10),
-							ClientOrderID:   resp[x].ClientOrderID,
-							Price:           resp[x].Price.Float64(),
-							Amount:          resp[x].Amount.Float64(),
-							ExecutedAmount:  firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
-							RemainingAmount: resp[x].Amount.Float64() - firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
-							Cost:            firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
-							CostAsset:       req.Pairs[i].Quote,
-							Pair:            req.Pairs[i],
-							Exchange:        e.Name,
-							Date:            resp[x].CreatedAt.Time(),
-							CloseTime:       resp[x].FinishedAt.Time(),
-							AccountID:       strconv.FormatUint(resp[x].AccountID, 10),
-							Fee:             firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
+							OrderID:             strconv.FormatUint(resp[x].ID, 10),
+							ClientOrderID:       resp[x].ClientOrderID,
+							Price:               resp[x].Price.Float64(),
+							Amount:              resp[x].Amount.Float64(),
+							ExecutedAmount:      firstNonZero(resp[x].FieldAmount, resp[x].FilledAmount),
+							ExecutedQuoteAmount: firstNonZero(resp[x].FieldCashAmount, resp[x].FilledCashAmount),
+							Pair:                req.Pairs[i],
+							Exchange:            e.Name,
+							Date:                resp[x].CreatedAt.Time(),
+							CloseTime:           resp[x].FinishedAt.Time(),
+							AccountID:           strconv.FormatUint(resp[x].AccountID, 10),
+							Fee:                 firstNonZero(resp[x].FieldFees, resp[x].FilledFees),
+							AssetType:           req.AssetType,
 						}
 						setOrderSideStatusAndType(resp[x].State, resp[x].Type, &orderDetail)
-						orderDetail.InferCostsAndTimes()
+						setSpotOrderQuantities(&orderDetail)
 						orders = append(orders, orderDetail)
 					}
 					if len(resp) < pageSize {

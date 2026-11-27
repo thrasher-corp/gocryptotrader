@@ -1058,7 +1058,7 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 		assert.Equal(t, order.Active, first.Status, "GetOrderHistory should read the order state")
 		assert.Equal(t, 100.0, first.Price, "GetOrderHistory should read the limit price")
 		assert.Equal(t, 90.0, first.AverageExecutedPrice, "GetOrderHistory should read the average filled price")
-		assert.Zero(t, first.Cost, "GetOrderHistory should leave a spread order's cost unset")
+		assert.Zero(t, first.ExecutedQuoteAmount, "GetOrderHistory should leave a spread order's executed quote amount unset")
 		assert.Equal(t, 1.0, first.Amount, "GetOrderHistory should read the order size")
 		assert.Equal(t, 0.3, first.ExecutedAmount, "GetOrderHistory should read the accumulated fill size")
 		assert.InDelta(t, 0.7, first.RemainingAmount, 1e-9, "an unfilled spread order should keep its remaining amount")
@@ -1071,7 +1071,7 @@ func TestGetSpreadOrderHistory(t *testing.T) {
 		assert.Equal(t, 2.0, second.Amount, "GetOrderHistory should read the filled order size")
 		assert.Equal(t, 2.0, second.ExecutedAmount, "GetOrderHistory should read the filled order's accumulated fill")
 		assert.Equal(t, 88.0, second.AverageExecutedPrice, "GetOrderHistory should read the filled order's average price")
-		assert.Zero(t, second.Cost, "GetOrderHistory should leave a filled spread order's cost unset")
+		assert.Zero(t, second.ExecutedQuoteAmount, "GetOrderHistory should leave a filled spread order's executed quote amount unset")
 	})
 }
 
@@ -1992,10 +1992,7 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 	})
 }
 
-// TestOrderAmounts guards the order sizes GetOrderInfo reports: an order sized
-// in the quote currency reports its amounts in the base currency, as the
-// websocket order channel does for the captured order in testdata/wsOrders.json,
-// and a filled order has nothing remaining.
+// TestOrderAmounts checks that quote budgets and base fills stay in their reported units.
 func TestOrderAmounts(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -2006,22 +2003,22 @@ func TestOrderAmounts(t *testing.T) {
 		{
 			"quote sized, filled",
 			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "sell", "cTime": "1694153250532", "sz": "10", "tgtCcy": "quote_ccy", "accFillSz": "0.00038128", "avgPx": "26228.1", "state": "filled"},
-			0.00038128, 0.00038128, 0, 10,
+			0, 0.00038128, 0, 10,
 		},
 		{
 			"quote sized, partially filled",
 			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0.001", "avgPx": "25000", "state": "partially_filled"},
-			0.004, 0.001, 0.003, 100,
+			0, 0.001, 0, 100,
 		},
 		{
 			"quote sized, live",
-			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "live"},
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "live"},
 			0, 0, 0, 100,
 		},
 		{
 			"quote sized, partially filled, zero avgPx",
-			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderLimit, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0", "avgPx": "", "state": "partially_filled"},
-			0, 0, 0, 100,
+			map[string]string{"instId": mainPair.String(), "ordId": "1", "ordType": orderMarket, "side": "buy", "cTime": "1694153250532", "sz": "100", "tgtCcy": "quote_ccy", "accFillSz": "0.001", "avgPx": "", "state": "partially_filled"},
+			0, 0.001, 0, 100,
 		},
 		{
 			"base sized, partially filled",
@@ -2563,30 +2560,6 @@ func TestContractPositionModeErrorsWhenAFetchOverlapsASwitch(t *testing.T) {
 	assert.Equal(t, 2, fetches, "the overlapped fetch should be neither cached nor reused, so the next lookup fetches again")
 }
 
-// TestOrderCost guards the order cost mapping: OKX fills spot and margin
-// orders in the base currency, so their cost is in the quote currency, while
-// futures, perpetual swap and option orders fill in contracts and are left
-// unset.
-func TestOrderCost(t *testing.T) {
-	t.Parallel()
-	o := &OrderDetail{AveragePrice: 41000, AccumulatedFillSize: 1.5}
-	for _, tc := range []struct {
-		assetType asset.Item
-		cost      float64
-		costAsset currency.Code
-	}{
-		{asset.Spot, 61500, currency.USDT},
-		{asset.Margin, 61500, currency.USDT},
-		{asset.Futures, 0, currency.EMPTYCODE},
-		{asset.PerpetualSwap, 0, currency.EMPTYCODE},
-		{asset.Options, 0, currency.EMPTYCODE},
-	} {
-		cost, costAsset := orderCost(tc.assetType, o, currency.NewBTCUSDT())
-		assert.Equalf(t, tc.cost, cost, "orderCost should report the expected cost for %s", tc.assetType)
-		assert.Equalf(t, tc.costAsset, costAsset, "orderCost should report the expected cost asset for %s", tc.assetType)
-	}
-}
-
 // TestContractOrdersLeaveCostUnset guards the order detail, pending and
 // history mappings against reporting a contract order's average price times
 // its contracts as a cost in the pair's quote, which for a perpetual swap is
@@ -2620,8 +2593,7 @@ func TestContractOrdersLeaveCostUnset(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistory must not error")
 	require.Len(t, history, 1, "GetOrderHistory must return the order")
 	for name, d := range map[string]*order.Detail{"GetOrderInfo": info, "GetActiveOrders": &active[0], "GetOrderHistory": &history[0]} {
-		assert.Zerof(t, d.Cost, "%s should leave a contract order's cost unset", name)
-		assert.Truef(t, d.CostAsset.IsEmpty(), "%s should leave a contract order's cost asset unset", name)
+		assert.Zerof(t, d.ExecutedQuoteAmount, "%s should leave a contract order's executed quote amount unset", name)
 		assert.Equalf(t, 60000.0, d.AverageExecutedPrice, "%s should still report the average price", name)
 	}
 }
@@ -2665,12 +2637,10 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		}
 		assert.Equal(t, map[string]float64{"CHARGED": 3, "REBATED": -0.5}, fees, "a fee OKX charged should read as a positive cost and a rebate as a negative one, as GetOrderHistory reports them")
 	})
-	// Guards the cost of contract
-	// fills: a linear contract's cost is its settlement-currency notional, an
-	// inverse contract's is its base-currency one, which divides by the price
-	// rather than multiplying, and an unfilled order costs nothing rather than
-	// not-a-number.
-	t.Run("reports contract costs by settlement type", func(t *testing.T) {
+	// Linear contract values need the fill price to reach quote units.
+	// Inverse contract values already represent the quote units.
+
+	t.Run("reports filled quote amounts by settlement type", func(t *testing.T) {
 		t.Parallel()
 		created := strconv.FormatInt(time.Now().Add(-time.Minute).UnixMilli(), 10)
 		inverseSwapPair := currency.NewPairWithDelimiter("BTC", "USD-SWAP", "-")
@@ -2681,8 +2651,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 			state      string
 			avgPx      string
 			expType    futures.ContractSettlementType
-			expCost    float64
-			expAsset   currency.Code
+			expQuote   float64
 		}{
 			{
 				name:       "linear",
@@ -2691,8 +2660,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 				state:      "filled",
 				avgPx:      "60000",
 				expType:    futures.Linear,
-				expCost:    60000,
-				expAsset:   currency.USDT,
+				expQuote:   60000,
 			},
 			{
 				name:       "inverse",
@@ -2701,8 +2669,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 				state:      "filled",
 				avgPx:      "60000",
 				expType:    futures.Inverse,
-				expCost:    100.0 * 100.0 / 60000.0,
-				expAsset:   currency.BTC,
+				expQuote:   10000,
 			},
 			{
 				name:       "suspended inverse",
@@ -2711,8 +2678,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 				state:      "filled",
 				avgPx:      "60000",
 				expType:    futures.Inverse,
-				expCost:    100.0 * 100.0 / 60000.0,
-				expAsset:   currency.BTC,
+				expQuote:   10000,
 			},
 			{
 				name:       "inverse unfilled",
@@ -2721,8 +2687,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 				state:      "live",
 				avgPx:      "0",
 				expType:    futures.Inverse,
-				expCost:    0,
-				expAsset:   currency.BTC,
+				expQuote:   0,
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2749,10 +2714,9 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 				assert.Equal(t, tc.expType, positions[0].ContractSettlementType, "the position should carry the contract's settlement type")
 				require.Len(t, positions[0].Orders, 1, "GetFuturesPositionOrders must return the order")
 				got := positions[0].Orders[0]
-				assert.Equal(t, tc.expCost, got.Cost, "a contract fill's cost should follow its settlement type")
-				assert.Equal(t, tc.expAsset, got.CostAsset, "the cost should be reported in the contract's settlement currency")
+				assert.Equal(t, tc.expQuote, got.ExecutedQuoteAmount, "executed quote amount should be in the instrument quote currency")
 				assert.Equal(t, 100.0, got.ContractAmount, "the order amount should stay in contracts")
-				assert.False(t, math.IsNaN(got.Cost), "an unfilled order's cost should never be not-a-number")
+				assert.False(t, math.IsNaN(got.ExecutedQuoteAmount), "unfilled quote amount should be finite")
 			})
 		}
 	})

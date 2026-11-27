@@ -1591,7 +1591,6 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		LastUpdated:     time.Date(2025, 6, 16, 10, 0, 0, 0, time.UTC),
 		Amount:          0.01,
 		RemainingAmount: 0.01,
-		CostAsset:       currency.USD,
 		FeeAsset:        currency.USD,
 		Trades:          []order.TradeHistory{},
 	}, trailing, "GetOrderInfo should return the activation price of a trailing order as its trigger price")
@@ -1629,7 +1628,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 			assert.Equalf(t, status == "Open", d.IsActive(), "GetOrderInfo should return an order with 0.00000001 left as active only while it is open, for a %s order", status)
 		})
 	}
-	// Float sums of these transactions carry a residue into the cost, fee and average price
+	// Float sums of these transactions carry a residue into the executed quote amount, fee and average price.
 	for name, tc := range map[string]struct {
 		transactions []string
 		exp          [4]float64
@@ -1642,7 +1641,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		t.Run(name, func(t *testing.T) {
 			d, err := ex.GetOrderInfo(ctx, "1", spotPair, asset.Spot)
 			require.NoErrorf(t, err, "GetOrderInfo must not error with %s", name)
-			assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.Cost, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should sum the executed amount, cost and fee exactly and average them with %s", name)
+			assert.Equalf(t, tc.exp, [4]float64{d.ExecutedAmount, d.ExecutedQuoteAmount, d.Fee, d.AverageExecutedPrice}, "GetOrderInfo should compute the executed amounts, fees and average price from the %s fills", name)
 		})
 	}
 	_, err = newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"Finished","market":"BTC/USD","transactions":[{"tid":7,"price":"NaN","btc":"0.3","usd":"-30.3","fee":"0.1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
@@ -1670,8 +1669,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		ExecutedAmount:       0.2,
 		RemainingAmount:      0.3,
 		AverageExecutedPrice: 20050,
-		Cost:                 4010,
-		CostAsset:            currency.USD,
+		ExecutedQuoteAmount:  4010,
 		Fee:                  16.04,
 		FeeAsset:             currency.USD,
 		Trades: []order.TradeHistory{
@@ -1699,8 +1697,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Every case goes to t
 		ExecutedAmount:       0.01,
 		RemainingAmount:      0.04,
 		AverageExecutedPrice: 84000,
-		Cost:                 840,
-		CostAsset:            currency.USD,
+		ExecutedQuoteAmount:  840,
 		Fee:                  0.34,
 		FeeAsset:             currency.USD,
 		Trades: []order.TradeHistory{
@@ -2291,8 +2288,7 @@ func TestSpotOrderHistory(t *testing.T) {
 			Amount:               0.2,
 			ExecutedAmount:       0.2,
 			AverageExecutedPrice: 20050,
-			Cost:                 4010,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  4010,
 			Fee:                  16.04,
 			FeeAsset:             currency.USD,
 			Trades: []order.TradeHistory{
@@ -2312,8 +2308,7 @@ func TestSpotOrderHistory(t *testing.T) {
 			Amount:               0.05,
 			ExecutedAmount:       0.05,
 			AverageExecutedPrice: 2000,
-			Cost:                 100,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  100,
 			Fee:                  0.25,
 			FeeAsset:             currency.USD,
 			Trades: []order.TradeHistory{
@@ -2356,8 +2351,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 				Amount:               0.01,
 				ExecutedAmount:       0.01,
 				AverageExecutedPrice: 80000,
-				Cost:                 800,
-				CostAsset:            currency.USD,
+				ExecutedQuoteAmount:  800,
 				Fee:                  0.5,
 				FeeAsset:             currency.USD,
 				Trades:               []order.TradeHistory{selfTrade},
@@ -2376,8 +2370,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 				Amount:               0.03,
 				ExecutedAmount:       0.03,
 				AverageExecutedPrice: 2420 / 0.03,
-				Cost:                 2420,
-				CostAsset:            currency.USD,
+				ExecutedQuoteAmount:  2420,
 				Fee:                  0.4,
 				FeeAsset:             currency.USD,
 				Trades: []order.TradeHistory{
@@ -2462,8 +2455,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 			Amount:               0.01,
 			ExecutedAmount:       0.01,
 			AverageExecutedPrice: 20000,
-			Cost:                 200,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  200,
 			Fee:                  0.08,
 			FeeAsset:             currency.USD,
 			Trades: []order.TradeHistory{
@@ -2484,8 +2476,7 @@ func TestDerivativesOrderHistory(t *testing.T) {
 			Amount:               0.01,
 			ExecutedAmount:       0.01,
 			AverageExecutedPrice: 84006,
-			Cost:                 840.06,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  840.06,
 			Fee:                  0.33602,
 			FeeAsset:             currency.USD,
 			Trades: []order.TradeHistory{
@@ -2545,7 +2536,6 @@ func TestAggregatedOrder(t *testing.T) {
 			AssetType:  asset.PerpetualContract,
 			Pair:       pair,
 			FeeAsset:   currency.USD,
-			CostAsset:  currency.USD,
 			Leverage:   2,
 			MarginType: margin.Multi,
 			Date:       traded,
@@ -2602,7 +2592,7 @@ func TestAggregatedOrders(t *testing.T) {
 	require.NoError(t, err, "aggregatedOrders must not error")
 	assert.Equal(t, []order.Detail{
 		{OrderID: "2", Date: time.Unix(100, 0)},
-		{OrderID: "1", Date: time.Unix(200, 0), Amount: 3, ExecutedAmount: 3, Cost: 310, Fee: 0.75, AverageExecutedPrice: 310.0 / 3, Price: 310.0 / 3, Trades: twoTrades},
+		{OrderID: "1", Date: time.Unix(200, 0), Amount: 3, ExecutedAmount: 3, ExecutedQuoteAmount: 310, Fee: 0.75, AverageExecutedPrice: 310.0 / 3, Price: 310.0 / 3, Trades: twoTrades},
 	}, orders, "aggregatedOrders should sort the orders by date and sum their trades")
 
 	// Float sums of these trades carry a residue into the totals and the average price
@@ -2615,9 +2605,9 @@ func TestAggregatedOrders(t *testing.T) {
 		trades []order.TradeHistory
 		exp    order.Detail
 	}{
-		{name: "1000 small trades", trades: manyTrades, exp: order.Detail{Amount: 1, ExecutedAmount: 1, Cost: 100, Fee: 10, AverageExecutedPrice: 100, Price: 100}},
-		{name: "a small amount", trades: []order.TradeHistory{{TID: "1", Price: 7, Amount: 0.00000003}}, exp: order.Detail{Amount: 0.00000003, ExecutedAmount: 0.00000003, Cost: 0.00000021, AverageExecutedPrice: 7, Price: 7}},
-		{name: "an inexact average", trades: []order.TradeHistory{{TID: "1", Price: 0.00000003, Amount: 0.2}, {TID: "2", Price: 101, Amount: 0.00000001}}, exp: order.Detail{Amount: 0.20000001, ExecutedAmount: 0.20000001, Cost: 0.000001016, AverageExecutedPrice: 5.079999746000013e-06, Price: 5.079999746000013e-06}},
+		{name: "1000 small trades", trades: manyTrades, exp: order.Detail{Amount: 1, ExecutedAmount: 1, ExecutedQuoteAmount: 100, Fee: 10, AverageExecutedPrice: 100, Price: 100}},
+		{name: "a small amount", trades: []order.TradeHistory{{TID: "1", Price: 7, Amount: 0.00000003}}, exp: order.Detail{Amount: 0.00000003, ExecutedAmount: 0.00000003, ExecutedQuoteAmount: 0.00000021, AverageExecutedPrice: 7, Price: 7}},
+		{name: "an inexact average", trades: []order.TradeHistory{{TID: "1", Price: 0.00000003, Amount: 0.2}, {TID: "2", Price: 101, Amount: 0.00000001}}, exp: order.Detail{Amount: 0.20000001, ExecutedAmount: 0.20000001, ExecutedQuoteAmount: 0.000001016, AverageExecutedPrice: 5.079999746000013e-06, Price: 5.079999746000013e-06}},
 	} {
 		// Serial and in order, as the orders below go to the same function
 		t.Run(tc.name, func(t *testing.T) {
@@ -3770,8 +3760,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 					Amount:               0.01,
 					ExecutedAmount:       0.01,
 					AverageExecutedPrice: 84000,
-					Cost:                 840,
-					CostAsset:            currency.USD,
+					ExecutedQuoteAmount:  840,
 					Fee:                  0.1,
 					FeeAsset:             currency.USD,
 					Trades:               []order.TradeHistory{{TID: "1", Price: 84000, Amount: 0.01, Fee: 0.1, Exchange: ex.Name, Side: order.Buy, Timestamp: traded, FeeAsset: "USD"}},

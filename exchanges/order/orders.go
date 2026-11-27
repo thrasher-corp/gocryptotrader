@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -155,6 +156,45 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if m == nil {
 		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
 	}
+	// LastUpdated can be a local stamp or a coarse exchange timestamp, so it
+	// cannot order snapshots. Use cumulative execution and terminal state instead.
+	// Venues often derive execution as amount - left, which rounds at the scale
+	// of the order's quantities rather than of the fill.
+	storedScale := max(d.Amount, d.RemainingAmount, d.ExecutedAmount)
+	incomingScale := max(m.Amount, m.RemainingAmount, m.ExecutedAmount)
+	executionTolerance := 2 * ((math.Nextafter(storedScale, math.Inf(1)) - storedScale) +
+		(math.Nextafter(incomingScale, math.Inf(1)) - incomingScale))
+	// Rounding-sized increases must not let a pre-amendment snapshot overwrite a terminal order.
+	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount+executionTolerance
+	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
+	incomingTerminal := m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
+	// A quote-sized order can report cumulative quote execution before its base fills arrive.
+	quoteSized := m.Amount == 0 && (m.QuoteAmount > 0 || (d.Amount == 0 && d.QuoteAmount > 0))
+	quoteRegressed := quoteSized && m.ExecutedQuoteAmount > 0 && m.ExecutedQuoteAmount < d.ExecutedQuoteAmount
+	if quoteRegressed || (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||
+		(terminal && m.Status != UnknownStatus && !incomingTerminal && !executionAdvanced) {
+		for i := range m.Trades {
+			found := false
+			for j := range d.Trades {
+				if d.Trades[j].TID == m.Trades[i].TID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				d.Trades = append(d.Trades, m.Trades[i])
+			}
+		}
+		return nil
+	}
+	// Ignore rounding-only decreases so known execution metadata is not invalidated.
+	// On a shrink, accept the smaller scale's rounding: retaining the larger scale's
+	// error can exceed later tolerances and suppress valid confirmations.
+	if m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount && incomingScale >= storedScale {
+		incoming := *m
+		incoming.ExecutedAmount = d.ExecutedAmount
+		m = &incoming
+	}
 
 	var updated bool
 	if m.TimeInForce != UnknownTIF && d.TimeInForce != m.TimeInForce {
@@ -193,23 +233,46 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.QuoteAmount = m.QuoteAmount
 		updated = true
 	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
+	executedAmountChanged := m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount
+	if executedAmountChanged {
 		d.ExecutedAmount = m.ExecutedAmount
+		// A rounding-sized change can describe the same fills, whose quote total still applies.
+		if executionAdvanced && m.ExecutedQuoteAmount == 0 {
+			d.ExecutedQuoteAmount = 0
+		}
 		updated = true
 	}
-	if m.AverageExecutedPrice > 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
-		d.AverageExecutedPrice = m.AverageExecutedPrice
+	executedQuoteAmountChanged := m.ExecutedQuoteAmount > 0 && (m.ExecutedAmount > 0 || m.AverageExecutedPrice > 0 || quoteSized) && m.ExecutedQuoteAmount != d.ExecutedQuoteAmount
+	if executedQuoteAmountChanged {
+		d.ExecutedQuoteAmount = m.ExecutedQuoteAmount
+		if quoteSized && m.ExecutedAmount == 0 {
+			// The previous base fill may describe a smaller quote total.
+			d.ExecutedAmount = 0
+		}
 		updated = true
 	}
-	if m.Cost > 0 && m.Cost != d.Cost {
-		d.Cost = m.Cost
+	if m.AverageExecutedPrice != 0 {
+		if m.AverageExecutedPrice != d.AverageExecutedPrice {
+			d.AverageExecutedPrice = m.AverageExecutedPrice
+			updated = true
+		}
+	} else if executionAdvanced || executedQuoteAmountChanged || (executedAmountChanged && m.ExecutedQuoteAmount > 0) {
+		effectiveAssetType := m.AssetType
+		if effectiveAssetType == asset.Empty {
+			effectiveAssetType = d.AssetType
+		}
+		if m.ExecutedAmount > 0 && m.ExecutedQuoteAmount > 0 && effectiveAssetType.IsValid() && !effectiveAssetType.IsDerivative() {
+			d.AverageExecutedPrice = m.ExecutedQuoteAmount / d.ExecutedAmount
+		} else {
+			d.AverageExecutedPrice = 0
+		}
 		updated = true
 	}
-	if m.Fee > 0 && m.Fee != d.Fee {
+	if m.Fee != 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
 	}
-	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+	if (m.Fee != 0 || d.Fee == 0) && !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
 		d.FeeAsset = m.FeeAsset
 		updated = true
 	}
@@ -243,7 +306,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != UnknownStatus && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status && (!terminal || incomingTerminal) {
 		d.Status = m.Status
 		updated = true
 	}
@@ -301,15 +364,18 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 	}
 	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// or from a different snapshot. Preserve a supplied non-zero value, and
+	// accept zero only when the update establishes that the order is filled.
+	if m.RemainingAmount != d.RemainingAmount &&
+		(m.RemainingAmount > 0 ||
+			(m.RemainingAmount == 0 && m.Amount > 0 && m.ExecutedAmount >= m.Amount && m.Status.IsInactive())) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
 	if updated {
-		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
+		if m.LastUpdated.IsZero() {
 			d.LastUpdated = time.Now()
-		} else {
+		} else if m.LastUpdated.After(d.LastUpdated) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
@@ -330,6 +396,16 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
 	if m.OrderID != "" && d.OrderID != m.OrderID {
+		if d.OrderID != "" {
+			// A reply with another order ID describes a replacement order, which
+			// has its own execution and lifecycle.
+			d.ExecutedAmount, d.ExecutedQuoteAmount, d.AverageExecutedPrice, d.Fee = 0, 0, 0, 0
+			d.FeeAsset = currency.EMPTYCODE
+			d.Trades = nil
+			d.RemainingAmount = 0
+			d.Status = New
+			d.CloseTime = time.Time{}
+		}
 		d.OrderID = m.OrderID
 		updated = true
 	}
@@ -418,14 +494,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
+	// Quote-sized orders have no known base quantity; their status determines activity.
+	quoteSized := d.Amount == 0 && d.QuoteAmount > 0
 	return d.Status != UnknownStatus &&
-		d.Amount > max(0, d.ExecutedAmount) &&
+		(quoteSized || d.Amount > max(0, d.ExecutedAmount)) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
 // currently not available on the exchange
 func (d *Detail) IsInactive() bool {
+	if d.Amount == 0 && d.QuoteAmount > 0 {
+		return d.Status.IsInactive()
+	}
 	return d.Amount <= max(0, d.ExecutedAmount) ||
 		d.Status.IsInactive()
 }
@@ -469,11 +550,8 @@ func (d *Detail) Copy() Detail {
 	return c
 }
 
-// DeriveSubmitResponse will construct an order SubmitResponse when a successful
-// submission has occurred. NOTE: order status is populated as order.Filled for a
-// market order else order.New if an order is accepted as default, date and
-// lastupdated fields have been populated as time.Now(). All fields can be
-// customised in caller scope if needed.
+// DeriveSubmitResponse records an acknowledged order as New and sets its
+// timestamps to the current time. Callers can set a status reported by the venue.
 func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	if s == nil {
 		return nil, errOrderSubmitIsNil
@@ -481,11 +559,6 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 
 	if orderID == "" {
 		return nil, ErrOrderIDNotSet
-	}
-
-	status := New
-	if s.Type == Market { // NOTE: This will need to be scrutinized.
-		status = Filled
 	}
 
 	return &SubmitResponse{
@@ -508,7 +581,7 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
-		Status:      status,
+		Status:      New,
 		OrderID:     orderID,
 	}, nil
 }
@@ -580,31 +653,35 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	}
 
 	return &Detail{
-		Exchange:  s.Exchange,
-		Type:      s.Type,
-		Side:      s.Side,
-		Pair:      s.Pair,
-		AssetType: s.AssetType,
-
-		TimeInForce:   s.TimeInForce,
-		ReduceOnly:    s.ReduceOnly,
-		Leverage:      s.Leverage,
-		Price:         s.Price,
-		Amount:        s.Amount,
-		QuoteAmount:   s.QuoteAmount,
-		TriggerPrice:  s.TriggerPrice,
-		ClientID:      s.ClientID,
-		ClientOrderID: s.ClientOrderID,
-
-		InternalOrderID: internal,
-
-		LastUpdated: s.LastUpdated,
-		Date:        s.Date,
-		Status:      s.Status,
-		OrderID:     s.OrderID,
-		Trades:      s.Trades,
-		Fee:         s.Fee,
-		Cost:        s.Cost,
+		Exchange:             s.Exchange,
+		Type:                 s.Type,
+		Side:                 s.Side,
+		Pair:                 s.Pair,
+		AssetType:            s.AssetType,
+		TimeInForce:          s.TimeInForce,
+		ReduceOnly:           s.ReduceOnly,
+		Leverage:             s.Leverage,
+		Price:                s.Price,
+		Amount:               s.Amount,
+		QuoteAmount:          s.QuoteAmount,
+		TriggerPrice:         s.TriggerPrice,
+		ClientID:             s.ClientID,
+		ClientOrderID:        s.ClientOrderID,
+		MarginType:           s.MarginType,
+		BorrowSize:           s.BorrowSize,
+		LoanApplyID:          s.LoanApplyID,
+		InternalOrderID:      internal,
+		LastUpdated:          s.LastUpdated,
+		Date:                 s.Date,
+		Status:               s.Status,
+		OrderID:              s.OrderID,
+		Trades:               s.Trades,
+		Fee:                  s.Fee,
+		FeeAsset:             s.FeeAsset,
+		AverageExecutedPrice: s.AverageExecutedPrice,
+		ExecutedAmount:       s.ExecutedAmount,
+		RemainingAmount:      s.RemainingAmount,
+		ExecutedQuoteAmount:  s.ExecutedQuoteAmount,
 	}, nil
 }
 
@@ -861,13 +938,9 @@ func (s Status) String() string {
 	}
 }
 
-// InferCostsAndTimes infer order costs using execution information and times
+// InferExecutionAndTimes infers missing execution information and times
 // when available
-func (d *Detail) InferCostsAndTimes() {
-	if d.CostAsset.IsEmpty() {
-		d.CostAsset = d.Pair.Quote
-	}
-
+func (d *Detail) InferExecutionAndTimes() {
 	if d.LastUpdated.IsZero() {
 		if d.CloseTime.IsZero() {
 			d.LastUpdated = d.Date
@@ -876,19 +949,9 @@ func (d *Detail) InferCostsAndTimes() {
 		}
 	}
 
-	if d.ExecutedAmount <= 0 {
-		return
-	}
-
-	if d.AverageExecutedPrice == 0 {
-		if d.Cost != 0 {
-			d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
-		} else {
-			d.AverageExecutedPrice = d.Price
-		}
-	}
-	if d.Cost == 0 {
-		d.Cost = d.AverageExecutedPrice * d.ExecutedAmount
+	// Derivative execution amounts may count contracts rather than base units.
+	if d.ExecutedAmount > 0 && d.AverageExecutedPrice == 0 && d.ExecutedQuoteAmount != 0 && !d.AssetType.IsDerivative() {
+		d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
 	}
 }
 

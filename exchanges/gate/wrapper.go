@@ -1114,7 +1114,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		response.Fee = sOrder.FeeDeducted.Float64()
 		response.FeeAsset = sOrder.FeeCurrency
 		response.AverageExecutedPrice = sOrder.AverageFillPrice.Float64()
-		response.Cost, response.Purchased = spotFillTotals(side, sOrder.FilledTotal, sOrder.AverageFillPrice, sOrder.FilledAmount)
+		response.ExecutedQuoteAmount = sOrder.FilledTotal.Float64()
+		response.Amount, response.QuoteAmount, response.ExecutedAmount, response.RemainingAmount = spotOrderQuantities(s.AssetType, side, s.Type, sOrder.Amount, sOrder.RemainingAmount, sOrder.FilledAmount)
+		if response.QuoteAmount == 0 {
+			response.QuoteAmount = s.QuoteAmount
+		}
 		response.Pair = s.Pair
 		response.ClientOrderID = getClientOrderIDFromText(sOrder.Text)
 		response.Date = sOrder.CreateTime.Time()
@@ -1184,6 +1188,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return nil, err
 		}
 		_, response.Amount, response.RemainingAmount = getSideAndAmountFromSize(optionOrder.Size.Float64(), optionOrder.RemainingAmount.Float64())
+		response.ExecutedAmount = response.Amount - response.RemainingAmount
 		response.Price = optionOrder.Price.Float64()
 		response.AverageExecutedPrice = optionOrder.FillPrice.Float64()
 		response.ClientOrderID = getClientOrderIDFromText(optionOrder.Text)
@@ -1205,6 +1210,7 @@ func deriveFuturesSubmitResponse(s *order.Submit, o *FuturesOrderResponse) (*ord
 		return nil, err
 	}
 	_, resp.Amount, resp.RemainingAmount = getSideAndAmountFromSize(o.Size.Float64(), o.RemainingAmount.Float64())
+	resp.ExecutedAmount = resp.Amount - resp.RemainingAmount
 	resp.Price = o.Price.Float64()
 	resp.AverageExecutedPrice = o.FillPrice.Float64()
 	resp.ClientOrderID = getClientOrderIDFromText(o.Text)
@@ -1567,11 +1573,7 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderResponse, pair currency.Pair, a a
 	if err != nil {
 		return nil, err
 	}
-	// A unified account order may trade in a quote currency other than the pair's, which Gate reports as trade_quote
-	costAsset := o.TradeQuote
-	if costAsset.IsEmpty() {
-		costAsset = pair.Quote
-	}
+	amount, quoteAmount, executed, remaining := spotOrderQuantities(a, side, oType, o.Amount, o.RemainingAmount, o.FilledAmount)
 	return &order.Detail{
 		Exchange:             e.Name,
 		OrderID:              o.OrderID,
@@ -1583,16 +1585,18 @@ func (e *Exchange) spotOrderDetail(o *SpotOrderResponse, pair currency.Pair, a a
 		Pair:                 pair,
 		AssetType:            a,
 		Price:                o.Price.Float64(),
-		Amount:               o.Amount.Float64(),
-		ExecutedAmount:       o.Amount.Float64() - o.RemainingAmount.Float64(),
-		RemainingAmount:      o.RemainingAmount.Float64(),
+		Amount:               amount,
+		QuoteAmount:          quoteAmount,
+		ExecutedAmount:       executed,
+		RemainingAmount:      remaining,
 		AverageExecutedPrice: o.AverageFillPrice.Float64(),
-		Cost:                 o.FilledTotal.Float64(),
-		CostAsset:            costAsset,
-		Fee:                  o.FeeDeducted.Float64(),
-		FeeAsset:             o.FeeCurrency,
-		Date:                 o.CreateTime.Time(),
-		LastUpdated:          o.UpdateTime.Time(),
+		// Unified orders may settle in another quote currency. Call GetSpotOrder
+		// to read TradeQuote alongside the total when the currency is needed.
+		ExecutedQuoteAmount: o.FilledTotal.Float64(),
+		Fee:                 o.FeeDeducted.Float64(),
+		FeeAsset:            o.FeeCurrency,
+		Date:                o.CreateTime.Time(),
+		LastUpdated:         o.UpdateTime.Time(),
 	}, nil
 }
 
@@ -1862,18 +1866,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				od := order.Detail{
-					OrderID:        sTradeDetail.OrderID,
-					Amount:         sTradeDetail.Amount.Float64(),
-					ExecutedAmount: sTradeDetail.Amount.Float64(),
-					Price:          sTradeDetail.Price.Float64(),
-					Date:           sTradeDetail.CreateTime.Time(),
-					Side:           side,
-					Exchange:       e.Name,
-					Pair:           fp,
-					AssetType:      req.AssetType,
-					Fee:            sTradeDetail.Fee.Float64(),
-					FeeAsset:       sTradeDetail.FeeCurrency,
-					CostAsset:      sTradeDetail.TradeQuote, // The pair's quote is inferred when Gate names no other
+					OrderID:   sTradeDetail.OrderID,
+					Date:      sTradeDetail.CreateTime.Time(),
+					Side:      side,
+					Exchange:  e.Name,
+					Pair:      fp,
+					AssetType: req.AssetType,
 					Trades: []order.TradeHistory{{
 						TID:       sTradeDetail.TradeID,
 						Price:     sTradeDetail.Price.Float64(),
@@ -1886,7 +1884,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 						Exchange:  e.Name,
 					}},
 				}
-				od.InferCostsAndTimes()
+				od.InferExecutionAndTimes()
 				resp = append(resp, od)
 			}
 		}
@@ -1908,7 +1906,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			sizes := make(map[string]*contractSize)
 			var o []*TradingHistoryItemResponse
 			if req.AssetType == asset.DeliveryFutures {
 				o, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fp, 0, 0, 0, "")
@@ -1925,32 +1922,14 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 				side, amount, _ := getSideAndAmountFromSize(fill.Size.Float64(), 0)
 				price, fee := fill.Price.Float64(), fill.Fee.Float64()
-				size, ok := sizes[fill.Contract]
-				if !ok {
-					size = e.lookupContractSize(ctx, req.AssetType, settle, fp.Format(format))
-					if err := ctx.Err(); err != nil {
-						return nil, err
-					}
-					sizes[fill.Contract] = size
-				}
-				// Costs are kept in the settlement currency, as a delivery contract's quote names the contract. A fill
-				// is valued from its contract's size, as InferCostsAndTimes would take a contract count for an amount
 				resp = append(resp, order.Detail{
-					OrderID:              fill.OrderID,
-					Side:                 side,
-					Amount:               amount,
-					ExecutedAmount:       amount,
-					Price:                price,
-					AverageExecutedPrice: price,
-					Cost:                 size.settledValue(amount, price),
-					CostAsset:            settle,
-					Fee:                  fee,
-					FeeAsset:             settle,
-					Date:                 fill.CreateTime.Time(),
-					LastUpdated:          fill.CreateTime.Time(),
-					Exchange:             e.Name,
-					Pair:                 fp,
-					AssetType:            req.AssetType,
+					OrderID:     fill.OrderID,
+					Side:        side,
+					Date:        fill.CreateTime.Time(),
+					LastUpdated: fill.CreateTime.Time(),
+					Exchange:    e.Name,
+					Pair:        fp,
+					AssetType:   req.AssetType,
 					Trades: []order.TradeHistory{{
 						TID:       strconv.FormatUint(fill.ID, 10),
 						Price:     price,
@@ -1973,10 +1952,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		settle, err := getSettlementCurrency(currency.EMPTYPAIR, req.AssetType)
-		if err != nil {
-			return nil, err
-		}
 		for i := range req.Pairs {
 			fp := req.Pairs[i].Format(format)
 			underlying, err := e.GetUnderlyingFromCurrencyPair(fp)
@@ -1987,32 +1962,17 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			var size *contractSize
-			if len(o) != 0 {
-				size = e.lookupContractSize(ctx, req.AssetType, settle, fp)
-				if err := ctx.Err(); err != nil {
-					return nil, err
-				}
-			}
 			for _, fill := range o {
 				side, amount, _ := getSideAndAmountFromSize(fill.Size.Float64(), 0)
 				price := fill.Price.Float64()
-				// Costs are kept in the settlement currency, as an options contract's quote names the contract. A fill
-				// is valued from its contract's size, as InferCostsAndTimes would take a contract count for an amount
 				resp = append(resp, order.Detail{
-					OrderID:              strconv.FormatUint(fill.OrderID, 10),
-					Side:                 side,
-					Amount:               amount,
-					ExecutedAmount:       amount,
-					Price:                price,
-					AverageExecutedPrice: price,
-					Cost:                 size.settledValue(amount, price),
-					CostAsset:            settle,
-					Date:                 fill.CreateTime.Time(),
-					LastUpdated:          fill.CreateTime.Time(),
-					Exchange:             e.Name,
-					Pair:                 fp,
-					AssetType:            req.AssetType,
+					OrderID:     strconv.FormatUint(fill.OrderID, 10),
+					Side:        side,
+					Date:        fill.CreateTime.Time(),
+					LastUpdated: fill.CreateTime.Time(),
+					Exchange:    e.Name,
+					Pair:        fp,
+					AssetType:   req.AssetType,
 					Trades: []order.TradeHistory{{
 						TID:       strconv.FormatUint(fill.ID, 10),
 						Price:     price,
@@ -2837,50 +2797,6 @@ func (c *DeliveryContractResponse) contractName() string {
 	return c.Name
 }
 
-// contractSize is what valuing a contract's fills in its settlement currency needs
-type contractSize struct {
-	contractType string
-	multiplier   float64
-}
-
-// lookupContractSize returns the size of a futures, delivery or options contract, or nil when Gate does not describe
-// it, as for a contract it no longer lists
-func (e *Exchange) lookupContractSize(ctx context.Context, a asset.Item, settle currency.Code, contract currency.Pair) *contractSize {
-	switch a {
-	case asset.DeliveryFutures:
-		if c, err := e.GetDeliveryContract(ctx, settle, contract); err == nil && c != nil {
-			return &contractSize{contractType: c.Type, multiplier: c.QuantoMultiplier.Float64()}
-		}
-	case asset.Options:
-		if c, err := e.GetOptionsSpecifiedContractDetail(ctx, contract); err == nil && c != nil {
-			return &contractSize{multiplier: c.Multiplier.Float64()}
-		}
-	default:
-		if c, err := e.GetFuturesContract(ctx, settle, contract.String()); err == nil && c != nil {
-			return &contractSize{contractType: c.Type, multiplier: c.QuantoMultiplier.Float64()}
-		}
-	}
-	return nil
-}
-
-// settledValue returns what contracts at price are worth in their settlement currency, or 0 when the contract's size
-// is unknown. An inverse contract is worth one unit of its quote currency, as openInterest relies on, so in the
-// settlement currency each is worth one over the price
-func (s *contractSize) settledValue(contracts, price float64) float64 {
-	switch {
-	case s == nil:
-		return 0
-	case s.contractType == contractTypeInverse:
-		if price <= 0 {
-			return 0
-		}
-		return contracts / price
-	case s.multiplier <= 0:
-		return 0
-	}
-	return contracts * price * s.multiplier
-}
-
 func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Item) (currency.Pair, error) {
 	if len(keys) != 1 || keys[0].Asset != a {
 		return currency.EMPTYPAIR, nil
@@ -3015,7 +2931,14 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		return e.deriveSpotWebsocketOrderResponse(resp)
+		result, err := e.deriveSpotWebsocketOrderResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+		if result.QuoteAmount == 0 {
+			result.QuoteAmount = s.QuoteAmount
+		}
+		return result, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		req, err := getFuturesOrderRequest(s)
 		if err != nil {
@@ -3148,7 +3071,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if resp.Label != "" { // batch only, denotes error type in string format
 			out[i] = &order.SubmitResponse{
 				Exchange:        e.Name,
-				ClientOrderID:   resp.Text,
+				ClientOrderID:   getClientOrderIDFromText(resp.Text),
 				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
 			}
 			continue
@@ -3167,7 +3090,6 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			return nil, err
 		}
 
-		cost, purchased := spotFillTotals(side, resp.FilledTotal, resp.AverageDealPrice, resp.FilledAmount)
 		tif, err := order.StringToTimeInForce(resp.TimeInForce)
 		if err != nil {
 			return nil, err
@@ -3176,24 +3098,26 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if err != nil {
 			return nil, err
 		}
+		amount, quoteAmount, executed, remaining := spotOrderQuantities(a, side, oType, resp.Amount, resp.Left, resp.FilledAmount)
 		out[i] = &order.SubmitResponse{
 			Exchange:             e.Name,
 			OrderID:              resp.ID,
 			AssetType:            a,
 			Pair:                 resp.CurrencyPair,
-			ClientOrderID:        resp.Text,
+			ClientOrderID:        getClientOrderIDFromText(resp.Text),
 			Date:                 resp.CreateTimeMs.Time(),
 			LastUpdated:          resp.UpdateTimeMs.Time(),
-			RemainingAmount:      resp.Left.Float64(),
-			Amount:               resp.Amount.Float64(),
+			RemainingAmount:      remaining,
+			Amount:               amount,
+			QuoteAmount:          quoteAmount,
+			ExecutedAmount:       executed,
 			Price:                resp.Price.Float64(),
 			Type:                 oType,
 			Side:                 side,
 			Fee:                  resp.Fee.Float64(),
 			FeeAsset:             resp.FeeCurrency,
 			TimeInForce:          tif,
-			Cost:                 cost,
-			Purchased:            purchased,
+			ExecutedQuoteAmount:  resp.FilledTotal.Float64(),
 			Status:               status,
 			AverageExecutedPrice: resp.AverageDealPrice.Float64(),
 		}
@@ -3201,21 +3125,12 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 	return out, nil
 }
 
-// spotFillTotals returns the quote cost of a spot order's fills, which Gate gives as the quote total filled on either
-// side, and what they purchased: the base bought, or the quote a sale received
-func spotFillTotals(side order.Side, filledTotal, averagePrice, filledAmount types.Number) (cost, purchased float64) {
-	if averagePrice != 0 {
-		cost = filledTotal.Float64()
-		if side.IsLong() {
-			purchased = filledTotal.Decimal().Div(averagePrice.Decimal()).InexactFloat64()
-		} else {
-			purchased = filledTotal.Float64()
-		}
+// spotOrderQuantities separates a quote-sized market buy from base-sized orders.
+func spotOrderQuantities(a asset.Item, side order.Side, typ order.Type, amount, left, filled types.Number) (base, quote, executed, remaining float64) {
+	if typ == order.Market && side.IsLong() && (a == asset.Spot || a == asset.Margin || a == asset.CrossMargin) {
+		return 0, amount.Float64(), filled.Float64(), 0
 	}
-	if side.IsLong() && filledAmount != 0 {
-		purchased = filledAmount.Float64() // Exact, where dividing by the rounded average price is not
-	}
-	return cost, purchased
+	return amount.Float64(), 0, amount.Float64() - left.Float64(), left.Float64()
 }
 
 func (e *Exchange) deriveFuturesWebsocketOrderResponse(responses *WebsocketFuturesOrderResponse, a asset.Item) (*order.SubmitResponse, error) {
@@ -3271,6 +3186,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 			Date:                 resp.CreateTime.Time(),
 			LastUpdated:          orderLastUpdated(resp.UpdateTime, resp.FinishTime, resp.CreateTime),
 			RemainingAmount:      math.Abs(resp.Left.Float64()),
+			ExecutedAmount:       math.Abs(resp.Size.Float64()) - math.Abs(resp.Left.Float64()),
 			Amount:               math.Abs(resp.Size.Float64()),
 			Price:                resp.Price.Float64(),
 			AverageExecutedPrice: resp.FillPrice.Float64(),

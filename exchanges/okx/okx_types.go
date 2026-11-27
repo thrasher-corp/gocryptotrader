@@ -18,6 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+const quantityTypeQuoteCurrency = "quote_ccy"
+
 const (
 	// Trade Modes
 
@@ -858,7 +860,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.Amount <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
+	if !slices.Contains([]string{"", "base_ccy", quantityTypeQuoteCurrency}, arg.TargetCurrency) {
 		return errCurrencyQuantityTypeRequired
 	}
 	return nil

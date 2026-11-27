@@ -1,7 +1,9 @@
 package gemini
 
 import (
+	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -166,11 +168,15 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
+	history, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
 	if err != nil && mockTests {
 		t.Error("GetTradeHistory() error", err)
 	} else if err == nil && !mockTests {
 		t.Error("GetTradeHistory() error cannot be nil")
+	}
+	if mockTests {
+		require.NotEmpty(t, history, "trade history must not be empty")
+		assert.Equal(t, currency.USD, history[0].FeeCurrency, "fee currency should be decoded")
 	}
 }
 
@@ -378,6 +384,33 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error("Expecting an error when no keys are set")
 	case err != nil && mockTests:
 		t.Errorf("Could not get order history: %s", err)
+	}
+}
+
+func TestTradeHistoryToOrderDetailExecutionMappings(t *testing.T) {
+	t.Parallel()
+	got, err := tradeHistoryToOrderDetail(&TradeHistory{
+		Price: 60, Amount: 2, Type: "buy", OrderID: 42, BaseCurrency: "BTC", QuoteCurrency: "USD", FeeAmount: 0.3, FeeCurrency: currency.USD,
+	}, currency.PairFormat{Delimiter: "-"}, "Gemini")
+	require.NoError(t, err, "tradeHistoryToOrderDetail must not error")
+	assert.Equal(t, order.Detail{
+		OrderID: "42", Exchange: "Gemini", Side: order.Buy, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+		Trades: []order.TradeHistory{{TID: "0", Price: 60, Amount: 2, Fee: 0.3, FeeAsset: "USD", Side: order.Buy, Exchange: "Gemini"}},
+	}, got, "conversion should preserve the fill without inventing order totals")
+	for i, fill := range []TradeHistory{
+		{TID: 101, OrderID: 42, Amount: 1.5, Price: 11, FeeAmount: 0.1, FeeCurrency: currency.USD},
+		{TID: 102, OrderID: 42, Amount: 0.5, Price: 12, FeeAmount: 0.05, FeeCurrency: currency.BTC},
+	} {
+		fill.Type, fill.BaseCurrency, fill.QuoteCurrency = "sell", "BTC", "USD"
+		got, err = tradeHistoryToOrderDetail(&fill, currency.PairFormat{Delimiter: "-"}, "Gemini")
+		require.NoError(t, err, "fill conversion must not error")
+		assert.Equal(t, order.Detail{
+			OrderID: "42", Exchange: "Gemini", Side: order.Sell, Pair: currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Trades: []order.TradeHistory{{
+				TID: strconv.Itoa(101 + i), Price: fill.Price, Amount: fill.Amount,
+				Fee: fill.FeeAmount, FeeAsset: fill.FeeCurrency.String(), Side: order.Sell, Exchange: "Gemini",
+			}},
+		}, got, "each fill should remain separate from unknown order totals")
 	}
 }
 
@@ -690,6 +723,33 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	t.Run("partial fills before and after booking", func(t *testing.T) {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must succeed")
+		pair := currency.NewBTCUSD()
+		sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, pair)
+		stored := order.Detail{Amount: 10, RemainingAmount: 10, Status: order.New}
+		for _, step := range []struct {
+			event               string
+			executed, remaining float64
+			status              order.Status
+		}{
+			{"fill", 2, 8, order.PartiallyFilled},
+			{"booked", 2, 8, order.Active},
+			{"fill", 9.75, 0.25, order.PartiallyFilled},
+			{"fill", 10, 0, order.Filled},
+		} {
+			frame := fmt.Sprintf(`[{"type":%q,"order_id":"109535955","symbol":"btcusd","side":"sell","order_type":"exchange limit","timestampms":1547743216580,"is_live":%t,"executed_amount":"%v","remaining_amount":"%v","original_amount":"10","price":"3592.23"}]`, step.event, step.remaining > 0, step.executed, step.remaining)
+			require.NoError(t, ex.wsHandleData(t.Context(), []byte(frame)), "the order event must be handled")
+			require.Len(t, ex.Websocket.DataHandler.C, 1, "one order update must be relayed")
+			detail, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+			require.True(t, ok, "the relayed event must contain an order detail")
+			assert.Equalf(t, step.status, detail.Status, "the %s event should relay its execution status", step.event)
+			require.NoError(t, stored.UpdateOrderFromDetail(detail), "the update must merge")
+			assert.Equal(t, step.status, stored.Status, "the stored order should follow the event")
+			assert.Equal(t, step.remaining > 0, stored.IsActive(), "the order should remain active while quantity remains")
+		}
+	})
 }
 
 func TestWsSubAck(t *testing.T) {

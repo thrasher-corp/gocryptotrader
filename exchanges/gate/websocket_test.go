@@ -653,42 +653,42 @@ func TestProcessSpotOrders(t *testing.T) {
 			{
 				name:  "open limit sell",
 				order: `{"id":"11","text":"t-open","event":"put","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"0.5","price":"70000","left":"0.5","filled_total":"0","filled_amount":"0","avg_deal_price":"0","fee":"0","fee_currency":"USDT",` + times + `}`,
-				exp:   order.Detail{OrderID: "11", ClientOrderID: "t-open", Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 70000, Amount: 0.5},
+				exp:   order.Detail{OrderID: "11", RemainingAmount: 0.5, ClientOrderID: "t-open", Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 70000, Amount: 0.5},
 			},
 			{
 				name:  "partly filled limit buy",
 				order: `{"id":"12","text":"apiv4","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"margin","side":"buy","amount":"0.5","price":"60000","left":"0.125","filled_total":"22500","filled_amount":"0.375","avg_deal_price":"60000","fee":"0.000375","fee_currency":"BTC",` + times + `}`,
-				exp:   order.Detail{OrderID: "12", Side: order.Buy, Type: order.Limit, AssetType: asset.Margin, Price: 60000, Amount: 0.5, ExecutedAmount: 0.375},
+				exp:   order.Detail{OrderID: "12", RemainingAmount: 0.125, Side: order.Buy, Type: order.Limit, AssetType: asset.Margin, Price: 60000, Amount: 0.5, ExecutedAmount: 0.375},
 			},
 			{
 				name:  "filled market buy",
 				order: `{"id":"13","text":"t-mb","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"buy","amount":"100","price":"0","left":"0.25","filled_total":"99.75","filled_amount":"0.0015","avg_deal_price":"66500","fee":"0.0000015","fee_currency":"BTC",` + times + `}`,
-				exp:   order.Detail{OrderID: "13", ClientOrderID: "t-mb", Status: order.Filled, Side: order.Buy, Type: order.Market, AssetType: asset.Spot, Amount: 100, ExecutedAmount: 99.75, AverageExecutedPrice: 66500, Cost: 99.75, CostAsset: currency.USDT, Fee: 0.0000015, FeeAsset: currency.BTC},
+				exp:   order.Detail{OrderID: "13", ClientOrderID: "t-mb", Status: order.Filled, Side: order.Buy, Type: order.Market, AssetType: asset.Spot, QuoteAmount: 100, ExecutedAmount: 0.0015, AverageExecutedPrice: 66500, ExecutedQuoteAmount: 99.75, Fee: 0.0000015, FeeAsset: currency.BTC},
 			},
 			{
 				name:  "filled market sell sized in the base currency",
 				order: `{"id":"14","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","type":"market","account":"cross_margin","side":"sell","amount":"0.25","price":"0","left":"0","filled_total":"16662.5","filled_amount":"0.25","avg_deal_price":"66650","fee":"16.66","fee_currency":"USDT",` + times + `}`,
-				exp:   order.Detail{OrderID: "14", Status: order.Filled, Side: order.Sell, Type: order.Market, AssetType: asset.CrossMargin, Amount: 0.25, ExecutedAmount: 0.25, AverageExecutedPrice: 66650, Cost: 16662.5, CostAsset: currency.USDT, Fee: 16.66, FeeAsset: currency.USDT},
+				exp:   order.Detail{OrderID: "14", Status: order.Filled, Side: order.Sell, Type: order.Market, AssetType: asset.CrossMargin, Amount: 0.25, ExecutedAmount: 0.25, AverageExecutedPrice: 66650, ExecutedQuoteAmount: 16662.5, Fee: 16.66, FeeAsset: currency.USDT},
 			},
 			{
 				name:  "cancelled limit sell",
 				order: `{"id":"15","event":"finish","finish_as":"cancelled","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"sell","amount":"1","price":"80000","left":"1",` + times + `}`,
-				exp:   order.Detail{OrderID: "15", Status: order.Cancelled, Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 80000, Amount: 1, CostAsset: currency.USDT},
+				exp:   order.Detail{OrderID: "15", RemainingAmount: 1, Status: order.Cancelled, Side: order.Sell, Type: order.Limit, AssetType: asset.Spot, Price: 80000, Amount: 1},
 			},
 			{
 				name:  "unified limit borrow on a unified order book",
 				order: `{"id":"16","event":"put","finish_as":"open","currency_pair":"BTC_USDT","money":"USDC","type":"limit_borrow","account":"unified","side":"buy","amount":"0.5","price":"60000","left":"0.5",` + times + `}`,
-				exp:   order.Detail{OrderID: "16", Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5},
+				exp:   order.Detail{OrderID: "16", RemainingAmount: 0.5, Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5},
 			},
 			{
 				name:  "unified limit borrow filled on a unified order book",
 				order: `{"id":"18","event":"finish","finish_as":"filled","currency_pair":"BTC_USDT","money":"USDC","type":"limit_borrow","account":"unified","side":"buy","amount":"0.5","price":"60000","left":"0","filled_total":"30000","filled_amount":"0.5","avg_deal_price":"60000",` + times + `}`,
-				exp:   order.Detail{OrderID: "18", Status: order.Filled, Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5, ExecutedAmount: 0.5, AverageExecutedPrice: 60000, Cost: 30000, CostAsset: currency.USDC},
+				exp:   order.Detail{OrderID: "18", Status: order.Filled, Side: order.Buy, Type: order.Limit, AssetType: asset.Spot, Price: 60000, Amount: 0.5, ExecutedAmount: 0.5, AverageExecutedPrice: 60000, ExecutedQuoteAmount: 30000},
 			},
 			{
 				name:  "unified market borrow and repay sell finished by its time in force",
 				order: `{"id":"17","event":"finish","finish_as":"ioc","currency_pair":"BTC_USDT","type":"market_borrow_repay","account":"unified","side":"sell","amount":"0.5","left":"0.25","filled_amount":"0.25",` + times + `}`,
-				exp:   order.Detail{OrderID: "17", Status: order.Cancelled, Side: order.Sell, Type: order.Market, AssetType: asset.Spot, Amount: 0.5, ExecutedAmount: 0.25, CostAsset: currency.USDT},
+				exp:   order.Detail{OrderID: "17", RemainingAmount: 0.25, Status: order.Cancelled, Side: order.Sell, Type: order.Market, AssetType: asset.Spot, Amount: 0.5, ExecutedAmount: 0.25},
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -745,18 +745,19 @@ func TestProcessSpotOrders(t *testing.T) {
 			require.NoErrorf(t, ex.processSpotOrders(ctx, push(account)), "processSpotOrders must not error for account %q", account)
 			require.Lenf(t, ex.Websocket.DataHandler.C, 1, "processSpotOrders must relay the order for account %q", account)
 			exp := []order.Detail{{
-				Amount:         1,
-				Exchange:       ex.Name,
-				OrderID:        "30784435",
-				ClientOrderID:  "t-abc",
-				Side:           order.Sell,
-				Type:           order.Limit,
-				Pair:           currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
-				AssetType:      a,
-				Price:          10001,
-				ExecutedAmount: 0.75,
-				Date:           time.UnixMilli(1605175506123),
-				LastUpdated:    time.UnixMilli(1605175507123),
+				Amount:          1,
+				Exchange:        ex.Name,
+				OrderID:         "30784435",
+				ClientOrderID:   "t-abc",
+				Side:            order.Sell,
+				Type:            order.Limit,
+				Pair:            currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+				AssetType:       a,
+				Price:           10001,
+				ExecutedAmount:  0.75,
+				RemainingAmount: 0.25,
+				Date:            time.UnixMilli(1605175506123),
+				LastUpdated:     time.UnixMilli(1605175507123),
 			}}
 			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processSpotOrders should relay the order as %s for account %q", a, account)
 		})
@@ -834,7 +835,7 @@ func TestProcessSpotOrdersMerge(t *testing.T) {
 		late := relay(t.Context(), t, ex, `{"id":"23","event":"update","finish_as":"open","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amount":"1","price":"65000","left":"0.5","filled_total":"30000","filled_amount":"0.5","avg_deal_price":"60000","fee":"0.0005","fee_currency":"BTC",`+times+`}`)
 		require.NoError(t, stored.UpdateOrderFromDetail(late), "UpdateOrderFromDetail must not error")
 		assert.Equal(t, 0.001, stored.Fee, "a delayed push should not put back an older fee")
-		assert.Equal(t, 65000.0, stored.Cost, "a delayed push should not put back an older cost")
+		assert.Equal(t, 65000.0, stored.ExecutedQuoteAmount, "a delayed push should not put back an older cost")
 		assert.Equal(t, 65000.0, stored.AverageExecutedPrice, "a delayed push should not put back an older average price")
 	})
 }

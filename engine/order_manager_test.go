@@ -449,9 +449,10 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	o := &order.Detail{
-		Exchange: testExchange,
-		OrderID:  "1337",
-		Status:   order.New,
+		Exchange:    testExchange,
+		OrderID:     "1337",
+		Status:      order.New,
+		LastUpdated: time.Now().Add(-time.Hour),
 	}
 	err = m.orderStore.add(o)
 	if err != nil {
@@ -474,12 +475,39 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
+	beforeCancel := time.Now()
 	err = m.Cancel(t.Context(), cancel)
 	assert.NoError(t, err)
+	assert.False(t, o.LastUpdated.Before(beforeCancel), "successful local cancellation should stamp its update time")
+	assert.Equal(t, order.PendingCancel, o.Status, "the cancel acknowledgement should leave the order pending")
+	closeTime := beforeCancel.Add(-30 * time.Millisecond)
+	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1337", Status: order.Cancelled, CloseTime: closeTime, LastUpdated: closeTime}), "older exchange confirmation must enrich the locally cancelled order")
+	assert.Equal(t, closeTime, o.CloseTime, "exchange confirmation should preserve its close time despite the newer local stamp")
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
 	}
+
+	t.Run("cancel acknowledgement leaves the order eligible for polling", func(t *testing.T) {
+		for _, status := range []order.Status{order.Open, order.PartiallyFilled, order.PendingCancel, order.Cancelled, order.PartiallyCancelled} {
+			t.Run(status.String(), func(t *testing.T) {
+				manager := OrdersSetup(t)
+				entry := &order.Detail{Exchange: testExchange, OrderID: "1338", AssetType: asset.Spot, Pair: btcusdPair, Amount: 2, Status: order.Open}
+				require.NoError(t, manager.orderStore.add(entry), "the order must be stored")
+				require.NoError(t, manager.Cancel(t.Context(), &order.Cancel{Exchange: testExchange, OrderID: entry.OrderID, AssetType: asset.Spot, Pair: btcusdPair}), "Cancel must accept the venue acknowledgement")
+				assert.Equal(t, order.PendingCancel, entry.Status, "the acknowledged cancellation should be pending")
+				assert.True(t, entry.IsActive(), "the order should remain eligible for polling")
+				report := order.Detail{Exchange: testExchange, OrderID: entry.OrderID, Status: status, Amount: 2}
+				if status == order.PartiallyFilled || status == order.PartiallyCancelled {
+					report.ExecutedAmount, report.RemainingAmount = 0.5, 1.5
+				}
+				_, err := manager.UpsertOrder(&report)
+				require.NoError(t, err, "the venue report must merge")
+				assert.Equal(t, status, entry.Status, "the stored order should follow the venue status")
+				assert.Equal(t, !status.IsInactive(), entry.IsActive(), "polling eligibility should follow the venue status")
+			})
+		}
+	})
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -525,7 +553,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if checkDeets.Status == order.Cancelled {
+	if checkDeets.Status == order.Cancelled || checkDeets.Status == order.PendingCancel {
 		t.Error("Order should not be cancelled")
 	}
 
@@ -540,8 +568,8 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if checkDeets.Status != order.Cancelled {
-		t.Error("Order should be cancelled", checkDeets.Status)
+	if checkDeets.Status != order.PendingCancel {
+		t.Error("Order should be pending cancellation", checkDeets.Status)
 	}
 }
 
@@ -642,7 +670,7 @@ func TestOrderManagerStopCancelsOrdersOnShutdown(t *testing.T) {
 
 	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, orderID)
 	require.NoError(t, err)
-	assert.Equal(t, order.Cancelled, checkDeets.Status)
+	assert.Equal(t, order.PendingCancel, checkDeets.Status)
 }
 
 func TestSubmit(t *testing.T) {
@@ -747,6 +775,31 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	if assert.NoError(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
 		assert.Equal(t, d.ClientOrderID, resp.ClientOrderID, "resp should contain the ClientOrderID from the store")
 	}
+}
+
+func TestOrderManagerModifyReplacementExecution(t *testing.T) {
+	m := OrdersSetup(t)
+	require.NoError(t, m.orderStore.add(&order.Detail{
+		Exchange: testExchange, AssetType: asset.Spot, Pair: btcusdPair, OrderID: "original", Price: 100,
+		Amount: 10, ExecutedAmount: 6, RemainingAmount: 4, ExecutedQuoteAmount: 600,
+		AverageExecutedPrice: 100, Fee: 0.6, FeeAsset: currency.USD,
+		Trades: []order.TradeHistory{{TID: "old-fill", Amount: 6}}, Status: order.PartiallyFilled,
+	}), "original partially filled order must be stored")
+	response, err := m.Modify(t.Context(), &order.Modify{Exchange: testExchange, OrderID: "original", AssetType: asset.Spot, Type: order.Limit, Price: 100, Amount: 10})
+	require.NoError(t, err, "order manager modification must succeed")
+	stored, err := m.orderStore.getByExchangeAndID(testExchange, response.OrderID)
+	require.NoError(t, err, "replacement must be reachable under its new order ID")
+	assert.Zero(t, stored.ExecutedAmount, "replacement should start its own execution history")
+	assert.Zero(t, stored.ExecutedQuoteAmount, "replacement should not inherit the old quote total")
+	assert.Zero(t, stored.AverageExecutedPrice, "replacement should not inherit the old average")
+	assert.Zero(t, stored.Fee, "replacement should not inherit the old fee")
+	assert.True(t, stored.FeeAsset.IsEmpty(), "replacement should not inherit the old fee currency")
+	assert.Empty(t, stored.Trades, "replacement should not inherit the old trades")
+	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: response.OrderID, Amount: 10, ExecutedAmount: 1, RemainingAmount: 9, Status: order.Cancelled}), "replacement cancellation with a smaller cumulative fill must merge")
+	stored, err = m.orderStore.getByExchangeAndID(testExchange, response.OrderID)
+	require.NoError(t, err, "updated replacement must remain reachable")
+	assert.Equal(t, order.Cancelled, stored.Status, "replacement should reach its own terminal state")
+	assert.Equal(t, 1.0, stored.ExecutedAmount, "replacement should retain only its own cumulative execution")
 }
 
 func TestOrderManager_Modify(t *testing.T) {
@@ -1014,6 +1067,28 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+	t.Run("quote-sized orders absent from pending list", func(t *testing.T) {
+		for _, tc := range []struct {
+			name          string
+			filled, spent float64
+		}{
+			{"unfilled", 0, 0}, {"partially filled", 100000, 5}, {"quote budget spent", 3, 10},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				id := "quote-sized-" + tc.name
+				require.NoError(t, m.orderStore.add(&order.Detail{
+					Exchange: testExchange, OrderID: id, Pair: pairs[0], AssetType: asset.Spot,
+					Type: order.Market, Side: order.Buy, Status: order.PartiallyFilled,
+					QuoteAmount: 10, ExecutedAmount: tc.filled, ExecutedQuoteAmount: tc.spent, LastUpdated: time.Now().Add(-time.Hour),
+				}), "order store must accept a quote-sized order")
+				m.processOrders(t.Context())
+				stored, err := m.GetOrdersFiltered(&order.Filter{OrderID: id})
+				require.NoError(t, err, "stored order lookup must not error")
+				require.Len(t, stored, 1, "order must remain in the store")
+				assert.Equal(t, order.Cancelled, stored[0].Status, "sweep should fetch final status after the order leaves the pending list")
+			})
+		}
+	})
 }
 
 func TestGetOrdersFiltered(t *testing.T) {

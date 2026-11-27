@@ -809,29 +809,29 @@ func (e *Exchange) orderDetail(o *OrderResponse, pair currency.Pair) (*order.Det
 		return nil, err
 	}
 	d := &order.Detail{
-		Exchange:       e.Name,
-		OrderID:        o.OrderID,
-		ClientOrderID:  o.ClientOrderID,
-		Pair:           pair,
-		AssetType:      asset.Spot,
-		Side:           side,
-		Type:           orderType,
-		TimeInForce:    tif,
-		Status:         status,
-		Price:          o.Price.Float64(),
-		Amount:         o.OriginalQuantity.Float64(),
-		QuoteAmount:    o.OriginalQuoteOrderQuantity.Float64(),
-		ExecutedAmount: o.ExecutedQuantity.Float64(),
-		Cost:           o.CumulativeQuoteQuantity.Float64(),
-		Date:           o.CreateTime.Time(),
-		LastUpdated:    o.UpdateTime.Time(),
+		Exchange:            e.Name,
+		OrderID:             o.OrderID,
+		ClientOrderID:       o.ClientOrderID,
+		Pair:                pair,
+		AssetType:           asset.Spot,
+		Side:                side,
+		Type:                orderType,
+		TimeInForce:         tif,
+		Status:              status,
+		Price:               o.Price.Float64(),
+		Amount:              o.OriginalQuantity.Float64(),
+		QuoteAmount:         o.OriginalQuoteOrderQuantity.Float64(),
+		ExecutedAmount:      o.ExecutedQuantity.Float64(),
+		ExecutedQuoteAmount: o.CumulativeQuoteQuantity.Float64(),
+		Date:                o.CreateTime.Time(),
+		LastUpdated:         o.UpdateTime.Time(),
 	}
 	// A market buy orders a quote amount, leaving its base amount, and so its remaining amount, unknown
 	if d.Amount > 0 {
 		d.RemainingAmount = max(d.Amount-d.ExecutedAmount, 0)
 	}
 	if d.ExecutedAmount > 0 {
-		d.AverageExecutedPrice = d.Cost / d.ExecutedAmount
+		d.AverageExecutedPrice = d.ExecutedQuoteAmount / d.ExecutedAmount
 	}
 	return d, nil
 }

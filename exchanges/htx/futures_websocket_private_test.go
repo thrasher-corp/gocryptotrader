@@ -31,11 +31,11 @@ import (
 func TestFormatLegacyFuturesWebsocketOrder(t *testing.T) {
 	t.Parallel()
 	for _, item := range []asset.Item{asset.Futures, asset.CoinMarginedFutures} {
-		t.Run(item.String()+" cost asset", func(t *testing.T) {
+		t.Run(item.String()+" quote turnover", func(t *testing.T) {
 			t.Parallel()
 			detail, err := e.formatLegacyFuturesWSOrder(&legacyFuturesWSOrder{asset: item, contractCode: "ADA-USD", direction: "sell", orderPriceType: "post_only", status: 6, volume: 1, tradeVolume: 1, tradeTurnover: 10})
 			require.NoError(t, err, "order notification must convert")
-			assert.Equal(t, currency.USD, detail.CostAsset, "inverse contract turnover should be costed in USD")
+			assert.Equal(t, 10.0, detail.ExecutedQuoteAmount, "order notification should retain the quoted turnover")
 		})
 	}
 	t.Run("absent optional values", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestFormatLegacyFuturesWebsocketOrder(t *testing.T) {
 				assert.Equal(t, 2.0, detail.Amount, "amount should match")
 				assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
 				assert.Equal(t, 1.0, detail.RemainingAmount, "remaining amount should match")
-				assert.Equal(t, 100.0, detail.Cost, "cost should match")
+				assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "executed quote amount should match the turnover")
 				assert.Equal(t, 0.1, detail.Fee, "fee should match")
 				assert.Equal(t, currency.BTC, detail.FeeAsset, "fee asset should match")
 				assert.Equal(t, 5.0, detail.Leverage, "leverage should match")

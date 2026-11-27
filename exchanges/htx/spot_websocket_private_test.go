@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"uuid"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -112,6 +113,92 @@ func TestWebsocketHandleMyOrdersMsg(t *testing.T) {
 		require.NotNil(t, d)
 		assert.Equal(t, ex, d, "Order Detail should match")
 	}
+	t.Run("order quantity units", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, fields                                      string
+			quote, executedQuote, amount, executed, remaining float64
+			status                                            order.Status
+		}{
+			{name: "market buy creation", fields: `"eventType":"creation","type":"buy-market","orderValue":"100","orderStatus":"submitted"`, quote: 100, status: order.New},
+			{name: "market buy trade", fields: `"eventType":"trade","type":"buy-market","orderValue":"100.3","execAmt":"60.1","remainAmt":"40.2","tradePrice":"60000","tradeVolume":"0.0005","orderStatus":"partial-filled"`, quote: 100.3, executedQuote: 60.1, status: order.PartiallyFilled},
+			{name: "market buy partial cancellation", fields: `"eventType":"cancellation","type":"buy-market","orderValue":"100","execAmt":"60","remainAmt":"40","orderStatus":"partial-canceled"`, quote: 100, executedQuote: 60, status: order.PartiallyCancelled},
+			{name: "market buy cancellation without fills", fields: `"eventType":"cancellation","type":"buy-market","orderValue":"100","execAmt":"0","remainAmt":"100","orderStatus":"canceled"`, quote: 100, status: order.Cancelled},
+			{name: "market buy final trade", fields: `"eventType":"trade","type":"buy-market","orderValue":"100","execAmt":"100","remainAmt":"0","tradePrice":"60000","tradeVolume":"0.0007","orderStatus":"filled"`, quote: 100, executedQuote: 100, status: order.Filled},
+			{name: "limit maker buy", fields: `"eventType":"trade","type":"buy-limit-maker","orderSize":"2","execAmt":"1.5","remainAmt":"0.5","orderStatus":"partial-filled"`, amount: 2, executed: 1.5, remaining: 0.5, status: order.PartiallyFilled},
+			{name: "market sell", fields: `"eventType":"trade","type":"sell-market","orderSize":"2","execAmt":"1.5","remainAmt":"0.5","orderStatus":"partial-filled"`, amount: 2, executed: 1.5, remaining: 0.5, status: order.PartiallyFilled},
+			{name: "IOC buy", fields: `"eventType":"trade","type":"buy-ioc","orderSize":"2","execAmt":"1.5","remainAmt":"0.5","orderStatus":"partial-filled"`, amount: 2, executed: 1.5, remaining: 0.5, status: order.PartiallyFilled},
+			{name: "FOK buy", fields: `"eventType":"trade","type":"buy-limit-fok","orderSize":"2","execAmt":"1.5","remainAmt":"0.5","orderStatus":"partial-filled"`, amount: 2, executed: 1.5, remaining: 0.5, status: order.PartiallyFilled},
+			{name: "market sell cancellation", fields: `"eventType":"cancellation","type":"sell-market","orderSize":"2","execAmt":"1.5","remainAmt":"0.5","orderStatus":"partial-canceled"`, amount: 2, executed: 1.5, remaining: 0.5, status: order.PartiallyCancelled},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				detail := readSpotOrderUpdate(t, ex, tc.fields)
+				assert.Equal(t, tc.status, detail.Status, "status should match the venue update")
+				assert.Equal(t, tc.quote, detail.QuoteAmount, "quote amount should hold the reported budget")
+				assert.Equal(t, tc.executedQuote, detail.ExecutedQuoteAmount, "executed quote amount should hold cumulative quote execution")
+				assert.Equal(t, tc.amount, detail.Amount, "amount should hold only the requested base quantity")
+				assert.Equal(t, tc.executed, detail.ExecutedAmount, "executed amount should hold only cumulative base execution")
+				assert.Equal(t, tc.remaining, detail.RemainingAmount, "remaining amount should hold only the unfilled base quantity")
+			})
+		}
+	})
+
+	t.Run("market buy merges stream and REST execution", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ws := readSpotOrderUpdate(t, ex, `"eventType":"trade","type":"buy-market","orderValue":"100","execAmt":"60","remainAmt":"40","orderStatus":"partial-filled"`)
+		submit, err := (&order.Submit{Exchange: ex.Name, Pair: btcusdtPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market, QuoteAmount: 100}).DeriveSubmitResponse("27163536")
+		require.NoError(t, err, "the acknowledgement must map to a submit response")
+		for _, firstSeen := range []string{"stream", "submit"} {
+			t.Run(firstSeen, func(t *testing.T) {
+				t.Parallel()
+				stored := ws.Copy()
+				if firstSeen == "submit" {
+					placed, err := submit.DeriveDetail(uuid.NewV4())
+					require.NoError(t, err, "the acknowledgement must map to an order detail")
+					stored = *placed
+					require.NoError(t, stored.UpdateOrderFromDetail(ws), "the quote-only update must merge into the acknowledged order")
+				}
+				assert.True(t, stored.IsActive(), "the partial fill should stay eligible for polling")
+				assert.Equal(t, 60.0, stored.ExecutedQuoteAmount, "quote execution should be recorded before REST reports the base fill")
+				assert.Zero(t, stored.AverageExecutedPrice, "quote execution alone should leave average price unknown")
+
+				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.PartiallyFilled, ExecutedAmount: 0.0005, ExecutedQuoteAmount: 30}), "an older REST snapshot must merge safely")
+				assert.Zero(t, stored.ExecutedAmount, "the stale snapshot should not install a base fill from an older cumulative total")
+				assert.Equal(t, 60.0, stored.ExecutedQuoteAmount, "the stale snapshot should not rewind cumulative quote execution")
+
+				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.PartiallyFilled, ExecutedAmount: 0.001, ExecutedQuoteAmount: 60}), "a REST snapshot at the same quote total must merge")
+				assert.Equal(t, 0.001, stored.ExecutedAmount, "REST should enrich the order with its base fills")
+				assert.Equal(t, 60000.0, stored.AverageExecutedPrice, "matching base and quote totals should establish the average price")
+
+				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.PartiallyFilled, ExecutedQuoteAmount: 80}), "the next quote-only update must merge")
+				assert.Equal(t, 80.0, stored.ExecutedQuoteAmount, "the next update should retain quote progress")
+				assert.Zero(t, stored.ExecutedAmount, "quote progress should invalidate the base fill from the earlier total")
+				assert.Zero(t, stored.AverageExecutedPrice, "quote progress should invalidate the average from the earlier fill")
+
+				require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{Status: order.Filled, ExecutedAmount: 0.002, ExecutedQuoteAmount: 100}), "the final REST snapshot must merge")
+				assert.Equal(t, order.Filled, stored.Status, "the final REST status should take effect")
+				assert.Equal(t, 0.002, stored.ExecutedAmount, "the final snapshot should report the base fill")
+				assert.Equal(t, 100.0, stored.ExecutedQuoteAmount, "the final snapshot should report the quote fill")
+				assert.False(t, stored.IsActive(), "the filled order should leave the polling set")
+			})
+		}
+	})
+}
+
+// readSpotOrderUpdate reads exactly one order detail from the private stream handler.
+func readSpotOrderUpdate(t *testing.T, ex *Exchange, fields string) *order.Detail {
+	t.Helper()
+	sub := &subscription.Subscription{Asset: asset.Spot}
+	require.NoError(t, ex.wsHandleMyOrdersMsg(t.Context(), sub, []byte(`{"action":"push","ch":"orders#btcusdt","data":{"orderId":27163536,"symbol":"btcusdt",`+fields+`}}`)), "the handler must accept the order update")
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "the handler must relay one update")
+	detail, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+	require.True(t, ok, "the update must contain order details")
+	return detail
 }
 
 func TestWebsocketHandleMyTradesMsg(t *testing.T) {

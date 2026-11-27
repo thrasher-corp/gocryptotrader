@@ -118,6 +118,11 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 	if o.OrderID != 0 {
 		d.OrderID = strconv.FormatUint(o.OrderID, 10)
 	}
+	if SpotOrderType(o.OrderType) == SpotOrderTypeBuyMarket {
+		// HTX reports cumulative execution and the remaining budget in quote units for market buys.
+		d.QuoteAmount, d.ExecutedQuoteAmount = o.Value.Float64(), d.ExecutedAmount
+		d.Amount, d.ExecutedAmount, d.RemainingAmount = 0, 0, 0
+	}
 	switch o.EventType {
 	case "trigger", "deletion", "cancellation":
 		d.LastUpdated = o.LastActTime.Time()

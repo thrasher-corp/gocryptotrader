@@ -1147,7 +1147,7 @@ func TestOrderDetail(t *testing.T) {
 			exp: &order.Detail{
 				Exchange: e.Name, OrderID: "1", ClientOrderID: "c1", Pair: spotTestPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Limit,
 				TimeInForce: order.ImmediateOrCancel, Status: order.PartiallyFilled, Price: 100, Amount: 2, QuoteAmount: 200, ExecutedAmount: 0.5,
-				RemainingAmount: 1.5, Cost: 50.5, AverageExecutedPrice: 101, Date: time.UnixMilli(1), LastUpdated: time.UnixMilli(2),
+				RemainingAmount: 1.5, ExecutedQuoteAmount: 50.5, AverageExecutedPrice: 101, Date: time.UnixMilli(1), LastUpdated: time.UnixMilli(2),
 			},
 		},
 		{
@@ -1155,7 +1155,7 @@ func TestOrderDetail(t *testing.T) {
 			in:   OrderResponse{OrderID: "2", Type: "buy_market", OriginalQuoteOrderQuantity: 100, ExecutedQuantity: 0.00125, CumulativeQuoteQuantity: 100, Status: 2},
 			exp: &order.Detail{
 				Exchange: e.Name, OrderID: "2", Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Status: order.Filled,
-				QuoteAmount: 100, ExecutedAmount: 0.00125, Cost: 100, AverageExecutedPrice: 80000,
+				QuoteAmount: 100, ExecutedAmount: 0.00125, ExecutedQuoteAmount: 100, AverageExecutedPrice: 80000,
 			},
 		},
 		{
@@ -1637,7 +1637,7 @@ func TestGetOrderInfo(t *testing.T) { //nolint:tparallel // Cases share the pack
 		exp := &order.Detail{
 			Exchange: e.Name, OrderID: "fc2e51b9-2e6e-4949-a5f3-35a4f10c0554", ClientOrderID: "4b11c4ac-d54a-4bb5-86f9-06322174a036", Pair: spotTestPair,
 			AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, TimeInForce: order.PostOnly, Status: order.PartiallyFilledCancelled,
-			Price: 51000, Amount: 0.001, QuoteAmount: 51, ExecutedAmount: 0.0004, Cost: 20.4, Date: time.UnixMilli(1772335196123),
+			Price: 51000, Amount: 0.001, QuoteAmount: 51, ExecutedAmount: 0.0004, ExecutedQuoteAmount: 20.4, Date: time.UnixMilli(1772335196123),
 			LastUpdated: time.UnixMilli(1772335197000),
 		}
 		require.InDelta(t, 0.0006, result.RemainingAmount, 1e-12, "GetOrderInfo must return the amount left")
@@ -1837,7 +1837,7 @@ func TestGetActiveOrders(t *testing.T) { //nolint:tparallel // Cases share the p
 			{
 				Exchange: e.Name, OrderID: "46e9dbe6-688b-4337-b7b8-e91cfb3e2cd5", Pair: spotTestPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Limit,
 				TimeInForce: order.FillOrKill, Status: order.PartiallyFilled, Price: 100000, Amount: 0.01, QuoteAmount: 1000, ExecutedAmount: 0.003,
-				RemainingAmount: 0.007, Cost: 300, AverageExecutedPrice: 100000, Date: time.UnixMilli(1772335195222), LastUpdated: time.UnixMilli(1772335199000),
+				RemainingAmount: 0.007, ExecutedQuoteAmount: 300, AverageExecutedPrice: 100000, Date: time.UnixMilli(1772335195222), LastUpdated: time.UnixMilli(1772335199000),
 			},
 		}
 		assert.Equal(t, exp, result, "GetActiveOrders should return the open orders")
@@ -1867,7 +1867,7 @@ func TestGetOrderHistory(t *testing.T) { //nolint:tparallel // Cases share the p
 			},
 			{
 				Exchange: e.Name, OrderID: "5ca490f9-eede-45c7-82fe-89b6beb3fd7b", Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market,
-				Status: order.Filled, QuoteAmount: 100, ExecutedAmount: 0.00125, Cost: 100, AverageExecutedPrice: 80000,
+				Status: order.Filled, QuoteAmount: 100, ExecutedAmount: 0.00125, ExecutedQuoteAmount: 100, AverageExecutedPrice: 80000,
 				Date: time.UnixMilli(1772335195444), LastUpdated: time.UnixMilli(1772335197000),
 			},
 		}

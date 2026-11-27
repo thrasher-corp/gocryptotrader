@@ -1757,8 +1757,7 @@ func TestFetchOrderTotals(t *testing.T) {
 					ExecutedAmount:       0.3,
 					Fee:                  0.1,
 					FeeAsset:             currency.USD,
-					Cost:                 30,
-					CostAsset:            currency.USD,
+					ExecutedQuoteAmount:  30,
 					AverageExecutedPrice: 100,
 				}, payloads[1], "the replaced order's totals should be relayed with its status and side after the replacement")
 			})
@@ -1794,8 +1793,7 @@ func TestFetchOrderTotals(t *testing.T) {
 			ExecutedAmount:       0.3,
 			Fee:                  0.1,
 			FeeAsset:             currency.USD,
-			Cost:                 30,
-			CostAsset:            currency.USD,
+			ExecutedQuoteAmount:  30,
 			AverageExecutedPrice: 100,
 		}, payloads[1], "the deleted order's totals should be relayed with its event's detail, leaving its side unknown")
 	})
@@ -1822,19 +1820,19 @@ func TestFetchOrderTotals(t *testing.T) {
 			name: "filled", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"),
 			reply:    fmt.Sprintf(status, "Finished", transaction(1, "0.4", "0.5")+","+transaction(2, "0.6", "0.7"), "0"),
 			requests: 1,
-			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 1, RemainingAmount: 0, Fee: 1.2, Cost: 100, AverageExecutedPrice: 100},
+			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 1, RemainingAmount: 0, Fee: 1.2, ExecutedQuoteAmount: 100, AverageExecutedPrice: 100},
 		},
 		{
 			name: "partly cancelled", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.7"),
 			reply:    fmt.Sprintf(status, "Canceled", transaction(1, "0.3", "0.1"), "0.7"),
 			requests: 1,
-			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 0.3, RemainingAmount: 0.7, Fee: 0.1, Cost: 30, AverageExecutedPrice: 100},
+			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 0.3, RemainingAmount: 0.7, Fee: 0.1, ExecutedQuoteAmount: 30, AverageExecutedPrice: 100},
 		},
 		{
 			name: "expired", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.5"),
 			reply:    fmt.Sprintf(status, "Expired", transaction(1, "0.5", "0.2"), "0.5"),
 			requests: 1,
-			totals:   &order.Detail{Status: order.Expired, ExecutedAmount: 0.5, RemainingAmount: 0.5, Fee: 0.2, Cost: 50, AverageExecutedPrice: 100},
+			totals:   &order.Detail{Status: order.Expired, ExecutedAmount: 0.5, RemainingAmount: 0.5, Fee: 0.2, ExecutedQuoteAmount: 50, AverageExecutedPrice: 100},
 		},
 		{name: "still open", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
 		{name: "still open with the event's executions", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.6"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
@@ -1852,7 +1850,7 @@ func TestFetchOrderTotals(t *testing.T) {
 			data:     `{"id":1001,"amount_str":"0","amount_at_create":"67110000.00000002","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`,
 			reply:    fmt.Sprintf(status, "Finished", `{"tid":1,"price":"1","btc":"67110000.00000002","usd":"-67110000.00000002","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0"),
 			requests: 1,
-			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 67110000.00000002, Fee: 0.5, Cost: 67110000.00000002, AverageExecutedPrice: 1},
+			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 67110000.00000002, Fee: 0.5, ExecutedQuoteAmount: 67110000.00000002, AverageExecutedPrice: 1},
 		},
 		// A cancelled order is not active either way, so it keeps the float of what it executed, though that is the float of
 		// its amount
@@ -1861,7 +1859,7 @@ func TestFetchOrderTotals(t *testing.T) {
 			data:     `{"id":1001,"amount_str":"0.00000001","amount_at_create":"67110000.00000002","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`,
 			reply:    fmt.Sprintf(status, "Canceled", `{"tid":1,"price":"1","btc":"67110000.00000001","usd":"-67110000.00000001","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0.00000001"),
 			requests: 1,
-			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 67110000.00000001, RemainingAmount: 0.00000001, Fee: 0.5, Cost: 67110000.00000001, AverageExecutedPrice: 1},
+			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 67110000.00000001, RemainingAmount: 0.00000001, Fee: 0.5, ExecutedQuoteAmount: 67110000.00000001, AverageExecutedPrice: 1},
 		},
 		{name: "executed amount overflowing a float", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1e308", "0.5")+","+transaction(2, "1e308", "0.5"), "0"), requests: 1},
 		{name: "totals refused", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1", "0.5"), "0"), requests: 1, relayBuffer: 1},
@@ -1920,8 +1918,7 @@ func TestFetchOrderTotals(t *testing.T) {
 			exp.Date = created
 			exp.Fee = tc.totals.Fee
 			exp.FeeAsset = currency.USD
-			exp.Cost = tc.totals.Cost
-			exp.CostAsset = currency.USD
+			exp.ExecutedQuoteAmount = tc.totals.ExecutedQuoteAmount
 			exp.AverageExecutedPrice = tc.totals.AverageExecutedPrice
 			assert.Equal(t, exp, payloads[1], "the totals should be relayed with the event's detail, last update and no trades")
 		})

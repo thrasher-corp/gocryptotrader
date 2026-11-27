@@ -440,9 +440,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 			return nil, err
 		}
 		orderID = strconv.FormatInt(response.OrderNumber, 10)
-		if o.Type == order.Market {
-			status = order.Filled
-		}
 	}
 	resp, err := o.DeriveSubmitResponse(orderID)
 	if err != nil {
@@ -705,7 +702,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			Status:               status,
 			Pair:                 pair,
 		}
-		detail.InferCostsAndTimes()
+		detail.InferExecutionAndTimes()
 		orders[i] = detail
 	}
 	return req.Filter(e.Name, orders), nil

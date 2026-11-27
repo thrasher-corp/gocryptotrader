@@ -727,9 +727,8 @@ func TestGetOrderHistory(t *testing.T) {
 			require.Len(t, orders, 1, "spot history must return one order")
 			assert.Equal(t, 1.0, orders[0].ExecutedAmount, "executed amount should match")
 			assert.Equal(t, 1.0, orders[0].RemainingAmount, "remaining amount should exclude executions")
-			assert.Equal(t, 99.5, orders[0].Cost, "cost should match the executed quote amount")
+			assert.Equal(t, 99.5, orders[0].ExecutedQuoteAmount, "executed quote amount should match the reported cash amount")
 			assert.Equal(t, 0.1, orders[0].Fee, "fee should match")
-			assert.Equal(t, currency.USDT, orders[0].CostAsset, "spot turnover should use the quote currency")
 			assert.Equal(t, time.UnixMilli(1604367700000), orders[0].CloseTime, "close time should use the completion timestamp")
 		})
 	}
@@ -2744,14 +2743,13 @@ func TestFormatV5OrderDetail(t *testing.T) {
 	for _, contract := range []string{"BTC-USDT", "BTC-USDT-261113"} {
 		for _, state := range []string{"submitted", "partially_filled", "filled"} {
 			for _, feeCurrency := range []string{"", "USDT", "HTX", "USDT,HTX"} {
-				t.Run("cost currency/"+contract+"/"+state+"/"+feeCurrency, func(t *testing.T) {
+				t.Run("quote turnover/"+contract+"/"+state+"/"+feeCurrency, func(t *testing.T) {
 					t.Parallel()
 					h := new(Exchange)
 					h.SetDefaults()
 					detail, err := h.formatV5OrderDetail(&V5Order{ContractCode: contract, Side: "buy", Type: "limit", State: V5OrderState(state), TimeInForce: "gtc", MarginMode: "cross", Price: 3100, Volume: 2, TradeVolume: 1, TradeTurnover: 3.1, FeeCurrency: feeCurrency}, asset.USDTMarginedFutures)
 					require.NoError(t, err, "linear contract order must decode")
-					assert.Equal(t, 3.1, detail.Cost, "turnover should remain the order cost")
-					assert.Equal(t, currency.USDT, detail.CostAsset, "linear contract turnover should be denominated in USDT regardless of expiry or fee currency")
+					assert.Equal(t, 3.1, detail.ExecutedQuoteAmount, "executed quote amount should match the reported turnover")
 				})
 			}
 		}
@@ -2855,7 +2853,7 @@ func TestGetOrderInfo(t *testing.T) {
 			})
 		}
 	})
-	t.Run("V5 execution prices and cost", func(t *testing.T) {
+	t.Run("V5 execution price and quote turnover", func(t *testing.T) {
 		t.Parallel()
 		// Volumes count contracts of 0.001 BTC or 0.01 ETH, so turnover differs from volume times average price.
 		type testCase struct {
@@ -2889,8 +2887,7 @@ func TestGetOrderInfo(t *testing.T) {
 					Amount:               tc.amount,
 					ExecutedAmount:       tc.executed,
 					RemainingAmount:      tc.remaining,
-					Cost:                 tc.cost,
-					CostAsset:            currency.USDT,
+					ExecutedQuoteAmount:  tc.cost,
 					AverageExecutedPrice: tc.average,
 					FeeAsset:             currency.USDT,
 					AssetType:            asset.USDTMarginedFutures,
@@ -2904,16 +2901,15 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Parallel()
 		const fields = `"volume":4,"price":0.1,"order_price_type":"ioc","direction":"sell","offset":"close","lever_rate":10,"order_id_str":"9","client_order_id":55,"created_at":1604367611263,"trade_volume":3,"trade_turnover":30,"trade_avg_price":0.09,"fee":-0.02,"status":5,"fee_asset":"ADA","liquidation_type":"0","canceled_at":1604367700000`
 		type testCase struct {
-			name      string
-			asset     asset.Item
-			pair      currency.Pair
-			path      string
-			data      string
-			costAsset currency.Code
+			name  string
+			asset asset.Item
+			pair  currency.Pair
+			path  string
+			data  string
 		}
 		for _, tc := range []testCase{
-			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info", data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
-			{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), path: "/swap-api/v1/swap_order_info", data: `{"symbol":"ADA","contract_code":"ADA-USD",` + fields + `}`, costAsset: currency.USD},
+			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info", data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`},
+			{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), path: "/swap-api/v1/swap_order_info", data: `{"symbol":"ADA","contract_code":"ADA-USD",` + fields + `}`},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
@@ -2935,8 +2931,7 @@ func TestGetOrderInfo(t *testing.T) {
 					Amount:               4,
 					ExecutedAmount:       3,
 					RemainingAmount:      1,
-					Cost:                 30,
-					CostAsset:            tc.costAsset,
+					ExecutedQuoteAmount:  30,
 					AverageExecutedPrice: 0.09,
 					Fee:                  0.02,
 					FeeAsset:             currency.ADA,
@@ -2988,8 +2983,7 @@ func TestGetOrderInfo(t *testing.T) {
 				require.NoError(t, err, "derivative order information must decode")
 				assert.Equal(t, "1", detail.OrderID, "order ID should match")
 				assert.Equal(t, tc.closeTime, detail.CloseTime, "close time should match the cancellation timestamp")
-				assert.Equal(t, tc.cost, detail.Cost, "cost should match the executed turnover")
-				assert.Equal(t, currency.USD, detail.CostAsset, "inverse contract turnover should be denominated in USD")
+				assert.Equal(t, tc.cost, detail.ExecutedQuoteAmount, "executed quote amount should match the reported turnover")
 			})
 		}
 	}
@@ -3093,7 +3087,7 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, 2.0, detail.Amount, "amount should match")
 			assert.Equal(t, 1.0, detail.ExecutedAmount, "executed amount should match")
 			assert.Equal(t, 0.1, detail.Fee, "charged fee should be positive for every asset")
-			assert.Equal(t, 100.0, detail.Cost, "executed cost should match")
+			assert.Equal(t, 100.0, detail.ExecutedQuoteAmount, "executed quote amount should match")
 			stored := &order.Detail{OrderID: detail.OrderID, Exchange: detail.Exchange, Pair: detail.Pair, AssetType: detail.AssetType}
 			require.NoError(t, stored.UpdateOrderFromDetail(detail), "order store must accept the completed order")
 			assert.Equal(t, detail.Fee, stored.Fee, "order store should record the charged fee")

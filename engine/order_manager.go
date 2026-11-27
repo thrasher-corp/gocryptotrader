@@ -237,18 +237,19 @@ func (m *OrderManager) cancel(ctx context.Context, cancel *order.Cancel, require
 	}
 	od, err := m.orderStore.getByExchangeAndID(cancel.Exchange, cancel.OrderID)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %w",
+		err = fmt.Errorf("%v - Failed to retrieve order %v after cancel acknowledgement: %w",
 			cancel.Exchange, cancel.OrderID, err)
 		return err
 	}
-	od.Status = order.Cancelled
+	od.Status = order.PendingCancel
+	od.LastUpdated = time.Now()
 	err = m.orderStore.updateExisting(od)
 	if err != nil {
-		err = fmt.Errorf("%v - Failed to update existing order when cancelled: %w", cancel.Exchange, err)
+		err = fmt.Errorf("%v - Failed to update existing order after cancel acknowledgement: %w", cancel.Exchange, err)
 		return err
 	}
 
-	msg := fmt.Sprintf("Exchange %s order ID=%v cancelled.",
+	msg := fmt.Sprintf("Exchange %s accepted cancellation request for order ID=%v.",
 		od.Exchange, od.OrderID)
 	log.Debugln(log.OrderMgr, msg)
 	m.orderStore.commsManager.PushEvent(base.Event{Type: orderEventType, Message: msg})
