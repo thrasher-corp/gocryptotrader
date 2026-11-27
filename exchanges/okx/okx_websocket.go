@@ -640,10 +640,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		}
 		spreadAmt := resp.Data[x].Size.Float64()
 		spreadExec := resp.Data[x].AccumulatedFillSize.Float64()
-		spreadRemaining := float64(0)
-		if oStatus != order.Filled && spreadAmt > spreadExec {
-			spreadRemaining = spreadAmt - spreadExec
-		}
+		spreadRemaining := spreadOrderRemaining(oStatus, spreadAmt, spreadExec, resp.Data[x].PendingFillSize.Float64())
 		orderDetails[x] = order.Detail{
 			AssetType:            asset.Spread,
 			Amount:               spreadAmt,
@@ -1224,7 +1221,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
 		var quoteAmount float64
-		if response.Data[x].SizeType == "quote_ccy" {
+		if sizedInQuoteCurrency(a, response.Data[x].OrderType, response.Data[x].Side, response.Data[x].SizeType) {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if orderStatus == order.Filled {
@@ -1247,12 +1244,15 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		if orderStatus != order.Filled && orderAmount > execAmount {
 			remainingAmount = orderAmount - execAmount
 		}
+		cost, costAsset := orderCost(a, avgPrice, execAmount, pair)
 
 		d := &order.Detail{
 			Amount:               orderAmount,
 			AssetType:            a,
 			AverageExecutedPrice: avgPrice,
 			ClientOrderID:        response.Data[x].ClientOrderID,
+			Cost:                 cost,
+			CostAsset:            costAsset,
 			Date:                 response.Data[x].CreationTime.Time(),
 			Exchange:             e.Name,
 			ExecutedAmount:       execAmount,

@@ -16,6 +16,10 @@ var (
 	_ bsonwire.ValueUnmarshaler = (*Status)(nil)
 	_ bsonwire.ValueMarshaler   = TimeInForce(0)
 	_ bsonwire.ValueUnmarshaler = (*TimeInForce)(nil)
+	_ bsonwire.ValueMarshaler   = Fees{}
+	_ bsonwire.ValueUnmarshaler = (*Fees)(nil)
+	// The driver looks for IsZero() bool on Fees values, such as Detail.Fees, without taking their address
+	_ func(Fees) bool = Fees.IsZero
 )
 
 // flags returns zero followed by every single-bit value from first to last

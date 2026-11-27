@@ -1281,6 +1281,7 @@
     "urlEndpoints": {
      "RestCoinMarginedFuturesURL": "https://api.bybit.com",
      "RestFuturesURL": "https://api.bybit.com",
+     "RestSandboxURL": "https://api-demo.bybit.com",
      "RestSpotURL": "https://api.bybit.com",
      "RestUSDCMarginedFuturesURL": "https://api.bybit.com",
      "RestUSDTMarginedFuturesURL": "https://api.bybit.com",

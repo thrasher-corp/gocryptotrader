@@ -1,0 +1,2 @@
+{"type":"snapshot","topic":"kline.1.BTCUSDT","data":[{"start":1791535740000,"end":1791535799999,"interval":"1","open":"82585.8","close":"82590.6","high":"82590.6","low":"82585.8","volume":"0.768965","turnover":"63508.6685769","confirm":false,"timestamp":1791535765563}],"ts":1791535765563}
+{"topic":"kline.1.BTCUSD","data":[{"start":1791535680000,"end":1791535739999,"interval":"1","open":"82479.2","close":"82494.5","high":"82501.3","low":"82475.1","volume":"184522","turnover":"2.23688106","confirm":true,"timestamp":1791535739912}],"ts":1791535740021,"type":"snapshot"}

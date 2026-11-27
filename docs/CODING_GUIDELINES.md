@@ -68,12 +68,25 @@ Never relay an empty batch.
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
   - For durations the API sends as a number of seconds or milliseconds, use `types.DurationSeconds` or `types.DurationMilliseconds`, which hold a `time.Duration`.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
+  - Spell out abbreviations that a reader cannot readily infer, as the API documentation expands
+    them: prefer `MarketMakerProtection` over `MMP` and `SelfMatchPreventionType` over `SMPType`.
+    Abbreviations in common use, such as `VIP`, `NFT`, `APR`, `APY`, `NAV`, `RFQ`, `TP` and `SL`,
+    may stay.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
   - Aligns well with `strconv.FormatUint`.
 - Use a dedicated currency pair constructor when one exists (for example, `currency.NewBTCUSD()` or `currency.NewBTCUSDT()`) instead of constructing the same pair with `currency.NewPair`. Use `currency.NewPair` when no dedicated constructor exists or the currencies are selected at runtime.
 - Spell time periods out in field names, so that one form is used across exchanges: prefer
   `Volume24Hour` over `Volume24H` or `Volume24Hr`.
+- When the documentation fixes the currency of an amount or the time unit of a duration, such as an
+  amount in USD or a term in days, append it to the API's term in the field name, spelled out,
+  rather than leaving it to a comment, and spell out a scale marker such as the `E8` of `apyE8`:
+  prefer `TermInDays`, `TotalEquityInUSD`, `FundingIntervalInMinutes` and `APYScaledBy1E8` over
+  `Term`, `TotalEquity`, `FundingInterval` and `APYE8`. A value held as `time.Time`, `types.Time`,
+  `time.Duration` or a type based on `time.Duration`, such as `types.DurationSeconds`, needs no unit
+  in its name. Leave other qualifiers in the field's comment, so that
+  the name keeps the API's term: prefer `Leverage`, commented as the current maximum, over
+  `CurrentMaximumLeverage`.
 - Declare nested objects as named types rather than anonymous structs, so they can be referred to,
   tested and reused:
 

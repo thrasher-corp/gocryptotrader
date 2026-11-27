@@ -17,3 +17,4 @@
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
 [V5 API](https://www.htx.com/en-us/opend/newApiPages/) references.
+	// Status is RAW, REJECTED, NEW, INITIALIZING, RUNNING, CANCELLING or COMPLETED

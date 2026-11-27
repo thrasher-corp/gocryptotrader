@@ -138,6 +138,7 @@ type SubmitResponse struct {
 	Status               Status
 	OrderID              string
 	Trades               []TradeHistory
+	Fees                 Fees // The order's cumulative fees per currency at submission; SetFees keeps Fee and FeeAsset in step
 	Fee                  float64
 	FeeAsset             currency.Code
 	Cost                 float64
@@ -236,6 +237,7 @@ type Detail struct {
 	CostAsset            currency.Code
 	Fee                  float64
 	FeeAsset             currency.Code
+	Fees                 Fees // The order's cumulative fees per currency, distinct from each fill's; SetFees keeps Fee and FeeAsset in step
 	Exchange             string
 	InternalOrderID      uuid.UUID
 	OrderID              string
@@ -314,6 +316,7 @@ type TradeHistory struct {
 	Timestamp   time.Time
 	IsMaker     bool
 	FeeAsset    string
+	Fees        Fees // This fill's own fees per currency, distinct from the order's cumulative fees; SetFees keeps Fee and FeeAsset in step
 	Total       float64
 }
 
