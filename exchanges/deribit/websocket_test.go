@@ -1036,7 +1036,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	// Deribit routes these enabled spot pairs to Coinbase Exchange, and refuses their trades and candles
 	routed := []string{"BTC_USDC", "ETH_USDC"}
@@ -1072,7 +1072,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	subs, err = ex.generateSubscriptions()
+	subs, err = ex.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error unauthenticated")
 	assert.False(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool { return s.Authenticated }), "generateSubscriptions should leave out private channels without authentication")
 
@@ -1107,7 +1107,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel)
 		_, err := ex.tradablePairs(asset.Spot, []InstrumentResponse{{InstrumentName: "BTC_USDC", IsActive: true, IsCoinbaseExchangeRouted: true}})
 		require.NoError(t, err, "tradablePairs must not error")
-		subs, err := ex.generateSubscriptions()
+		subs, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		assert.ElementsMatch(t, streamed, subs.QualifiedChannels(), "generateSubscriptions should leave out the trades and candles of Coinbase-routed spot")
 	})
@@ -1123,13 +1123,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 			return spotInstruments
 		})
 		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel)
-		subs, err := ex.generateSubscriptions()
+		subs, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		assert.ElementsMatch(t, streamed, subs.QualifiedChannels(), "generateSubscriptions should load the spot instruments to leave out the trades and candles of Coinbase-routed spot")
 		mu.Lock()
 		assert.Equal(t, []string{`public/get_instruments {"currency":"any","kind":"spot"}`}, requests, "generateSubscriptions should request the spot instruments once")
 		mu.Unlock()
-		_, err = ex.generateSubscriptions()
+		_, err = ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error again")
 		mu.Lock()
 		assert.Len(t, requests, 1, "generateSubscriptions should not request the spot instruments again once loaded")
@@ -1148,7 +1148,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "spot", "currency": "ETH"}},
 			{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "future"}},
 		}
-		subs, err := ex.generateSubscriptions()
+		subs, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		assert.ElementsMatch(t, []string{"trades.spot.ETH.100ms", "trades.future.any.100ms"}, subs.QualifiedChannels(), "generateSubscriptions should leave out spot trades by kind of every currency, which Deribit refuses while any spot is routed")
 		assert.Equal(t, int32(1), requests.Load(), "generateSubscriptions should load the spot instruments for spot trades by kind")
@@ -1161,7 +1161,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			return spotInstruments
 		})
 		spotSubscriptions(t, ex, subscription.TickerChannel, subscription.OrderbookChannel)
-		subs, err := ex.generateSubscriptions()
+		subs, err := ex.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 		assert.ElementsMatch(t, []string{"ticker.BTC_USDC.100ms", "ticker.ETH_BTC.100ms", "book.BTC_USDC.100ms", "book.ETH_BTC.100ms"}, subs.QualifiedChannels(), "generateSubscriptions should subscribe every pair's ticker and book")
 		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded")
@@ -1171,7 +1171,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		t.Parallel()
 		ex := newUnavailableServerExchange(t)
 		spotSubscriptions(t, ex, subscription.AllTradesChannel)
-		_, err := ex.generateSubscriptions()
+		_, err := ex.generateSubscriptions(t.Context())
 		assert.ErrorIs(t, err, request.ErrBadStatus, "generateSubscriptions should return the failure to load the spot instruments")
 		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded, for the next generation to load")
 	})

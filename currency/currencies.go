@@ -54,8 +54,23 @@ func (c Currencies) Join() string {
 	return strings.Join(c.Strings(), ",")
 }
 
-// UnmarshalJSON conforms type to the unmarshaler interface
+// UnmarshalJSON conforms type to the unmarshaler interface. A JSON string reads as a comma separated list, the form
+// MarshalJSON writes
 func (c *Currencies) UnmarshalJSON(d []byte) error {
+	if d[0] == '"' {
+		var s string
+		if err := json.Unmarshal(d, &s); err != nil {
+			return err
+		}
+		list := make(Currencies, 0, strings.Count(s, ",")+1)
+		for code := range strings.SplitSeq(s, ",") {
+			if code = strings.TrimSpace(code); code != "" {
+				list = append(list, NewCode(code))
+			}
+		}
+		*c = list
+		return nil
+	}
 	if d[0] != '[' {
 		d = []byte(`[` + string(d) + `]`)
 	}
