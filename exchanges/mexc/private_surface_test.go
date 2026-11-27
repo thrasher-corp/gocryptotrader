@@ -304,6 +304,7 @@ func TestSkipIfExamplePositionHeld(t *testing.T) {
 				data:   tc.positions,
 			}), liveUnavailable)
 			reached := false
+			// Serial: the case reads reached as soon as this returns
 			t.Run("guarded case", func(t *testing.T) {
 				skipIfExamplePositionHeld(t, ex)
 				reached = true
