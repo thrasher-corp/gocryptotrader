@@ -554,7 +554,6 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	}
 }
 
-//nolint:tparallel // the cases share e and result, in order
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: spotTradablePair.Base.Item, Quote: spotTradablePair.Quote.Item, Asset: asset.Spot})
@@ -562,6 +561,123 @@ func TestGetOpenInterest(t *testing.T) {
 
 	linear := key.PairAsset{Base: futuresTradablePair.Base.Item, Quote: futuresTradablePair.Quote.Item, Asset: asset.Futures}
 	inverse := key.PairAsset{Base: futuresInversePair.Base.Item, Quote: futuresInversePair.Quote.Item, Asset: asset.Futures}
+	// MEXC lists ETH_USDT and ETH_USD, but neither is among the test exchange's available futures pairs
+	notHeld := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.Futures}
+	notHeldInverse := key.PairAsset{Base: currency.ETH.Item, Quote: currency.USD.Item, Asset: asset.Futures}
+	spot := key.PairAsset{Base: linear.Base, Quote: linear.Quote, Asset: asset.Spot}
+	type refusal struct {
+		name     string
+		keys     []key.PairAsset
+		err      error
+		requests int32
+	}
+	refusals := []refusal{
+		{"a key holding nothing asked for", []key.PairAsset{{}}, asset.ErrNotSupported, 0},
+		{"a spot pair and a contract asked for", []key.PairAsset{spot, linear}, asset.ErrNotSupported, 0},
+		{"a contract and a spot pair asked for", []key.PairAsset{linear, spot}, asset.ErrNotSupported, 0},
+		{"a spot pair between 2 contracts asked for", []key.PairAsset{linear, spot, inverse}, asset.ErrNotSupported, 0},
+		{"a contract and an options pair not held asked for", []key.PairAsset{linear, {Base: currency.ETH.Item, Quote: currency.USDT.Item, Asset: asset.Options}}, asset.ErrNotSupported, 0},
+		{"a contract and an options quote asked for", []key.PairAsset{linear, {Quote: currency.USDT.Item, Asset: asset.Options}}, asset.ErrNotSupported, 0},
+		{"a futures key naming no pair asked for", []key.PairAsset{{Asset: asset.Futures}}, currency.ErrCurrencyPairEmpty, 0},
+		{"0 contracts asked for and refused by the venue", nil, request.ErrBadStatus, 1},
+		{"a contract asked for and refused by the venue", []key.PairAsset{linear}, request.ErrBadStatus, 1},
+		{"a contract not held asked for and refused by the venue", []key.PairAsset{notHeld}, request.ErrBadStatus, 1},
+		{"2 contracts asked for and refused by the venue", []key.PairAsset{linear, inverse}, request.ErrBadStatus, 1},
+	}
+	for _, a := range append(asset.Supported(), asset.Empty, asset.All) {
+		if a != asset.Futures {
+			refusals = append(refusals, refusal{"a pair of asset " + strconv.Quote(a.String()) + " asked for", []key.PairAsset{{Base: linear.Base, Quote: linear.Quote, Asset: a}}, asset.ErrNotSupported, 0})
+		}
+	}
+	for _, tc := range refusals {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, requests := newRefusingTestExchange(t)
+			result, err := ex.GetOpenInterest(t.Context(), tc.keys...)
+			assert.ErrorIsf(t, err, tc.err, "GetOpenInterest should return the error expected for %s", tc.name)
+			assert.Emptyf(t, result, "no open interest should be returned for %s", tc.name)
+			assert.Equalf(t, tc.requests, requests.Load(), "the requests expected should be sent for %s", tc.name)
+		})
+	}
+	t.Run("2 contracts asked for after the call is cancelled", func(t *testing.T) {
+		t.Parallel()
+		ex, requests := newRefusingTestExchange(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		result, err := ex.GetOpenInterest(ctx, linear, inverse)
+		assert.ErrorIs(t, err, context.Canceled, "GetOpenInterest should return the cancellation")
+		assert.Empty(t, result, "no open interest should be returned once cancelled")
+		assert.Zero(t, requests.Load(), "nothing should be sent once cancelled")
+	})
+	t.Run("a contract asked for and refused in the venue's reply", func(t *testing.T) {
+		t.Parallel()
+		ex := newPrivateTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"success":false,"code":1001,"message":"Contract does not exist"}`))
+		})
+		result, err := ex.GetOpenInterest(t.Context(), linear)
+		assert.ErrorIs(t, err, errFuturesRequestFailed, "GetOpenInterest should return the venue's refusal")
+		assert.Empty(t, result, "no open interest should be returned with the refusal")
+	})
+	for _, tc := range []struct {
+		name string
+		keys []key.PairAsset
+	}{
+		{"0 contracts asked for, the venue giving no details of BTC_USDT", nil},
+		{"BTC_USDT asked for alone, the venue giving no details of it", []key.PairAsset{linear}},
+		{"2 contracts asked for, the venue giving no details of BTC_USDT", []key.PairAsset{linear, inverse}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newPrivateTestExchange(t, futuresHandler(t,
+				futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=BTC_USDT", data: `{"symbol":"BTC_USDT","holdVol":490217124}`},
+				futuresRoute{method: http.MethodGet, path: "contract/ticker", data: `[{"symbol":"BTC_USD","holdVol":1724933},{"symbol":"BTC_USDT","holdVol":490217124}]`},
+				futuresRoute{method: http.MethodGet, path: "contract/detail/country", data: `[{"symbol":"BTC_USD","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC","contractSize":100,"state":0,"apiAllowed":true}]`},
+			))
+			result, err := ex.GetOpenInterest(t.Context(), tc.keys...)
+			assert.ErrorIsf(t, err, errContractNotFound, "GetOpenInterest should not guess a contract's size for %s", tc.name)
+			assert.ErrorContainsf(t, err, "BTC_USDT", "the error should name the contract without details for %s", tc.name)
+			assert.Emptyf(t, result, "no open interest should be returned with the error for %s", tc.name)
+		})
+	}
+	t.Run("a venue's open interest changing between calls", func(t *testing.T) {
+		t.Parallel()
+		var calls atomic.Int32
+		details := futuresHandler(t, futuresContractsRoute)
+		ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v1/contract/ticker" {
+				details(w, r)
+				return
+			}
+			hold := strconv.Itoa(int(calls.Add(1)))
+			data := `[{"symbol":"BTC_USDT","holdVol":` + hold + `},{"symbol":"BTC_USD","holdVol":` + hold + `}]`
+			if r.URL.Query().Get("symbol") == "BTC_USDT" {
+				data = `{"symbol":"BTC_USDT","holdVol":` + hold + `}`
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"success":true,"code":0,"data":` + data + `}`))
+		})
+		held := func(hold float64) futures.OpenInterest {
+			return futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: hold * 0.0001}
+		}
+		heldInverse := func(hold float64) futures.OpenInterest {
+			return futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: hold * 100}
+		}
+		exp := [][]futures.OpenInterest{{held(1), heldInverse(1)}, {held(2), heldInverse(2)}, {held(3)}, {held(4)}, {heldInverse(5)}}
+		results := make([][]futures.OpenInterest, 0, len(exp))
+		for call, keys := range [][]key.PairAsset{nil, nil, {linear}, {linear}, nil} {
+			if call == len(exp)-1 {
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresInversePair}, true), "StorePairs must not error")
+			}
+			result, err := ex.GetOpenInterest(t.Context(), keys...)
+			require.NoErrorf(t, err, "GetOpenInterest must not error for call %d", call+1)
+			results = append(results, result)
+		}
+		for i := range exp {
+			assert.ElementsMatchf(t, exp[i], results[i], "call %d should keep the open interest the venue held then", i+1)
+		}
+	})
+
 	result, err := e.GetOpenInterest(t.Context(), linear)
 	require.NoError(t, err, "GetOpenInterest must not error for a contract")
 	require.Len(t, result, 1, "the contract's open interest must be returned")
@@ -571,24 +687,142 @@ func TestGetOpenInterest(t *testing.T) {
 		exp := []futures.OpenInterest{{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 48989.418000000005}}
 		assert.Equal(t, exp, result, "the contract's open interest should be mapped")
 	} else {
-		assert.True(t, result[0].Key.Pair().Equal(futuresTradablePair), "the contract asked for should be returned")
+		assert.Equal(t, key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), result[0].Key, "the contract asked for should be returned")
 		assert.Positive(t, result[0].OpenInterest, "the open interest should be positive")
 	}
 
-	// The cases share e and result in order, so each also checks that a call keeps nothing from the last
-	for _, keys := range [][]key.PairAsset{{linear, inverse}, nil} {
-		t.Run(strconv.Itoa(len(keys))+" contracts asked for", func(t *testing.T) {
-			result, err = e.GetOpenInterest(t.Context(), keys...)
-			require.NoErrorf(t, err, "GetOpenInterest must not error for %d contracts", len(keys))
+	reversed := key.PairAsset{Base: currency.USDT.Item, Quote: currency.BTC.Item, Asset: asset.Futures}
+	linearInterest := futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}
+	inverseInterest := futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: 172493300}
+	ethUSDT := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	eth := key.PairAsset{Base: ethUSDT.Base.Item, Quote: ethUSDT.Quote.Item, Asset: asset.Futures}
+
+	// e enables every futures pair it holds, so mixed enables BTC_USDT and ETH_USDT and holds BTC_USD without enabling it;
+	// it stores ETH_USDT in lower case, as a pair is the same pair whatever its case
+	mixed := newIsolatedTestExchange(t)
+	lowerETHUSDT := currency.NewPairWithDelimiter("eth", "usdt", currency.UnderscoreDelimiter)
+	require.NoError(t, mixed.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTradablePair, lowerETHUSDT, futuresInversePair}, false), "StorePairs must not error")
+	require.NoError(t, mixed.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTradablePair, lowerETHUSDT}, true), "StorePairs must not error")
+	mixedLinear := futures.OpenInterest{Key: key.NewExchangeAssetPair(mixed.Name, asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}
+	mixedETH := futures.OpenInterest{Key: key.NewExchangeAssetPair(mixed.Name, asset.Futures, ethUSDT), OpenInterest: 1292265.95}
+	mixedInverse := futures.OpenInterest{Key: key.NewExchangeAssetPair(mixed.Name, asset.Futures, futuresInversePair), OpenInterest: 172493300}
+
+	// noneEnabled and assetDisabled each leave the contracts they hold out of a request naming none, the one with no
+	// pair enabled and the other with the futures asset disabled and its pairs still listed as enabled
+	noneEnabled := newIsolatedTestExchange(t)
+	require.NoError(t, noneEnabled.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTradablePair, ethUSDT, futuresInversePair}, false), "StorePairs must not error")
+	require.NoError(t, noneEnabled.CurrencyPairs.StorePairs(asset.Futures, nil, true), "StorePairs must not error")
+	noneEnabledLinear := futures.OpenInterest{Key: key.NewExchangeAssetPair(noneEnabled.Name, asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}
+	noneEnabledETH := futures.OpenInterest{Key: key.NewExchangeAssetPair(noneEnabled.Name, asset.Futures, ethUSDT), OpenInterest: 1292265.95}
+	assetDisabled := newIsolatedTestExchange(t)
+	require.NoError(t, assetDisabled.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled must not error")
+	assetDisabledLinearAlone := futures.OpenInterest{Key: key.NewExchangeAssetPair(assetDisabled.Name, asset.Futures, futuresTradablePair), OpenInterest: 48989.418000000005}
+	assetDisabledLinear := futures.OpenInterest{Key: key.NewExchangeAssetPair(assetDisabled.Name, asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}
+
+	// silent's venue lists no contracts
+	silent := newPrivateTestExchange(t, futuresHandler(t, futuresRoute{method: http.MethodGet, path: "contract/ticker", data: "[]"}))
+
+	// MEXC's recording holds three open contracts, so unrecorded's venue serves kinds its live lists hold too: a hold past
+	// 32 bits (ONE_USDT's, given to BTC_USD), a second inverse contract, a USDC contract closed to API trading, a contract
+	// without open positions, contracts its exchange doesn't hold and one its exchange holds that the venue doesn't list,
+	// with IDs, prices and sizes from live captures; it adds a null ticker and trading beside no open positions
+	linearTicker := `{"contractId":10,"symbol":"BTC_USDT","lastPrice":59859.1,"holdVol":0,"volume24":40,"amount24":240}`
+	notHeldTicker := `{"contractId":11,"symbol":"ETH_USDT","lastPrice":1673.19,"fairPrice":1673.12,"indexPrice":1673.74,"holdVol":42844344,"volume24":60110586,"amount24":1019553142.453,"timestamp":1795808103890}`
+	notHeldInverseTicker := `{"contractId":87,"symbol":"XRP_USD","lastPrice":0.9504,"holdVol":1539380,"volume24":715752,"amount24":7491338.120431873}`
+	unrecordedTickers := "[" + linearTicker + ",null," + notHeldTicker + `,{"contractId":77,"symbol":"BTC_USD","lastPrice":59792.8,"holdVol":7149673884,"volume24":422315},` +
+		`{"contractId":78,"symbol":"ETH_USD","lastPrice":1668.53,"holdVol":16956407,"volume24":2561949},` + notHeldInverseTicker +
+		`,{"contractId":1104,"symbol":"BTC_USDC","lastPrice":59798.5,"holdVol":30817658,"volume24":11420803}]`
+	unrecordedDetails := strings.TrimSuffix(futuresContractsReply, "]") +
+		`,{"id":11,"symbol":"ETH_USDT","baseCoin":"ETH","quoteCoin":"USDT","settleCoin":"USDT","contractSize":0.01,"state":0,"apiAllowed":true,"type":1}` +
+		`,{"id":78,"symbol":"ETH_USD","baseCoin":"ETH","quoteCoin":"USD","settleCoin":"ETH","contractSize":10,"state":0,"apiAllowed":true,"type":1}` +
+		`,{"id":87,"symbol":"XRP_USD","baseCoin":"XRP","quoteCoin":"USD","settleCoin":"XRP","contractSize":10,"state":0,"apiAllowed":true,"type":1}` +
+		`,{"id":1104,"symbol":"BTC_USDC","baseCoin":"BTC","quoteCoin":"USDC","settleCoin":"USDC","contractSize":0.0001,"state":0,"apiAllowed":false,"type":1}]`
+	unrecorded := newPrivateTestExchange(t, futuresHandler(t,
+		futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=BTC_USDT", data: linearTicker},
+		futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=ETH_USDT", data: notHeldTicker},
+		futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=XRP_USD", data: notHeldInverseTicker},
+		futuresRoute{method: http.MethodGet, path: "contract/ticker", data: unrecordedTickers},
+		futuresRoute{method: http.MethodGet, path: "contract/detail/country", data: unrecordedDetails},
+	))
+	ethUSD := currency.NewPairWithDelimiter("ETH", "USD", currency.UnderscoreDelimiter)
+	btcUSDC := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
+	unlisted := currency.NewPairWithDelimiter("HOOKED", "USDT", currency.UnderscoreDelimiter)
+	unrecordedPairs := currency.Pairs{futuresTradablePair, futuresInversePair, ethUSD, btcUSDC, unlisted}
+	require.NoError(t, unrecorded.CurrencyPairs.StorePairs(asset.Futures, unrecordedPairs, false), "StorePairs must not error")
+	require.NoError(t, unrecorded.CurrencyPairs.StorePairs(asset.Futures, unrecordedPairs, true), "StorePairs must not error")
+	heldInverse := key.PairAsset{Base: ethUSD.Base.Item, Quote: ethUSD.Quote.Item, Asset: asset.Futures}
+	usdc := key.PairAsset{Base: btcUSDC.Base.Item, Quote: btcUSDC.Quote.Item, Asset: asset.Futures}
+	notHeldXRP := key.PairAsset{Base: currency.XRP.Item, Quote: currency.USD.Item, Asset: asset.Futures}
+	unrecordedLinear := futures.OpenInterest{Key: linearInterest.Key}
+	unrecordedInverse := futures.OpenInterest{Key: inverseInterest.Key, OpenInterest: 714967388400}
+	unrecordedOtherInverse := futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, ethUSD), OpenInterest: 169564070}
+	unrecordedUSDC := futures.OpenInterest{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, btcUSDC), OpenInterest: 3081.7658}
+
+	// keysOf returns the contracts an answer names, as a live answer's amounts change from call to call
+	keysOf := func(interests []futures.OpenInterest) []key.ExchangeAssetPair {
+		keys := make([]key.ExchangeAssetPair, len(interests))
+		for i := range interests {
+			keys[i] = interests[i].Key
+		}
+		return keys
+	}
+	// Each exchange's cases run in order, so a change of selection from one case to the next can show a call keeping
+	// contracts from the last
+	for _, tc := range []struct {
+		name string
+		ex   *Exchange
+		keys []key.PairAsset
+		exp  []futures.OpenInterest
+	}{
+		{"2 contracts asked for", e, []key.PairAsset{linear, inverse}, []futures.OpenInterest{linearInterest, inverseInterest}},
+		{"a contract and one not held asked for", e, []key.PairAsset{inverse, notHeld}, []futures.OpenInterest{inverseInterest}},
+		{"the other contract and one not held asked for", e, []key.PairAsset{linear, notHeld}, []futures.OpenInterest{linearInterest}},
+		{"a contract and the other one reversed asked for", e, []key.PairAsset{inverse, reversed}, []futures.OpenInterest{inverseInterest}},
+		{"0 contracts asked for in an empty list", e, []key.PairAsset{}, []futures.OpenInterest{linearInterest, inverseInterest}},
+		{"a contract asked for twice", e, []key.PairAsset{linear, linear}, []futures.OpenInterest{linearInterest}},
+		{"0 contracts asked for", e, nil, []futures.OpenInterest{linearInterest, inverseInterest}},
+		{"the inverse contract asked for alone", e, []key.PairAsset{inverse}, []futures.OpenInterest{inverseInterest}},
+		{"2 contracts asked for, the inverse one first", e, []key.PairAsset{inverse, linear}, []futures.OpenInterest{linearInterest, inverseInterest}},
+		{"a contract, a base without a quote and a quote without a base asked for", e, []key.PairAsset{inverse, {Base: currency.BTC.Item, Asset: asset.Futures}, {Quote: currency.USDT.Item, Asset: asset.Futures}}, []futures.OpenInterest{inverseInterest}},
+		{"a contract after one not held and one reversed asked for", e, []key.PairAsset{notHeld, reversed, linear}, []futures.OpenInterest{linearInterest}},
+		{"2 not held asked for", e, []key.PairAsset{notHeld, notHeldInverse}, nil},
+		{"a contract, the other and the first again asked for", e, []key.PairAsset{linear, inverse, linear}, []futures.OpenInterest{linearInterest, inverseInterest}},
+		{"BT_CUSD and one not held asked for", e, []key.PairAsset{{Base: currency.NewCode("BT").Item, Quote: currency.NewCode("CUSD").Item, Asset: asset.Futures}, notHeld}, nil},
+		{"0 contracts asked for, one held but not enabled", mixed, nil, []futures.OpenInterest{mixedLinear, mixedETH}},
+		{"2 contracts asked for, one not enabled", mixed, []key.PairAsset{linear, inverse}, []futures.OpenInterest{mixedLinear, mixedInverse}},
+		{"0 contracts asked for in an empty list, one held but not enabled", mixed, []key.PairAsset{}, []futures.OpenInterest{mixedLinear, mixedETH}},
+		{"a contract not enabled asked for alone", mixed, []key.PairAsset{inverse}, []futures.OpenInterest{mixedInverse}},
+		{"2 enabled contracts with one quote asked for", mixed, []key.PairAsset{linear, eth}, []futures.OpenInterest{mixedLinear, mixedETH}},
+		{"3 contracts asked for, one not enabled", mixed, []key.PairAsset{linear, eth, inverse}, []futures.OpenInterest{mixedLinear, mixedETH, mixedInverse}},
+		{"an enabled contract and one not held asked for, one held but not enabled", mixed, []key.PairAsset{linear, notHeldInverse}, []futures.OpenInterest{mixedLinear}},
+		{"a contract not enabled and one not held asked for", mixed, []key.PairAsset{inverse, notHeldInverse}, []futures.OpenInterest{mixedInverse}},
+		{"0 contracts asked for, none enabled", noneEnabled, nil, nil},
+		{"2 contracts with one quote asked for, none enabled", noneEnabled, []key.PairAsset{linear, eth}, []futures.OpenInterest{noneEnabledLinear, noneEnabledETH}},
+		{"0 contracts asked for, the futures asset disabled", assetDisabled, nil, nil},
+		{"a contract asked for alone, the futures asset disabled", assetDisabled, []key.PairAsset{linear}, []futures.OpenInterest{assetDisabledLinearAlone}},
+		{"a contract and one not held asked for, the futures asset disabled", assetDisabled, []key.PairAsset{linear, eth}, []futures.OpenInterest{assetDisabledLinear}},
+		{"0 contracts asked for, the venue listing none", silent, nil, nil},
+		{"0 contracts asked for, the reply holding a null ticker", unrecorded, nil, []futures.OpenInterest{unrecordedLinear, unrecordedInverse, unrecordedOtherInverse, unrecordedUSDC}},
+		{"one not held asked for alone", unrecorded, []key.PairAsset{notHeld}, nil},
+		{"2 contracts asked for, one without open positions", unrecorded, []key.PairAsset{linear, inverse}, []futures.OpenInterest{unrecordedLinear, unrecordedInverse}},
+		{"a contract without open positions asked for alone", unrecorded, []key.PairAsset{linear}, []futures.OpenInterest{unrecordedLinear}},
+		{"2 not held asked for, both listed", unrecorded, []key.PairAsset{notHeld, notHeldXRP}, nil},
+		{"a contract and one held but not listed asked for", unrecorded, []key.PairAsset{linear, {Base: unlisted.Base.Item, Quote: unlisted.Quote.Item, Asset: asset.Futures}}, []futures.OpenInterest{unrecordedLinear}},
+		{"2 inverse contracts and one closed to API trading asked for", unrecorded, []key.PairAsset{inverse, heldInverse, usdc}, []futures.OpenInterest{unrecordedInverse, unrecordedOtherInverse, unrecordedUSDC}},
+		{"an inverse contract not held asked for alone", unrecorded, []key.PairAsset{notHeldXRP}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err = tc.ex.GetOpenInterest(t.Context(), tc.keys...)
+			require.NoErrorf(t, err, "GetOpenInterest must not error for %s", tc.name)
+			// A caller can look a contract up by its key, so each key must hold the shared currency items, not copies
+			for _, interest := range result {
+				assert.Truef(t, slices.ContainsFunc(tc.exp, func(exp futures.OpenInterest) bool { return exp.Key == interest.Key }), "%v should be keyed as expected for %s", interest.Key, tc.name)
+			}
 			if !mockTests {
-				assert.Lenf(t, result, 2, "both contracts' open interest should be returned for %d contracts asked for", len(keys))
+				assert.ElementsMatchf(t, keysOf(tc.exp), keysOf(result), "GetOpenInterest should return the contracts selected for %s", tc.name)
 				return
 			}
-			exp := []futures.OpenInterest{
-				{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004},
-				{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: 172493300},
-			}
-			assert.Equalf(t, exp, result, "both contracts' open interest should be mapped for %d contracts asked for", len(keys))
+			assert.ElementsMatchf(t, tc.exp, result, "GetOpenInterest should return each selected contract's open interest for %s", tc.name)
 		})
 	}
 }
