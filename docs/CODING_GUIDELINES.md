@@ -74,6 +74,9 @@ Never relay an empty batch.
 - Use a dedicated currency pair constructor when one exists (for example, `currency.NewBTCUSD()` or `currency.NewBTCUSDT()`) instead of constructing the same pair with `currency.NewPair`. Use `currency.NewPair` when no dedicated constructor exists or the currencies are selected at runtime.
 - Spell time periods out in field names, so that one form is used across exchanges: prefer
   `Volume24Hour` over `Volume24H` or `Volume24Hr`.
+- When a field holds a duration as a number in a fixed unit, name the unit in the field rather than in a
+  comment: prefer `ExecuteCycleHours uint64` over `ExecuteCycle uint64 // In hours`. A field whose type
+  holds a `time.Duration`, such as `types.DurationSeconds`, needs no unit in its name.
 - Declare nested objects as named types rather than anonymous structs, so they can be referred to,
   tested and reused:
 
@@ -411,6 +414,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 - API methods and public types must have comments for GoDoc.
 - Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
+- A comment inside a function body should give the reason for the code it accompanies, such as the exchange behaviour it handles, rather than describe what that code does or repeat what a doc comment already says.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behaviour needs clarification.
 

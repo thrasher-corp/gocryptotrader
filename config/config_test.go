@@ -1583,7 +1583,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 23, expected.Version, "Config.Version must use version 23")
+	require.Equal(t, 24, expected.Version, "Config.Version must use version 24")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(nameGateBeforeVersion23(t, data), &saved), "Unmarshal must preserve saved config fields")
@@ -1600,7 +1600,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1642,7 +1642,7 @@ func TestReadVersion21GateIOEndpointsConfigFromFile(t *testing.T) {
 
 			var migrated Config
 			require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 21 config")
-			assert.Equal(t, 23, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+			assert.Equal(t, 24, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 			exch, err := migrated.GetExchangeConfig("Gate")
 			require.NoError(t, err, "GetExchangeConfig must find GateIO under its new name, Gate")
 			assert.Equal(t, "Gate", exch.Name, "ReadConfigFromFile should rename GateIO to Gate whatever its case")
@@ -1675,7 +1675,7 @@ func TestReadVersion22GateIOReferencesConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 22 config")
-	assert.Equal(t, 23, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+	assert.Equal(t, 24, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 	_, err = migrated.GetExchangeConfig("Gate")
 	assert.NoError(t, err, "GetExchangeConfig should find GateIO under its new name, Gate")
 	require.NotNil(t, migrated.Portfolio, "ReadConfigFromFile must load the portfolio")
@@ -1699,7 +1699,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the current config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 23, expected.Version, "Config.Version must use version 23")
+	require.Equal(t, 24, expected.Version, "Config.Version must use version 24")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(nameGateBeforeVersion23(t, data), &saved), "Unmarshal must preserve saved config fields")
@@ -1729,13 +1729,89 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 16 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should preserve exchanges apart from obsolete buffer settings")
 
 	var output bytes.Buffer
 	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
 	assert.NotContains(t, output.String(), `"websocketBufferEnabled"`, "Save should omit removed buffer enabled settings")
 	assert.NotContains(t, output.String(), `"websocketBufferLimit"`, "Save should omit removed buffer limit settings")
+}
+
+func TestReadVersion23MEXCSubscriptionsFromFile(t *testing.T) {
+	t.Parallel()
+	const (
+		spot = `{"enabled":true,"channel":"orderbook","asset":"spot","levels":20},` +
+			`{"enabled":true,"channel":"candles","asset":"spot","interval":"15m"},` +
+			`{"enabled":true,"channel":"ticker","asset":"spot","interval":"100ms"},` +
+			`{"enabled":true,"channel":"public.miniTicker.v3.api.pb","asset":"spot"},` +
+			`{"enabled":true,"channel":"allTrades","asset":"spot","interval":"100ms"},` +
+			`{"enabled":true,"channel":"myTrades","asset":"spot","authenticated":true},` +
+			`{"enabled":true,"channel":"myOrders","asset":"spot","authenticated":true},` +
+			`{"enabled":true,"channel":"myAccount","asset":"spot","authenticated":true}`
+		futures = `{"enabled":true,"channel":"ticker","asset":"futures"},` +
+			`{"enabled":true,"channel":"orderbook","asset":"futures","levels":20},` +
+			`{"enabled":true,"channel":"allTrades","asset":"futures"},` +
+			`{"enabled":true,"channel":"candles","asset":"futures","interval":"15m"},` +
+			`{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},` +
+			`{"enabled":true,"channel":"myTrades","asset":"futures","authenticated":true},` +
+			`{"enabled":true,"channel":"myAccount","asset":"futures","authenticated":true},` +
+			`{"enabled":true,"channel":"position","asset":"futures","authenticated":true}`
+	)
+	const disabled = `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`
+	for name, tc := range map[string]struct{ saved, exp string }{
+		"previous defaults": {saved: "[" + spot + "]", exp: "[" + spot + "," + futures + "]"},
+		// A disabled entry which names no default subscribes to nothing, so it is carried over
+		"previous defaults and a disabled entry": {saved: "[" + spot + "," + disabled + "]", exp: "[" + spot + "," + futures + "," + disabled + "]"},
+		"previous defaults and an entry whose asset is nulled": {
+			saved: "[" + spot + `,{"enabled":false,"channel":"ticker","asset":"spot","asset":null}]`,
+			exp:   "[" + spot + "," + futures + `,{"enabled":false,"channel":"ticker"}]`,
+		},
+		"previous defaults and an entry without an asset": {
+			saved: "[" + spot + `,{"enabled":false,"channel":"myOrders"}]`,
+			exp:   "[" + spot + "," + futures + `,{"enabled":false,"channel":"myOrders"}]`,
+		},
+		// A null leaves an earlier enabled field as it was, so this extra subscription is enabled and the list customised
+		"previous defaults and an enabled entry": {
+			saved: "[" + spot + `,{"enabled":true,"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}]`,
+			exp:   "[" + spot + `,{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}]`,
+		},
+		// A list which differs from the previous defaults is the user's choice
+		"customised": {saved: "[" + strings.Replace(spot, `"levels":20`, `"levels":5`, 1) + "]", exp: "[" + strings.Replace(spot, `"levels":20`, `"levels":5`, 1) + "]"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			data, err := os.ReadFile(TestFile)
+			require.NoError(t, err, "ReadFile must load the current config fixture")
+			var saved map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+			var exchanges []map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
+			i := slices.IndexFunc(exchanges, func(e map[string]json.RawMessage) bool { return string(e["name"]) == `"MEXC"` })
+			require.NotEqual(t, -1, i, "Config fixture must contain MEXC")
+			var features map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must preserve MEXC features")
+			features["subscriptions"] = json.RawMessage(tc.saved)
+			exchanges[i]["features"], err = json.Marshal(features)
+			require.NoError(t, err, "Marshal must encode MEXC features")
+			saved["exchanges"], err = json.Marshal(exchanges)
+			require.NoError(t, err, "Marshal must encode saved exchanges")
+			saved["version"] = json.RawMessage(`23`)
+			data, err = json.Marshal(saved)
+			require.NoError(t, err, "Marshal must encode the version 23 config")
+			path := filepath.Join(t.TempDir(), "config.json")
+			require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 23 config")
+
+			var migrated Config
+			require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 23 config")
+			assert.Equal(t, 24, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
+			exch, err := migrated.GetExchangeConfig("MEXC")
+			require.NoError(t, err, "GetExchangeConfig must find MEXC")
+			var exp subscription.List
+			require.NoError(t, json.Unmarshal([]byte(tc.exp), &exp), "Unmarshal must decode the expected subscriptions")
+			assert.Equal(t, exp, exch.Features.Subscriptions, "ReadConfigFromFile should load the migrated MEXC subscriptions")
+		})
+	}
 }
 
 // nameGateBeforeVersion23 returns the config with the Gate exchange named GateIO, as configs before version 23 name it
@@ -1808,7 +1884,7 @@ func TestReadVersion19LbankEndpointFromFile(t *testing.T) {
 
 			var migrated Config
 			require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 19 config")
-			assert.Equal(t, 23, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+			assert.Equal(t, 24, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 			exch, err := migrated.GetExchangeConfig("Lbank")
 			require.NoError(t, err, "GetExchangeConfig must find LBank")
 			assert.Equal(t, tc.exp, exch.API.Endpoints, "ReadConfigFromFile should drop only the previous default REST host")
@@ -1830,7 +1906,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 23, migrated.Version, "ReadConfigFromFile should advance the config to version 23")
+	assert.Equal(t, 24, migrated.Version, "ReadConfigFromFile should advance the config to version 24")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
@@ -1852,7 +1928,7 @@ func TestReadConfigFromReader(t *testing.T) {
 			input := `{"version":18,"exchanges":[{"name":"` + name + `","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":true,"channel":"myOrders","asset":"Futures"},{"enabled":true,"channel":"fundingRate","asset":"USDTMarginedFutures"}]}}]}`
 			cfg := new(Config)
 			require.NoError(t, cfg.readConfig(strings.NewReader(input)), "real config loader must migrate derivative subscriptions")
-			assert.Equal(t, 23, cfg.Version, "HTX configuration should advance from upstream version 18 to version 23")
+			assert.Equal(t, 24, cfg.Version, "HTX configuration should advance from upstream version 18 to version 24")
 			require.Len(t, cfg.Exchanges, 1, "loader must retain the exchange")
 			loaded := &cfg.Exchanges[0]
 			assert.Equal(t, "HTX", loaded.Name, "loader should canonicalise the exchange name")
@@ -1885,7 +1961,7 @@ func TestReadConfigFromReader(t *testing.T) {
 				t.Parallel()
 				var cfg Config
 				require.NoError(t, cfg.readConfig(strings.NewReader(`{"version":17,"exchanges":[{"name":"`+name+`","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}]}`)), "saved configuration must load and migrate")
-				assert.Equal(t, 23, cfg.Version, "saved configuration should advance to version 23")
+				assert.Equal(t, 24, cfg.Version, "saved configuration should advance to version 24")
 				require.Len(t, cfg.Exchanges, 1, "OKX entry must survive loading")
 				assert.Equal(t, "wss://ws.okx.com/ws/v5/public", cfg.Exchanges[0].API.Endpoints["WebsocketSpotURL"], "public endpoint should migrate")
 				assert.Equal(t, "wss://ws.okx.com/ws/v5/private", cfg.Exchanges[0].API.Endpoints["WebsocketPrivateURL"], "private endpoint should migrate")

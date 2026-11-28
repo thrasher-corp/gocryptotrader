@@ -6,6 +6,7 @@
   "Apiauth-Key",
   "X-Gemini-Apikey",
   "X-Bapi-Api-Key",
+  "Apikey",
   "X-Auth"
  ],
  "variables": [

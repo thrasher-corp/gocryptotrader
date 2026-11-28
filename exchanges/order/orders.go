@@ -301,8 +301,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 	}
 	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// or from a different snapshot. A supplied non-zero value is preserved, and
+	// a zero one only from a filled order, since a detail which does not know
+	// its remainder leaves it zero.
+	if (m.RemainingAmount > 0 || m.RemainingAmount == 0 && m.Status == Filled) && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
@@ -586,15 +588,17 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		TimeInForce:   s.TimeInForce,
-		ReduceOnly:    s.ReduceOnly,
-		Leverage:      s.Leverage,
-		Price:         s.Price,
-		Amount:        s.Amount,
-		QuoteAmount:   s.QuoteAmount,
-		TriggerPrice:  s.TriggerPrice,
-		ClientID:      s.ClientID,
-		ClientOrderID: s.ClientOrderID,
+		TimeInForce:          s.TimeInForce,
+		ReduceOnly:           s.ReduceOnly,
+		Leverage:             s.Leverage,
+		Price:                s.Price,
+		Amount:               s.Amount,
+		QuoteAmount:          s.QuoteAmount,
+		TriggerPrice:         s.TriggerPrice,
+		ClientID:             s.ClientID,
+		ClientOrderID:        s.ClientOrderID,
+		AverageExecutedPrice: s.AverageExecutedPrice,
+		MarginType:           s.MarginType,
 
 		InternalOrderID: internal,
 
@@ -604,6 +608,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		OrderID:     s.OrderID,
 		Trades:      s.Trades,
 		Fee:         s.Fee,
+		FeeAsset:    s.FeeAsset,
 		Cost:        s.Cost,
 	}, nil
 }
