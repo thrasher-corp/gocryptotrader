@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -19,8 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -34,6 +37,7 @@ type userDataStreamVenue struct {
 	notActive    bool
 	nextID       uint64
 	requests     map[string]int
+	subscribed   []map[string]string
 	unsubscribed []map[string]string
 }
 
@@ -51,6 +55,7 @@ func (v *userDataStreamVenue) handle(tb testing.TB, msg []byte, w *gws.Conn) err
 	switch req.Method {
 	case "userDataStream.subscribe.signature":
 		assert.NotEmpty(tb, req.Params["signature"], "a subscription should be signed")
+		v.subscribed = append(v.subscribed, req.Params)
 		if v.failures > 0 {
 			v.failures--
 			resp = fmt.Sprintf(`{"id":%q,"status":400,"error":{"code":-1022,"msg":"Signature for this request is not valid."}}`, req.ID)
@@ -78,6 +83,14 @@ func (v *userDataStreamVenue) count(method string) int {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.requests[method]
+}
+
+// subscriptions returns a copy of the parameters of the subscription requests received so far, as the venue's handler
+// goes on appending to them
+func (v *userDataStreamVenue) subscriptions() []map[string]string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return slices.Clone(v.subscribed)
 }
 
 // newUserDataTestExchange returns an exchange whose WebSocket API connection is served by venue, without subscribing
@@ -315,6 +328,28 @@ func TestSubscribeUserDataStream(t *testing.T) {
 		assert.True(t, ex.isConfiguredAccount(creds), "the subscription should be recorded under the configured account")
 	})
 
+	t.Run("refuses a subscription without credentials", func(t *testing.T) {
+		t.Parallel()
+		venue := new(userDataStreamVenue)
+		ex := newUserDataTestExchange(t, venue)
+		ex.SetCredentials(&accounts.Credentials{})
+		ex.SkipAuthCheck = false
+		_, err := ex.subscribeUserDataStream(t.Context(), ex.wsAPI.get())
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "subscribeUserDataStream should refuse a subscription without credentials")
+		assert.Zero(t, venue.count("userDataStream.subscribe.signature"), "subscribeUserDataStream should send no subscription without credentials")
+	})
+
+	t.Run("draws on the User Data Stream subscription limit", func(t *testing.T) {
+		t.Parallel()
+		venue := new(userDataStreamVenue)
+		ex := newUserDataTestExchange(t, venue)
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		request.WithLimiter(request.RateLimitDefinitions{userDataStreamSubscriptionRate: newRateLimits()[userDataStreamSubscriptionRate]})(ex.Requester)
+		_, err := ex.subscribeUserDataStream(t.Context(), ex.wsAPI.get())
+		assert.NoError(t, err, "subscribeUserDataStream should rate limit the subscription on the User Data Stream subscription limit")
+		assert.Equal(t, 1, venue.count("userDataStream.subscribe.signature"), "subscribeUserDataStream should send the subscription")
+	})
+
 	venue := new(userDataStreamVenue)
 	ex := newUserDataTestExchange(t, venue)
 	conn := ex.wsAPI.get()
@@ -332,6 +367,33 @@ func TestSubscribeUserDataStream(t *testing.T) {
 	creds, ok := ex.userData.credentials(resp.SubscriptionID)
 	require.True(t, ok, "subscribeUserDataStream must record the subscription")
 	assert.Equal(t, other.Key, creds.Key, "the subscription should be recorded under the credentials that signed it")
+
+	t.Run("is signed with the credentials it is recorded under when they change before it is signed", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range signingCredentialChanges {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				venue := new(userDataStreamVenue)
+				ex := newUserDataTestExchange(t, venue)
+				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancel()
+				ctx, account, change := tc.begin(ctx, t, ex)
+				var resp *WebsocketUserDataStreamSubscriptionResponse
+				admitted, err := callHeldAtRateLimit(ctx, t, ex, func(ctx context.Context) (err error) {
+					resp, err = ex.subscribeUserDataStream(ctx, ex.wsAPI.get())
+					return err
+				}, change)
+				require.NoError(t, err, "subscribeUserDataStream must not error")
+				require.NotNil(t, resp, "subscribeUserDataStream must return the subscription")
+				recorded, ok := ex.userData.credentials(resp.SubscriptionID)
+				require.True(t, ok, "subscribeUserDataStream must record the subscription")
+				assert.Equal(t, *account, *recorded, "the subscription should be recorded under the credentials it began with")
+				subscribed := venue.subscriptions()
+				require.Len(t, subscribed, 1, "the venue must receive one subscription")
+				assertSignedBy(t, subscribed[0], account, admitted)
+			})
+		}
+	})
 }
 
 func TestSubscribeWantedUserDataStream(t *testing.T) {

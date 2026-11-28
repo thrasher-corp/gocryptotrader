@@ -2822,7 +2822,12 @@ func TestIsStaleSpotSnapshot(t *testing.T) {
 	assert.False(t, ex.isStaleSpotSnapshot(account, time.UnixMilli(2000)), "a snapshot as new as the stored one should not be stale")
 	assert.False(t, ex.isStaleSpotSnapshot(account, time.Time{}), "a snapshot without a time should not be stale")
 	for _, other := range otherBalanceTestAccounts() {
-		assert.Falsef(t, ex.isStaleSpotSnapshot(other.account, time.UnixMilli(1000)), "a snapshot of an account with another %s should be judged by that account's snapshots alone", other.differs)
+		t.Run("judges an account with another "+other.differs+" by that account's snapshots alone", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.recordBalanceSnapshot(balanceTestAccount(), time.UnixMilli(2000))
+			assert.False(t, ex.isStaleSpotSnapshot(other.account, time.UnixMilli(1000)), "a snapshot of the other account should be judged by that account's snapshots alone")
+		})
 	}
 }
 

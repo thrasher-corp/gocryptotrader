@@ -272,7 +272,7 @@ func (e *Exchange) SendSignedWebsocketAPIRequest(ctx context.Context, epl reques
 		return err
 	}
 	req := &WebsocketAPIRequest{ID: e.MessageID(), Method: method, Params: websocketAPIParams(params)}
-	if err := e.rateLimitAndSignWebsocketAPIParams(ctx, epl, req.Params); err != nil {
+	if err := e.rateLimitAndSignWebsocketAPIParams(ctx, epl, creds, req.Params); err != nil {
 		return err
 	}
 	err = e.sendOnWebsocketAPIConnection(ctx, conn, wsConnectionMessageRate, req, result)
@@ -289,25 +289,22 @@ func websocketAPIParams(values url.Values) map[string]string {
 	return params
 }
 
-// rateLimitAndSignWebsocketAPIParams waits for a SIGNED request's rate limit, then signs it. Binance.US rejects a
-// timestamp older than recvWindow when the request arrives, which a wait after signing could exceed when requests queue
-// for a pool. The request is then sent on wsConnectionMessageRate, which finds no limiter on the WebSocket API
-// connection, so the pool is charged once
-func (e *Exchange) rateLimitAndSignWebsocketAPIParams(ctx context.Context, epl request.EndpointLimit, params map[string]string) error {
+// rateLimitAndSignWebsocketAPIParams waits for a SIGNED request's rate limit, then signs it with creds, which the caller
+// resolved before the wait, so that credentials changed during the wait cannot sign it for another account. Binance.US
+// rejects a timestamp older than recvWindow when the request arrives, which a wait after signing could exceed when
+// requests queue for a pool. The request is then sent on wsConnectionMessageRate, which finds no limiter on the
+// WebSocket API connection, so the pool is charged once
+func (e *Exchange) rateLimitAndSignWebsocketAPIParams(ctx context.Context, epl request.EndpointLimit, creds *accounts.Credentials, params map[string]string) error {
 	if err := e.Requester.InitiateRateLimit(ctx, epl); err != nil {
 		return err
 	}
-	return e.signWebsocketAPIParams(ctx, params)
+	return signWebsocketAPIParams(creds, params)
 }
 
-// signWebsocketAPIParams adds the API key, timestamp and HMAC-SHA256 signature a SIGNED request requires, and the
-// default recvWindow unless the caller set one. A signature from an earlier attempt is left out of the new one, since
-// Binance.US verifies the signature over every other parameter
-func (e *Exchange) signWebsocketAPIParams(ctx context.Context, params map[string]string) error {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
+// signWebsocketAPIParams adds creds' API key, a timestamp and the HMAC-SHA256 signature a SIGNED request requires, and
+// the default recvWindow unless the caller set one. A signature from an earlier attempt is left out of the new one,
+// since Binance.US verifies the signature over every other parameter
+func signWebsocketAPIParams(creds *accounts.Credentials, params map[string]string) error {
 	delete(params, "signature")
 	params["apiKey"] = creds.Key
 	params["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)

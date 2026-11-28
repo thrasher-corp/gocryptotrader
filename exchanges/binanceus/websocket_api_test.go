@@ -1,6 +1,7 @@
 package binanceus
 
 import (
+	"cmp"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -12,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -273,6 +275,157 @@ func newWebsocketAPITestExchange(tb testing.TB, authenticated bool, canManipulat
 	}
 	require.NoError(tb, ex.Websocket.Connect(tb.Context()), "Connect must not error")
 	return ex
+}
+
+// signingCredentialChange is a way the credentials a SIGNED WebSocket API request resolves as it begins, account A's,
+// change before it is signed
+type signingCredentialChange struct {
+	name string
+	// configured is the account configured as the request begins, account A when nil
+	configured *accounts.Credentials
+	// subAccount is a sub-account override the context carries
+	subAccount string
+	// inContext has the context carry account A's credentials, whose store the change then reloads
+	inContext bool
+	// duringRead changes the configured credentials as the request reads them, rather than while it waits
+	duringRead bool
+	// lookedUpAgain changes the context's credentials should the request look them up again, rather than while it waits
+	lookedUpAgain bool
+	// next is the credentials the change sets, account B's when nil
+	next *accounts.Credentials
+}
+
+var signingCredentialChanges = []signingCredentialChange{
+	{name: "configured credentials"},
+	{name: "configured credentials with a sub-account override", subAccount: "account-a-sub"},
+	{name: "configured credentials keeping their key with another secret", next: &accounts.Credentials{Key: "account-a-key", Secret: "account-a-other-secret", ClientID: "account-a-client"}},
+	{name: "configured credentials changing as the request reads them", duringRead: true},
+	{name: "credentials the context carries", inContext: true},
+	{name: "credentials the context carries beside a sub-account override", inContext: true, subAccount: "account-a-sub"},
+	{name: "credentials the context carries keeping their key with another secret", inContext: true, next: &accounts.Credentials{Key: "account-a-key", Secret: "account-a-other-secret", ClientID: "account-a-client"}},
+	{name: "credentials the context carries changing should the request look them up again", inContext: true, lookedUpAgain: true},
+	{name: "credentials the context carries while another account is configured", configured: &accounts.Credentials{Key: "account-c-key", Secret: "account-c-secret"}, inContext: true},
+}
+
+// begin configures ex for the change and returns the context a request begins with, account A's credentials as the
+// request resolves them, and the change to make while the request waits at its rate limit
+func (c signingCredentialChange) begin(ctx context.Context, t *testing.T, ex *Exchange) (context.Context, *accounts.Credentials, func()) {
+	t.Helper()
+	account := &accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret", ClientID: "account-a-client"}
+	next := cmp.Or(c.next, &accounts.Credentials{Key: "account-b-key", Secret: "account-b-secret"})
+	ex.SetCredentials(cmp.Or(c.configured, account))
+	change := func() { ex.SetCredentials(next) }
+	if c.subAccount != "" {
+		ctx = accounts.DeploySubAccountOverrideToContext(ctx, c.subAccount)
+		// Credentials the context carries take no sub-account override
+		if !c.inContext {
+			account.SubAccount = c.subAccount
+		}
+	}
+	if c.inContext {
+		ctx = accounts.DeployCredentialsToContext(ctx, account)
+		store, ok := ctx.Value(accounts.ContextCredentialsFlag).(*accounts.ContextCredentialsStore)
+		require.True(t, ok, "the context must carry a credentials store")
+		change = func() { store.Load(next) }
+	}
+	switch {
+	case c.duringRead:
+		ctx = &subAccountLookupHook{Context: ctx, hook: change}
+		change = func() {}
+	case c.lookedUpAgain:
+		ctx = &credentialsLookedUpAgainHook{Context: ctx, hook: change}
+		change = func() {}
+	}
+	return ctx, account, change
+}
+
+// credentialsLookedUpAgainHook is a context that runs hook when the credentials it carries are looked up a second time
+type credentialsLookedUpAgainHook struct {
+	context.Context //nolint:containedctx // credentialsLookedUpAgainHook implements context.Context
+	lookups         atomic.Int32
+	hook            func()
+}
+
+// Value runs the hook on the second lookup of the context's credentials, then returns the context's value
+func (c *credentialsLookedUpAgainHook) Value(k any) any {
+	if k == accounts.ContextCredentialsFlag && c.lookups.Add(1) == 2 {
+		c.hook()
+	}
+	return c.Context.Value(k)
+}
+
+// barrierArrivalContext is a rate limit barrier participant's context that reports the participant's arrival at the
+// barrier, which reads its Done channel when it registers the participant
+type barrierArrivalContext struct {
+	context.Context //nolint:containedctx // barrierArrivalContext implements context.Context
+	arrived         chan struct{}
+	once            sync.Once
+}
+
+// Done reports the participant's arrival, then returns the context's Done channel
+func (c *barrierArrivalContext) Done() <-chan struct{} {
+	c.once.Do(func() { close(c.arrived) })
+	return c.Context.Done()
+}
+
+// callHeldAtRateLimit runs call with a context, derived from ctx, that holds it at its first rate limit until change has
+// run, and returns a time taken just before the rate limit admits it, and call's error
+func callHeldAtRateLimit(ctx context.Context, t *testing.T, ex *Exchange, call func(context.Context) error, change func()) (time.Time, error) {
+	t.Helper()
+	if !mockTests {
+		// Live tests share the package's limits, and the barrier refuses a request those limits would delay
+		require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
+	}
+	participants, err := request.NewRateLimitBarrierContexts(ctx, 2)
+	require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+	defer request.AbortRateLimitBarrier(participants[1])
+	caller := &barrierArrivalContext{Context: participants[0], arrived: make(chan struct{})}
+	done := make(chan error, 1)
+	go func() {
+		defer request.AbortRateLimitBarrier(caller)
+		done <- call(caller)
+	}()
+	select {
+	case <-caller.arrived:
+	case <-ctx.Done():
+		require.FailNow(t, "the call must reach its rate limit")
+	}
+	change()
+	// Admitting the call a few milliseconds after it arrived sets a timestamp taken before the wait apart
+	time.Sleep(2 * time.Millisecond)
+	admitting := time.Now()
+	require.NoError(t, request.WaitForRateLimitBarrier(participants[1]), "WaitForRateLimitBarrier must not error")
+	select {
+	case err := <-done:
+		return admitting, err
+	case <-ctx.Done():
+		require.FailNow(t, "the call must finish")
+		return admitting, ctx.Err()
+	}
+}
+
+// assertSignedBy checks that a SIGNED WebSocket API request's parameters carry creds' API key, a signature with its
+// secret over every other parameter and a timestamp taken no earlier than notBefore
+func assertSignedBy(t *testing.T, params map[string]string, creds *accounts.Credentials, notBefore time.Time) {
+	t.Helper()
+	unsigned := maps.Clone(params)
+	delete(unsigned, "signature")
+	assert.Equal(t, creds.Key, params["apiKey"], "the request should carry the API key of the expected credentials")
+	mac := hmac.New(sha256.New, []byte(creds.Secret))
+	mac.Write([]byte(signaturePayload(unsigned)))
+	assert.Equal(t, hex.EncodeToString(mac.Sum(nil)), params["signature"], "the request should be signed with the secret of the expected credentials")
+	timestamp, err := strconv.ParseInt(params["timestamp"], 10, 64)
+	require.NoError(t, err, "the request's timestamp must be a number")
+	assert.GreaterOrEqual(t, timestamp, notBefore.UnixMilli(), "the request should be signed once its rate limit admits it")
+}
+
+// answerWithEmptyResult answers every WebSocket API request with an empty result
+func answerWithEmptyResult(_ testing.TB, msg []byte, w *gws.Conn) error {
+	var req WebsocketAPIRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
+	}
+	return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{}}`))
 }
 
 // fakeConnection is a websocket connection whose state, responses and matched messages a test controls; calls to
@@ -1033,37 +1186,102 @@ func TestSendAPIKeyWebsocketAPIRequest(t *testing.T) {
 
 func TestSendSignedWebsocketAPIRequest(t *testing.T) {
 	t.Parallel()
-	err := newWebsocketTestExchange(t).SendSignedWebsocketAPIRequest(t.Context(), defaultRate, "account.status", nil, nil)
-	require.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedWebsocketAPIRequest must error while the websocket is disconnected")
+	t.Run("errors while the websocket is disconnected", func(t *testing.T) {
+		t.Parallel()
+		err := newWebsocketTestExchange(t).SendSignedWebsocketAPIRequest(t.Context(), defaultRate, "account.status", nil, nil)
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendSignedWebsocketAPIRequest should error while the websocket is disconnected")
+	})
 
-	ex := newWebsocketAPITestExchange(t, true)
-	var resp *AccountResponse
-	require.NoError(t, ex.SendSignedWebsocketAPIRequest(t.Context(), accountInformationRate, "account.status", nil, &resp), "SendSignedWebsocketAPIRequest must not error")
-	require.NotNil(t, resp, "SendSignedWebsocketAPIRequest must decode the result")
+	t.Run("sends a signed request and decodes its result", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketAPITestExchange(t, true)
+		var resp *AccountResponse
+		require.NoError(t, ex.SendSignedWebsocketAPIRequest(t.Context(), accountInformationRate, "account.status", nil, &resp), "SendSignedWebsocketAPIRequest must not error")
+		assert.NotNil(t, resp, "SendSignedWebsocketAPIRequest should decode the result")
+		if mockTests {
+			params := url.Values{}
+			params.Set("symbol", "BTCUSDT")
+			params.Set("orderId", "1")
+			err := ex.SendSignedWebsocketAPIRequest(t.Context(), queryOrderRate, "order.status", params, nil)
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "SendSignedWebsocketAPIRequest should map Binance.US's error codes")
+			assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "SendSignedWebsocketAPIRequest should report a failed request")
+		}
+	})
 
-	if mockTests {
-		params := url.Values{}
-		params.Set("symbol", "BTCUSDT")
-		params.Set("orderId", "1")
-		err = ex.SendSignedWebsocketAPIRequest(t.Context(), queryOrderRate, "order.status", params, nil)
-		assert.ErrorIs(t, err, order.ErrOrderNotFound, "SendSignedWebsocketAPIRequest should map Binance.US's error codes")
-		assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "SendSignedWebsocketAPIRequest should report a failed request")
+	t.Run("is signed with the credentials it begins with when they change before it is signed", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range signingCredentialChanges {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var received []map[string]string
+				ex := newWebsocketTestExchange(t)
+				useMockWebsocket(t, ex, ex.websocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
+					tb.Helper()
+					var req WebsocketAPIRequest
+					if err := json.Unmarshal(msg, &req); err != nil {
+						return err
+					}
+					mu.Lock()
+					received = append(received, req.Params)
+					mu.Unlock()
+					return answerWithEmptyResult(tb, msg, w)
+				})
+				require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancel()
+				ctx, account, change := tc.begin(ctx, t, ex)
+				admitted, err := callHeldAtRateLimit(ctx, t, ex, func(ctx context.Context) error {
+					return ex.SendSignedWebsocketAPIRequest(ctx, accountInformationRate, "account.status", nil, nil)
+				}, change)
+				require.NoError(t, err, "SendSignedWebsocketAPIRequest must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				require.Len(t, received, 1, "the venue must receive one request")
+				assertSignedBy(t, received[0], account, admitted)
+			})
+		}
+	})
+
+	t.Run("refuses a request without credentials", func(t *testing.T) {
+		t.Parallel()
+		venue := new(userDataStreamVenue)
+		ex := newUserDataTestExchange(t, venue)
+		ex.SetCredentials(&accounts.Credentials{})
+		ex.SkipAuthCheck = false
+		err := ex.SendSignedWebsocketAPIRequest(t.Context(), accountInformationRate, "account.status", nil, nil)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SendSignedWebsocketAPIRequest should refuse a request without credentials")
+		assert.Zero(t, venue.count("account.status"), "SendSignedWebsocketAPIRequest should send no request without credentials")
+	})
+
+	t.Run("draws on the endpoint limit it is given", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		useMockWebsocket(t, ex, ex.websocketAPIConnectionSetup(ex.Config), answerWithEmptyResult)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		request.WithLimiter(request.RateLimitDefinitions{queryOrderRate: newRateLimits()[queryOrderRate]})(ex.Requester)
+		assert.NoError(t, ex.SendSignedWebsocketAPIRequest(t.Context(), queryOrderRate, "order.status", nil, nil), "SendSignedWebsocketAPIRequest should draw on the endpoint limit it is given")
+	})
+
+	refuseAccountStatus := func(tb testing.TB, msg []byte, w *gws.Conn) error {
+		tb.Helper()
+		var req WebsocketAPIRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		switch req.Method {
+		case "userDataStream.subscribe.signature":
+			return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{"subscriptionId":0}}`))
+		case "account.status":
+			return rejectKey(tb, msg, w)
+		}
+		return websocketAPIMock(tb, msg, w)
 	}
 
 	t.Run("a refused key sends the wrapper's requests over REST and keeps the User Data Stream", func(t *testing.T) {
 		t.Parallel()
-		ex, streamDials, _ := newTwoServerTestExchange(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
-			tb.Helper()
-			var req WebsocketAPIRequest
-			require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
-			switch req.Method {
-			case "userDataStream.subscribe.signature":
-				return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+req.ID+`","status":200,"result":{"subscriptionId":0}}`))
-			case "account.status":
-				return rejectKey(tb, msg, w)
-			}
-			return websocketAPIMock(tb, msg, w)
-		}, true)
+		ex, streamDials, _ := newTwoServerTestExchange(t, refuseAccountStatus, true)
 		require.True(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders must go over the WebSocket API before a refusal")
 		err := ex.SendSignedWebsocketAPIRequest(t.Context(), accountInformationRate, "account.status", nil, nil)
 		assert.ErrorIs(t, err, errAPIResponse, "SendSignedWebsocketAPIRequest should return the refusal")
@@ -1073,6 +1291,78 @@ func TestSendSignedWebsocketAPIRequest(t *testing.T) {
 		}, 10*time.Second, 10*time.Millisecond, "the websocket must connect again and subscribe the User Data Stream")
 		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a refused request should leave authenticated websocket use on")
 		assert.False(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should go over REST once the WebSocket API refused the configured account's key")
+	})
+
+	t.Run("a refused key is judged by the credentials that signed the request", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			// inContext is the credentials the context carries, none when nil
+			inContext *accounts.Credentials
+			// reconfigure configures another account while the request waits at its rate limit
+			reconfigure bool
+			// reconfigureWhileAnswered configures another account while the venue holds back its answer
+			reconfigureWhileAnswered bool
+			// rejected is whether the refusal sends the wrapper's requests over REST
+			rejected bool
+		}{
+			{name: "the configured account's credentials the context carries", inContext: &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"}, rejected: true},
+			{name: "another account's credentials the context carries", inContext: &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"}},
+			{name: "the credentials of an account configured until the request waited", reconfigure: true},
+			{name: "the credentials of an account configured until the venue answered", reconfigureWhileAnswered: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				other := &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"}
+				answering, answer := make(chan struct{}), make(chan struct{})
+				venue := refuseAccountStatus
+				if tc.reconfigureWhileAnswered {
+					venue = func(tb testing.TB, msg []byte, w *gws.Conn) error {
+						tb.Helper()
+						if strings.Contains(string(msg), `"account.status"`) {
+							close(answering)
+							<-answer
+						}
+						return refuseAccountStatus(tb, msg, w)
+					}
+				}
+				ex, _, apiDials := newTwoServerTestExchange(t, venue, true)
+				ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+				defer cancel()
+				if tc.inContext != nil {
+					ctx = accounts.DeployCredentialsToContext(ctx, tc.inContext)
+				}
+				change := func() {}
+				if tc.reconfigure {
+					change = func() { ex.SetCredentials(other) }
+				}
+				if tc.reconfigureWhileAnswered {
+					go func() {
+						defer close(answer)
+						select {
+						case <-answering:
+							ex.SetCredentials(other)
+						case <-ctx.Done():
+						}
+					}()
+				}
+				_, err := callHeldAtRateLimit(ctx, t, ex, func(ctx context.Context) error {
+					return ex.SendSignedWebsocketAPIRequest(ctx, accountInformationRate, "account.status", nil, nil)
+				}, change)
+				assert.ErrorIs(t, err, errAPIResponse, "SendSignedWebsocketAPIRequest should return the refusal")
+				assert.Equal(t, tc.rejected, ex.websocketAPIKeyRejected.Load(), "SendSignedWebsocketAPIRequest should note a refused key as the configured account's only when it is that account's as the answer arrives")
+				require.Eventually(t, func() bool {
+					return apiDials.Load() > 1 && ex.WebsocketAPI().IsConnected()
+				}, 10*time.Second, 10*time.Millisecond, "the WebSocket API must connect again once Binance.US closes the connection")
+				if tc.rejected {
+					assert.False(t, ex.canUseWebsocketAPIForOrders(t.Context()), "orders should go over REST once the WebSocket API refused the configured account's key")
+					return
+				}
+				assert.Eventually(t, func() bool {
+					return ex.canUseWebsocketAPIForOrders(t.Context())
+				}, 10*time.Second, 10*time.Millisecond, "orders should go over the WebSocket API once it connects again")
+			})
+		}
 	})
 }
 
@@ -1085,9 +1375,10 @@ func TestWebsocketAPIParams(t *testing.T) {
 
 func TestRateLimitAndSignWebsocketAPIParams(t *testing.T) {
 	t.Parallel()
+	creds := &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"}
 	ex := newWebsocketTestExchange(t)
 	params := map[string]string{"symbol": "BTCUSDT"}
-	require.NoError(t, ex.rateLimitAndSignWebsocketAPIParams(t.Context(), orderRate, params), "rateLimitAndSignWebsocketAPIParams must not error")
+	require.NoError(t, ex.rateLimitAndSignWebsocketAPIParams(t.Context(), orderRate, creds, params), "rateLimitAndSignWebsocketAPIParams must not error")
 	assert.NotEmpty(t, params["signature"], "rateLimitAndSignWebsocketAPIParams should sign the parameters")
 
 	limited := newWebsocketTestExchange(t)
@@ -1095,16 +1386,42 @@ func TestRateLimitAndSignWebsocketAPIParams(t *testing.T) {
 		require.NoError(t, limited.EnableRateLimiter(), "EnableRateLimiter must not error")
 	}
 	params = map[string]string{"symbol": "BTCUSDT"}
-	err := limited.rateLimitAndSignWebsocketAPIParams(t.Context(), request.Unset, params)
+	err := limited.rateLimitAndSignWebsocketAPIParams(t.Context(), request.Unset, creds, params)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "rateLimitAndSignWebsocketAPIParams should return the error of a limit without a limiter")
 	assert.NotContains(t, params, "signature", "rateLimitAndSignWebsocketAPIParams should not sign a request it cannot rate limit")
+
+	t.Run("signs with the credentials it is given rather than the configured ones", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		ex.SetCredentials(&accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret"})
+		given := &accounts.Credentials{Key: "account-b-key", Secret: "account-b-secret"}
+		params := map[string]string{"symbol": "BTCUSDT"}
+		called := time.Now()
+		require.NoError(t, ex.rateLimitAndSignWebsocketAPIParams(t.Context(), orderRate, given, params), "rateLimitAndSignWebsocketAPIParams must not error")
+		assertSignedBy(t, params, given, called)
+	})
+
+	t.Run("signs the request as its rate limit admits it", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+			defer cancel()
+			params := map[string]string{"symbol": "BTCUSDT", "timestamp": "1"}
+			admitted, err := callHeldAtRateLimit(ctx, t, ex, func(ctx context.Context) error {
+				return ex.rateLimitAndSignWebsocketAPIParams(ctx, orderRate, creds, params)
+			}, func() { time.Sleep(time.Minute) })
+			require.NoError(t, err, "rateLimitAndSignWebsocketAPIParams must not error")
+			assert.Equal(t, strconv.FormatInt(admitted.UnixMilli(), 10), params["timestamp"], "rateLimitAndSignWebsocketAPIParams should sign with the time its rate limit admits the request")
+		})
+	})
 }
 
 func TestSignWebsocketAPIParams(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestExchange(t)
+	creds := &accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"}
 	params := map[string]string{"symbol": "BTCUSDT", "side": "SELL", "price": "52000.00", "symbols": `["BTCUSDT","ETHUSDT"]`}
-	require.NoError(t, ex.signWebsocketAPIParams(t.Context(), params), "signWebsocketAPIParams must not error")
+	require.NoError(t, signWebsocketAPIParams(creds, params), "signWebsocketAPIParams must not error")
 	assert.Equal(t, "mock-api-key", params["apiKey"], "signWebsocketAPIParams should send the API key")
 	assert.Equal(t, "5000", params["recvWindow"], "signWebsocketAPIParams should send the default receive window")
 	require.NotEmpty(t, params["timestamp"], "signWebsocketAPIParams must send a timestamp")
@@ -1116,7 +1433,7 @@ func TestSignWebsocketAPIParams(t *testing.T) {
 
 	// Signing again, as a retry does, must not sign the earlier signature, and keeps a receive window the caller set
 	params["recvWindow"] = "100"
-	require.NoError(t, ex.signWebsocketAPIParams(t.Context(), params), "signWebsocketAPIParams must not error signing again")
+	require.NoError(t, signWebsocketAPIParams(creds, params), "signWebsocketAPIParams must not error signing again")
 	assert.Equal(t, "100", params["recvWindow"], "signWebsocketAPIParams should keep a receive window the caller set")
 	unsigned := maps.Clone(params)
 	delete(unsigned, "signature")
@@ -1124,9 +1441,15 @@ func TestSignWebsocketAPIParams(t *testing.T) {
 	mac.Write([]byte(signaturePayload(unsigned)))
 	assert.Equal(t, hex.EncodeToString(mac.Sum(nil)), params["signature"], "signing again should sign every parameter but the signature")
 
-	ex.SkipAuthCheck = false
-	ex.SetCredentials(&accounts.Credentials{})
-	assert.ErrorIs(t, ex.signWebsocketAPIParams(t.Context(), map[string]string{}), exchange.ErrCredentialsAreEmpty, "signWebsocketAPIParams should error without credentials")
+	t.Run("signs again with the credentials it is given", func(t *testing.T) {
+		t.Parallel()
+		params := map[string]string{"symbol": "BTCUSDT"}
+		require.NoError(t, signWebsocketAPIParams(&accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret"}, params), "signWebsocketAPIParams must not error")
+		other := &accounts.Credentials{Key: "account-b-key", Secret: "account-b-secret"}
+		signing := time.Now()
+		require.NoError(t, signWebsocketAPIParams(other, params), "signWebsocketAPIParams must not error signing again")
+		assertSignedBy(t, params, other, signing)
+	})
 }
 
 func TestSignaturePayload(t *testing.T) {

@@ -207,14 +207,15 @@ func (e *Exchange) subscribeWantedUserDataStream(ctx context.Context, conn webso
 	return err
 }
 
-// subscribeUserDataStream subscribes conn to the User Data Stream of the account that owns ctx's API key
+// subscribeUserDataStream subscribes conn to the User Data Stream of the account that owns ctx's API key, recording the
+// subscription under the credentials that sign it
 func (e *Exchange) subscribeUserDataStream(ctx context.Context, conn websocket.Connection) (*WebsocketUserDataStreamSubscriptionResponse, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 	params := make(map[string]string)
-	if err := e.rateLimitAndSignWebsocketAPIParams(ctx, userDataStreamSubscriptionRate, params); err != nil {
+	if err := e.rateLimitAndSignWebsocketAPIParams(ctx, userDataStreamSubscriptionRate, creds, params); err != nil {
 		return nil, err
 	}
 	// A request cancelled before it is sent creates no subscription to wait for
