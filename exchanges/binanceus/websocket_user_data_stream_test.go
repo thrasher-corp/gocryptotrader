@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -109,6 +111,34 @@ func relayed(t *testing.T, ex *Exchange) any {
 		require.FailNow(t, "a payload must be relayed")
 		return nil
 	}
+}
+
+// waitForBalanceStoreWaiter waits until a goroutine the calling goroutine started is blocked taking the balance store
+// lock, reading every goroutine's stack, as nothing else shows a goroutine waiting for a mutex
+func waitForBalanceStoreWaiter(t *testing.T) {
+	t.Helper()
+	self := make([]byte, 64)
+	self = self[:runtime.Stack(self, false)]
+	id, _, ok := bytes.Cut(bytes.TrimPrefix(self, []byte("goroutine ")), []byte(" "))
+	require.True(t, ok, "the calling goroutine's stack must start with its ID")
+	creator := []byte(" in goroutine " + string(id) + "\n")
+	require.Eventually(t, func() bool {
+		stacks := make([]byte, 1<<20)
+		for {
+			n := runtime.Stack(stacks, true)
+			if n < len(stacks) {
+				stacks = stacks[:n]
+				break
+			}
+			stacks = make([]byte, 2*len(stacks))
+		}
+		for goroutine := range bytes.SplitSeq(stacks, []byte("\n\n")) {
+			if bytes.Contains(goroutine, []byte("[sync.Mutex.Lock")) && bytes.Contains(goroutine, []byte("(*Exchange).withBalanceStore")) && bytes.Contains(goroutine, creator) {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, time.Millisecond, "a goroutine the test started must wait for the balance store lock")
 }
 
 func TestUserDataStreamsExpect(t *testing.T) {
@@ -644,62 +674,208 @@ func TestWithBalanceStore(t *testing.T) {
 	assert.ErrorIs(t, ex.withBalanceStore(func() error { return errAPIResponse }), errAPIResponse, "withBalanceStore should return f's error")
 }
 
+func TestBalanceOrderingTimesOf(t *testing.T) {
+	t.Parallel()
+	recorded := func() *accounts.Credentials {
+		return &accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret", ClientID: "account-a-client", PEMKey: "account-a-pem", SubAccount: "account-a-sub", OneTimePassword: "account-a-otp"}
+	}
+	record := func(b *balanceOrdering) *balanceTimes {
+		times := b.timesOf(recorded())
+		times.eventTimes = map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(1000)}
+		times.snapshotTime = time.UnixMilli(2000)
+		return times
+	}
+
+	t.Run("the account the times were recorded for has them", func(t *testing.T) {
+		t.Parallel()
+		var b balanceOrdering
+		times := record(&b)
+		assert.Same(t, times, b.timesOf(recorded()), "timesOf should return the times recorded for the account")
+	})
+
+	for _, tc := range []struct {
+		name  string
+		other func(*accounts.Credentials)
+	}{
+		{name: "an account with another key has none", other: func(c *accounts.Credentials) { c.Key = "account-b-key" }},
+		{name: "an account with another secret has none", other: func(c *accounts.Credentials) { c.Secret = "account-b-secret" }},
+		{name: "an account with another client ID has none", other: func(c *accounts.Credentials) { c.ClientID = "account-b-client" }},
+		{name: "an account with another PEM key has none", other: func(c *accounts.Credentials) { c.PEMKey = "account-b-pem" }},
+		{name: "an account with another sub-account has none", other: func(c *accounts.Credentials) { c.SubAccount = "account-b-sub" }},
+		{name: "an account with another one-time password has none", other: func(c *accounts.Credentials) { c.OneTimePassword = "account-b-otp" }},
+		{name: "an account with its secret decoded from base64 has none", other: func(c *accounts.Credentials) { c.SecretBase64Decoded = true }},
+		{name: "a nil account has none"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var b balanceOrdering
+			record(&b)
+			var other *accounts.Credentials
+			if tc.other != nil {
+				other = recorded()
+				tc.other(other)
+			}
+			got := b.timesOf(other)
+			assert.Empty(t, got.eventTimes, "timesOf should return no event times for another account")
+			assert.Zero(t, got.snapshotTime, "timesOf should return no snapshot time for another account")
+			assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(1000)}, b.timesOf(recorded()).eventTimes, "timesOf should keep the event times recorded for the first account")
+			assert.Equal(t, time.UnixMilli(2000), b.timesOf(recorded()).snapshotTime, "timesOf should keep the snapshot time recorded for the first account")
+		})
+	}
+
+	t.Run("an account keeps its times beside two others", func(t *testing.T) {
+		t.Parallel()
+		var b balanceOrdering
+		times := record(&b)
+		b.timesOf(&accounts.Credentials{Key: "account-b-key", Secret: "account-b-secret"}).snapshotTime = time.UnixMilli(3000)
+		b.timesOf(&accounts.Credentials{Key: "account-c-key", Secret: "account-c-secret"}).snapshotTime = time.UnixMilli(4000)
+		assert.Same(t, times, b.timesOf(recorded()), "timesOf should return the first account's times after two others'")
+		assert.Equal(t, time.UnixMilli(2000), times.snapshotTime, "timesOf should keep the first account's snapshot time")
+	})
+}
+
+// balanceTestAccount returns the account the balance ordering tests record times for
+func balanceTestAccount() *accounts.Credentials {
+	return &accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret", ClientID: "account-a-client", SubAccount: "account-a-sub"}
+}
+
+// otherBalanceTestAccounts returns accounts differing from balanceTestAccount's in one credential each, by what differs
+func otherBalanceTestAccounts() []struct {
+	differs string
+	account *accounts.Credentials
+} {
+	others := []struct {
+		differs string
+		account *accounts.Credentials
+	}{{differs: "key"}, {differs: "secret"}, {differs: "client ID"}, {differs: "sub-account"}}
+	for i := range others {
+		others[i].account = balanceTestAccount()
+		switch others[i].differs {
+		case "key":
+			others[i].account.Key = "account-b-key"
+		case "secret":
+			others[i].account.Secret = "account-b-secret"
+		case "client ID":
+			others[i].account.ClientID = "account-b-client"
+		case "sub-account":
+			others[i].account.SubAccount = "account-b-sub"
+		}
+	}
+	return others
+}
+
 func TestRecordBalanceEvent(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
+	account := balanceTestAccount()
 	later, earlier := time.UnixMilli(2000), time.UnixMilli(1000)
-	ex.recordBalanceEvent(later, currency.BTC)
-	ex.recordBalanceEvent(earlier, currency.BTC, currency.ETH)
-	assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: later, currency.ETH.Item: earlier}, ex.balanceEventTimes(), "recordBalanceEvent should keep each currency's latest event")
+	ex.recordBalanceEvent(account, later, currency.BTC)
+	ex.recordBalanceEvent(account, earlier, currency.BTC, currency.ETH)
+	assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: later, currency.ETH.Item: earlier}, ex.balanceEventTimes(account), "recordBalanceEvent should keep each currency's latest event")
+
+	for _, other := range otherBalanceTestAccounts() {
+		t.Run("keeps the latest events of an account with another "+other.differs+" apart", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.recordBalanceEvent(balanceTestAccount(), time.UnixMilli(2000), currency.BTC)
+			ex.recordBalanceEvent(other.account, time.UnixMilli(1000), currency.BTC, currency.ETH)
+			ex.recordBalanceEvent(other.account, time.UnixMilli(500), currency.BTC)
+			assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(1000), currency.ETH.Item: time.UnixMilli(1000)}, ex.balanceEventTimes(other.account), "recordBalanceEvent should keep the other account's latest events apart from the first account's")
+			assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(2000)}, ex.balanceEventTimes(balanceTestAccount()), "recordBalanceEvent should keep the first account's events apart from the other account's")
+		})
+	}
 }
 
 func TestRecordBalanceSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	ex.recordBalanceSnapshot(time.UnixMilli(2000))
-	ex.recordBalanceSnapshot(time.UnixMilli(1000))
-	assert.Equal(t, time.UnixMilli(2000), ex.balanceSnapshotTime(), "recordBalanceSnapshot should keep the latest snapshot's time")
+	account := balanceTestAccount()
+	ex.recordBalanceSnapshot(account, time.UnixMilli(2000))
+	ex.recordBalanceSnapshot(account, time.UnixMilli(1000))
+	assert.Equal(t, time.UnixMilli(2000), ex.balanceSnapshotTime(account), "recordBalanceSnapshot should keep the latest snapshot's time")
+
+	for _, other := range otherBalanceTestAccounts() {
+		t.Run("keeps the latest snapshot of an account with another "+other.differs+" apart", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.recordBalanceSnapshot(balanceTestAccount(), time.UnixMilli(2000))
+			ex.recordBalanceSnapshot(other.account, time.UnixMilli(1500))
+			ex.recordBalanceSnapshot(other.account, time.UnixMilli(1000))
+			assert.Equal(t, time.UnixMilli(1500), ex.balanceSnapshotTime(other.account), "recordBalanceSnapshot should keep the other account's latest snapshot apart from the first account's")
+			assert.Equal(t, time.UnixMilli(2000), ex.balanceSnapshotTime(balanceTestAccount()), "recordBalanceSnapshot should keep the first account's snapshot apart from the other account's")
+		})
+	}
 }
 
 func TestBalanceSnapshotTime(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	assert.Zero(t, ex.balanceSnapshotTime(), "balanceSnapshotTime should be zero before any snapshot")
-	ex.recordBalanceSnapshot(time.UnixMilli(1000))
-	assert.Equal(t, time.UnixMilli(1000), ex.balanceSnapshotTime(), "balanceSnapshotTime should return the snapshot's time")
+	account := balanceTestAccount()
+	assert.Zero(t, ex.balanceSnapshotTime(account), "balanceSnapshotTime should be zero before any snapshot")
+	ex.recordBalanceSnapshot(account, time.UnixMilli(1000))
+	assert.Equal(t, time.UnixMilli(1000), ex.balanceSnapshotTime(account), "balanceSnapshotTime should return the snapshot's time")
+
+	for _, other := range otherBalanceTestAccounts() {
+		t.Run("is zero for an account with another "+other.differs+" without a snapshot", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.recordBalanceSnapshot(balanceTestAccount(), time.UnixMilli(2000))
+			assert.Zero(t, ex.balanceSnapshotTime(other.account), "balanceSnapshotTime should be zero for the other account")
+			assert.Equal(t, time.UnixMilli(2000), ex.balanceSnapshotTime(balanceTestAccount()), "balanceSnapshotTime should return the first account's snapshot time")
+		})
+	}
 }
 
 func TestBalanceEventTimes(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	ex.recordBalanceEvent(time.UnixMilli(1000), currency.BTC)
-	times := ex.balanceEventTimes()
+	account := balanceTestAccount()
+	ex.recordBalanceEvent(account, time.UnixMilli(1000), currency.BTC)
+	times := ex.balanceEventTimes(account)
+	require.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(1000)}, times, "balanceEventTimes must return the recorded event times")
 	times[currency.ETH.Item] = time.UnixMilli(1)
-	assert.NotContains(t, ex.balanceEventTimes(), currency.ETH.Item, "balanceEventTimes should return a copy")
+	assert.NotContains(t, ex.balanceEventTimes(account), currency.ETH.Item, "balanceEventTimes should return a copy")
+
+	for _, other := range otherBalanceTestAccounts() {
+		t.Run("is empty for an account with another "+other.differs+" without events", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			ex.recordBalanceEvent(balanceTestAccount(), time.UnixMilli(2000), currency.BTC)
+			assert.Empty(t, ex.balanceEventTimes(other.account), "balanceEventTimes should return no times for the other account")
+			assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(2000)}, ex.balanceEventTimes(balanceTestAccount()), "balanceEventTimes should return the first account's event times")
+		})
+	}
 }
 
 func TestKeepStreamedSpotBalances(t *testing.T) {
 	t.Parallel()
 	ex := subscribedUserDataTestExchange(t)
+	creds := configuredCredentials(t, ex)
 	ctx := t.Context()
 	asOf := time.UnixMilli(2000)
 	stored := accounts.NewSubAccount(asset.Spot, "")
 	stored.Balances.Set(currency.BTC, accounts.Balance{Total: 1, Free: 1})
 	stored.Balances.Set(currency.ETH, accounts.Balance{Total: 5, Free: 5})
+	stored.Balances.Set(currency.LTC, accounts.Balance{})
 	require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{stored}, true), "Save must not error")
-	// BTC was streamed after the snapshot, ETH in its millisecond and USDT before it
-	ex.recordBalanceEvent(time.UnixMilli(3000), currency.BTC)
-	ex.recordBalanceEvent(asOf, currency.ETH)
-	ex.recordBalanceEvent(time.UnixMilli(1000), currency.USDT)
+	// BTC and LTC, which reached zero, were streamed after the snapshot, ETH in its millisecond and USDT before it
+	ex.recordBalanceEvent(creds, time.UnixMilli(3000), currency.BTC, currency.LTC)
+	ex.recordBalanceEvent(creds, asOf, currency.ETH)
+	ex.recordBalanceEvent(creds, time.UnixMilli(1000), currency.USDT)
 
 	snapshot := accounts.NewSubAccount(asset.Spot, "")
 	snapshot.Balances.Set(currency.BTC, accounts.Balance{Total: 9, Free: 9})
+	snapshot.Balances.Set(currency.LTC, accounts.Balance{Total: 4, Free: 4})
 	snapshot.Balances.Set(currency.USDT, accounts.Balance{Total: 7, Free: 7})
-	assert.False(t, ex.keepStreamedSpotBalances(ctx, snapshot, time.Time{}), "a snapshot without a time should not be ordered")
-	other := accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
-	assert.False(t, ex.keepStreamedSpotBalances(other, snapshot, asOf), "another account's snapshot should not be ordered")
-	require.True(t, ex.keepStreamedSpotBalances(ctx, snapshot, asOf), "the configured account's snapshot must be ordered")
+	polled := maps.Clone(snapshot.Balances)
+	ex.keepStreamedSpotBalances(creds, snapshot, time.Time{})
+	assert.Equal(t, polled, snapshot.Balances, "a snapshot without a time should be left as it is")
+	ex.keepStreamedSpotBalances(&accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"}, snapshot, asOf)
+	assert.Equal(t, polled, snapshot.Balances, "a snapshot of an account without events should be left as it is")
+	ex.keepStreamedSpotBalances(creds, snapshot, asOf)
 	assert.Equal(t, 1.0, snapshot.Balances[currency.BTC].Total, "a currency streamed after the snapshot should keep its stored balance")
+	require.Contains(t, snapshot.Balances, currency.LTC, "a currency streamed to zero after the snapshot must stay in the snapshot")
+	assert.Zero(t, snapshot.Balances[currency.LTC].Total, "a currency streamed to zero after the snapshot should keep its zero balance")
 	assert.Equal(t, 5.0, snapshot.Balances[currency.ETH].Total, "a currency the snapshot left out but streamed in its millisecond should keep its stored balance")
 	assert.Equal(t, 7.0, snapshot.Balances[currency.USDT].Total, "a currency streamed before the snapshot should take the snapshot's balance")
 }
@@ -721,9 +897,9 @@ func TestProcessAccountPosition(t *testing.T) {
 	stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.ETH)
 	require.NoError(t, err, "GetBalance must not error")
 	assert.Equal(t, 10000.5, stored.Total, "processAccountPosition should store the balance")
-	assert.Equal(t, time.UnixMilli(1564034571073), ex.balanceEventTimes()[currency.ETH.Item], "processAccountPosition should record the event's account update time")
+	assert.Equal(t, map[*currency.Item]time.Time{currency.ETH.Item: time.UnixMilli(1564034571073)}, ex.balanceEventTimes(creds), "processAccountPosition should record the event's account update time")
 
-	ex.recordBalanceSnapshot(time.UnixMilli(1564034571074))
+	ex.recordBalanceSnapshot(creds, time.UnixMilli(1564034571074))
 	stale := []byte(`{"e":"outboundAccountPosition","E":1564034571105,"u":1564034571073,"B":[{"a":"ETH","f":"1","l":"0"}]}`)
 	require.NoError(t, ex.processAccountPosition(ctx, creds, stale), "processAccountPosition must not error for an event predating the snapshot")
 	stored, err = ex.Accounts.GetBalance("", creds, asset.Spot, currency.ETH)
@@ -781,7 +957,7 @@ func TestProcessAccountPosition(t *testing.T) {
 			creds := configuredCredentials(t, ex)
 			ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
 			if tc.snapshot != 0 {
-				ex.recordBalanceSnapshot(time.UnixMilli(tc.snapshot))
+				ex.recordBalanceSnapshot(creds, time.UnixMilli(tc.snapshot))
 			}
 			for i, event := range tc.events {
 				require.NoErrorf(t, ex.processAccountPosition(ctx, creds, []byte(event)), "processAccountPosition must not error for event %d", i)
@@ -796,7 +972,7 @@ func TestProcessAccountPosition(t *testing.T) {
 				require.NoError(t, err, "GetBalance must not error for USD")
 				assert.Equal(t, tc.usd, stored.Total, "processAccountPosition should store each currency of the event")
 				updated := time.UnixMilli(1795087200000)
-				assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: updated, currency.USD.Item: updated}, ex.balanceEventTimes(), "processAccountPosition should record the event's account update time for each of its currencies")
+				assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: updated, currency.USD.Item: updated}, ex.balanceEventTimes(creds), "processAccountPosition should record the event's account update time for each of its currencies")
 			}
 		})
 	}
@@ -816,8 +992,109 @@ func TestProcessAccountPosition(t *testing.T) {
 		stored, err := ex.Accounts.GetBalance("", other, asset.Spot, currency.BTC)
 		require.NoError(t, err, "GetBalance must not error for the other account")
 		assert.Equal(t, 1.0, stored.Total, "another account's balance should be stored for that account")
-		assert.Equal(t, map[*currency.Item]time.Time{currency.USD.Item: time.UnixMilli(1795087199000)}, ex.balanceEventTimes(), "another account's event should leave the configured account's event times alone")
+		assert.Equal(t, map[*currency.Item]time.Time{currency.USD.Item: time.UnixMilli(1795087199000)}, ex.balanceEventTimes(creds), "another account's event should leave the configured account's event times alone")
+		assert.Empty(t, ex.balanceEventTimes(other), "another account's event should record no event times")
 	})
+
+	t.Run("a newly configured account's event is stored after the previous account's later snapshot", func(t *testing.T) {
+		t.Parallel()
+		ex := subscribedUserDataTestExchange(t)
+		previous := configuredCredentials(t, ex)
+		ex.recordBalanceSnapshot(previous, time.UnixMilli(1795087200000))
+		next := &accounts.Credentials{Key: "next-api-key", Secret: "next-api-secret"}
+		ex.SetCredentials(next)
+		require.NoError(t, ex.processAccountPosition(accounts.DeployCredentialsToContext(t.Context(), next), next, []byte(`{"e":"outboundAccountPosition","E":1795087100003,"u":1795087100000,"B":[{"a":"BTC","f":"2.00000000","l":"0.00000000"}]}`)), "processAccountPosition must not error for the newly configured account's event")
+		_, ok := relayed(t, ex).(accounts.SubAccounts)
+		require.True(t, ok, "processAccountPosition must relay the newly configured account's balances")
+		stored, err := ex.Accounts.GetBalance("", next, asset.Spot, currency.BTC)
+		require.NoError(t, err, "GetBalance must not error for the newly configured account")
+		assert.Equal(t, 2.0, stored.Total, "the newly configured account's event should be stored though the previous account's snapshot is later")
+		assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(1795087100000)}, ex.balanceEventTimes(next), "the newly configured account's event should be recorded as its own")
+		assert.Empty(t, ex.balanceEventTimes(previous), "the newly configured account's event should leave the previous account's event times alone")
+	})
+
+	for _, tc := range []struct {
+		name string
+		// configured is whether the event is the configured account's as it arrives; otherwise another account's event
+		// arrives, and that account is configured and stores its snapshot while the event waits
+		configured bool
+		// updated is the event's account update time, against its account's snapshot of 3 BTC at 1795087300000
+		updated int64
+		// stored is the event account's BTC balance afterwards, and relayed whether the event is relayed
+		stored  float64
+		relayed bool
+	}{
+		{name: "the configured account's event older than its snapshot is left out", configured: true, updated: 1795087200000, stored: 3},
+		{name: "the configured account's event newer than its snapshot is stored as its own", configured: true, updated: 1795087400000, stored: 2, relayed: true},
+		{name: "another account's event older than that account's snapshot is left out once that account is configured", updated: 1795087200000, stored: 3},
+		{name: "another account's event newer than that account's snapshot is stored as its own once that account is configured", updated: 1795087400000, stored: 2, relayed: true},
+	} {
+		t.Run(tc.name+", the configured account changing while it waits to be stored", func(t *testing.T) {
+			t.Parallel()
+			ex := subscribedUserDataTestExchange(t)
+			account, next := configuredCredentials(t, ex), &accounts.Credentials{Key: "next-api-key", Secret: "next-api-secret"}
+			if !tc.configured {
+				account = next
+			}
+			ctx := accounts.DeployCredentialsToContext(t.Context(), account)
+			snapshot := func() {
+				subAccount := accounts.NewSubAccount(asset.Spot, "")
+				subAccount.Balances.Set(currency.BTC, accounts.Balance{Total: 3, Free: 3})
+				require.NoError(t, ex.Accounts.Save(ctx, accounts.SubAccounts{subAccount}, true), "Save must not error")
+				ex.recordBalanceSnapshot(account, time.UnixMilli(1795087300000))
+			}
+			if tc.configured {
+				snapshot()
+			}
+			held, release := make(chan struct{}), make(chan struct{})
+			var releaseOnce sync.Once
+			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+			holder, processed := make(chan error, 1), make(chan error, 1)
+			go func() {
+				holder <- ex.withBalanceStore(func() error {
+					close(held)
+					<-release
+					return nil
+				})
+			}()
+			select {
+			case <-held:
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "the test must hold the balance store lock")
+			}
+			go func() {
+				processed <- ex.processAccountPosition(ctx, account, []byte(`{"e":"outboundAccountPosition","E":`+strconv.FormatInt(tc.updated+3, 10)+`,"u":`+strconv.FormatInt(tc.updated, 10)+`,"B":[{"a":"BTC","f":"2.00000000","l":"0.00000000"}]}`))
+			}()
+			waitForBalanceStoreWaiter(t)
+			ex.SetCredentials(next)
+			if !tc.configured {
+				snapshot()
+			}
+			releaseOnce.Do(func() { close(release) })
+			for _, done := range []chan error{holder, processed} {
+				select {
+				case err := <-done:
+					require.NoError(t, err, "the balance store's holders must not error")
+				case <-time.After(5 * time.Second):
+					require.FailNow(t, "the balance store's holders must finish")
+				}
+			}
+			stored, err := ex.Accounts.GetBalance("", account, asset.Spot, currency.BTC)
+			require.NoError(t, err, "GetBalance must not error")
+			assert.Equal(t, tc.stored, stored.Total, "the event's account should hold the latest of its event and its snapshot")
+			if !tc.relayed {
+				assert.Empty(t, ex.Websocket.DataHandler.C, "an event left out should relay nothing")
+				assert.Empty(t, ex.balanceEventTimes(account), "an event left out should record no event times")
+				return
+			}
+			_, ok := relayed(t, ex).(accounts.SubAccounts)
+			assert.True(t, ok, "the event should be relayed as sub-accounts")
+			assert.Equal(t, map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(tc.updated)}, ex.balanceEventTimes(account), "the event should be recorded for its own account")
+			if tc.configured {
+				assert.Empty(t, ex.balanceEventTimes(next), "the event should record nothing for the newly configured account")
+			}
+		})
+	}
 
 	t.Run("an event of three currencies with amounts to the eighth decimal place is relayed and stored exactly, held rather than borrowed", func(t *testing.T) {
 		t.Parallel()
@@ -884,7 +1161,7 @@ func TestProcessAccountPosition(t *testing.T) {
 		eventTimes := func(btc int64) map[*currency.Item]time.Time {
 			return map[*currency.Item]time.Time{currency.BTC.Item: time.UnixMilli(btc), currency.USD.Item: time.UnixMilli(1795087200000)}
 		}
-		assert.Equal(t, eventTimes(1795087200000), ex.balanceEventTimes(), "the event of two currencies should record its account update time for both")
+		assert.Equal(t, eventTimes(1795087200000), ex.balanceEventTimes(creds), "the event of two currencies should record its account update time for both")
 		first := maps.Clone(balances)
 		firstRelay := balances
 		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087201003,"u":1795087201000,"B":[{"a":"BTC","f":"0.00000000","l":"1.25000000"}]}`, "reservation")
@@ -892,18 +1169,18 @@ func TestProcessAccountPosition(t *testing.T) {
 		assert.Equal(t, [3]float64{1.25, 0, 1.25}, amounts(balances[currency.BTC]), "the reservation should be relayed with the BTC balance locked")
 		assert.Equal(t, [3]float64{1.25, 0, 1.25}, stored(currency.BTC), "the reservation should be stored with the BTC balance locked")
 		assert.Equal(t, [3]float64{638, 623, 15}, stored(currency.USD), "the reservation should leave the USD balance stored as it was")
-		assert.Equal(t, eventTimes(1795087201000), ex.balanceEventTimes(), "the reservation should record its account update time for BTC alone")
+		assert.Equal(t, eventTimes(1795087201000), ex.balanceEventTimes(creds), "the reservation should record its account update time for BTC alone")
 		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087202003,"u":1795087202000,"B":[{"a":"BTC","f":"1.25000000","l":"0.00000000"}]}`, "release")
 		assert.Equal(t, [3]float64{1.25, 1.25, 0}, amounts(balances[currency.BTC]), "the release should be relayed with the BTC balance free")
 		assert.Equal(t, [3]float64{1.25, 1.25, 0}, stored(currency.BTC), "the release should be stored with the BTC balance free")
 		assert.Equal(t, storedBalance(currency.BTC), balances[currency.BTC], "the release should be relayed as stored")
-		assert.Equal(t, eventTimes(1795087202000), ex.balanceEventTimes(), "the release should record its account update time for BTC alone")
+		assert.Equal(t, eventTimes(1795087202000), ex.balanceEventTimes(creds), "the release should record its account update time for BTC alone")
 		balances = relayedBalances(`{"e":"outboundAccountPosition","E":1795087203003,"u":1795087203000,"B":[{"a":"BTC","f":"0.00000000","l":"0.00000000"}]}`, "balance reaching zero")
 		require.Len(t, balances, 1, "the balance reaching zero must be relayed")
 		assert.Equal(t, [3]float64{0, 0, 0}, amounts(balances[currency.BTC]), "the BTC balance reaching zero should be relayed as zero")
 		assert.Equal(t, [3]float64{0, 0, 0}, stored(currency.BTC), "the BTC balance reaching zero should be stored as zero")
 		assert.Equal(t, storedBalance(currency.BTC), balances[currency.BTC], "the balance reaching zero should be relayed as stored")
-		assert.Equal(t, eventTimes(1795087203000), ex.balanceEventTimes(), "the balance reaching zero should record its account update time for BTC")
+		assert.Equal(t, eventTimes(1795087203000), ex.balanceEventTimes(creds), "the balance reaching zero should record its account update time for BTC")
 		assert.Equal(t, first, firstRelay, "the event of two currencies should be left as it was relayed after the later events")
 	})
 }

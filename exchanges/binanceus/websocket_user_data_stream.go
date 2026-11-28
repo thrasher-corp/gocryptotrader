@@ -434,18 +434,43 @@ func (e *Exchange) handleUserDataEvent(ctx context.Context, conn websocket.Conne
 	}
 }
 
-// balanceOrdering orders the spot balances User Data Stream events store against those REST polls store, for the
-// configured account, by the account update time both carry
+// balanceOrdering orders the spot balances User Data Stream events store against those REST polls store, by the account
+// update time both carry, for the events and polls of the configured account, as each begins or is stored
 type balanceOrdering struct {
 	// storeMu keeps a balance event from being stored while a REST snapshot is accepted, so a snapshot is judged against
 	// every event stored before it and no event is stored between its checks and its store
 	storeMu sync.Mutex
 	mu      sync.Mutex
+	// byAccount holds the times of each account ordered, so that each account is ordered by its own updates alone,
+	// whichever account SetCredentials or a Setup configures meanwhile
+	byAccount map[accounts.Credentials]*balanceTimes
+}
+
+// balanceTimes holds the account update times an account's balances are ordered by
+type balanceTimes struct {
 	// eventTimes holds, by currency, the account update time of the latest event to report the currency's balance,
 	// which a REST snapshot must not predate
 	eventTimes map[*currency.Item]time.Time
 	// snapshotTime is the account update time of the latest REST snapshot stored, which an event must not predate
 	snapshotTime time.Time
+}
+
+// timesOf returns the times recorded for account, creating an empty set on first use. Callers sharing b hold b.mu while
+// they look up and use the times
+func (b *balanceOrdering) timesOf(account *accounts.Credentials) *balanceTimes {
+	var key accounts.Credentials
+	if account != nil {
+		key = *account
+	}
+	if b.byAccount == nil {
+		b.byAccount = make(map[accounts.Credentials]*balanceTimes)
+	}
+	times, ok := b.byAccount[key]
+	if !ok {
+		times = new(balanceTimes)
+		b.byAccount[key] = times
+	}
+	return times
 }
 
 // withBalanceStore runs f holding the balance store lock, which events hold to store their balances and polls hold to
@@ -456,66 +481,62 @@ func (e *Exchange) withBalanceStore(f func() error) error {
 	return f()
 }
 
-// recordBalanceEvent records the account update time of an event that reported the balances of codes
-func (e *Exchange) recordBalanceEvent(updated time.Time, codes ...currency.Code) {
+// recordBalanceEvent records the account update time of an event of account that reported the balances of codes
+func (e *Exchange) recordBalanceEvent(account *accounts.Credentials, updated time.Time, codes ...currency.Code) {
 	b := &e.balances
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.eventTimes == nil {
-		b.eventTimes = make(map[*currency.Item]time.Time)
+	times := b.timesOf(account)
+	if times.eventTimes == nil {
+		times.eventTimes = make(map[*currency.Item]time.Time)
 	}
 	for _, c := range codes {
-		if updated.After(b.eventTimes[c.Item]) {
-			b.eventTimes[c.Item] = updated
+		if updated.After(times.eventTimes[c.Item]) {
+			times.eventTimes[c.Item] = updated
 		}
 	}
 }
 
-// recordBalanceSnapshot records the account update time of a REST snapshot stored for the configured account
-func (e *Exchange) recordBalanceSnapshot(asOf time.Time) {
+// recordBalanceSnapshot records the account update time of a REST snapshot stored for account
+func (e *Exchange) recordBalanceSnapshot(account *accounts.Credentials, asOf time.Time) {
 	b := &e.balances
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if asOf.After(b.snapshotTime) {
-		b.snapshotTime = asOf
+	if times := b.timesOf(account); asOf.After(times.snapshotTime) {
+		times.snapshotTime = asOf
 	}
 }
 
-// balanceSnapshotTime returns the account update time of the latest REST snapshot stored for the configured account
-func (e *Exchange) balanceSnapshotTime() time.Time {
+// balanceSnapshotTime returns the account update time of the latest REST snapshot stored for account
+func (e *Exchange) balanceSnapshotTime(account *accounts.Credentials) time.Time {
 	b := &e.balances
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.snapshotTime
+	return b.timesOf(account).snapshotTime
 }
 
-// balanceEventTimes returns the account update time of the latest event to report each currency
-func (e *Exchange) balanceEventTimes() map[*currency.Item]time.Time {
+// balanceEventTimes returns the account update time of account's latest event to report each currency
+func (e *Exchange) balanceEventTimes(account *accounts.Credentials) map[*currency.Item]time.Time {
 	b := &e.balances
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return maps.Clone(b.eventTimes)
+	return maps.Clone(b.timesOf(account).eventTimes)
 }
 
-// keepStreamedSpotBalances puts the stored balance in place of each currency of a REST snapshot that the User Data
-// Stream reported at or after asOf, the account update time the snapshot shows: the snapshot predates that event, or
-// shares its millisecond and may predate it, while the stream's later events in that millisecond carry the latest
-// balance. A currency the snapshot leaves out keeps its stored balance in the same case rather than being removed. Only
-// the configured account's stream is subscribed on every connection, so only its snapshots are ordered, reported by the
-// result; any other is left as it is. The caller holds the balance store lock until the snapshot is stored
-func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *accounts.SubAccount, asOf time.Time) bool {
+// keepStreamedSpotBalances puts the stored balance in place of each currency of a REST snapshot of account that its User
+// Data Stream reported at or after asOf, the account update time the snapshot shows: the snapshot predates that event,
+// or shares its millisecond and may predate it, while the stream's later events in that millisecond carry the latest
+// balance. A currency the snapshot leaves out keeps its stored balance in the same case rather than being removed. A
+// snapshot without a time is left as it is. The caller holds the balance store lock until the snapshot is stored
+func (e *Exchange) keepStreamedSpotBalances(account *accounts.Credentials, subAccount *accounts.SubAccount, asOf time.Time) {
 	if asOf.IsZero() {
-		return false
-	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil || !e.isConfiguredAccount(creds) {
-		return false
+		return
 	}
 	reported := make(map[*currency.Item]currency.Code, len(subAccount.Balances))
 	for c := range subAccount.Balances {
 		reported[c.Item] = c
 	}
-	for item, eventTime := range e.balanceEventTimes() {
+	for item, eventTime := range e.balanceEventTimes(account) {
 		if eventTime.Before(asOf) {
 			continue
 		}
@@ -523,16 +544,16 @@ func (e *Exchange) keepStreamedSpotBalances(ctx context.Context, subAccount *acc
 		if !ok {
 			c = item.Currency()
 		}
-		if stored, err := e.Accounts.GetBalance("", creds, asset.Spot, c); err == nil {
+		if stored, err := e.Accounts.GetBalance("", account, asset.Spot, c); err == nil {
 			subAccount.Balances.Set(c, stored)
 		}
 	}
-	return true
 }
 
-// processAccountPosition stores the balances of an outboundAccountPosition event and relays them. The configured
-// account's events are ordered against REST snapshots by account update time: one predating the stored snapshot is
-// left out, as the snapshot holds its balances and maybe later ones
+// processAccountPosition stores the balances of an outboundAccountPosition event of creds' account and relays them. An
+// event of the configured account, as it arrives or is stored, is ordered against that account's REST snapshots by
+// account update time: one predating the stored snapshot is left out, as the snapshot holds its balances and maybe later
+// ones
 func (e *Exchange) processAccountPosition(ctx context.Context, creds *accounts.Credentials, event []byte) error {
 	var resp WebsocketAccountPosition
 	if err := json.Unmarshal(event, &resp); err != nil {
@@ -542,15 +563,16 @@ func (e *Exchange) processAccountPosition(ctx context.Context, creds *accounts.C
 	ordered := e.isConfiguredAccount(creds)
 	subAccount := accounts.NewSubAccount(asset.Spot, "")
 	if err := e.withBalanceStore(func() error {
+		ordered = ordered || e.isConfiguredAccount(creds)
 		if ordered {
-			if updated.Before(e.balanceSnapshotTime()) {
+			if updated.Before(e.balanceSnapshotTime(creds)) {
 				return nil
 			}
 			codes := make([]currency.Code, len(resp.Balances))
 			for i := range resp.Balances {
 				codes[i] = resp.Balances[i].Asset
 			}
-			e.recordBalanceEvent(updated, codes...)
+			e.recordBalanceEvent(creds, updated, codes...)
 		}
 		for i := range resp.Balances {
 			free := resp.Balances[i].Free.Float64()

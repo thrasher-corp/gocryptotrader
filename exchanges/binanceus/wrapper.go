@@ -495,14 +495,25 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	return orderbook.Get(e.Name, p, a)
 }
 
-// UpdateAccountBalances retrieves currency balances. For the configured account, whose User Data Stream the WebSocket
-// API connection subscribes, a currency the stream reported at or after the account update time the snapshot shows
-// keeps its stored balance, as keepStreamedSpotBalances explains, and a snapshot older than the latest one stored is not
-// stored, with the stored balances returned in its place
+// UpdateAccountBalances retrieves currency balances. A poll requests, stores and returns the balances of the account
+// whose credentials it resolves when it begins, whichever account is configured by the time its reply arrives. A poll of
+// the configured account, whose User Data Stream the WebSocket API connection subscribes, as the poll begins or as its
+// reply is stored, is ordered by that account's updates: a currency the stream reported at or after the account update
+// time the snapshot shows keeps its stored balance, as keepStreamedSpotBalances explains, and a snapshot older than the
+// latest one stored is not stored, with the stored balances returned in its place. Any other poll is stored as it is
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, assetType)
 	}
+	// The configured account is read before the poll's credentials, so an account configured in between is the poll's
+	// own and orders it once its reply is stored
+	configured := e.GetDefaultCredentials()
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ctx = accounts.DeployCredentialsToContext(ctx, creds)
+	ordered := configured != nil && *creds == *configured
 	resp, err := e.GetAccount(ctx)
 	if err != nil {
 		return nil, err
@@ -521,15 +532,18 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	asOf := resp.UpdateTime.Time()
 	var stale bool
 	if err := e.withBalanceStore(func() error {
-		if stale = e.isStaleSpotSnapshot(ctx, asOf); stale {
-			return nil
+		ordered = ordered || e.isConfiguredAccount(creds)
+		if ordered {
+			if stale = e.isStaleSpotSnapshot(creds, asOf); stale {
+				return nil
+			}
+			e.keepStreamedSpotBalances(creds, subAccount, asOf)
 		}
-		ordered := e.keepStreamedSpotBalances(ctx, subAccount, asOf)
 		if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 			return err
 		}
 		if ordered {
-			e.recordBalanceSnapshot(asOf)
+			e.recordBalanceSnapshot(creds, asOf)
 		}
 		return nil
 	}); err != nil {
@@ -538,22 +552,14 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	if !stale {
 		return subAccts, nil
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
 	return e.Accounts.SubAccounts(creds, asset.Spot)
 }
 
-// isStaleSpotSnapshot reports whether a REST snapshot of the configured account, which shows its account update time
-// asOf, is older than the latest one stored: polls overlapping each other can be answered out of order, and the older
-// one must not replace the newer one's balances
-func (e *Exchange) isStaleSpotSnapshot(ctx context.Context, asOf time.Time) bool {
-	if asOf.IsZero() {
-		return false
-	}
-	creds, err := e.GetCredentials(ctx)
-	return err == nil && e.isConfiguredAccount(creds) && asOf.Before(e.balanceSnapshotTime())
+// isStaleSpotSnapshot reports whether a REST snapshot of account, which shows its account update time asOf, is older
+// than the latest one stored for account: polls overlapping each other can be answered out of order, and the older one
+// must not replace the newer one's balances. A snapshot without a time is never stale
+func (e *Exchange) isStaleSpotSnapshot(account *accounts.Credentials, asOf time.Time) bool {
+	return !asOf.IsZero() && asOf.Before(e.balanceSnapshotTime(account))
 }
 
 // GetRecentTrades returns the most recent trades for a currency pair
@@ -1514,8 +1520,8 @@ const orderHistorySpan = 24 * time.Hour
 
 // GetOrderHistory returns the requested pairs' orders of every status: orders from FromOrderID on, or OCO order lists
 // from an order list ID on, which needs the OCO type, filtered to the request's time window, or the orders within the
-// request's time window, requested a day at a time. OCO order lists are listed when the OCO type is requested, for
-// every symbol, as the order list history takes no symbol
+// request's time window, requested a day at a time, a start time alone up to now; an end time alone is refused. OCO
+// order lists are listed when the OCO type is requested, for every symbol, as the order list history takes no symbol
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1575,7 +1581,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 // request from an order ID is one request without a window, which returns the orders from that ID on: the endpoints
 // let a window override the ID, or refuse the two together, so the window is applied to the orders returned, either
 // bound alone included. Each page is put in time order first, as the order list history lists its most recent order
-// lists first
+// lists first. Without an order ID, a lone start is paged up to now, unless it is after now, and a lone end is refused,
+// as it gives no start to page from
 func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.Duration, limit int, fetchPage func(start, end time.Time) ([]T, error), timeOf func(*T) time.Time, idOf func(*T) uint64) ([]T, error) {
 	fetch := func(start, end time.Time) ([]T, error) {
 		page, err := fetchPage(start, end)
@@ -1601,8 +1608,16 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 		}
 		return inWindow, nil
 	}
-	if start.IsZero() || end.IsZero() {
+	if start.IsZero() && end.IsZero() {
 		return fetch(start, end)
+	}
+	if start.IsZero() {
+		return nil, fmt.Errorf("start %w: an end time alone cannot be paged", common.ErrDateUnset)
+	}
+	if end.IsZero() {
+		if end = time.Now(); start.After(end) {
+			return nil, common.ErrStartAfterTimeNow
+		}
 	}
 	// Binance.US takes times in milliseconds, so paging works in whole ones, as order times are; a window within one
 	// millisecond cannot be paged and is one request

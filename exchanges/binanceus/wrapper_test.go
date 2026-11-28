@@ -540,6 +540,48 @@ func TestSetup(t *testing.T) {
 			assert.Equal(t, int64(101), id, "the order book should apply the update to the snapshot")
 		})
 	})
+
+	t.Run("keeps each account's balance order", func(t *testing.T) {
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Accounts = accounts.MustNewAccounts(&ex.Base)
+		cfg, err := ex.GetStandardConfig()
+		require.NoError(t, err, "GetStandardConfig must not error")
+		cfg.Name = t.Name()
+		cfg.API.AuthenticatedSupport = true
+		setup := func(account string, enabled bool) {
+			t.Helper()
+			require.NoError(t, ex.Shutdown(), "Shutdown must not error")
+			ex.SetDefaults()
+			ex.Name = cfg.Name
+			cfg.Enabled = enabled
+			cfg.API.Credentials.Key, cfg.API.Credentials.Secret = "account-"+account+"-key", "account-"+account+"-secret"
+			require.NoErrorf(t, ex.Setup(cfg), "Setup must not error for account %s", account)
+		}
+		t.Cleanup(func() { assert.NoError(t, ex.Shutdown(), "Shutdown should not error") })
+		setup("A", true)
+		accountA := configuredCredentials(t, ex)
+		ex.recordBalanceSnapshot(accountA, time.UnixMilli(1794466000000))
+		ex.recordBalanceEvent(accountA, time.UnixMilli(1794466000001), currency.ETH)
+		keepsAccountA := func(when string) {
+			t.Helper()
+			assert.Equalf(t, time.UnixMilli(1794466000000), ex.balanceSnapshotTime(accountA), "account A's snapshot time should be kept %s", when)
+			assert.Equalf(t, map[*currency.Item]time.Time{currency.ETH.Item: time.UnixMilli(1794466000001)}, ex.balanceEventTimes(accountA), "account A's event times should be kept %s", when)
+		}
+		for _, step := range []struct {
+			account string
+			enabled bool
+			when    string
+		}{
+			{account: "A", enabled: true, when: "after a Setup with its credentials again"},
+			{account: "B", enabled: true, when: "after a Setup with account B's credentials"},
+			{account: "A", enabled: false, when: "after a Setup that disables the exchange"},
+			{account: "A", enabled: true, when: "after a Setup enables the exchange again"},
+		} {
+			setup(step.account, step.enabled)
+			keepsAccountA(step.when)
+		}
+	})
 }
 
 func TestParseOrderID(t *testing.T) {
@@ -1214,7 +1256,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 	stored := accounts.NewSubAccount(asset.Spot, "")
 	stored.Balances.Set(currency.ETH, accounts.Balance{Total: 9, Free: 9})
 	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
-	ex.recordBalanceEvent(time.UnixMilli(1794466000001), currency.ETH)
+	ex.recordBalanceEvent(creds, time.UnixMilli(1794466000001), currency.ETH)
 
 	subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountBalances must not error")
@@ -1224,23 +1266,446 @@ func TestUpdateAccountBalances(t *testing.T) {
 	eth, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.ETH)
 	require.NoError(t, err, "GetBalance must not error")
 	assert.Equal(t, 9.0, eth.Total, "a currency streamed after the snapshot should keep its stored balance")
-	assert.Equal(t, time.UnixMilli(1794466000000), ex.balanceSnapshotTime(), "UpdateAccountBalances should record the snapshot's account update time")
+	assert.Equal(t, time.UnixMilli(1794466000000), ex.balanceSnapshotTime(creds), "UpdateAccountBalances should record the snapshot's account update time")
 
 	stale := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/account": reply(t, url.Values{}, `{"updateTime":1794465000000,"balances":[{"asset":"BTC","free":"1","locked":"0"}]}`)})
 	newer := accounts.NewSubAccount(asset.Spot, "")
 	newer.Balances.Set(currency.BTC, accounts.Balance{Total: 2, Free: 2})
 	require.NoError(t, stale.Accounts.Save(t.Context(), accounts.SubAccounts{newer}, true), "Save must not error")
-	stale.recordBalanceSnapshot(time.UnixMilli(1794466000000))
+	staleCreds := configuredCredentials(t, stale)
+	stale.recordBalanceSnapshot(staleCreds, time.UnixMilli(1794466000000))
 	subAccounts, err = stale.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountBalances must not error for a snapshot older than the stored one")
 	require.Len(t, subAccounts, 1, "UpdateAccountBalances must return the stored sub-account")
 	assert.Equal(t, 2.0, subAccounts[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the stored balances in place of an older snapshot's")
-	btcStored, err := stale.Accounts.GetBalance("", configuredCredentials(t, stale), asset.Spot, currency.BTC)
+	btcStored, err := stale.Accounts.GetBalance("", staleCreds, asset.Spot, currency.BTC)
 	require.NoError(t, err, "GetBalance must not error")
 	assert.Equal(t, 2.0, btcStored.Total, "an older snapshot should not replace the stored balances")
-	assert.Equal(t, time.UnixMilli(1794466000000), stale.balanceSnapshotTime(), "an older snapshot should leave the stored snapshot's time")
+	assert.Equal(t, time.UnixMilli(1794466000000), stale.balanceSnapshotTime(staleCreds), "an older snapshot should leave the stored snapshot's time")
 	_, err = ex.UpdateAccountBalances(t.Context(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances should reject an asset other than spot")
+
+	t.Run("without credentials", func(t *testing.T) {
+		t.Parallel()
+		unconfigured := routedTestExchange(t, nil)
+		unconfigured.SetCredentials(nil)
+		_, err := unconfigured.UpdateAccountBalances(t.Context(), asset.Spot)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should refuse a poll without credentials before any request")
+	})
+
+	t.Run("each configured account is ordered by its own updates", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		// Replies by account, which each request's API key names
+		replies := map[string][]string{
+			"A": {
+				`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"1","locked":"0"}]}`,
+				`{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"1.25","locked":"0"}]}`,
+				`{"updateTime":1794466050000,"balances":[{"asset":"BTC","free":"1.1","locked":"0"}]}`,
+				`{"updateTime":1794466020000,"balances":[{"asset":"BTC","free":"0.9","locked":"0"}]}`,
+			},
+			"B": {
+				`{"updateTime":1794465000000,"balances":[{"asset":"BTC","free":"0.5","locked":"0"}]}`,
+				`{"updateTime":1794465500000,"balances":[{"asset":"BTC","free":"2","locked":"0.5"}]}`,
+				`{"updateTime":1794465200000,"balances":[{"asset":"BTC","free":"0.75","locked":"0"}]}`,
+				`{"updateTime":1794465550000,"balances":[{"asset":"BTC","free":"0.8","locked":"0"},{"asset":"ETH","free":"1","locked":"0"}]}`,
+			},
+			"C": {`{"updateTime":1794464000000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+			"D": {
+				`{"updateTime":1794465000000,"balances":[{"asset":"BTC","free":"0.5","locked":"0"}]}`,
+				`{"updateTime":1794465500000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`,
+			},
+		}
+		ex := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/account": func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			account := strings.TrimSuffix(strings.TrimPrefix(r.Header.Get("X-MBX-APIKEY"), "account-"), "-key")
+			if !assert.NotEmptyf(t, replies[account], "account %s should be polled once for each of its snapshots", account) {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			writeResponse(t, w, replies[account][0])
+			replies[account] = replies[account][1:]
+		}})
+		configure := func(account string) *accounts.Credentials {
+			creds := &accounts.Credentials{Key: "account-" + account + "-key", Secret: "account-" + account + "-secret"}
+			ex.SetCredentials(creds)
+			return creds
+		}
+		poll := func(account string, totals map[currency.Code]float64) {
+			t.Helper()
+			creds := configure(account)
+			subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+			require.NoErrorf(t, err, "UpdateAccountBalances must not error for account %s", account)
+			require.Lenf(t, subAccounts, 1, "UpdateAccountBalances must return one sub-account for account %s", account)
+			for c, total := range totals {
+				assert.Equalf(t, total, subAccounts[0].Balances[c].Total, "UpdateAccountBalances should return the latest %s balance of account %s", c, account)
+				stored, err := ex.Accounts.GetBalance("", creds, asset.Spot, c)
+				require.NoErrorf(t, err, "GetBalance must not error for the %s balance of account %s", c, account)
+				assert.Equalf(t, total, stored.Total, "UpdateAccountBalances should store the latest %s balance of account %s", c, account)
+			}
+		}
+		poll("B", map[currency.Code]float64{currency.BTC: 0.5})
+		poll("A", map[currency.Code]float64{currency.BTC: 1})
+		// A poll carrying D's credentials stores D's balances without ordering them, before D is configured
+		subAccounts, err := ex.UpdateAccountBalances(accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "account-D-key", Secret: "account-D-secret"}), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error for a poll carrying account D's credentials")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one sub-account for a poll carrying account D's credentials")
+		assert.Equal(t, 0.5, subAccounts[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return account D's balance for a poll carrying its credentials")
+		poll("D", map[currency.Code]float64{currency.BTC: 2})
+		// The accounts of C and B last changed before A's, and C has no balances stored yet
+		poll("C", map[currency.Code]float64{currency.BTC: 3})
+		poll("B", map[currency.Code]float64{currency.BTC: 2.5})
+		// B's stream reports its ETH after its latest snapshot, before A is configured again
+		streamed := accounts.NewSubAccount(asset.Spot, "")
+		streamed.Balances.Set(currency.BTC, accounts.Balance{Total: 2.5, Free: 2, Hold: 0.5})
+		streamed.Balances.Set(currency.ETH, accounts.Balance{Total: 9, Free: 9})
+		accountB := configure("B")
+		require.NoError(t, ex.Accounts.Save(accounts.DeployCredentialsToContext(t.Context(), accountB), accounts.SubAccounts{streamed}, true), "Save must not error")
+		ex.recordBalanceEvent(accountB, time.UnixMilli(1794465600000), currency.ETH)
+		poll("A", map[currency.Code]float64{currency.BTC: 1.25})
+		// Back on B, a snapshot older than B's latest is left out, and a newer one keeps the ETH B's stream reported later
+		poll("B", map[currency.Code]float64{currency.BTC: 2.5, currency.ETH: 9})
+		poll("B", map[currency.Code]float64{currency.BTC: 0.8, currency.ETH: 9})
+		// A snapshot older than A's latest is left out after the credentials are cleared and A is configured again
+		ex.SetCredentials(nil)
+		poll("A", map[currency.Code]float64{currency.BTC: 1.25})
+		// An account sharing A's API key with a sub-account of its own is ordered by its own updates alone
+		sub := &accounts.Credentials{Key: "account-A-key", Secret: "account-A-secret", SubAccount: "account-A-sub"}
+		ex.SetCredentials(sub)
+		subAccounts, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error for account A's sub-account")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one sub-account for account A's sub-account")
+		assert.Equal(t, 0.9, subAccounts[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the sub-account's snapshot though account A's latest is later")
+	})
+
+	// balanceVenue returns an exchange whose fake venue answers each account's polls with its replies in turn, by the API
+	// key a poll is signed with, holding each of the first holds polls signed with the key held until it is released
+	balanceVenue := func(t *testing.T, held string, holds int, replies map[string][]string) (ex *Exchange, reached <-chan int, release func(poll int)) {
+		t.Helper()
+		reachedC := make(chan int, holds)
+		releases := make([]chan struct{}, holds)
+		releaseOnce := make([]sync.Once, holds)
+		for i := range releases {
+			releases[i] = make(chan struct{})
+		}
+		var mu sync.Mutex
+		polls := make(map[string]int)
+		ex = routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/account": func(w http.ResponseWriter, r *http.Request) {
+			key := r.Header.Get("X-MBX-APIKEY")
+			mu.Lock()
+			polls[key]++
+			poll := polls[key]
+			var reply string
+			if queue := replies[key]; len(queue) > 0 {
+				reply, replies[key] = queue[0], queue[1:]
+			}
+			mu.Unlock()
+			if !assert.NotEmptyf(t, reply, "poll %d should have a reply for its account", poll) {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if key == held && poll <= holds {
+				reachedC <- poll
+				select {
+				case <-releases[poll-1]:
+				case <-time.After(5 * time.Second):
+					assert.Failf(t, "held poll not released", "held poll %d should be released", poll)
+				}
+			}
+			writeResponse(t, w, reply)
+		}})
+		release = func(poll int) { releaseOnce[poll-1].Do(func() { close(releases[poll-1]) }) }
+		// Registered after the test server's cleanup, so it runs first and a held reply never outlasts the test
+		t.Cleanup(func() {
+			for poll := range holds {
+				release(poll + 1)
+			}
+		})
+		return ex, reachedC, release
+	}
+	type pollResult struct {
+		subAccounts accounts.SubAccounts
+		err         error
+	}
+	startPoll := func(ctx context.Context, ex *Exchange) <-chan pollResult {
+		done := make(chan pollResult, 1)
+		go func() {
+			subAccounts, err := ex.UpdateAccountBalances(ctx, asset.Spot)
+			done <- pollResult{subAccounts, err}
+		}()
+		return done
+	}
+	awaitPoll := func(t *testing.T, done <-chan pollResult) accounts.SubAccounts {
+		t.Helper()
+		select {
+		case got := <-done:
+			require.NoError(t, got.err, "UpdateAccountBalances must not error for the held poll")
+			require.Len(t, got.subAccounts, 1, "UpdateAccountBalances must return one sub-account for the held poll")
+			return got.subAccounts
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the held poll must return once released")
+			return nil
+		}
+	}
+	awaitHeld := func(t *testing.T, reached <-chan int, poll int) {
+		t.Helper()
+		select {
+		case got := <-reached:
+			require.Equal(t, poll, got, "the held polls must reach the venue in turn")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "the held poll must reach the venue")
+		}
+	}
+	pollSpot := func(t *testing.T, ctx context.Context, ex *Exchange) accounts.CurrencyBalances {
+		t.Helper()
+		subAccounts, err := ex.UpdateAccountBalances(ctx, asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return one sub-account")
+		return subAccounts[0].Balances
+	}
+	storedTotal := func(t *testing.T, ex *Exchange, account *accounts.Credentials, c currency.Code) float64 {
+		t.Helper()
+		stored, err := ex.Accounts.GetBalance("", account, asset.Spot, c)
+		require.NoErrorf(t, err, "GetBalance must not error for %s", c)
+		return stored.Total
+	}
+	accountA := &accounts.Credentials{Key: "account-a-key", Secret: "account-a-secret"}
+	accountB := &accounts.Credentials{Key: "account-b-key", Secret: "account-b-secret"}
+	saveSpot := func(t *testing.T, ex *Exchange, account *accounts.Credentials, balances map[currency.Code]float64) {
+		t.Helper()
+		subAccount := accounts.NewSubAccount(asset.Spot, "")
+		for c, total := range balances {
+			subAccount.Balances.Set(c, accounts.Balance{Total: total, Free: total})
+		}
+		require.NoError(t, ex.Accounts.Save(accounts.DeployCredentialsToContext(t.Context(), account), accounts.SubAccounts{subAccount}, true), "Save must not error")
+	}
+
+	t.Run("a poll older than its account's latest is its own account's when the configured account changes before its reply arrives", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountA.Key, 1, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`, `{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+			accountB.Key: {`{"updateTime":1794465000000,"balances":[{"asset":"BTC","free":"8","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		held := startPoll(t.Context(), ex)
+		awaitHeld(t, reached, 1)
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account A's second snapshot")
+		saveSpot(t, ex, accountB, map[currency.Code]float64{currency.BTC: 9})
+		ex.SetCredentials(accountB)
+		release(1)
+		assert.Equal(t, 3.0, awaitPoll(t, held)[0].Balances[currency.BTC].Total, "account A's first poll should return account A's latest balances in place of its older reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountA, currency.BTC), "account A's older reply should not replace its latest balances")
+		assert.Equal(t, 9.0, storedTotal(t, ex, accountB, currency.BTC), "account A's reply should not be stored for account B")
+		assert.Zero(t, ex.balanceSnapshotTime(accountB), "account A's reply should record no snapshot time for account B")
+		assert.Equal(t, 8.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account B's own snapshot")
+		assert.Equal(t, 8.0, storedTotal(t, ex, accountB, currency.BTC), "account B's own snapshot should be stored")
+	})
+
+	t.Run("a poll newer than its account's latest is its own account's when the configured account changes before its reply arrives", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountA.Key, 1, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`},
+			accountB.Key: {`{"updateTime":1794465000000,"balances":[{"asset":"BTC","free":"8","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		held := startPoll(t.Context(), ex)
+		awaitHeld(t, reached, 1)
+		// Account A's stream reports its ETH after the held reply's update time, and account B's stream its USDT
+		saveSpot(t, ex, accountA, map[currency.Code]float64{currency.ETH: 5})
+		ex.recordBalanceEvent(accountA, time.UnixMilli(1794466000500), currency.ETH)
+		saveSpot(t, ex, accountB, map[currency.Code]float64{currency.BTC: 9, currency.ETH: 6, currency.USDT: 7})
+		ex.recordBalanceEvent(accountB, time.UnixMilli(1794466000500), currency.USDT)
+		ex.SetCredentials(accountB)
+		release(1)
+		balances := awaitPoll(t, held)[0].Balances
+		assert.Equal(t, 2.0, balances[currency.BTC].Total, "account A's first poll should return its reply's BTC")
+		assert.Equal(t, 5.0, balances[currency.ETH].Total, "account A's first poll should return the ETH account A's stream reported later")
+		assert.NotContains(t, balances, currency.USDT, "account A's first poll should return none of account B's streamed balances")
+		assert.Equal(t, 2.0, storedTotal(t, ex, accountA, currency.BTC), "account A's reply should be stored for account A")
+		assert.Equal(t, 5.0, storedTotal(t, ex, accountA, currency.ETH), "account A's streamed ETH should be kept")
+		_, err := ex.Accounts.GetBalance("", accountA, asset.Spot, currency.USDT)
+		assert.ErrorIs(t, err, accounts.ErrNoBalances, "account B's streamed USDT should not be stored for account A")
+		assert.Equal(t, 9.0, storedTotal(t, ex, accountB, currency.BTC), "account A's reply should not be stored for account B")
+		assert.Zero(t, ex.balanceSnapshotTime(accountB), "account A's reply should record no snapshot time for account B")
+		assert.Equal(t, 8.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account B's own snapshot")
+	})
+
+	for _, initial := range []struct {
+		name    string
+		account *accounts.Credentials
+	}{{name: "another account", account: accountA}, {name: "no account"}} {
+		t.Run("a poll begun with another account's credentials while "+initial.name+" is configured is ordered by that account's updates once it is configured", func(t *testing.T) {
+			t.Parallel()
+			ex, reached, release := balanceVenue(t, accountB.Key, 1, map[string][]string{
+				accountB.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`, `{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+			})
+			ex.SetCredentials(initial.account)
+			held := startPoll(accounts.DeployCredentialsToContext(t.Context(), accountB), ex)
+			awaitHeld(t, reached, 1)
+			ex.SetCredentials(accountB)
+			assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account B's newer snapshot")
+			release(1)
+			assert.Equal(t, 3.0, awaitPoll(t, held)[0].Balances[currency.BTC].Total, "the earlier poll should return account B's latest balances in place of its older reply")
+			assert.Equal(t, 3.0, storedTotal(t, ex, accountB, currency.BTC), "the earlier poll's older reply should not replace account B's latest balances")
+		})
+	}
+
+	t.Run("a poll begun with another account's credentials keeps that account's streamed balances once it is configured", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountB.Key, 1, map[string][]string{
+			accountB.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		held := startPoll(accounts.DeployCredentialsToContext(t.Context(), accountB), ex)
+		awaitHeld(t, reached, 1)
+		// Account A's stream reports its ETH, and account B's its BTC, after the held reply's update time
+		saveSpot(t, ex, accountA, map[currency.Code]float64{currency.ETH: 9})
+		ex.recordBalanceEvent(accountA, time.UnixMilli(1794466000500), currency.ETH)
+		ex.SetCredentials(accountB)
+		saveSpot(t, ex, accountB, map[currency.Code]float64{currency.BTC: 3})
+		ex.recordBalanceEvent(accountB, time.UnixMilli(1794466000500), currency.BTC)
+		release(1)
+		balances := awaitPoll(t, held)[0].Balances
+		assert.Equal(t, 3.0, balances[currency.BTC].Total, "the earlier poll should return the BTC account B's stream reported later")
+		assert.NotContains(t, balances, currency.ETH, "the earlier poll should return none of account A's streamed balances")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountB, currency.BTC), "account B's streamed BTC should be kept")
+		_, err := ex.Accounts.GetBalance("", accountB, asset.Spot, currency.ETH)
+		assert.ErrorIs(t, err, accounts.ErrNoBalances, "account A's streamed ETH should not be stored for account B")
+	})
+
+	t.Run("polls begun with another account's credentials are ordered by that account's updates once it is configured, the newer reply first", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountB.Key, 2, map[string][]string{
+			accountB.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`, `{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		ctx := accounts.DeployCredentialsToContext(t.Context(), accountB)
+		older := startPoll(ctx, ex)
+		awaitHeld(t, reached, 1)
+		newer := startPoll(ctx, ex)
+		awaitHeld(t, reached, 2)
+		ex.SetCredentials(accountB)
+		release(2)
+		assert.Equal(t, 3.0, awaitPoll(t, newer)[0].Balances[currency.BTC].Total, "the newer poll should return its reply")
+		release(1)
+		assert.Equal(t, 3.0, awaitPoll(t, older)[0].Balances[currency.BTC].Total, "the older poll should return account B's latest balances in place of its reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountB, currency.BTC), "the older reply should not replace account B's latest balances")
+	})
+
+	t.Run("a poll older than its account's latest is left out when the credentials are cleared before its reply arrives", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountA.Key, 1, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`, `{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		held := startPoll(t.Context(), ex)
+		awaitHeld(t, reached, 1)
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account A's second snapshot")
+		ex.SetCredentials(nil)
+		release(1)
+		assert.Equal(t, 3.0, awaitPoll(t, held)[0].Balances[currency.BTC].Total, "account A's first poll should return account A's latest balances in place of its older reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountA, currency.BTC), "account A's older reply should not replace its latest balances")
+	})
+
+	t.Run("a newer snapshot with its balances at zero orders an older one", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := balanceVenue(t, "", 0, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"0","locked":"0"}]}`, `{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		assert.Zero(t, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return the snapshot's zero BTC")
+		assert.Zero(t, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return the latest zero BTC in place of an older snapshot")
+		assert.Zero(t, storedTotal(t, ex, accountA, currency.BTC), "an older snapshot should not replace the latest zero BTC")
+	})
+
+	t.Run("a reply without an account update time is stored without ordering later replies", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := balanceVenue(t, "", 0, map[string][]string{
+			accountA.Key: {`{"balances":[{"asset":"BTC","free":"1","locked":"0"}]}`, `{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		assert.Equal(t, 1.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return a reply without an account update time")
+		assert.Zero(t, ex.balanceSnapshotTime(accountA), "a reply without an account update time should record no snapshot time")
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return the next reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountA, currency.BTC), "the next reply should be stored")
+	})
+
+	t.Run("a configured account with a sub-account is stored, ordered and returned as that sub-account", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := balanceVenue(t, "", 0, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`, `{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`},
+		})
+		sub := &accounts.Credentials{Key: accountA.Key, Secret: accountA.Secret, SubAccount: "account-a-sub"}
+		saveSpot(t, ex, accountA, map[currency.Code]float64{currency.BTC: 9})
+		ex.SetCredentials(sub)
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return the sub-account's snapshot")
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return the sub-account's latest balances in place of an older snapshot")
+		assert.Equal(t, 3.0, storedTotal(t, ex, sub, currency.BTC), "the sub-account's latest snapshot should be stored for it")
+		assert.Equal(t, 9.0, storedTotal(t, ex, accountA, currency.BTC), "the sub-account's snapshots should not be stored for the main account")
+	})
+
+	t.Run("a poll with a sub-account override is stored for that sub-account", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := balanceVenue(t, "", 0, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		saveSpot(t, ex, accountA, map[currency.Code]float64{currency.BTC: 9})
+		assert.Equal(t, 3.0, pollSpot(t, accounts.DeploySubAccountOverrideToContext(t.Context(), "account-a-sub"), ex)[currency.BTC].Total, "UpdateAccountBalances should return the sub-account's snapshot")
+		sub := &accounts.Credentials{Key: accountA.Key, Secret: accountA.Secret, SubAccount: "account-a-sub"}
+		assert.Equal(t, 3.0, storedTotal(t, ex, sub, currency.BTC), "the snapshot should be stored for the sub-account")
+		assert.Equal(t, 9.0, storedTotal(t, ex, accountA, currency.BTC), "the snapshot should not be stored for the main account")
+	})
+
+	t.Run("a poll carrying the configured account's credentials with authenticated support off is ordered by that account's updates", func(t *testing.T) {
+		t.Parallel()
+		ex, reached, release := balanceVenue(t, accountA.Key, 1, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`, `{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		ex.LoadedByConfig = true
+		ex.API.AuthenticatedSupport, ex.API.AuthenticatedWebsocketSupport = false, false
+		ctx := accounts.DeployCredentialsToContext(t.Context(), accountA)
+		held := startPoll(ctx, ex)
+		awaitHeld(t, reached, 1)
+		assert.Equal(t, 3.0, pollSpot(t, ctx, ex)[currency.BTC].Total, "UpdateAccountBalances should return account A's second snapshot")
+		ex.SetCredentials(accountB)
+		release(1)
+		assert.Equal(t, 3.0, awaitPoll(t, held)[0].Balances[currency.BTC].Total, "account A's first poll should return account A's latest balances in place of its older reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountA, currency.BTC), "account A's older reply should not replace its latest balances")
+	})
+
+	t.Run("a poll resolving its credentials as the configured account changes is ordered by its own account's updates", func(t *testing.T) {
+		t.Parallel()
+		ex, _, _ := balanceVenue(t, "", 0, map[string][]string{
+			accountA.Key: {`{"updateTime":1794466100000,"balances":[{"asset":"BTC","free":"3","locked":"0"}]}`, `{"updateTime":1794466000000,"balances":[{"asset":"BTC","free":"2","locked":"0"}]}`},
+		})
+		ex.SetCredentials(accountA)
+		assert.Equal(t, 3.0, pollSpot(t, t.Context(), ex)[currency.BTC].Total, "UpdateAccountBalances should return account A's snapshot")
+		// GetCredentials looks the sub-account override up after copying the configured credentials, so the change lands
+		// between the poll's credentials and any later read of the configured account
+		ctx := &subAccountLookupHook{Context: t.Context(), hook: func() { ex.SetCredentials(accountB) }}
+		assert.Equal(t, 3.0, pollSpot(t, ctx, ex)[currency.BTC].Total, "the poll should return account A's latest balances in place of its older reply")
+		assert.Equal(t, 3.0, storedTotal(t, ex, accountA, currency.BTC), "account A's older reply should not replace its latest balances")
+		_, err := ex.Accounts.GetBalance("", accountB, asset.Spot, currency.BTC)
+		assert.ErrorIs(t, err, accounts.ErrNoBalances, "account A's reply should not be stored for account B")
+	})
+}
+
+// subAccountLookupHook is a context that runs hook the first time its sub-account override is looked up
+type subAccountLookupHook struct {
+	context.Context //nolint:containedctx // subAccountLookupHook implements context.Context
+	once            sync.Once
+	hook            func()
+}
+
+// Value runs the hook on the first sub-account override lookup, then returns the context's value
+func (c *subAccountLookupHook) Value(k any) any {
+	if k == accounts.ContextSubAccountFlag {
+		c.once.Do(c.hook)
+	}
+	return c.Context.Value(k)
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -2350,13 +2815,15 @@ func TestUntaggedID(t *testing.T) {
 
 func TestIsStaleSpotSnapshot(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	ex.recordBalanceSnapshot(time.UnixMilli(2000))
-	assert.True(t, ex.isStaleSpotSnapshot(t.Context(), time.UnixMilli(1000)), "a snapshot older than the stored one should be stale")
-	assert.False(t, ex.isStaleSpotSnapshot(t.Context(), time.UnixMilli(2000)), "a snapshot as new as the stored one should not be stale")
-	assert.False(t, ex.isStaleSpotSnapshot(t.Context(), time.Time{}), "a snapshot without a time should not be stale")
-	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret"})
-	assert.False(t, ex.isStaleSpotSnapshot(other, time.UnixMilli(1000)), "another account's snapshot should not be ordered")
+	ex := new(Exchange)
+	account := balanceTestAccount()
+	ex.recordBalanceSnapshot(account, time.UnixMilli(2000))
+	assert.True(t, ex.isStaleSpotSnapshot(account, time.UnixMilli(1000)), "a snapshot older than the stored one should be stale")
+	assert.False(t, ex.isStaleSpotSnapshot(account, time.UnixMilli(2000)), "a snapshot as new as the stored one should not be stale")
+	assert.False(t, ex.isStaleSpotSnapshot(account, time.Time{}), "a snapshot without a time should not be stale")
+	for _, other := range otherBalanceTestAccounts() {
+		assert.Falsef(t, ex.isStaleSpotSnapshot(other.account, time.UnixMilli(1000)), "a snapshot of an account with another %s should be judged by that account's snapshots alone", other.differs)
+	}
 }
 
 func TestCancelBatchOrders(t *testing.T) {
@@ -3191,6 +3658,111 @@ func TestGetOrderHistory(t *testing.T) {
 	require.Len(t, orders, 2, "GetOrderHistory must return the window's order lists")
 	assert.Equal(t, []string{"list-9", "list-10"}, []string{orders[0].OrderID, orders[1].OrderID}, "GetOrderHistory should put the order lists in time order")
 
+	for _, typ := range []order.Type{order.AnyType, order.OCO} {
+		t.Run("an end alone is refused for "+typ.String(), func(t *testing.T) {
+			t.Parallel()
+			refusing := routedTestExchange(t, nil)
+			_, err := refusing.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Side: order.AnySide, Type: typ, EndTime: time.UnixMilli(1794466000000)})
+			assert.ErrorIs(t, err, common.ErrDateUnset, "GetOrderHistory should refuse an end alone without a request")
+		})
+
+		t.Run("a start alone is paged up to now for "+typ.String(), func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var windows [][2]time.Time
+			page := func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				from, errFrom := strconv.ParseInt(r.URL.Query().Get("startTime"), 10, 64)
+				to, errTo := strconv.ParseInt(r.URL.Query().Get("endTime"), 10, 64)
+				if !assert.NoError(t, errFrom, "each request should carry a start time") || !assert.NoError(t, errTo, "each request should carry an end time") {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				windows = append(windows, [2]time.Time{time.UnixMilli(from), time.UnixMilli(to)})
+				writeResponse(t, w, "[]")
+			}
+			paging := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/allOrders": page, "GET /api/v3/allOrderList": page})
+			since := time.Now().Add(-30 * time.Hour).Truncate(time.Millisecond)
+			_, err := paging.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Side: order.AnySide, Type: typ, StartTime: since})
+			require.NoError(t, err, "GetOrderHistory must not error for a start alone")
+			mu.Lock()
+			defer mu.Unlock()
+			require.Len(t, windows, 2, "GetOrderHistory must request a start alone a day at a time")
+			assert.Equal(t, [2]time.Time{since, since.Add(24 * time.Hour)}, windows[0], "GetOrderHistory should request the start's first day first")
+			assert.Equal(t, since.Add(24*time.Hour), windows[1][0], "GetOrderHistory should request the next day from where the first ended")
+			assert.WithinDuration(t, time.Now(), windows[1][1], time.Minute, "GetOrderHistory should page a start alone up to the time of the request")
+		})
+
+		t.Run("an end alone from an order ID is one request from that ID for "+typ.String(), func(t *testing.T) {
+			t.Parallel()
+			until := time.UnixMilli(1794400000000)
+			fromID := "8"
+			routes := map[string]http.HandlerFunc{"GET /api/v3/allOrders": reply(t, url.Values{"symbol": {"BTCUSDT"}, "orderId": {"8"}, "limit": {"1000"}},
+				`[{"symbol":"BTCUSDT","orderId":8,"origQty":"1","executedQty":"1","status":"FILLED","type":"MARKET","side":"SELL","time":1794400000000},`+
+					`{"symbol":"BTCUSDT","orderId":9,"origQty":"1","executedQty":"1","status":"FILLED","type":"MARKET","side":"SELL","time":1794400000001}]`)}
+			if typ == order.OCO {
+				fromID = "list-8"
+				routes = map[string]http.HandlerFunc{"GET /api/v3/allOrderList": reply(t, url.Values{"fromId": {"8"}, "limit": {"1000"}},
+					`[{"orderListId":9,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"BTCUSDT","transactionTime":1794400000001},`+
+						`{"orderListId":8,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"BTCUSDT","transactionTime":1794400000000}]`)}
+			}
+			orders, err := routedTestExchange(t, routes).GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Side: order.AnySide, Type: typ, FromOrderID: fromID, EndTime: until})
+			require.NoError(t, err, "GetOrderHistory must not error for an end alone from an order ID")
+			require.Len(t, orders, 1, "GetOrderHistory must return the orders from the ID up to the end alone")
+			assert.Equal(t, fromID, orders[0].OrderID, "GetOrderHistory should return the order at the end")
+		})
+
+		t.Run("a start alone returns more than a page of orders within a day for "+typ.String(), func(t *testing.T) {
+			t.Parallel()
+			since := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+			const count = 1001
+			exp := make([]string, count)
+			for i := range exp {
+				exp[i] = strconv.Itoa(i + 1)
+				if typ == order.OCO {
+					exp[i] = "list-" + exp[i]
+				}
+			}
+			// Orders three seconds apart, a window listing up to limit of its oldest as Binance.US does, order lists most
+			// recent first
+			page := func(w http.ResponseWriter, r *http.Request) {
+				from, errFrom := strconv.ParseInt(r.URL.Query().Get("startTime"), 10, 64)
+				to, errTo := strconv.ParseInt(r.URL.Query().Get("endTime"), 10, 64)
+				limit, errLimit := strconv.Atoi(r.URL.Query().Get("limit"))
+				if !assert.NoError(t, errFrom, "each request should carry a start time") || !assert.NoError(t, errTo, "each request should carry an end time") || !assert.NoError(t, errLimit, "each request should carry a limit") {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				var listed []string
+				for i := range count {
+					at := since.Add(time.Duration(i) * 3 * time.Second).UnixMilli()
+					if at < from || at > to || len(listed) == limit {
+						continue
+					}
+					id, listedAt := strconv.Itoa(i+1), strconv.FormatInt(at, 10)
+					if typ == order.OCO {
+						listed = append(listed, `{"orderListId":`+id+`,"contingencyType":"OCO","listOrderStatus":"ALL_DONE","symbol":"BTCUSDT","transactionTime":`+listedAt+`}`)
+					} else {
+						listed = append(listed, `{"symbol":"BTCUSDT","orderId":`+id+`,"origQty":"1","executedQty":"1","status":"FILLED","type":"MARKET","side":"SELL","time":`+listedAt+`}`)
+					}
+				}
+				if typ == order.OCO {
+					slices.Reverse(listed)
+				}
+				writeResponse(t, w, "["+strings.Join(listed, ",")+"]")
+			}
+			paging := routedTestExchange(t, map[string]http.HandlerFunc{"GET /api/v3/allOrders": page, "GET /api/v3/allOrderList": page})
+			orders, err := paging.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Side: order.AnySide, Type: typ, StartTime: since})
+			require.NoError(t, err, "GetOrderHistory must not error for a start alone")
+			got := make([]string, len(orders))
+			for i := range orders {
+				got[i] = orders[i].OrderID
+			}
+			assert.Equal(t, exp, got, "GetOrderHistory should return every order from a start alone, in time order")
+		})
+	}
+
 	t.Run("an order list of a requested pair the available pairs lack", func(t *testing.T) {
 		t.Parallel()
 		ex := routedTestExchange(t, map[string]http.HandlerFunc{
@@ -3366,6 +3938,130 @@ func TestPagedOrderHistory(t *testing.T) {
 	require.NoError(t, err, "pagedOrderHistory must not error for records in a span's last millisecond")
 	assert.Equal(t, edge, got, "pagedOrderHistory should page the span's last millisecond from the millisecond before it")
 	assert.Contains(t, windows, [2]time.Time{base.Add(2*time.Hour - time.Millisecond), base.Add(2 * time.Hour)}, "the span's last millisecond should be paged from the millisecond before it")
+
+	t.Run("a start alone is paged up to now", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			since   time.Duration
+			offsets []time.Duration
+		}{
+			{name: "over three spans", since: 50 * time.Hour, offsets: []time.Duration{0, time.Hour, 25 * time.Hour, 26 * time.Hour, 49 * time.Hour}},
+			{name: "over two spans", since: 30 * time.Hour, offsets: []time.Duration{0, time.Hour, 2 * time.Hour, 25 * time.Hour, 29 * time.Hour}},
+			{name: "within one span", since: time.Hour, offsets: []time.Duration{0, 10 * time.Minute, 20 * time.Minute, 30 * time.Minute, 40 * time.Minute}},
+			{name: "within the current second", since: 250 * time.Millisecond, offsets: []time.Duration{0, 100 * time.Millisecond, 200 * time.Millisecond}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				synctest.Test(t, func(t *testing.T) {
+					// Off the bubble's whole second, where a clock read rounded to the second would differ
+					time.Sleep(750*time.Millisecond + 123*time.Microsecond)
+					now := time.Now()
+					start := now.Add(-tc.since).Truncate(time.Millisecond)
+					recent := make([]record, len(tc.offsets))
+					for i, offset := range tc.offsets {
+						recent[i] = record{uint64(i + 1), start.Add(offset)}
+					}
+					var requests int
+					var earliestStart, latestEnd time.Time
+					got, err := pagedOrderHistory(start, time.Time{}, 0, 24*time.Hour, 2, func(from, to time.Time) ([]record, error) {
+						requests++
+						require.LessOrEqual(t, requests, 100, "pagedOrderHistory must not request more pages than the window needs")
+						require.LessOrEqual(t, to.Sub(from), 24*time.Hour, "pagedOrderHistory must request at most a day at a time")
+						if earliestStart.IsZero() || from.Before(earliestStart) {
+							earliestStart = from
+						}
+						if to.After(latestEnd) {
+							latestEnd = to
+						}
+						var page []record
+						for _, r := range recent {
+							if !r.at.Before(from) && !r.at.After(to) && len(page) < 2 {
+								page = append(page, r)
+							}
+						}
+						return page, nil
+					}, timeOf, idOf)
+					require.NoError(t, err, "pagedOrderHistory must not error for a start alone")
+					assert.Equal(t, recent, got, "pagedOrderHistory should return every record from a start alone up to now")
+					assert.Equal(t, start, earliestStart, "pagedOrderHistory should page a start alone from the start")
+					assert.Equal(t, now.Truncate(time.Millisecond), latestEnd, "pagedOrderHistory should page a start alone up to the millisecond of the request")
+				})
+			})
+		}
+	})
+
+	t.Run("a start alone at the current time is one request", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			now := time.Now()
+			var requests int
+			got, err := pagedOrderHistory(now, time.Time{}, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+				requests++
+				return []record{{1, now}}, nil
+			}, timeOf, idOf)
+			require.NoError(t, err, "pagedOrderHistory must not error for a start at the current time")
+			assert.Equal(t, 1, requests, "a start at the current time should be one request")
+			assert.Equal(t, []record{{1, now}}, got, "a start at the current time should return the record at that time")
+			_, err = pagedOrderHistory(now.Add(time.Nanosecond), time.Time{}, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+				require.Fail(t, "pagedOrderHistory must not request a window starting after now")
+				return nil, nil
+			}, timeOf, idOf)
+			assert.ErrorIs(t, err, common.ErrStartAfterTimeNow, "pagedOrderHistory should refuse a start a nanosecond after now")
+		})
+	})
+
+	t.Run("a start alone earlier in the current millisecond is one request", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			time.Sleep(750*time.Millisecond + 123*time.Microsecond)
+			start := time.Now().Add(-23 * time.Microsecond)
+			var requests int
+			got, err := pagedOrderHistory(start, time.Time{}, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+				requests++
+				return []record{{1, start}}, nil
+			}, timeOf, idOf)
+			require.NoError(t, err, "pagedOrderHistory must not error for a start earlier in the current millisecond")
+			assert.Equal(t, 1, requests, "a start earlier in the current millisecond should be one request")
+			assert.Equal(t, []record{{1, start}}, got, "a start earlier in the current millisecond should return its record")
+		})
+	})
+
+	t.Run("a window ending after now is paged to its end", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			time.Sleep(750*time.Millisecond + 123*time.Microsecond)
+			now := time.Now()
+			start, end := now.Add(-25*time.Hour).Truncate(time.Millisecond), now.Add(time.Hour).Truncate(time.Millisecond)
+			var latestEnd time.Time
+			_, err := pagedOrderHistory(start, end, 0, 24*time.Hour, 2, func(_, to time.Time) ([]record, error) {
+				if to.After(latestEnd) {
+					latestEnd = to
+				}
+				return nil, nil
+			}, timeOf, idOf)
+			require.NoError(t, err, "pagedOrderHistory must not error for a window ending after now")
+			assert.Equal(t, end, latestEnd, "pagedOrderHistory should page a window ending after now to its end")
+		})
+	})
+
+	t.Run("an end alone is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := pagedOrderHistory(time.Time{}, base, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+			require.Fail(t, "pagedOrderHistory must not request a window with an end alone")
+			return nil, nil
+		}, timeOf, idOf)
+		assert.ErrorIs(t, err, common.ErrDateUnset, "pagedOrderHistory should refuse an end alone")
+	})
+
+	t.Run("a start alone after now is refused", func(t *testing.T) {
+		t.Parallel()
+		_, err := pagedOrderHistory(time.Now().Add(time.Hour), time.Time{}, 0, 24*time.Hour, 2, func(time.Time, time.Time) ([]record, error) {
+			require.Fail(t, "pagedOrderHistory must not request a window starting after now")
+			return nil, nil
+		}, timeOf, idOf)
+		assert.ErrorIs(t, err, common.ErrStartAfterTimeNow, "pagedOrderHistory should refuse a start alone after now")
+	})
 
 	t.Run("order IDs differing only above 32 bits", func(t *testing.T) {
 		t.Parallel()
