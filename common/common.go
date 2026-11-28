@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -25,6 +26,7 @@ import (
 	"unsafe"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -765,4 +767,30 @@ func (s Seen[T]) CheckAndRecord(item T) bool {
 	}
 	s[item] = true
 	return false
+}
+
+// ObjectOrArray decodes a JSON object as a one-element slice and a JSON array as a slice, for APIs that reply with an
+// object when one item is requested and an array otherwise
+type ObjectOrArray[T any] []T
+
+// UnmarshalJSON decodes a JSON object into a one-element slice and a JSON array into a slice. Either is decoded into new
+// elements, so a slice decoded into again keeps none of what it held, and is left as it was when decoding fails
+func (o *ObjectOrArray[T]) UnmarshalJSON(data []byte) error {
+	if err := NilGuard(o); err != nil {
+		return err
+	}
+	if trimmed := bytes.TrimLeft(data, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '{' {
+		var single T
+		if err := json.Unmarshal(trimmed, &single); err != nil {
+			return err
+		}
+		*o = ObjectOrArray[T]{single}
+		return nil
+	}
+	var elements []T
+	if err := json.Unmarshal(data, &elements); err != nil {
+		return err
+	}
+	*o = elements
+	return nil
 }

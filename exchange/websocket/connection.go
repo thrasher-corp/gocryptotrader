@@ -55,6 +55,8 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	// IsConnected reports whether the connection is dialled and has been neither shut down nor lost to a read error
+	IsConnected() bool
 	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 	RequireMatchWithData(signature any, incoming []byte) error
 	// IncomingWithData routes incoming data using the connection specific match system to the correct handler

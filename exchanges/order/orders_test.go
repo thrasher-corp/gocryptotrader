@@ -350,6 +350,7 @@ func TestOrderTypeToString(t *testing.T) {
 		{Chase, "CHASE"},
 		{TakeProfit, "TAKE PROFIT"},
 		{TakeProfitMarket, "TAKE PROFIT MARKET"},
+		{TakeProfitLimit, "TAKE PROFIT LIMIT"},
 		{TrailingStop, "TRAILING_STOP"},
 		{IOS, "IOS"},
 		{Liquidation, "LIQUIDATION"},
@@ -831,6 +832,9 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
+		{"TAKE_PROFIT_LiMIT", TakeProfitLimit, nil},
+		{"take_profit_limit", TakeProfitLimit, nil},
 		{"brAcket", Bracket, nil},
 		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
@@ -1332,36 +1336,42 @@ func TestMatchFilter(t *testing.T) {
 }
 
 func TestDetail_IsActive(t *testing.T) {
-	orders := map[int]Detail{
-		0: {Amount: 0.0, Status: Active},
-		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
-		2: {Amount: 1.0, ExecutedAmount: 1.0, Status: Active},
-		3: {Amount: 1.0, ExecutedAmount: 1.1, Status: Active},
-	}
-
-	amountTests := map[int]struct {
-		o              Detail
-		expectedResult bool
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		d    Detail
+		exp  bool
 	}{
-		0: {orders[0], false},
-		1: {orders[1], true},
-		2: {orders[2], false},
-		3: {orders[3], false},
-	}
-	for num, tt := range amountTests {
-		assert.Equalf(t, tt.expectedResult, tt.o.IsActive(), "amountTests[%v] failed", num)
-	}
-
-	for _, s := range []Status{
-		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden,
+		{name: "amount 0", d: Detail{Amount: 0.0, Status: Active}},
+		{name: "amount above its executed amount", d: Detail{Amount: 1.0, ExecutedAmount: 0.9, Status: Active}, exp: true},
+		{name: "amount equal to its executed amount", d: Detail{Amount: 1.0, ExecutedAmount: 1.0, Status: Active}},
+		{name: "amount below its executed amount", d: Detail{Amount: 1.0, ExecutedAmount: 1.1, Status: Active}},
+		{name: "amount all remaining", d: Detail{Amount: 1, RemainingAmount: 1, Status: Active}, exp: true},
+		{name: "limit order without amounts", d: Detail{Type: Limit, Status: Active}},
+		{name: "OCO order list with its amount executed", d: Detail{Type: OCO, Amount: 1, ExecutedAmount: 1, Status: Active}},
+		{name: "OCO order list with an amount not executed", d: Detail{Type: OCO, Amount: 1, Status: Active}, exp: true},
+		{name: "order of a type combining OCO with another, without amounts", d: Detail{Type: OCO | Limit, Status: Active}},
 	} {
-		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.d.IsActive(), "IsActive should read an order by its amounts unless it is an OCO order list without them")
+		})
 	}
-
+	for _, s := range []Status{New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden} {
+		t.Run(s.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), "IsActive should be true for an order with an amount to execute and an active status")
+			assert.True(t, (&Detail{Type: OCO, Status: s}).IsActive(), "IsActive should read an OCO order list without amounts by its status alone")
+		})
+	}
 	for _, s := range []Status{
-		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, UnknownStatus, Closed,
+		PartiallyCancelled, PartiallyFilledCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, UnknownStatus, Closed, Cancelling, Liquidated, STP,
 	} {
-		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), s)
+		t.Run(s.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsActive(), "IsActive should be false for a status that is not active")
+			assert.False(t, (&Detail{Type: OCO, Status: s}).IsActive(), "IsActive should read an OCO order list without amounts by its status alone")
+		})
 	}
 }
 
@@ -1385,16 +1395,62 @@ func TestDetail_IsInactive(t *testing.T) {
 		{Amount: 0.0, Status: Active, ClientID: "Amount = 0"},
 		{Amount: 1.0, ExecutedAmount: 1.0, Status: Active, ClientID: "Amount = ExecutedAmount"},
 		{Amount: 1.0, ExecutedAmount: 1.1, Status: Active, ClientID: "Amount < ExecutedAmount"},
+		{Type: Limit, Status: Active, ClientID: "Limit order without amounts"},
+		{Type: OCO, Amount: 1.0, ExecutedAmount: 1.0, Status: Active, ClientID: "OCO order list with its amount executed"},
 	} {
-		assert.True(t, d.IsInactive(), d.ClientID+" should be Inactive")
+		t.Run(d.ClientID, func(t *testing.T) {
+			t.Parallel()
+			assert.True(t, d.IsInactive(), "IsInactive should report the order as inactive")
+		})
 	}
 
 	for _, d := range []Detail{
 		{Amount: 1.0, Status: Active, ClientID: "Amount > 0"},
 		{Amount: 1.0, ExecutedAmount: 0.9, Status: PartiallyFilled, ClientID: "Amount > ExecutedAmount"},
 		{Amount: 1.0, Status: UnknownStatus, ClientID: "Regression: UnknownStatus"},
+		{Type: OCO, Amount: 1.0, Status: Active, ClientID: "OCO order list with an amount not executed"},
+		{Amount: 1.0, RemainingAmount: 1.0, Status: Active, ClientID: "Amount = RemainingAmount"},
 	} {
-		assert.False(t, d.IsInactive(), d.ClientID+" should not be Inactive")
+		t.Run(d.ClientID, func(t *testing.T) {
+			t.Parallel()
+			assert.False(t, d.IsInactive(), "IsInactive should not report the order as inactive")
+		})
+	}
+
+	for _, s := range []Status{New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus, STP} {
+		t.Run("OCO order list without amounts that is "+s.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.False(t, (&Detail{Type: OCO, Status: s}).IsInactive(), "IsInactive should read an OCO order list without amounts by its status alone")
+		})
+	}
+	for _, s := range []Status{
+		PartiallyCancelled, PartiallyFilledCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
+	} {
+		t.Run("OCO order list without amounts that is "+s.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.True(t, (&Detail{Type: OCO, Status: s}).IsInactive(), "IsInactive should read an OCO order list without amounts by its status alone")
+		})
+	}
+}
+
+func TestDetail_IsOrderListWithoutAmounts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		d    Detail
+		exp  bool
+	}{
+		{name: "OCO order list without amounts", d: Detail{Type: OCO, Status: Active}, exp: true},
+		{name: "OCO order list with an amount", d: Detail{Type: OCO, Amount: 1, Status: Active}},
+		{name: "limit order without amounts", d: Detail{Type: Limit, Status: Active}},
+		{name: "order of no type without amounts", d: Detail{Status: Active}},
+		{name: "order of a type combining OCO with another, without amounts", d: Detail{Type: OCO | Limit, Status: Active}},
+		{name: "quote-sized market order without a base amount", d: Detail{Type: Market, QuoteAmount: 25, Status: New}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, tc.d.isOrderListWithoutAmounts(), "isOrderListWithoutAmounts should report only an OCO order list without an amount")
+		})
 	}
 }
 

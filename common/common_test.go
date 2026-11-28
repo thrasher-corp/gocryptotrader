@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -811,4 +813,77 @@ func TestContextFunctions(t *testing.T) {
 	assert.Equal(t, "value1", merged.Value(k1), "should have k1 from frozen")
 	assert.Equal(t, "value2", merged.Value(k2), "should have k2 from frozen")
 	assert.Equal(t, "value3_new", merged.Value(k3), "should have k3 from parent")
+}
+
+func TestObjectOrArrayUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	held := func() ObjectOrArray[map[string]string] {
+		h := make(ObjectOrArray[map[string]string], 2, 4)
+		h[0], h[1] = map[string]string{"held": "1"}, map[string]string{"held": "2"}
+		return h
+	}
+	for _, tc := range []struct {
+		name  string
+		input string
+		prior ObjectOrArray[map[string]string]
+		exp   ObjectOrArray[map[string]string]
+	}{
+		{name: "array", input: `[{"symbol":"BTCUSDT","price":"73716.55000000"},{"symbol":"ETHUSDT","price":"2713.26000000"}]`, exp: ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT", "price": "73716.55000000"}, {"symbol": "ETHUSDT", "price": "2713.26000000"}}},
+		{name: "object", input: ` {"symbol":"BTCUSDT","price":"73716.55000000"}`, exp: ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT", "price": "73716.55000000"}}},
+		{name: "object after whitespace", input: " \t\r\n{\"symbol\":\"BTCUSDT\"}", exp: ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT"}}},
+		{name: "empty array", input: `[]`, exp: ObjectOrArray[map[string]string]{}},
+		{name: "null", input: `null`},
+		{name: "array into a slice holding elements", input: `[{"symbol":"BTCUSDT"}]`, prior: held(), exp: ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT"}}},
+		{name: "object into a slice holding elements", input: `{"symbol":"BTCUSDT"}`, prior: held(), exp: ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT"}}},
+		{name: "empty array into a slice holding elements", input: `[]`, prior: held(), exp: ObjectOrArray[map[string]string]{}},
+		{name: "null into a slice holding elements", input: `null`, prior: held()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := tc.prior
+			require.NoError(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error")
+			assert.Equal(t, tc.exp, result, "Unmarshal should decode the input")
+			if tc.prior == nil {
+				return
+			}
+			assert.Equal(t, held(), tc.prior, "Unmarshal should leave the elements the slice held unchanged")
+			prior := tc.prior
+			prior = append(prior, map[string]string{"appended": "prior"})
+			result = append(result, map[string]string{"appended": "result"})
+			assert.Equal(t, append(held(), map[string]string{"appended": "prior"}), prior, "growing the result should leave the grown slice decoded into unchanged")
+			assert.Equal(t, append(slices.Clone(tc.exp), map[string]string{"appended": "result"}), result, "growing the slice decoded into should leave the grown result unchanged")
+		})
+	}
+	t.Run("direct call with leading whitespace", func(t *testing.T) {
+		t.Parallel()
+		var result ObjectOrArray[map[string]string]
+		require.NoError(t, result.UnmarshalJSON([]byte(" \t\r\n{\"symbol\":\"BTCUSDT\"}")), "UnmarshalJSON must not error")
+		assert.Equal(t, ObjectOrArray[map[string]string]{{"symbol": "BTCUSDT"}}, result, "UnmarshalJSON should decode an object after leading whitespace")
+	})
+	for _, input := range []string{`[]`, `[{"symbol":"BTCUSDT"}]`, `null`, `{"symbol":"BTCUSDT"}`, `{`, `[`, `"BTCUSDT"`} {
+		t.Run("nil receiver given "+input, func(t *testing.T) {
+			t.Parallel()
+			var result *ObjectOrArray[map[string]string]
+			assert.ErrorIs(t, result.UnmarshalJSON([]byte(input)), ErrNilPointer, "UnmarshalJSON should refuse a nil receiver")
+		})
+	}
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{name: "malformed object", input: `{"symbol":1}`},
+		{name: "malformed array element", input: `[{"symbol":1}]`},
+		{name: "malformed second array element", input: `[{"symbol":"BTCUSDT"},{"symbol":1}]`},
+		{name: "neither an object nor an array", input: `"BTCUSDT"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var fresh ObjectOrArray[map[string]string]
+			assert.Error(t, json.Unmarshal([]byte(tc.input), &fresh), "Unmarshal should error into a nil slice")
+			assert.Nil(t, fresh, "Unmarshal should leave a nil slice nil when decoding fails")
+			filled := held()
+			assert.Error(t, json.Unmarshal([]byte(tc.input), &filled), "Unmarshal should error into a slice holding elements")
+			assert.Equal(t, held(), filled, "Unmarshal should leave the slice as it was when decoding fails")
+		})
+	}
 }

@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -29,4 +30,4 @@ type RippleIOUDepositAddressResponse struct {
 }
 
 // unconfirmedDeposits decodes unconfirmed deposits sent as either a list or a single object
-type unconfirmedDeposits []UnconfirmedDepositResponse
+type unconfirmedDeposits = common.ObjectOrArray[UnconfirmedDepositResponse]

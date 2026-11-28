@@ -256,22 +256,6 @@ func TestSubscribeKeyStore(t *testing.T) {
 	assert.False(t, ok, "markSent should leave no record of a connection whose key is gone")
 }
 
-func TestConnectionGone(t *testing.T) {
-	t.Parallel()
-	t.Run("connected", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, connectionGone(&recordingConnection{connected: true}), "connectionGone should report a connected connection as live")
-	})
-	t.Run("shut down", func(t *testing.T) {
-		t.Parallel()
-		assert.True(t, connectionGone(&recordingConnection{}), "connectionGone should report a shut down connection as gone")
-	})
-	t.Run("connection that can't tell", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, connectionGone(struct{ websocket.Connection }{}), "connectionGone should take a connection that can't tell as live")
-	})
-}
-
 func TestSubscribeKeyTimingsNextRenewal(t *testing.T) {
 	t.Parallel()
 	t.Run("after a renewal", func(t *testing.T) {

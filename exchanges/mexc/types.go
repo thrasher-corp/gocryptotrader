@@ -1,11 +1,11 @@
 package mexc
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -177,22 +177,9 @@ type TickerData struct {
 	Count              json.RawMessage `json:"count"`
 }
 
-// TickerList represents list of ticker data
-type TickerList []TickerData
-
-// UnmarshalJSON deserialises byte data into TickerList. The endpoint returns a single object when one
-// symbol is requested and an array otherwise, so the first byte decides which is decoded.
-func (t *TickerList) UnmarshalJSON(data []byte) error {
-	if trimmed := bytes.TrimLeft(data, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '{' {
-		var val TickerData
-		if err := json.Unmarshal(trimmed, &val); err != nil {
-			return err
-		}
-		*t = TickerList{val}
-		return nil
-	}
-	return json.Unmarshal(data, (*[]TickerData)(t))
-}
+// TickerList represents list of ticker data. The endpoint returns a single object when one symbol is requested and an
+// array otherwise
+type TickerList = common.ObjectOrArray[TickerData]
 
 // SymbolPriceTicker represents a symbol price ticker info
 type SymbolPriceTicker struct {

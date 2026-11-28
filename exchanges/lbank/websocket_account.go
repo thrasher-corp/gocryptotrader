@@ -157,12 +157,6 @@ func (s *subscribeKeyStore) sentWith(conn websocket.Connection, channel string) 
 	return key, ok
 }
 
-// connectionGone reports whether a connection has been shut down; one that can't tell is taken as live
-func connectionGone(conn websocket.Connection) bool {
-	c, ok := conn.(interface{ IsConnected() bool })
-	return ok && !c.IsConnected()
-}
-
 // startSubscribeKey creates a connection's subscribe key and starts the renewer that keeps it alive until the websocket
 // shuts down or the connection ends. Its caller holds the account lock, and the manager's lock, which reading ShutdownC
 // and adding to Wg need
@@ -172,7 +166,7 @@ func (e *Exchange) startSubscribeKey(ctx context.Context, conn websocket.Connect
 	if err != nil {
 		return fmt.Errorf("creating subscribe key: %w", err)
 	}
-	if connectionGone(conn) {
+	if !conn.IsConnected() {
 		// The connection was shut down while its key was created, leaving no renewer to close the key
 		e.closeSubscribeKey(ctx, key)
 		return fmt.Errorf("creating subscribe key: %w", websocket.ErrNotConnected)
@@ -209,7 +203,7 @@ func (e *Exchange) keepSubscribeKeyAlive(ctx context.Context, conn websocket.Con
 		case <-timer.C:
 			// The manager can close one connection without shutting the websocket down, such as a connection it rolls
 			// back, so a key whose connection has gone is closed rather than renewed
-			if connectionGone(conn) {
+			if !conn.IsConnected() {
 				return
 			}
 			err := e.renewSubscribeKey(ctx, conn, r, timings.lifetime)
