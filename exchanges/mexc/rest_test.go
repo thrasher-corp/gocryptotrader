@@ -1413,12 +1413,15 @@ func TestUpdateTickers(t *testing.T) {
 		`{"contractId":78,"symbol":"ETH_USD","lastPrice":1668.53,"holdVol":16956407,"volume24":2561949,"timestamp":1795806951162},` +
 		`{"contractId":2595,"symbol":"FIONA_USDT","lastPrice":0.00105,"holdVol":3071464,"volume24":11073417,"timestamp":1795806951066},` +
 		`{"contractId":1450,"symbol":"STETH_USDT","lastPrice":0,"holdVol":0,"volume24":0,"timestamp":1795830075805}]`
-	// By the second poll BTC_USD has traded at another price, and ETH_USDT is quoted later at the same price
+	// By the second poll BTC_USD and ETH_USD have traded at other prices, and ETH_USDT is quoted later at the same price
 	listedLater := strings.NewReplacer(
 		`"lastPrice":59792.8`, `"lastPrice":60109`,
 		`"timestamp":1795806951097`, `"timestamp":1795830074108`,
 		`"volume24":59406474,"timestamp":1795806950938`, `"volume24":59406474,"timestamp":1795830073953`,
+		`"lastPrice":1668.53`, `"lastPrice":1666.72`,
+		`"timestamp":1795806951162`, `"timestamp":1795830074169`,
 	).Replace(listed)
+	listRefusal := `{"success":false,"code":510,"message":"Endpoint rate limit exceeded. Resource: /api/v1/contract/ticker; scope: IP"}`
 	catalogue := strings.TrimSuffix(futuresContractsReply, "]") +
 		`,{"symbol":"ETH_USDT","baseCoin":"ETH","quoteCoin":"USDT","settleCoin":"USDT","contractSize":0.01,"state":0,"apiAllowed":true}` +
 		`,{"symbol":"BTC_USDC","baseCoin":"BTC","quoteCoin":"USDC","settleCoin":"USDC","contractSize":0.0001,"state":0,"apiAllowed":true}` +
@@ -1434,8 +1437,8 @@ func TestUpdateTickers(t *testing.T) {
 		currency.NewPairWithDelimiter("FIONA", "USDT", currency.UnderscoreDelimiter), stethUSDT,
 	}
 	quotes := [2]map[currency.Pair]ticker.Price{
-		{futuresInversePair: {Last: 59792.8, LastUpdated: time.UnixMilli(1795806951097)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795806950938)}},
-		{futuresInversePair: {Last: 60109, LastUpdated: time.UnixMilli(1795830074108)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795830073953)}},
+		{futuresInversePair: {Last: 59792.8, LastUpdated: time.UnixMilli(1795806951097)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795806950938)}, ethUSD: {Last: 1668.53, LastUpdated: time.UnixMilli(1795806951162)}},
+		{futuresInversePair: {Last: 60109, LastUpdated: time.UnixMilli(1795830074108)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795830073953)}, ethUSD: {Last: 1666.72, LastUpdated: time.UnixMilli(1795830074169)}},
 	}
 	for _, tc := range []struct {
 		name    string
@@ -1445,12 +1448,17 @@ func TestUpdateTickers(t *testing.T) {
 		dropped currency.Pair
 		// refused has the venue refuse every catalogue read
 		refused bool
+		// refusedTickers is the status with which the venue refuses each poll's ticker list read, http.StatusOK being its
+		// refusal in the reply and zero an answer: a refused poll returns the refusal and leaves the tickers stored before
+		// it as they were
+		refusedTickers [2]int
 		// reads counts the catalogue reads by the end of each poll
 		reads [2]int32
-		// err is the error each poll returns, carrying each of mentions
+		// err is the error each poll whose ticker list read is answered returns, carrying each of mentions
 		err      error
 		mentions []string
-		stored   currency.Pairs
+		// stored holds the contracts whose tickers carry the quotes of the last poll answered
+		stored currency.Pairs
 	}{
 		{name: "contracts listed but not held", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
 		{name: "no contracts held", held: currency.Pairs{}, enabled: currency.Pairs{}},
@@ -1458,7 +1466,16 @@ func TestUpdateTickers(t *testing.T) {
 		{name: "a contract no longer held with its ticker stored", held: currency.Pairs{futuresInversePair}, enabled: currency.Pairs{futuresInversePair}, dropped: ethUSD, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair}},
 		{name: "contracts held which the catalogue leaves out", held: currency.Pairs{futuresInversePair, tonUSDT, ethUSDT, stethUSDT}, enabled: currency.Pairs{futuresInversePair, tonUSDT, ethUSDT, stethUSDT}, reads: [2]int32{1, 2}, err: errContractNotFound, mentions: []string{"TON_USDT", "STETH_USDT"}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
 		{name: "a held contract quoted with an equal bid and ask", held: currency.Pairs{futuresInversePair, btcUSDC}, enabled: currency.Pairs{futuresInversePair, btcUSDC}, reads: [2]int32{1, 1}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC"}, stored: currency.Pairs{futuresInversePair}},
+		{name: "the only held contract quoted with an equal bid and ask", held: currency.Pairs{btcUSDC}, enabled: currency.Pairs{btcUSDC}, reads: [2]int32{1, 1}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC"}},
+		{name: "a held contract quoted with an equal bid and ask listed before another held contract", held: currency.Pairs{btcUSDC, ethUSD}, enabled: currency.Pairs{btcUSDC, ethUSD}, reads: [2]int32{1, 1}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC"}, stored: currency.Pairs{ethUSD}},
+		{name: "a contract the catalogue leaves out and one quoted with an equal bid and ask, listed before another held contract", held: currency.Pairs{tonUSDT, btcUSDC, ethUSD}, enabled: currency.Pairs{tonUSDT, btcUSDC, ethUSD}, reads: [2]int32{1, 2}, err: ticker.ErrBidEqualsAsk, mentions: []string{"TON_USDT", "BTC_USDC"}, stored: currency.Pairs{ethUSD}},
+		{name: "a held contract quoted with an equal bid and ask listed before one the catalogue leaves out", held: currency.Pairs{btcUSDC, stethUSDT}, enabled: currency.Pairs{btcUSDC, stethUSDT}, reads: [2]int32{1, 2}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC", "STETH_USDT"}},
+		{name: "a held contract quoted with an equal bid and ask listed between two other held contracts", held: currency.Pairs{futuresInversePair, btcUSDC, ethUSD}, enabled: currency.Pairs{futuresInversePair, btcUSDC, ethUSD}, reads: [2]int32{1, 1}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC"}, stored: currency.Pairs{futuresInversePair, ethUSD}},
 		{name: "the catalogue read refused", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refused: true, reads: [2]int32{1, 2}, err: request.ErrBadStatus, mentions: []string{"418"}},
+		{name: "the ticker list read refused in the venue's reply", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refusedTickers: [2]int{http.StatusOK, http.StatusOK}},
+		{name: "the ticker list read refused by status", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refusedTickers: [2]int{http.StatusTeapot, http.StatusTeapot}},
+		{name: "the ticker list read refused in the venue's reply after a poll that stored tickers", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refusedTickers: [2]int{0, http.StatusOK}, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
+		{name: "the ticker list read refused by status after a poll that stored tickers", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refusedTickers: [2]int{0, http.StatusTeapot}, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1475,8 +1492,19 @@ func TestUpdateTickers(t *testing.T) {
 					http.Error(w, "unexpected query", http.StatusBadRequest)
 				case tc.refused && r.URL.Path == "/api/v1/contract/detail/country":
 					http.Error(w, "refused", http.StatusTeapot)
-				case r.URL.Path == "/api/v1/contract/ticker" && polls.Add(1) > 1:
-					later(w, r)
+				case r.URL.Path == "/api/v1/contract/ticker":
+					read := polls.Add(1)
+					switch status := tc.refusedTickers[min(read, 2)-1]; {
+					case status == http.StatusOK:
+						w.Header().Set("Content-Type", "application/json")
+						_, _ = w.Write([]byte(listRefusal))
+					case status != 0:
+						http.Error(w, "refused", status)
+					case read > 1:
+						later(w, r)
+					default:
+						first(w, r)
+					}
 				default:
 					first(w, r)
 				}
@@ -1492,14 +1520,26 @@ func TestUpdateTickers(t *testing.T) {
 				dropped, err = ticker.GetTicker(ex.Name, tc.dropped, asset.Futures)
 				require.NoError(t, err, "GetTicker must not error for the ticker stored")
 			}
+			kept := make(map[currency.Pair]*ticker.Price, len(tc.stored))
 			for poll := range 2 {
 				err := ex.UpdateTickers(t.Context(), asset.Futures)
-				if tc.err == nil {
-					require.NoErrorf(t, err, "UpdateTickers must not error on poll %d", poll+1)
-				} else {
-					require.ErrorIsf(t, err, tc.err, "UpdateTickers must return the error expected on poll %d", poll+1)
-					for _, text := range tc.mentions {
-						assert.ErrorContainsf(t, err, text, "the error on poll %d should carry %s", poll+1, text)
+				status := tc.refusedTickers[poll]
+				switch {
+				case status == http.StatusOK:
+					if assert.ErrorIsf(t, err, errFuturesRequestFailed, "UpdateTickers should return the venue's refusal on poll %d", poll+1) {
+						assert.ErrorContainsf(t, err, "510", "the error on poll %d should carry the venue's code", poll+1)
+					}
+				case status != 0:
+					if assert.ErrorIsf(t, err, request.ErrBadStatus, "UpdateTickers should return the refusal by status on poll %d", poll+1) {
+						assert.ErrorContainsf(t, err, strconv.Itoa(status), "the error on poll %d should carry the status", poll+1)
+					}
+				case tc.err == nil:
+					assert.NoErrorf(t, err, "UpdateTickers should not error on poll %d", poll+1)
+				default:
+					if assert.ErrorIsf(t, err, tc.err, "UpdateTickers should return the error expected on poll %d", poll+1) {
+						for _, text := range tc.mentions {
+							assert.ErrorContainsf(t, err, text, "the error on poll %d should carry %s", poll+1, text)
+						}
 					}
 				}
 				assert.Equalf(t, int32(poll+1), polls.Load(), "the ticker list should be read once on each poll, by poll %d", poll+1)
@@ -1508,10 +1548,16 @@ func TestUpdateTickers(t *testing.T) {
 					result, err := ticker.GetTicker(ex.Name, p, asset.Futures)
 					switch {
 					case tc.stored.Contains(p, true):
-						if assert.NoErrorf(t, err, "a ticker should be stored for %s on poll %d", p, poll+1) {
-							assert.Equalf(t, quotes[poll][p].Last, result.Last, "the %s ticker should carry poll %d's last price", p, poll+1)
-							assert.Equalf(t, quotes[poll][p].LastUpdated.UnixMilli(), result.LastUpdated.UnixMilli(), "the %s ticker should carry the time of poll %d's quote", p, poll+1)
+						if !assert.NoErrorf(t, err, "a ticker should be stored for %s on poll %d", p, poll+1) {
+							continue
 						}
+						if status != 0 {
+							assert.Equalf(t, kept[p], result, "the ticker stored for %s should be left as it was on poll %d, whose list read the venue refused", p, poll+1)
+							continue
+						}
+						assert.Equalf(t, quotes[poll][p].Last, result.Last, "the %s ticker should carry poll %d's last price", p, poll+1)
+						assert.Equalf(t, quotes[poll][p].LastUpdated.UnixMilli(), result.LastUpdated.UnixMilli(), "the %s ticker should carry the time of poll %d's quote", p, poll+1)
+						kept[p] = result
 					case p.Equal(tc.dropped):
 						if assert.NoErrorf(t, err, "the ticker stored for %s should be kept on poll %d", p, poll+1) {
 							assert.Equalf(t, dropped, result, "the ticker stored for %s should be left as it was on poll %d, as the exchange no longer holds it", p, poll+1)
