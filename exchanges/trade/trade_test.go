@@ -126,6 +126,69 @@ func TestSQLDataToTrade(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, errInvalidTradeID, "SQLDataToTrade should reject a malformed stored ID")
 	assert.ErrorContains(t, err, `"not-a-uuid"`, "error should name the offending ID")
+
+	at := time.Date(2026, 11, 6, 1, 34, 23, 335152000, time.UTC)
+	stored := func(side string) sqltrade.Data {
+		return sqltrade.Data{ID: uuid.NewV4().String(), Timestamp: at, Exchange: "hello", Base: "BTC", Quote: "USD", AssetType: "spot", Price: 2774.25, Amount: 4, Side: side}
+	}
+	for _, tc := range []struct {
+		name, side string
+		exp        order.Side
+	}{
+		{"buy stored upper-case", "BUY", order.Buy},
+		{"sell stored lower-case", "sell", order.Sell},
+		{"unknown side stored upper-case", "UNKNOWN", order.UnknownSide},
+		{"unknown side stored lower-case", "unknown", order.UnknownSide},
+		{"unknown side stored as no side", "", order.UnknownSide},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			row := stored(tc.side)
+			trades, err := SQLDataToTrade(row)
+			require.NoErrorf(t, err, "SQLDataToTrade must not error for stored side %q", tc.side)
+			id, err := uuid.Parse(row.ID)
+			require.NoError(t, err, "the stored ID must parse")
+			exp := []Data{{ID: id, Timestamp: at, Exchange: "hello", CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 2774.25, Amount: 4, Side: tc.exp}}
+			assert.Equalf(t, exp, trades, "SQLDataToTrade should read a trade stored with side %q back whole, with side %s", tc.side, tc.exp)
+		})
+	}
+	t.Run("batch of trades stored with different sides", func(t *testing.T) {
+		t.Parallel()
+		sides := []struct {
+			stored string
+			exp    order.Side
+		}{{"BUY", order.Buy}, {"", order.UnknownSide}, {"SELL", order.Sell}, {"", order.UnknownSide}, {"ANY", order.AnySide}, {"", order.UnknownSide}, {"UNKNOWN", order.UnknownSide}}
+		rows := make([]sqltrade.Data, len(sides))
+		exp := make([]Data, len(sides))
+		for i, s := range sides {
+			id := uuid.NewV4()
+			ts := at.Add(time.Duration(i) * time.Second)
+			price := 2774.25 + float64(i)
+			rows[i] = sqltrade.Data{ID: id.String(), Timestamp: ts, Exchange: "hello", Base: "BTC", Quote: "USD", AssetType: "spot", Price: price, Amount: 4, Side: s.stored}
+			exp[i] = Data{ID: id, Timestamp: ts, Exchange: "hello", CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: price, Amount: 4, Side: s.exp}
+		}
+		trades, err := SQLDataToTrade(rows...)
+		require.NoError(t, err, "SQLDataToTrade must not error for a batch of stored sides")
+		assert.Equal(t, exp, trades, "SQLDataToTrade should read each trade of a batch back whole, with its own side")
+	})
+	for _, side := range []order.Side{order.Buy, order.Sell, order.AnySide, order.UnknownSide} {
+		t.Run("trade saved with side "+side.String(), func(t *testing.T) {
+			t.Parallel()
+			saved := Data{Timestamp: at, Exchange: "hello", CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 2774.25, Amount: 4, Side: side}
+			rows := tradeToSQLData(saved)
+			require.Len(t, rows, 1, "tradeToSQLData must store one row")
+			trades, err := SQLDataToTrade(rows...)
+			require.NoErrorf(t, err, "SQLDataToTrade must not error for a trade saved with side %s", side)
+			saved.ID, err = uuid.Parse(rows[0].ID)
+			require.NoError(t, err, "the stored ID must parse")
+			assert.Equalf(t, []Data{saved}, trades, "SQLDataToTrade should read back a trade saved with side %s whole", side)
+		})
+	}
+	t.Run("stored side it cannot read", func(t *testing.T) {
+		t.Parallel()
+		_, err := SQLDataToTrade(stored("HOLD"))
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "SQLDataToTrade should reject a stored side it cannot read")
+	})
 }
 
 func TestTradeToSQLData(t *testing.T) {

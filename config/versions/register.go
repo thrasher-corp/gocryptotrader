@@ -18,6 +18,7 @@ import (
 	v21 "github.com/thrasher-corp/gocryptotrader/config/versions/v21"
 	v22 "github.com/thrasher-corp/gocryptotrader/config/versions/v22"
 	v23 "github.com/thrasher-corp/gocryptotrader/config/versions/v23"
+	v24 "github.com/thrasher-corp/gocryptotrader/config/versions/v24"
 	v3 "github.com/thrasher-corp/gocryptotrader/config/versions/v3"
 	v4 "github.com/thrasher-corp/gocryptotrader/config/versions/v4"
 	v5 "github.com/thrasher-corp/gocryptotrader/config/versions/v5"
@@ -53,5 +54,6 @@ func newManager() *manager {
 	m.registerVersion(21, &v21.Version{})
 	m.registerVersion(22, &v22.Version{})
 	m.registerVersion(23, &v23.Version{})
+	m.registerVersion(24, &v24.Version{})
 	return m
 }

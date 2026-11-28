@@ -100,10 +100,10 @@
     "bytes": 184753
   },
   "config.BenchmarkUpdateConfig": {
-    "allocs": 41005,
-    "bytes": 10277414,
+    "allocs": 41254,
+    "bytes": 10433422,
     "allocs_tolerance": 0.004,
-    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts and Bitstamp's perpetual contracts in testdata/configtest.json, gave medians from 41005 to 41034. 0.4% is about 164 allocations either side of the budget, which covers that range with headroom"
+    "reason": "the median moves by tens of allocations between runs: BENCH_FLAGS runs in November 2026, with LBank's contracts, Bitstamp's perpetual contracts and Coinbase's coin and USDC margined futures in testdata/configtest.json, gave medians from 41254 to 41265. 0.4% is about 165 allocations either side of the budget, which covers that range with headroom"
   },
   "currency.BenchmarkFindDifferences": {
     "allocs": 2,
