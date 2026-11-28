@@ -620,24 +620,47 @@ func TestGetOpenInterest(t *testing.T) {
 		assert.Empty(t, result, "no open interest should be returned with the refusal")
 	})
 	for _, tc := range []struct {
-		name string
-		keys []key.PairAsset
+		name       string
+		keys       []key.PairAsset
+		refused    bool
+		readBefore []string
 	}{
-		{"0 contracts asked for, the venue giving no details of BTC_USDT", nil},
-		{"BTC_USDT asked for alone, the venue giving no details of it", []key.PairAsset{linear}},
-		{"2 contracts asked for, the venue giving no details of BTC_USDT", []key.PairAsset{linear, inverse}},
+		{"0 contracts asked for, the venue giving no details of BTC_USDT", nil, false, nil},
+		{"BTC_USDT asked for alone, the venue giving no details of it", []key.PairAsset{linear}, false, nil},
+		{"2 contracts asked for, the venue giving no details of BTC_USDT", []key.PairAsset{linear, inverse}, false, nil},
+		{"0 contracts asked for, the venue refusing its catalogue", nil, true, nil},
+		{"BTC_USDT asked for alone, the venue refusing its catalogue", []key.PairAsset{linear}, true, nil},
+		{"2 contracts asked for, the venue refusing its catalogue", []key.PairAsset{linear, inverse}, true, nil},
+		{"2 contracts asked for, BTC_USDT read before and the venue refusing its catalogue", []key.PairAsset{linear, inverse}, true, []string{"BTC_USDT"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			ex := newPrivateTestExchange(t, futuresHandler(t,
+			details := futuresHandler(t,
 				futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=BTC_USDT", data: `{"symbol":"BTC_USDT","holdVol":490217124}`},
 				futuresRoute{method: http.MethodGet, path: "contract/ticker", data: `[{"symbol":"BTC_USD","holdVol":1724933},{"symbol":"BTC_USDT","holdVol":490217124}]`},
 				futuresRoute{method: http.MethodGet, path: "contract/detail/country", data: `[{"symbol":"BTC_USD","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC","contractSize":100,"state":0,"apiAllowed":true}]`},
-			))
+			)
+			venue, reads := countCatalogueReads(t, func(w http.ResponseWriter, r *http.Request) {
+				if tc.refused && r.URL.Path == "/api/v1/contract/detail/country" {
+					http.Error(w, "refused", http.StatusTeapot)
+					return
+				}
+				details(w, r)
+			})
+			ex := newPrivateTestExchange(t, venue)
+			for _, symbol := range tc.readBefore {
+				ex.storeFuturesContracts([]*FuturesContractResponse{{Symbol: symbol, ContractSize: 0.0001}})
+			}
 			result, err := ex.GetOpenInterest(t.Context(), tc.keys...)
-			assert.ErrorIsf(t, err, errContractNotFound, "GetOpenInterest should not guess a contract's size for %s", tc.name)
-			assert.ErrorContainsf(t, err, "BTC_USDT", "the error should name the contract without details for %s", tc.name)
+			if tc.refused {
+				assert.ErrorIsf(t, err, request.ErrBadStatus, "GetOpenInterest should return the venue's refusal for %s", tc.name)
+				assert.ErrorContainsf(t, err, "418", "the venue's status should be kept in the error for %s", tc.name)
+			} else {
+				assert.ErrorIsf(t, err, errContractNotFound, "GetOpenInterest should not guess a contract's size for %s", tc.name)
+				assert.ErrorContainsf(t, err, "BTC_USDT", "the error should name the contract without details for %s", tc.name)
+			}
 			assert.Emptyf(t, result, "no open interest should be returned with the error for %s", tc.name)
+			assert.Equalf(t, int32(1), reads.Load(), "the contract catalogue should be read once for %s", tc.name)
 		})
 	}
 	t.Run("a venue's open interest changing between calls", func(t *testing.T) {
@@ -676,6 +699,47 @@ func TestGetOpenInterest(t *testing.T) {
 		for i := range exp {
 			assert.ElementsMatchf(t, exp[i], results[i], "call %d should keep the open interest the venue held then", i+1)
 		}
+	})
+	t.Run("contracts not held or listed without details beside one asked for", func(t *testing.T) {
+		t.Parallel()
+		venue, reads := countCatalogueReads(t, futuresHandler(t,
+			futuresRoute{method: http.MethodGet, path: "contract/ticker", query: "symbol=ETH_USDT", data: `{"contractId":11,"symbol":"ETH_USDT","lastPrice":1673.19,"bid1":1673.19,"ask1":1673.2,"volume24":60110586,"holdVol":42844344,"timestamp":1795808103890}`},
+			futuresRoute{method: http.MethodGet, path: "contract/ticker", data: `[{"symbol":"BTC_USDT","holdVol":490217124},{"symbol":"ETH_USDT","holdVol":42844344},{"symbol":"TON_USDT","holdVol":0}]`},
+			futuresContractsRoute,
+		))
+		ex := newPrivateTestExchange(t, venue)
+		for _, keys := range [][]key.PairAsset{{notHeld}, {notHeld, notHeldInverse}} {
+			result, err := ex.GetOpenInterest(t.Context(), keys...)
+			require.NoErrorf(t, err, "GetOpenInterest must not error for %d contracts not held", len(keys))
+			assert.Emptyf(t, result, "no open interest should be returned for %d contracts not held", len(keys))
+		}
+		assert.Zero(t, reads.Load(), "no contract details should be read for contracts the exchange does not hold")
+		exp := []futures.OpenInterest{{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}}
+		for i, keys := range [][]key.PairAsset{nil, {linear, inverse}, nil} {
+			result, err := ex.GetOpenInterest(t.Context(), keys...)
+			require.NoErrorf(t, err, "GetOpenInterest must not error for call %d", i+1)
+			assert.Equalf(t, exp, result, "the contract held should be returned for call %d", i+1)
+		}
+		assert.Equal(t, int32(1), reads.Load(), "the contract catalogue should be read once, not for contracts nobody asked for")
+	})
+	t.Run("a contract and one held but not listed asked for twice", func(t *testing.T) {
+		t.Parallel()
+		venue, reads := countCatalogueReads(t, futuresHandler(t,
+			futuresRoute{method: http.MethodGet, path: "contract/ticker", data: `[{"symbol":"BTC_USDT","holdVol":490217124},{"symbol":"BTC_USD","holdVol":1724933}]`},
+			futuresContractsRoute,
+		))
+		ex := newPrivateTestExchange(t, venue)
+		unlisted := currency.NewPairWithDelimiter("HOOKED", "USDT", currency.UnderscoreDelimiter)
+		held := currency.Pairs{futuresTradablePair, futuresInversePair, unlisted}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, held, false), "StorePairs must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, held, true), "StorePairs must not error")
+		exp := []futures.OpenInterest{{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}}
+		for call := range 2 {
+			result, err := ex.GetOpenInterest(t.Context(), linear, key.PairAsset{Base: unlisted.Base.Item, Quote: unlisted.Quote.Item, Asset: asset.Futures})
+			require.NoErrorf(t, err, "GetOpenInterest must not error for call %d", call+1)
+			assert.Equalf(t, exp, result, "the contract the venue lists should be returned for call %d", call+1)
+		}
+		assert.Equal(t, int32(1), reads.Load(), "the contract catalogue should be read once, not for the contract the venue does not list")
 	})
 
 	result, err := e.GetOpenInterest(t.Context(), linear)
@@ -719,7 +783,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assetDisabledLinearAlone := futures.OpenInterest{Key: key.NewExchangeAssetPair(assetDisabled.Name, asset.Futures, futuresTradablePair), OpenInterest: 48989.418000000005}
 	assetDisabledLinear := futures.OpenInterest{Key: key.NewExchangeAssetPair(assetDisabled.Name, asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004}
 
-	// silent's venue lists no contracts
 	silent := newPrivateTestExchange(t, futuresHandler(t, futuresRoute{method: http.MethodGet, path: "contract/ticker", data: "[]"}))
 
 	// MEXC's recording holds three open contracts, so unrecorded's venue serves kinds its live lists hold too: a hold past
@@ -864,6 +927,126 @@ func TestFuturesQuoteCost(t *testing.T) {
 			assert.InDeltaf(t, tc.exp, futuresQuoteCost(tc.contract, 5, 100000), 1e-9, "five %s margined contracts at 100000 should cost %v %s", tc.contract.SettleCoin, tc.exp, tc.contract.QuoteCoin)
 		})
 	}
+}
+
+func TestFuturesContractsFor(t *testing.T) {
+	t.Parallel()
+	linear := &FuturesTickerResponse{Symbol: "BTC_USDT"}
+	inverse := &FuturesTickerResponse{Symbol: "BTC_USD"}
+	// MEXC lists a TON_USDT ticker which its catalogue leaves out
+	unlisted := &FuturesTickerResponse{Symbol: "TON_USDT"}
+	// Sizes read before differ from the venue's, so a contract taken from what was read before can be told from one read
+	// again
+	readBefore := map[string]float64{"BTC_USDT": 1, "BTC_USD": 2}
+	read := map[string]float64{"BTC_USDT": 0.0001, "BTC_USD": 100}
+	inverseOnly := `[{"symbol":"BTC_USD","baseCoin":"BTC","quoteCoin":"USD","settleCoin":"BTC","contractSize":100,"state":0,"apiAllowed":true}]`
+	for _, tc := range []struct {
+		name        string
+		known       []string
+		askedBefore []*FuturesTickerResponse
+		tickers     []*FuturesTickerResponse
+		// catalogue is the venue's catalogue when it differs from futuresContractsReply
+		catalogue string
+		// refusal is the venue's reply to a catalogue read it refuses, with its status
+		refusal string
+		status  int
+		err     error
+		// message is the part of the refusal the error should keep
+		message string
+		reads   int32
+		exp     map[string]float64
+	}{
+		{name: "every contract read before", known: []string{"BTC_USDT", "BTC_USD"}, tickers: []*FuturesTickerResponse{linear, inverse}, exp: readBefore},
+		{name: "no contract read before", tickers: []*FuturesTickerResponse{linear, inverse}, reads: 1, exp: read},
+		{name: "one contract read before", known: []string{"BTC_USDT"}, tickers: []*FuturesTickerResponse{linear, inverse}, reads: 1, exp: read},
+		{name: "a contract read with another asked for before", askedBefore: []*FuturesTickerResponse{linear}, tickers: []*FuturesTickerResponse{inverse}, reads: 1, exp: map[string]float64{"BTC_USD": 100}},
+		{name: "a contract read before which the catalogue now leaves out", known: []string{"BTC_USDT"}, tickers: []*FuturesTickerResponse{linear, inverse}, catalogue: inverseOnly, reads: 1, exp: map[string]float64{"BTC_USDT": 1, "BTC_USD": 100}},
+		{name: "a contract the catalogue leaves out", known: []string{"BTC_USDT", "BTC_USD"}, tickers: []*FuturesTickerResponse{linear, unlisted}, reads: 1, exp: map[string]float64{"BTC_USDT": 0.0001}},
+		{name: "a null ticker beside a contract read before", known: []string{"BTC_USDT"}, tickers: []*FuturesTickerResponse{nil, linear}, exp: map[string]float64{"BTC_USDT": 1}},
+		{name: "no tickers", exp: map[string]float64{}},
+		{name: "the catalogue read refused", known: []string{"BTC_USDT"}, tickers: []*FuturesTickerResponse{linear, inverse}, refusal: "refused", status: http.StatusTeapot, err: request.ErrBadStatus, message: "418", reads: 1},
+		{name: "the catalogue read refused in the venue's reply", known: []string{"BTC_USDT"}, tickers: []*FuturesTickerResponse{linear, inverse}, refusal: `{"success":false,"code":510,"message":"Requests are too frequent, please try again later"}`, status: http.StatusOK, err: errFuturesRequestFailed, message: "Requests are too frequent, please try again later", reads: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			route := futuresContractsRoute
+			if tc.catalogue != "" {
+				route.data = tc.catalogue
+			}
+			venue := futuresHandler(t, route)
+			if tc.refusal != "" {
+				venue = func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(tc.status)
+					_, _ = w.Write([]byte(tc.refusal))
+				}
+			}
+			handler, reads := countCatalogueReads(t, venue)
+			ex := newPrivateTestExchange(t, handler)
+			for _, symbol := range tc.known {
+				ex.storeFuturesContracts([]*FuturesContractResponse{{Symbol: symbol, ContractSize: readBefore[symbol]}})
+			}
+			if tc.askedBefore != nil {
+				before, err := ex.futuresContractsFor(t.Context(), tc.askedBefore)
+				require.NoError(t, err, "futuresContractsFor must not error for the contracts asked for before")
+				assert.Equal(t, int32(1), reads.Load(), "the catalogue should be read for the contracts asked for before")
+				for _, asked := range tc.askedBefore {
+					if c := before[asked.Symbol]; assert.NotNilf(t, c, "the details of %s should be returned when first asked for", asked.Symbol) {
+						assert.Equalf(t, read[asked.Symbol], c.ContractSize, "the size of %s should be read from the catalogue", asked.Symbol)
+					}
+				}
+			}
+			contracts, err := ex.futuresContractsFor(t.Context(), tc.tickers)
+			assert.Equal(t, tc.reads, reads.Load(), "the catalogue should be read only when a contract is not yet known")
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "futuresContractsFor should return the venue's refusal")
+				assert.ErrorContains(t, err, tc.message, "the venue's refusal should be kept in the error")
+				assert.Nil(t, contracts, "no contracts should be returned with the refusal")
+				return
+			}
+			require.NoError(t, err, "futuresContractsFor must not error")
+			sizes := make(map[string]float64, len(contracts))
+			for symbol, c := range contracts {
+				if assert.NotNilf(t, c, "the details returned for %s should not be nil", symbol) {
+					sizes[symbol] = c.ContractSize
+				}
+			}
+			assert.Equal(t, tc.exp, sizes, "the details of each contract behind the tickers should be returned")
+		})
+	}
+	t.Run("the call cancelled while the catalogue is read", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		details := futuresHandler(t, futuresContractsRoute)
+		ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			cancel()
+			select {
+			case <-r.Context().Done():
+			case <-time.After(time.Second):
+				details(w, r)
+			}
+		})
+		contracts, err := ex.futuresContractsFor(ctx, []*FuturesTickerResponse{linear, inverse})
+		assert.ErrorIs(t, err, context.Canceled, "futuresContractsFor should return the cancellation")
+		assert.Nil(t, contracts, "no contracts should be returned once cancelled")
+	})
+	t.Run("contracts read from the venue", func(t *testing.T) {
+		t.Parallel()
+		ex := newIsolatedTestExchange(t)
+		contracts, err := ex.futuresContractsFor(t.Context(), []*FuturesTickerResponse{linear, inverse})
+		require.NoError(t, err, "futuresContractsFor must not error")
+		assert.Len(t, contracts, len(read), "only the contracts behind the tickers should be returned")
+		for symbol, size := range read {
+			c, ok := contracts[symbol]
+			require.Truef(t, ok && c != nil, "the details of %s must be returned", symbol)
+			if mockTests {
+				assert.Equalf(t, size, c.ContractSize, "the recorded size of %s should be returned", symbol)
+				continue
+			}
+			assert.Positivef(t, c.ContractSize, "the size of %s should be positive", symbol)
+		}
+	})
 }
 
 func TestFuturesOrderDetail(t *testing.T) {

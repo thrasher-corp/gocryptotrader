@@ -1401,6 +1401,130 @@ func TestUpdateTickers(t *testing.T) {
 			assert.Positivef(t, result.OpenInterest, "the %s ticker should carry its open interest", p)
 		})
 	}
+
+	// MEXC lists tickers for contracts its catalogue leaves out, such as TON_USDT and STETH_USDT, and for contracts closed
+	// to API trading, such as FIONA_USDT. A null entry is skipped, and BTC_USDC's equal bid and ask make the ticker store
+	// refuse it
+	listed := `[{"contractId":77,"symbol":"BTC_USD","lastPrice":59792.8,"holdVol":2364759,"volume24":422315,"timestamp":1795806951097},` +
+		`{"contractId":1774,"symbol":"TON_USDT","lastPrice":0,"holdVol":0,"volume24":0,"timestamp":1795806949775},null,` +
+		`{"contractId":11,"symbol":"ETH_USDT","lastPrice":1670.51,"holdVol":42638052,"volume24":59406474,"timestamp":1795806950938},` +
+		`{"contractId":10,"symbol":"BTC_USDT","lastPrice":59859.1,"holdVol":639956119,"volume24":528827621,"timestamp":1795806950938},` +
+		`{"contractId":1104,"symbol":"BTC_USDC","lastPrice":59798.5,"bid1":59798.5,"ask1":59798.5,"holdVol":30817658,"volume24":11420803,"timestamp":1795806951058},` +
+		`{"contractId":78,"symbol":"ETH_USD","lastPrice":1668.53,"holdVol":16956407,"volume24":2561949,"timestamp":1795806951162},` +
+		`{"contractId":2595,"symbol":"FIONA_USDT","lastPrice":0.00105,"holdVol":3071464,"volume24":11073417,"timestamp":1795806951066},` +
+		`{"contractId":1450,"symbol":"STETH_USDT","lastPrice":0,"holdVol":0,"volume24":0,"timestamp":1795830075805}]`
+	// By the second poll BTC_USD has traded at another price, and ETH_USDT is quoted later at the same price
+	listedLater := strings.NewReplacer(
+		`"lastPrice":59792.8`, `"lastPrice":60109`,
+		`"timestamp":1795806951097`, `"timestamp":1795830074108`,
+		`"volume24":59406474,"timestamp":1795806950938`, `"volume24":59406474,"timestamp":1795830073953`,
+	).Replace(listed)
+	catalogue := strings.TrimSuffix(futuresContractsReply, "]") +
+		`,{"symbol":"ETH_USDT","baseCoin":"ETH","quoteCoin":"USDT","settleCoin":"USDT","contractSize":0.01,"state":0,"apiAllowed":true}` +
+		`,{"symbol":"BTC_USDC","baseCoin":"BTC","quoteCoin":"USDC","settleCoin":"USDC","contractSize":0.0001,"state":0,"apiAllowed":true}` +
+		`,{"symbol":"ETH_USD","baseCoin":"ETH","quoteCoin":"USD","settleCoin":"ETH","contractSize":10,"state":0,"apiAllowed":true}` +
+		`,{"symbol":"FIONA_USDT","baseCoin":"FIONA","quoteCoin":"USDT","settleCoin":"USDT","contractSize":10,"state":0,"apiAllowed":false}]`
+	ethUSDT := currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	btcUSDC := currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter)
+	ethUSD := currency.NewPairWithDelimiter("ETH", "USD", currency.UnderscoreDelimiter)
+	tonUSDT := currency.NewPairWithDelimiter("TON", "USDT", currency.UnderscoreDelimiter)
+	stethUSDT := currency.NewPairWithDelimiter("STETH", "USDT", currency.UnderscoreDelimiter)
+	listedPairs := currency.Pairs{
+		futuresInversePair, tonUSDT, ethUSDT, futuresTradablePair, btcUSDC, ethUSD,
+		currency.NewPairWithDelimiter("FIONA", "USDT", currency.UnderscoreDelimiter), stethUSDT,
+	}
+	quotes := [2]map[currency.Pair]ticker.Price{
+		{futuresInversePair: {Last: 59792.8, LastUpdated: time.UnixMilli(1795806951097)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795806950938)}},
+		{futuresInversePair: {Last: 60109, LastUpdated: time.UnixMilli(1795830074108)}, ethUSDT: {Last: 1670.51, LastUpdated: time.UnixMilli(1795830073953)}},
+	}
+	for _, tc := range []struct {
+		name    string
+		held    currency.Pairs
+		enabled currency.Pairs
+		// dropped is a contract no longer held whose ticker was stored before
+		dropped currency.Pair
+		// refused has the venue refuse every catalogue read
+		refused bool
+		// reads counts the catalogue reads by the end of each poll
+		reads [2]int32
+		// err is the error each poll returns, carrying each of mentions
+		err      error
+		mentions []string
+		stored   currency.Pairs
+	}{
+		{name: "contracts listed but not held", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
+		{name: "no contracts held", held: currency.Pairs{}, enabled: currency.Pairs{}},
+		{name: "a contract held but not enabled and one enabled but not held", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, btcUSDC}, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
+		{name: "a contract no longer held with its ticker stored", held: currency.Pairs{futuresInversePair}, enabled: currency.Pairs{futuresInversePair}, dropped: ethUSD, reads: [2]int32{1, 1}, stored: currency.Pairs{futuresInversePair}},
+		{name: "contracts held which the catalogue leaves out", held: currency.Pairs{futuresInversePair, tonUSDT, ethUSDT, stethUSDT}, enabled: currency.Pairs{futuresInversePair, tonUSDT, ethUSDT, stethUSDT}, reads: [2]int32{1, 2}, err: errContractNotFound, mentions: []string{"TON_USDT", "STETH_USDT"}, stored: currency.Pairs{futuresInversePair, ethUSDT}},
+		{name: "a held contract quoted with an equal bid and ask", held: currency.Pairs{futuresInversePair, btcUSDC}, enabled: currency.Pairs{futuresInversePair, btcUSDC}, reads: [2]int32{1, 1}, err: ticker.ErrBidEqualsAsk, mentions: []string{"BTC_USDC"}, stored: currency.Pairs{futuresInversePair}},
+		{name: "the catalogue read refused", held: currency.Pairs{futuresInversePair, ethUSDT}, enabled: currency.Pairs{futuresInversePair, ethUSDT}, refused: true, reads: [2]int32{1, 2}, err: request.ErrBadStatus, mentions: []string{"418"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			first := futuresHandler(t,
+				futuresRoute{method: http.MethodGet, path: "contract/ticker", data: listed},
+				futuresRoute{method: http.MethodGet, path: "contract/detail/country", data: catalogue},
+			)
+			later := futuresHandler(t, futuresRoute{method: http.MethodGet, path: "contract/ticker", data: listedLater})
+			var polls atomic.Int32
+			venue, reads := countCatalogueReads(t, func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.URL.Path == "/api/v1/contract/ticker" && r.URL.RawQuery != "":
+					t.Errorf("the ticker list should be read whole, not for %s", r.URL.RawQuery)
+					http.Error(w, "unexpected query", http.StatusBadRequest)
+				case tc.refused && r.URL.Path == "/api/v1/contract/detail/country":
+					http.Error(w, "refused", http.StatusTeapot)
+				case r.URL.Path == "/api/v1/contract/ticker" && polls.Add(1) > 1:
+					later(w, r)
+				default:
+					first(w, r)
+				}
+			})
+			ex := newPrivateTestExchange(t, venue)
+			ex.Name = t.Name()
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, tc.held, false), "StorePairs must not error")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, tc.enabled, true), "StorePairs must not error")
+			var dropped *ticker.Price
+			if !tc.dropped.IsEmpty() {
+				require.NoError(t, ticker.ProcessTicker(&ticker.Price{Pair: tc.dropped, ExchangeName: ex.Name, AssetType: asset.Futures, Last: 1}), "ProcessTicker must not error")
+				var err error
+				dropped, err = ticker.GetTicker(ex.Name, tc.dropped, asset.Futures)
+				require.NoError(t, err, "GetTicker must not error for the ticker stored")
+			}
+			for poll := range 2 {
+				err := ex.UpdateTickers(t.Context(), asset.Futures)
+				if tc.err == nil {
+					require.NoErrorf(t, err, "UpdateTickers must not error on poll %d", poll+1)
+				} else {
+					require.ErrorIsf(t, err, tc.err, "UpdateTickers must return the error expected on poll %d", poll+1)
+					for _, text := range tc.mentions {
+						assert.ErrorContainsf(t, err, text, "the error on poll %d should carry %s", poll+1, text)
+					}
+				}
+				assert.Equalf(t, int32(poll+1), polls.Load(), "the ticker list should be read once on each poll, by poll %d", poll+1)
+				assert.Equalf(t, tc.reads[poll], reads.Load(), "the contract catalogue should be read only for contracts not yet read, by poll %d", poll+1)
+				for _, p := range listedPairs {
+					result, err := ticker.GetTicker(ex.Name, p, asset.Futures)
+					switch {
+					case tc.stored.Contains(p, true):
+						if assert.NoErrorf(t, err, "a ticker should be stored for %s on poll %d", p, poll+1) {
+							assert.Equalf(t, quotes[poll][p].Last, result.Last, "the %s ticker should carry poll %d's last price", p, poll+1)
+							assert.Equalf(t, quotes[poll][p].LastUpdated.UnixMilli(), result.LastUpdated.UnixMilli(), "the %s ticker should carry the time of poll %d's quote", p, poll+1)
+						}
+					case p.Equal(tc.dropped):
+						if assert.NoErrorf(t, err, "the ticker stored for %s should be kept on poll %d", p, poll+1) {
+							assert.Equalf(t, dropped, result, "the ticker stored for %s should be left as it was on poll %d, as the exchange no longer holds it", p, poll+1)
+						}
+					case tc.held.Contains(p, true):
+						assert.ErrorIsf(t, err, ticker.ErrTickerNotFound, "no ticker should be stored for %s on poll %d, held but failing on each poll", p, poll+1)
+					default:
+						assert.ErrorIsf(t, err, ticker.ErrTickerNotFound, "no ticker should be stored for %s on poll %d, which the exchange does not hold", p, poll+1)
+					}
+				}
+			}
+		})
+	}
 }
 
 func TestUpdateOrderbook(t *testing.T) {

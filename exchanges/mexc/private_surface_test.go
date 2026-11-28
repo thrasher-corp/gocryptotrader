@@ -47,7 +47,18 @@ func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	// The limiters are shared by every instance and the server is local, so a test exchange does not
 	// draw on the budget the other tests wait on.
 	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
-	srv := httptest.NewTestServer(t, handler)
+	// Code asking again until a reply changes can run until go test's timeout, so past this bound the venue refuses
+	// the request and fails the test; code that returns on the refusal then fails promptly
+	const requestLimit = 100
+	var requests atomic.Int32
+	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) > requestLimit {
+			t.Errorf("the test venue received more than %d requests, the last for %s", requestLimit, r.URL)
+			http.Error(w, "request limit reached", http.StatusBadRequest)
+			return
+		}
+		handler(w, r)
+	}))
 	require.NoError(t, ex.SetHTTPClient(srv.Client()), "SetHTTPClient must not error")
 	b := ex.GetBase()
 	b.SkipAuthCheck = true
@@ -100,6 +111,22 @@ func countRequests(handler http.HandlerFunc) (http.HandlerFunc, *atomic.Int32) {
 		requests.Add(1)
 		handler(w, r)
 	}, requests
+}
+
+// countCatalogueReads returns a handler counting the futures contract catalogue reads it passes to handler, and the
+// count. A read naming a symbol fails the test, as the catalogue is read whole to learn every contract it needs at once
+func countCatalogueReads(t *testing.T, handler http.HandlerFunc) (http.HandlerFunc, *atomic.Int32) {
+	t.Helper()
+	reads := new(atomic.Int32)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/contract/detail/country" {
+			reads.Add(1)
+			if r.URL.RawQuery != "" {
+				t.Errorf("the contract catalogue should be read whole, not for %s", r.URL.RawQuery)
+			}
+		}
+		handler(w, r)
+	}, reads
 }
 
 // newRefusingTestExchange returns an isolated exchange whose venue refuses every request, and the count of the
