@@ -3094,7 +3094,29 @@ func (v *advancedTradeVenue) allRequests() []WebsocketWireRequest {
 	return slices.Clone(v.requests)
 }
 
-// upgrader returns the handler of a connection to the mock, which keeps each connection's subscriptions
+// advancedTradeVenueRequestLimit is well above the 9 requests the busiest exchange test's mock venue receives in a run
+// of the package, and the one request each test double takes in TestWebsocketSendRequest; past it the venue and the
+// doubles refuse a request, and timedOutConnection reports itself disconnected, so a loop that sends or checks again
+// until refused or disconnected stops there and fails its test rather than running until go test's timeout
+const advancedTradeVenueRequestLimit = 100
+
+// serveAdvancedTradeVenue starts a server for a mock venue and checks in the test's cleanup that the venue received no
+// more requests than its limit, as the venue refuses one past it on the server's goroutine, which may run after the
+// test has ended
+func serveAdvancedTradeVenue(t *testing.T, venue *advancedTradeVenue) *httptest.Server {
+	t.Helper()
+	// Registered before the exchange's cleanup, so it runs once the exchange has stopped sending
+	t.Cleanup(func() {
+		assert.LessOrEqual(t, len(venue.allRequests()), advancedTradeVenueRequestLimit, "the mock venue should receive no more requests than its limit")
+	})
+	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, venue.upgrader()))
+	// The exchange dials with its own dialer, which reaches a listener but not the in-memory network
+	server.Start()
+	return server
+}
+
+// upgrader returns the handler of a connection to the mock, which keeps each connection's subscriptions; past
+// advancedTradeVenueRequestLimit it refuses a request and closes the connection
 func (v *advancedTradeVenue) upgrader() func(testing.TB, []byte, *gws.Conn) error {
 	var mu sync.Mutex
 	state := make(map[*gws.Conn]map[string][]string)
@@ -3106,6 +3128,15 @@ func (v *advancedTradeVenue) upgrader() func(testing.TB, []byte, *gws.Conn) erro
 		}
 		v.mu.Lock()
 		v.requests = append(v.requests, req)
+		received := len(v.requests)
+		v.mu.Unlock()
+		if received > advancedTradeVenueRequestLimit {
+			// A client that has gone gets neither the refusal nor the close
+			_ = conn.WriteJSON(map[string]string{"type": wsMessageError, "message": errRequestPastLimit.Error()})
+			_ = conn.Close()
+			return nil
+		}
+		v.mu.Lock()
 		refusal, refused := v.refuse[req.Channel]
 		skip := v.skip
 		v.skip = 0
@@ -3183,9 +3214,7 @@ func (v *advancedTradeVenue) upgrader() func(testing.TB, []byte, *gws.Conn) erro
 // with the subscriptions given; the gateway assets have no pairs, so its connections carry nothing
 func connectAdvancedTradeTestExchange(t *testing.T, venue *advancedTradeVenue, subs subscription.List) (*Exchange, error) {
 	t.Helper()
-	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, venue.upgrader()))
-	// The exchange dials with its own dialer, which reaches a listener but not the in-memory network
-	server.Start()
+	server := serveAdvancedTradeVenue(t, venue)
 	ex := newWebsocketTestExchange(t)
 	for _, a := range []asset.Item{asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
 		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, nil, true), "StorePairs must not error for %s", a)
@@ -3271,9 +3300,7 @@ func TestWebsocketRequestTimeoutReconnects(t *testing.T) { //nolint:tparallel //
 	t.Parallel()
 	// The level2 confirmation arrives once the request has timed out, and would be taken for the next request's
 	venue := &advancedTradeVenue{delayOnce: map[string]time.Duration{wsChannelLevel2: 3 * time.Second}}
-	server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, venue.upgrader()))
-	// The exchange dials with its own dialer, which reaches a listener but not the in-memory network
-	server.Start()
+	server := serveAdvancedTradeVenue(t, venue)
 	ex := newWebsocketTestExchange(t)
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
@@ -3330,23 +3357,46 @@ func (c *closeCountingConnection) SendRawMessage(ctx context.Context, epl reques
 // IsConnected reports whether the connection it wraps is connected
 func (c *closeCountingConnection) IsConnected() bool { return isConnected(c.Connection) }
 
-// timedOutConnection is a connection whose requests time out, counting the close frames sent on it
+// timedOutConnection is a connection whose requests time out, counting its requests, connection checks, frames and the
+// close frames among them; it refuses a request or a frame past the limit, and past the limit of requests or checks
+// reports itself disconnected, so a wait on its state ends
 type timedOutConnection struct {
 	websocket.Connection
+	mu        sync.Mutex
 	connected bool
+	requests  atomic.Int32
+	checks    atomic.Int32
+	frames    atomic.Int32
 	closes    atomic.Int32
 }
 
-// IsConnected reports whether the connection is connected
-func (c *timedOutConnection) IsConnected() bool { return c.connected }
+// IsConnected reports whether the connection is connected, disconnecting it past the limit
+func (c *timedOutConnection) IsConnected() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.checks.Add(1) > advancedTradeVenueRequestLimit {
+		c.connected = false
+	}
+	return c.connected
+}
 
-// SendMessageReturnResponse times out
+// SendMessageReturnResponse times out, or past the limit refuses the request and disconnects
 func (c *timedOutConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	if c.requests.Add(1) > advancedTradeVenueRequestLimit {
+		c.mu.Lock()
+		c.connected = false
+		c.mu.Unlock()
+		return nil, errRequestPastLimit
+	}
 	return nil, websocket.ErrSignatureTimeout
 }
 
-// SendRawMessage counts a close frame
+// SendRawMessage counts a frame, refusing it past the limit, and a close frame, which leaves the connection's state as it
+// was, as sending one leaves a real connection's
 func (c *timedOutConnection) SendRawMessage(_ context.Context, _ request.EndpointLimit, messageType int, _ []byte) error {
+	if c.frames.Add(1) > advancedTradeVenueRequestLimit {
+		return errRequestPastLimit
+	}
 	if messageType == gws.CloseMessage {
 		c.closes.Add(1)
 	}
@@ -3462,8 +3512,11 @@ func TestWebsocketSendRequest(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
 		failure := errors.New("send failure")
-		_, err := ex.wsSendRequest(t.Context(), &errorConnection{err: failure}, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
+		failing := &errorConnection{err: failure}
+		_, err := ex.wsSendRequest(t.Context(), failing, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
 		assert.ErrorIs(t, err, failure, "wsSendRequest should return the send failure")
+		assert.Equal(t, int32(1), failing.requests.Load(), "wsSendRequest should send the failing request once")
+		answering := make([]*responseConnection, 0, 5)
 		// The cases share ex in order, so each also checks that a request keeps nothing from the last
 		for response, exp := range map[string]error{
 			`[`: nil,
@@ -3473,13 +3526,20 @@ func TestWebsocketSendRequest(t *testing.T) {
 			`{"type":"error","message":"nope"}`: errWebsocketRequestRefused,
 		} {
 			t.Run(subtestName(response), func(t *testing.T) {
-				_, err := ex.wsSendRequest(t.Context(), &responseConnection{response: []byte(response)}, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
+				conn := &responseConnection{response: []byte(response)}
+				answering = append(answering, conn)
+				_, err := ex.wsSendRequest(t.Context(), conn, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
 				if exp == nil {
 					assert.Errorf(t, err, "wsSendRequest should error for %s", response)
 				} else {
 					assert.ErrorIsf(t, err, exp, "wsSendRequest should error for %s", response)
 				}
+				assert.Equalf(t, int32(1), conn.requests.Load(), "wsSendRequest should send the request once for %s", response)
 			})
+		}
+		assert.Equal(t, int32(1), failing.requests.Load(), "a later request should not send on the failing connection")
+		for _, conn := range answering {
+			assert.Equalf(t, int32(1), conn.requests.Load(), "a later request should not send on the connection answering %s", conn.response)
 		}
 	})
 
@@ -3567,21 +3627,185 @@ func TestWebsocketSendRequest(t *testing.T) {
 	t.Run("closes a connection still up on timeout", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketTestExchange(t)
+		conns := make(map[bool]*timedOutConnection, 2)
+		ended := make(map[bool][4]int32, 2)
 		// The cases share ex in order, so each also checks that a request keeps nothing from the last
 		for _, connected := range []bool{true, false} {
 			t.Run("connected "+strconv.FormatBool(connected), func(t *testing.T) {
 				conn := &timedOutConnection{connected: connected}
+				conns[connected] = conn
 				_, err := ex.wsSendRequest(t.Context(), conn, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
 				require.ErrorIsf(t, err, websocket.ErrSignatureTimeout, "wsSendRequest must return the timeout on a connection connected %t", connected)
+				assert.Equalf(t, int32(1), conn.requests.Load(), "wsSendRequest should send the request once on a connection connected %t", connected)
+				assert.LessOrEqualf(t, conn.checks.Load(), int32(advancedTradeVenueRequestLimit), "wsSendRequest should not check the connection past the limit, connected %t", connected)
 				// A connection already down, such as one shut down while the request waited, has nothing to close
 				exp := int32(0)
 				if connected {
 					exp = 1
 				}
 				assert.Equalf(t, exp, conn.closes.Load(), "wsSendRequest should close the connection only while it is up, connected %t", connected)
+				assert.Equalf(t, exp, conn.frames.Load(), "wsSendRequest should send no frame but the close, connected %t", connected)
+				ended[connected] = [4]int32{conn.requests.Load(), conn.checks.Load(), conn.frames.Load(), conn.closes.Load()}
+			})
+		}
+		for connected, exp := range ended {
+			conn := conns[connected]
+			assert.Equalf(t, exp, [4]int32{conn.requests.Load(), conn.checks.Load(), conn.frames.Load(), conn.closes.Load()}, "a later request should leave the connection connected %t alone", connected)
+		}
+	})
+}
+
+func TestAdvancedTradeVenueRequestLimit(t *testing.T) {
+	t.Parallel()
+	req := &WebsocketWireRequest{Type: wsRequestSubscribe, Channel: wsChannelHeartbeats}
+
+	t.Run("advancedTradeVenue", func(t *testing.T) {
+		t.Parallel()
+		venue := new(advancedTradeVenue)
+		handler := venue.upgrader()
+		handled := make(chan error, advancedTradeVenueRequestLimit+2)
+		server, dialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, conn *gws.Conn) error {
+			handled <- handler(t, msg, conn)
+			return nil
+		}))
+		dialer.HandshakeTimeout = 30 * time.Second
+		// The limit counts the requests of all the venue's connections, so the requests alternate between two
+		conns := make([]*gws.Conn, 2)
+		for i := range conns {
+			conn, resp, err := dialer.DialContext(t.Context(), "ws"+strings.TrimPrefix(server.URL, "http"), nil)
+			require.NoError(t, err, "DialContext must not error")
+			require.NoError(t, resp.Body.Close(), "closing the handshake response's body must not error")
+			t.Cleanup(func() { _ = conn.Close() })
+			conns[i] = conn
+		}
+		// reply sends a request on a connection and returns the venue's reply once it has taken the handler's result, so a
+		// request on the other connection cannot take it
+		reply := func(t *testing.T, conn *gws.Conn) []byte {
+			t.Helper()
+			require.NoError(t, conn.SetWriteDeadline(time.Now().Add(30*time.Second)), "SetWriteDeadline must not error")
+			require.NoError(t, conn.WriteJSON(req), "WriteJSON must not error")
+			require.NoError(t, conn.SetReadDeadline(time.Now().Add(30*time.Second)), "SetReadDeadline must not error")
+			_, frame, err := conn.ReadMessage()
+			require.NoError(t, err, "ReadMessage must not error")
+			select {
+			case err := <-handled:
+				require.NoError(t, err, "the venue must handle the request")
+			case <-time.After(30 * time.Second):
+				require.FailNow(t, "the venue must finish handling the request")
+			}
+			return frame
+		}
+		// The limit is spelt out, so a limit changed in the venue fails here
+		for n := 1; n <= 100; n++ {
+			frame := reply(t, conns[n%2])
+			var envelope *WebsocketEnvelope
+			require.NoErrorf(t, json.Unmarshal(frame, &envelope), "request %d's reply must decode", n)
+			require.NotNilf(t, envelope, "request %d's reply must not be null", n)
+			require.Equalf(t, wsChannelSubscriptions, envelope.Channel, "request %d's reply must be on the subscriptions channel", n)
+			var confirmation *WebsocketSubscriptionsResponse
+			require.NoErrorf(t, json.Unmarshal(frame, &confirmation), "request %d's reply must decode", n)
+			require.NotNilf(t, confirmation, "request %d's reply must not be null", n)
+			require.NotEqualf(t, wsMessageError, confirmation.Type, "request %d, within the limit, must not be refused", n)
+			require.Lenf(t, confirmation.Events, 1, "request %d's reply must carry one subscriptions event", n)
+			require.Equalf(t, []string{wsChannelHeartbeats}, confirmation.Events[0].Subscriptions[wsChannelHeartbeats], "request %d, within the limit, must be confirmed", n)
+		}
+		var refusal *WebsocketEnvelope
+		require.NoError(t, json.Unmarshal(reply(t, conns[1]), &refusal), "the refusal must decode")
+		require.NotNil(t, refusal, "the refusal must not be null")
+		assert.Equal(t, wsMessageError, refusal.Type, "a request past the limit should be refused")
+		require.NoError(t, conns[1].SetReadDeadline(time.Now().Add(30*time.Second)), "SetReadDeadline must not error")
+		_, _, err := conns[1].ReadMessage()
+		var closeErr *gws.CloseError
+		assert.ErrorAs(t, err, &closeErr, "a request past the limit should close the connection")
+		assert.Len(t, venue.allRequests(), 101, "the venue should record each request")
+	})
+
+	t.Run("timedOutConnection", func(t *testing.T) {
+		t.Parallel()
+		conn := &timedOutConnection{connected: true}
+		for n := 1; n <= 100; n++ {
+			_, err := conn.SendMessageReturnResponse(t.Context(), websocketMessageEPL, wsChannelSubscriptions, req)
+			require.ErrorIsf(t, err, websocket.ErrSignatureTimeout, "request %d, within the limit, must time out", n)
+		}
+		require.True(t, conn.IsConnected(), "the connection must stay connected up to its limit")
+		_, err := conn.SendMessageReturnResponse(t.Context(), websocketMessageEPL, wsChannelSubscriptions, req)
+		assert.ErrorIs(t, err, errRequestPastLimit, "a request past the limit should be refused")
+		assert.False(t, conn.IsConnected(), "a request past the limit should disconnect the connection")
+
+		closing := &timedOutConnection{connected: true}
+		require.NoError(t, closing.SendRawMessage(t.Context(), websocketMessageEPL, gws.CloseMessage, nil), "SendRawMessage must accept the close frame")
+		assert.Equal(t, int32(1), closing.closes.Load(), "the close frame should be counted")
+		// The limit is spelt out here too, and the close frame above leaves the connection up
+		for n := 1; n <= 100; n++ {
+			require.Truef(t, closing.IsConnected(), "check %d, within the limit, must find the connection connected", n)
+		}
+		assert.False(t, closing.IsConnected(), "a check past the limit should find the connection disconnected")
+	})
+
+	t.Run("timedOutConnection frames", func(t *testing.T) {
+		t.Parallel()
+		// The limit counts frames of every type, so one sequence alternates pings and close frames
+		for _, tc := range []struct {
+			name        string
+			messageType func(n int) int
+			closes      int32
+		}{
+			{name: "close frames", messageType: func(int) int { return gws.CloseMessage }, closes: 100},
+			{name: "pings and close frames alternating", messageType: func(n int) int {
+				if n%2 == 0 {
+					return gws.CloseMessage
+				}
+				return gws.PingMessage
+			}, closes: 50},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				conn := &timedOutConnection{connected: true}
+				for n := 1; n <= 100; n++ {
+					require.NoErrorf(t, conn.SendRawMessage(t.Context(), websocketMessageEPL, tc.messageType(n), nil), "frame %d, within the limit, must be accepted", n)
+				}
+				assert.ErrorIs(t, conn.SendRawMessage(t.Context(), websocketMessageEPL, gws.CloseMessage, nil), errRequestPastLimit, "a close frame past the limit should be refused")
+				assert.ErrorIs(t, conn.SendRawMessage(t.Context(), websocketMessageEPL, gws.PingMessage, nil), errRequestPastLimit, "a ping past the limit should be refused")
+				assert.Equal(t, tc.closes, conn.closes.Load(), "only the close frames within the limit should be counted")
+				assert.True(t, conn.IsConnected(), "frames past the limit should leave the connection connected")
 			})
 		}
 	})
+
+	failure := errors.New("send failure")
+	for _, tc := range []struct {
+		name   string
+		conn   websocket.Connection
+		answer func(*testing.T, []byte, error)
+	}{
+		{
+			name: "errorConnection",
+			conn: &errorConnection{err: failure},
+			answer: func(t *testing.T, _ []byte, err error) {
+				t.Helper()
+				require.ErrorIs(t, err, failure, "a request within the limit must fail with the connection's error")
+			},
+		},
+		{
+			name: "responseConnection",
+			conn: &responseConnection{response: []byte(`{"type":"error","message":"nope"}`)},
+			answer: func(t *testing.T, resp []byte, err error) {
+				t.Helper()
+				require.NoError(t, err, "a request within the limit must not error")
+				require.JSONEq(t, `{"type":"error","message":"nope"}`, string(resp), "a request within the limit must be answered")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for range 100 {
+				resp, err := tc.conn.SendMessageReturnResponse(t.Context(), websocketMessageEPL, wsChannelSubscriptions, req)
+				tc.answer(t, resp, err)
+			}
+			_, err := tc.conn.SendMessageReturnResponse(t.Context(), websocketMessageEPL, wsChannelSubscriptions, req)
+			assert.ErrorIs(t, err, errRequestPastLimit, "a request past the limit should be refused")
+		})
+	}
 }
 
 func TestAdvancedTradeChannelOf(t *testing.T) {
@@ -3605,25 +3829,33 @@ func TestAdvancedTradeChannelOf(t *testing.T) {
 	}
 }
 
-// errorConnection is a connection whose requests fail
+// errorConnection is a connection returning its error to each request within the limit, counting them
 type errorConnection struct {
 	websocket.Connection
-	err error
+	err      error
+	requests atomic.Int32
 }
 
-// SendMessageReturnResponse fails
+// SendMessageReturnResponse returns the connection's error, or past the limit refuses the request
 func (c *errorConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	if c.requests.Add(1) > advancedTradeVenueRequestLimit {
+		return nil, errRequestPastLimit
+	}
 	return nil, c.err
 }
 
-// responseConnection is a connection answering every request with one response
+// responseConnection is a connection answering each request within the limit with one response, counting them
 type responseConnection struct {
 	websocket.Connection
 	response []byte
+	requests atomic.Int32
 }
 
-// SendMessageReturnResponse answers with the connection's response
+// SendMessageReturnResponse answers with the connection's response, or past the limit refuses the request
 func (c *responseConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	if c.requests.Add(1) > advancedTradeVenueRequestLimit {
+		return nil, errRequestPastLimit
+	}
 	return c.response, nil
 }
 
